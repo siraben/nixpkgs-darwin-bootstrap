@@ -33,6 +33,9 @@
           raw-syscall-hello = bootstrap.raw-syscall-hello;
           raw-syscall-hello-unsigned = bootstrap.raw-syscall-hello-unsigned;
         }
+        // nixpkgs.lib.optionalAttrs (bootstrap.phase1-hex1 != null) {
+          phase1-hex1 = bootstrap.phase1-hex1;
+        }
       );
 
       checks = forAllSystems (system: (bootstrapFor system).tests);
