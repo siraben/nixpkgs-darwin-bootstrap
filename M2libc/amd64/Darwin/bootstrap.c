@@ -15,26 +15,103 @@
  * along with M2-Planet.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+enum
+{
+	stdin = 0,
+	stdout = 1,
+	stderr = 2,
+};
+
+enum
+{
+	EOF = 0xFFFFFFFF,
+	NULL = 0,
+};
+
+enum
+{
+	EXIT_FAILURE = 1,
+	EXIT_SUCCESS = 0,
+};
+
+enum
+{
+	TRUE = 1,
+	FALSE = 0,
+};
+
+void* malloc(int size);
+
 unsigned read(FILE* f, char* buffer, unsigned count) {
-	asm("mov_rax, %0x2000003"
-	    "lea_rsi,[rsp+DWORD] %16"
-	    "mov_rsi,[rsi]"
-	    "lea_rdx,[rsp+DWORD] %8"
-	    "mov_rdx,[rdx]"
-	    "lea_rdi,[rsp+DWORD] %24"
-	    "mov_rdi,[rdi]"
-	    "syscall");
+	asm(
+			"mov_rax, %0x2000003"
+			"lea_rsi,[rsp+DWORD] %16"
+			"mov_rsi,[rsi]"
+			"lea_rdx,[rsp+DWORD] %8"
+			"mov_rdx,[rdx]"
+			"lea_rdi,[rsp+DWORD] %24"
+			"mov_rdi,[rdi]"
+			"syscall");
+}
+
+char* __fputc_buffer;
+int fgetc(FILE* f)
+{
+	if(__fputc_buffer == NULL) {
+		__fputc_buffer = malloc(1);
+	}
+
+	if(read(f, __fputc_buffer, 1) <= 0) {
+		return EOF;
+	}
+
+	return __fputc_buffer[0];
+}
+
+unsigned fread(char* buffer, unsigned size, unsigned count, FILE* f) {
+	return read(f, buffer, size * count);
 }
 
 unsigned write(FILE* f, char* buffer, unsigned count) {
-	asm("mov_rax, %0x2000004"
-	    "lea_rsi,[rsp+DWORD] %16"
-	    "mov_rsi,[rsi]"
-	    "lea_rdx,[rsp+DWORD] %8"
-	    "mov_rdx,[rdx]"
-	    "lea_rdi,[rsp+DWORD] %24"
-	    "mov_rdi,[rdi]"
-	    "syscall");
+	asm(
+			"mov_rax, %0x2000004"
+			"lea_rsi,[rsp+DWORD] %16"
+			"mov_rsi,[rsi]"
+			"lea_rdx,[rsp+DWORD] %8"
+			"mov_rdx,[rdx]"
+			"lea_rdi,[rsp+DWORD] %24"
+			"mov_rdi,[rdi]"
+			"syscall");
+}
+
+void fputc(char s, FILE* f)
+{
+	if(__fputc_buffer == NULL) {
+		__fputc_buffer = malloc(1);
+	}
+	__fputc_buffer[0] = s;
+
+	write(f, __fputc_buffer, 1);
+}
+
+unsigned fwrite(char* buffer, unsigned size, unsigned count, FILE* f) {
+	if(size == 0 || count == 0) {
+		return 0;
+	}
+
+	return write(f, buffer, size * count);
+}
+
+int strlen(char* str )
+{
+	int i = 0;
+	while(0 != str[i]) i = i + 1;
+	return i;
+}
+
+void fputs(char* s, FILE* f)
+{
+	write(f, s, strlen(s));
 }
 
 FILE* open(char* name, int flag, int mode)
@@ -49,6 +126,25 @@ FILE* open(char* name, int flag, int mode)
 	    "syscall");
 }
 
+FILE* fopen(char* filename, char* mode)
+{
+	FILE* f;
+	if('w' == mode[0])
+	{
+		f = open(filename, 1537 , 384);
+	}
+	else
+	{
+		f = open(filename, 0, 0);
+	}
+
+	if(0 > f)
+	{
+		return 0;
+	}
+	return f;
+}
+
 int close(int fd)
 {
 	asm("lea_rdi,[rsp+DWORD] %8"
@@ -57,14 +153,51 @@ int close(int fd)
 	    "syscall");
 }
 
-int brk(void *addr)
+int fclose(FILE* stream)
 {
-	asm("mov_rax,[rsp+DWORD] %8"
-	    "push_rax"
-	    "mov_rax, %0x2000011"
-	    "pop_rbx"
-	    "mov_rdi,rbx"
-	    "syscall");
+	int error = close(stream);
+	return error;
+}
+
+char __malloc_area[16777216];
+long _malloc_ptr;
+
+void* malloc(int size)
+{
+	if(NULL == _malloc_ptr)
+	{
+		_malloc_ptr = __malloc_area;
+	}
+
+	size = (size + 7) & -8;
+	if((__malloc_area + 16777216) < (_malloc_ptr + size)) return 0;
+
+	long old_malloc = _malloc_ptr;
+	_malloc_ptr = _malloc_ptr + size;
+	return old_malloc;
+}
+
+void* memset(void* ptr, int value, int num)
+{
+	char* s;
+	for(s = ptr; 0 < num; num = num - 1)
+	{
+		s[0] = value;
+		s = s + 1;
+	}
+}
+
+void* calloc(int count, int size)
+{
+	void* ret = malloc(count * size);
+	if(NULL == ret) return NULL;
+	memset(ret, 0, (count * size));
+	return ret;
+}
+
+void free(void* l)
+{
+	return;
 }
 
 void exit(int value)

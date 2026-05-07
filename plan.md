@@ -12,10 +12,10 @@
 ## Immediate blocker
 
 - [x] Fix `M0-darwin` output fidelity for strings and raw string tokens.
-- [ ] Fix `cc_arch-darwin` runtime fidelity for M2-Planet input.
-  - `cc_arch-darwin` now starts, reads input, and fails gracefully on an invalid tiny C smoke.
-  - Compiling the real `M2-0.c` currently segfaults while matching a token derived from inline asm string data.
-  - Next work is narrowing whether this is a bad static-data relocation, malloc/list field issue, or a missing M2 C string-token transform.
+- [x] Fix `cc_arch-darwin` runtime fidelity for M2-Planet input.
+  - Static cc_arch data is copied into `__DATA` and RIP-relative references are redirected there.
+  - cc_arch heap allocation starts after the copied static region instead of overwriting it.
+  - The concatenated Darwin `M2-0.c` compiles to `M2-0.M1`.
 
 ## Next chain tasks
 

@@ -5,9 +5,9 @@ import sys
 
 
 BASE = 0x600000
-ENTRY_OFFSET = 0x400
 DATA_FILE_OFFSET = 0x800000
 DATA_VM = 0xE00000
+HEAP_VM = 0x2000000
 
 
 def replace_once(source, old, new):
@@ -24,7 +24,7 @@ def port_source(input_path, output_path):
     source = replace_once(
         source,
         "48C7C0\n0C000000\n48C7C7\n00000000\n0F05\n4989C5\n",
-        "49BD\n0000E00000000000\n",
+        f"49BD\n{HEAP_VM.to_bytes(8, 'little').hex().upper()}\n",
     )
     source = source.replace("48C7C0\n02000000\n0F05", "48C7C0\n05000002\n0F05")
     source = source.replace("48C7C0\n00000000\n52\n48C7C2\n01000000\n51\n4153\n0F05", "48C7C0\n03000002\n52\n48C7C2\n01000000\n51\n4153\n0F05")
