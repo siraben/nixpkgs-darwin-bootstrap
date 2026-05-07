@@ -236,9 +236,10 @@ let
     if hostPlatform.isx86_64 then
       stdenv.mkDerivation {
         pname = "darwin-minimal-bootstrap-phase1-hex1-amd64";
-        version = "0-unstable-2026-05-07";
+        version = "0-unstable-2026-05-07.1";
 
         dontUnpack = true;
+        dontStrip = true;
         strictDeps = true;
 
         nativeBuildInputs = [ python3 ];
@@ -260,6 +261,21 @@ let
           printf 'Hi\n' > expected
           ./hex1-darwin input.hex1 output
           cmp expected output
+
+          cat > labels.hex1 <<'HEX1'
+          :s
+          48 69 0a
+          HEX1
+          ./hex1-darwin labels.hex1 labels-output
+          cmp expected labels-output
+
+          cat > pointer.hex1 <<'HEX1'
+          :s
+          %s
+          HEX1
+          printf '\xfc\xff\xff\xff' > pointer-expected
+          ./hex1-darwin pointer.hex1 pointer-output
+          cmp pointer-expected pointer-output
 
           runHook postBuild
         '';

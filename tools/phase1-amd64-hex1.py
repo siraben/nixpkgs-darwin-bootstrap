@@ -75,8 +75,8 @@ def macho_header():
         + name16("__DATA")
         + p64(data_vm)
         + p64(0x100000)
-        + p64(0)
-        + p64(0)
+        + p64(text_size)
+        + p64(0x100000)
         + p32(3)
         + p32(3)
         + p32(0)
@@ -237,6 +237,9 @@ def main():
     header, _base, data_vm, linkedit_offset = macho_header()
     binary = bytearray(header + body_binary.read_bytes())
     patch_binary(binary, data_vm)
+    data_end = data_vm - _base + 0x100000
+    if len(binary) < data_end:
+        binary.extend(bytes(data_end - len(binary)))
     if len(binary) < linkedit_offset:
         binary.extend(bytes(linkedit_offset - len(binary)))
 
