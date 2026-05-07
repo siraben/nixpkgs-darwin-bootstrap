@@ -36,6 +36,9 @@
         // nixpkgs.lib.optionalAttrs (bootstrap.phase1-hex1 != null) {
           phase1-hex1 = bootstrap.phase1-hex1;
         }
+        // nixpkgs.lib.optionalAttrs (bootstrap.phase2-hex2 != null) {
+          phase2-hex2 = bootstrap.phase2-hex2;
+        }
       );
 
       checks = forAllSystems (system: (bootstrapFor system).tests);
