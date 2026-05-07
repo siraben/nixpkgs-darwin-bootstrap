@@ -40,6 +40,9 @@
           phase2-hex2 = bootstrap.phase2-hex2;
           phase2-catm = bootstrap.phase2-catm;
         }
+        // nixpkgs.lib.optionalAttrs (bootstrap.phase3-m0 != null) {
+          phase3-m0 = bootstrap.phase3-m0;
+        }
       );
 
       checks = forAllSystems (system: (bootstrapFor system).tests);
