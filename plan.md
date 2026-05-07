@@ -7,17 +7,19 @@
 - [x] amd64 Darwin `hex2-0` from stage0 `AMD64/hex2_AMD64.hex1`.
 - [x] amd64 Darwin `catm` from stage0 `AMD64/catm_AMD64.hex2`.
 - [x] amd64 Darwin `M0` from stage0 `AMD64/M0_AMD64.hex2`.
+- [x] amd64 Darwin `cc_arch` assembles and signs as a Mach-O candidate.
 
 ## Immediate blocker
 
-- [ ] Fix `M0-darwin` output fidelity for `AMD64/cc_amd64.M1`.
-  - Reproduce `cc_arch-0.hex2` generation with readable artifacts.
-  - Diff Darwin `M0-darwin` output against a trusted Linux/stage0-posix output.
-  - Fix M0 token, immediate, string, or macro handling until `phase2-hex2` accepts `cc_arch.hex2`.
+- [x] Fix `M0-darwin` output fidelity for strings and raw string tokens.
+- [ ] Fix `cc_arch-darwin` runtime fidelity for M2-Planet input.
+  - `cc_arch-darwin` now starts, reads input, and fails gracefully on an invalid tiny C smoke.
+  - Compiling the real `M2-0.c` currently segfaults while matching a token derived from inline asm string data.
+  - Next work is narrowing whether this is a bad static-data relocation, malloc/list field issue, or a missing M2 C string-token transform.
 
 ## Next chain tasks
 
-- [ ] Package amd64 Darwin `cc_arch`.
+- [x] Package amd64 Darwin `cc_arch`.
   - Build `cc_arch-0.hex2` with `M0-darwin`.
   - Concatenate Mach-O low-data header and `cc_arch-0.hex2` with `catm-darwin`.
   - Assemble with `hex2-darwin`, pad to `__LINKEDIT`, sign, and smoke-test.
