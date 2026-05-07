@@ -175,6 +175,19 @@ def port_hex2_source(stage0_sources, output):
         ("48C7C0 3C000000", "48C7C0 01000002"),
         ("48C7C0 00000000             ; mov_rax, %0                 # the syscall number for read", "48C7C0 03000002             ; mov_rax, %0x2000003           # Darwin read"),
         ("48C7C0 01000000             ; mov_rax, %1                 # the syscall number for write", "48C7C0 04000002             ; mov_rax, %0x2000004           # Darwin write"),
+        (
+            "\t48C7C7 01000000             ; mov_rdi, %1                 # All is wrong\n"
+            "\t48C7C0 01000002             ; mov_rax, %0x3C              # put the exit syscall number in eax\n"
+            "\t0F05                        ; syscall                     # Call it a good day",
+            "\t48C7C2 40000000             ; mov_rdx, %64                # Debug token length\n"
+            "\t488B35 %T                   ; mov_rsi,[rip+DWORD] %scratch # Debug unresolved token\n"
+            "\t48C7C7 02000000             ; mov_rdi, %2                 # stderr\n"
+            "\t48C7C0 04000002             ; mov_rax, %0x2000004         # Darwin write\n"
+            "\t0F05                        ; syscall\n"
+            "\t48C7C7 01000000             ; mov_rdi, %1                 # All is wrong\n"
+            "\t48C7C0 01000002             ; mov_rax, %0x2000001         # Darwin exit\n"
+            "\t0F05                        ; syscall",
+        ),
     ]
     for old, new in replacements:
         source = source.replace(old, new)
@@ -214,7 +227,13 @@ def patch_binary(binary, data_vm):
 
     for opcode in [b"\x48\x8d\x35", b"\x8a\x05"]:
         patch_rel32(binary, opcode, write_buffer)
-    for opcode in [b"\x4c\x89\x25", b"\x48\x8b\x1d", b"\x48\x8b\x3d", b"\x48\x8b\x05"]:
+    for opcode in [
+        b"\x4c\x89\x25",
+        b"\x48\x8b\x1d",
+        b"\x48\x8b\x3d",
+        b"\x48\x8b\x05",
+        b"\x48\x8b\x35",
+    ]:
         patch_rel32(binary, opcode, scratch_slot)
     patch_malloc(binary, heap)
 

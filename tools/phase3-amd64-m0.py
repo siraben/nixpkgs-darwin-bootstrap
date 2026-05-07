@@ -88,7 +88,10 @@ def port_m0_source(stage0_sources, output):
         1,
     )
     replacements = [
-        ("48C7C0 02000000", "48C7C0 05000002"),
+        (
+            "48C7C0 02000000         ; mov_rax, %2                 # the syscall number for open()",
+            "48C7C0 05000002         ; mov_rax, %0x2000005       # Darwin open",
+        ),
         ("48C7C6 41020000", "48C7C6 01060000"),
         ("48C7C0 00000000         ; mov_rax, %0                 # the syscall number for read", "48C7C0 03000002         ; mov_rax, %0x2000003       # Darwin read"),
         ("48C7C0 01000000         ; mov_rax, %1                 # the syscall number for write", "48C7C0 04000002         ; mov_rax, %0x2000004       # Darwin write"),
