@@ -1,0 +1,289 @@
+{
+  darwin,
+  lib,
+  minimal-bootstrap-sources,
+  stdenv,
+  runCommand,
+}:
+
+let
+  hostPlatform = stdenv.hostPlatform;
+
+  supportedSystems = [
+    "aarch64-darwin"
+    "x86_64-darwin"
+  ];
+
+  arch =
+    if !hostPlatform.isDarwin then
+      throw "darwin-minimal-bootstrap: unsupported non-Darwin platform ${hostPlatform.config}"
+    else if hostPlatform.isAarch64 then
+      "aarch64"
+    else if hostPlatform.isx86_64 then
+      "x86_64"
+    else
+      throw "darwin-minimal-bootstrap: unsupported Darwin architecture ${hostPlatform.config}";
+
+  source = ./hello + "/raw-syscall-${arch}.s";
+
+  stage0-posix = import ./stage0-posix { inherit lib hostPlatform; };
+
+  stage0Sources =
+    minimal-bootstrap-sources.minimal-bootstrap-sources or minimal-bootstrap-sources;
+
+  hex0 = stdenv.mkDerivation {
+    pname = "darwin-minimal-bootstrap-hex0";
+    version = "0-unstable-2026-05-07";
+
+    src = ./hex0;
+    strictDeps = true;
+
+    buildPhase = ''
+      runHook preBuild
+      $CC $CFLAGS -o hex0 hex0.c
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 hex0 $out/bin/hex0
+      runHook postInstall
+    '';
+
+    meta = {
+      description = "Darwin hex0 assembler for minimal bootstrap experiments";
+      teams = [ lib.teams.minimal-bootstrap ];
+      platforms = supportedSystems;
+    };
+
+    passthru.tests = {
+      converts-hex = tests.hex0-converts-hex;
+    };
+  };
+
+  m2libc-darwin = runCommand "darwin-minimal-bootstrap-m2libc" { } ''
+    mkdir -p $out
+    cp -R ${./M2libc}/. $out/
+  '';
+
+  m2libcDarwinSmoke = runCommand "darwin-minimal-bootstrap-m2libc-smoke" { } ''
+    for source in ${./M2libc}/aarch64/Darwin/bootstrap.c ${./M2libc}/aarch64/libc-core-Darwin.M1; do
+      if grep -q 'mov_x8,' "$source"; then
+        echo "$source still uses the Linux aarch64 syscall register" >&2
+        exit 1
+      fi
+    done
+
+    if grep -q 'ldr_x0,\[x18\]' ${./M2libc}/aarch64/libc-core-Darwin.M1; then
+      echo "aarch64 Darwin startup still reads argc from the Linux initial stack" >&2
+      exit 1
+    fi
+    grep -q 'mov_x14,x0' ${./M2libc}/aarch64/libc-core-Darwin.M1
+    grep -q 'mov_x15,x1' ${./M2libc}/aarch64/libc-core-Darwin.M1
+    grep -q 'DEFINE svc_0 011000d4' ${./M2libc}/aarch64/aarch64_defs.M1
+
+    for source in ${./M2libc}/amd64/Darwin/bootstrap.c ${./M2libc}/amd64/libc-core-Darwin.M1; do
+      if grep -q 'mov_rax, %0x3C\|mov_rax, %[0-9][^x]' "$source"; then
+        echo "$source still uses an unclassified Linux syscall number" >&2
+        exit 1
+      fi
+    done
+
+    for token in \
+      'mov_x16,1' \
+      'mov_x16,3' \
+      'mov_x16,4' \
+      'mov_x16,5' \
+      'mov_x16,6' \
+      'mov_x16,17'
+    do
+      grep -q "DEFINE $token " ${./M2libc}/aarch64/aarch64_defs.M1
+    done
+
+    for source in \
+      ${./M2libc}/aarch64/MACHO-aarch64.hex2 \
+      ${./M2libc}/amd64/MACHO-amd64.hex2
+    do
+      grep -q ':MACHO_base' "$source"
+      grep -q ':MACHO_text' "$source"
+      grep -q '2f 75 73 72 2f 6c 69 62' "$source"
+      grep -q '6c 69 62 53 79 73 74' "$source"
+    done
+
+    mkdir $out
+  '';
+
+  machoTemplateHelloRuns = stdenv.mkDerivation {
+    name = "darwin-minimal-bootstrap-macho-template-hello-runs";
+
+    dontUnpack = true;
+    strictDeps = true;
+
+    buildPhase = ''
+      runHook preBuild
+
+      $CC -I${stage0Sources} -o hex2 \
+        ${stage0Sources}/M2libc/bootstrappable.c \
+        ${stage0Sources}/mescc-tools/hex2_linker.c \
+        ${stage0Sources}/mescc-tools/hex2_word.c \
+        ${stage0Sources}/mescc-tools/hex2.c
+
+      ${lib.optionalString hostPlatform.isAarch64 ''
+        cat > hello.hex2 <<'HEX2'
+        :_start
+        20 00 80 d2
+        01 00 00 90
+        21 b0 0b 91
+        a2 01 80 d2
+        90 00 80 d2
+        01 10 00 d4
+        00 00 80 d2
+        30 00 80 d2
+        01 10 00 d4
+        :message
+        68 65 6c 6c 6f 20 64 61 72 77 69 6e 0a
+        :ELF_end
+        HEX2
+
+        ./hex2 --architecture aarch64 --little-endian \
+          --base-address 0x100000000 \
+          -f ${./M2libc}/aarch64/MACHO-aarch64.hex2 \
+          -f hello.hex2 \
+          -o hello
+
+        currentSize="$(wc -c < hello | tr -d ' ')"
+        if [ "$currentSize" -gt 16777216 ]; then
+          echo "Mach-O template __LINKEDIT offset is before end of text" >&2
+          exit 1
+        fi
+
+        dd if=/dev/zero of=hello bs=1 count=1 seek=16777215 conv=notrunc
+        chmod +x hello
+
+        source ${darwin.signingUtils}
+        sign hello
+
+        output="$(./hello)"
+        test "$output" = "hello darwin"
+      ''}
+
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      mkdir $out
+      runHook postInstall
+    '';
+  };
+
+  raw-syscall-hello = stdenv.mkDerivation {
+    pname = "darwin-minimal-bootstrap-raw-syscall-hello";
+    version = "0-unstable-2026-05-07";
+
+    dontUnpack = true;
+    strictDeps = true;
+
+    buildPhase = ''
+      runHook preBuild
+      $CC ${source} -o raw-syscall-hello
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 raw-syscall-hello $out/bin/raw-syscall-hello
+      runHook postInstall
+    '';
+
+    meta = {
+      description = "Darwin raw-syscall Mach-O smoke binary for minimal bootstrap experiments";
+      teams = [ lib.teams.minimal-bootstrap ];
+      platforms = supportedSystems;
+    };
+
+    passthru.tests = tests;
+  };
+
+  raw-syscall-hello-unsigned = stdenv.mkDerivation {
+    pname = "darwin-minimal-bootstrap-raw-syscall-hello-unsigned";
+    version = "0-unstable-2026-05-07";
+
+    dontUnpack = true;
+    strictDeps = true;
+
+    buildPhase = ''
+      runHook preBuild
+      $CC ${source} -Wl,-no_adhoc_codesign -o raw-syscall-hello
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 raw-syscall-hello $out/bin/raw-syscall-hello
+      runHook postInstall
+    '';
+
+    meta = {
+      description = "Unsigned Darwin raw-syscall Mach-O smoke binary for signing bootstrap experiments";
+      teams = [ lib.teams.minimal-bootstrap ];
+      platforms = supportedSystems;
+    };
+  };
+
+  tests = {
+    hex0-converts-hex = runCommand "darwin-minimal-bootstrap-hex0-converts-hex" { } ''
+      cat > input.hex0 <<'HEX'
+        68 65 6c 6c 6f 0a ; hello newline
+      HEX
+      ${hex0}/bin/hex0 input.hex0 output
+      test "$(cat output)" = "hello"
+      mkdir $out
+    '';
+
+    raw-syscall-hello-runs = runCommand "darwin-minimal-bootstrap-raw-syscall-hello-runs" { } ''
+      output="$(${raw-syscall-hello}/bin/raw-syscall-hello)"
+      test "$output" = "hello darwin"
+      mkdir $out
+    '';
+
+    xcode-signing-bridge = runCommand "darwin-minimal-bootstrap-xcode-signing-bridge" { } ''
+      source ${darwin.signingUtils}
+
+      cp ${raw-syscall-hello-unsigned}/bin/raw-syscall-hello ./raw-syscall-hello
+      chmod +w ./raw-syscall-hello
+      sign ./raw-syscall-hello
+
+      output="$(./raw-syscall-hello)"
+      test "$output" = "hello darwin"
+      mkdir $out
+    '';
+
+    m2libc-darwin-smoke = m2libcDarwinSmoke;
+
+    macho-template-hello-runs = machoTemplateHelloRuns;
+
+    stage0-posix-phase-graph = runCommand "darwin-minimal-bootstrap-stage0-posix-phase-graph" { } ''
+      test ${lib.escapeShellArg (toString stage0-posix.sameLengthAsLinuxMesccToolsBoot)} = 1
+      test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 6
+      test ${lib.escapeShellArg stage0-posix.m2libcOS} = Darwin
+      test ${lib.escapeShellArg stage0-posix.executableHeader} = MACHO-${arch}.hex2
+      if grep -q '/linux/' ${./stage0-posix/mescc-tools-boot.nix}; then
+        echo "Darwin mescc-tools-boot still references Linux M2libc paths" >&2
+        exit 1
+      fi
+      mkdir $out
+    '';
+  };
+in
+{
+  inherit
+    hex0
+    m2libc-darwin
+    stage0-posix
+    supportedSystems
+    raw-syscall-hello
+    raw-syscall-hello-unsigned
+    tests
+    ;
+}
