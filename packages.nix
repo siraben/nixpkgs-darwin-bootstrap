@@ -233,9 +233,50 @@ let
   };
 
   phase1-hex1 =
-    if !hostPlatform.isAarch64 then
-      null
-    else
+    if hostPlatform.isx86_64 then
+      stdenv.mkDerivation {
+        pname = "darwin-minimal-bootstrap-phase1-hex1-amd64";
+        version = "0-unstable-2026-05-07";
+
+        dontUnpack = true;
+        strictDeps = true;
+
+        nativeBuildInputs = [ python3 ];
+
+        buildPhase = ''
+          runHook preBuild
+
+          python3 ${./tools/phase1-amd64-hex1.py} \
+            ${stage0Sources} \
+            ${hex0}/bin/hex0 \
+            .
+
+          source ${darwin.signingUtils}
+          sign hex1-darwin
+
+          cat > input.hex1 <<'HEX1'
+          48 69 0a
+          HEX1
+          printf 'Hi\n' > expected
+          ./hex1-darwin input.hex1 output
+          cmp expected output
+
+          runHook postBuild
+        '';
+
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 hex1-darwin $out/bin/hex1-darwin
+          install -Dm644 hex1_AMD64_darwin_body.hex0 $out/share/darwin-bootstrap/hex1_AMD64_darwin_body.hex0
+          runHook postInstall
+        '';
+
+        meta = {
+          description = "Runnable signed Darwin Mach-O phase-1 AMD64 hex1";
+          platforms = [ "x86_64-darwin" ];
+        };
+      }
+    else if hostPlatform.isAarch64 then
       stdenv.mkDerivation {
         pname = "darwin-minimal-bootstrap-phase1-hex1";
         version = "0-unstable-2026-05-07";
@@ -334,7 +375,9 @@ let
           description = "Signed Darwin Mach-O phase-1 hex1 candidate";
           platforms = [ "aarch64-darwin" ];
         };
-      };
+      }
+    else
+      null;
 
   tests = {
     hex0-converts-hex = runCommand "darwin-minimal-bootstrap-hex0-converts-hex" { } ''
