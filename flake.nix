@@ -38,6 +38,7 @@
         }
         // nixpkgs.lib.optionalAttrs (bootstrap.phase2-hex2 != null) {
           phase2-hex2 = bootstrap.phase2-hex2;
+          phase2-catm = bootstrap.phase2-catm;
         }
       );
 
