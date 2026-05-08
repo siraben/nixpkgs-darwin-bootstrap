@@ -1,0 +1,59 @@
+--- a/libiberty/regex.c
++++ b/libiberty/regex.c
+@@ -1,3 +1,23 @@
++#if 1
++#include <stddef.h>
++#include <xregex.h>
++reg_syntax_t re_syntax_options;
++int re_max_failures;
++reg_syntax_t re_set_syntax(reg_syntax_t syntax) { reg_syntax_t old = re_syntax_options; re_syntax_options = syntax; return old; }
++const char *re_compile_pattern(const char *pattern, size_t length, struct re_pattern_buffer *buffer) { return "regex unavailable"; }
++int re_compile_fastmap(struct re_pattern_buffer *buffer) { return -2; }
++int re_search(struct re_pattern_buffer *buffer, const char *string, int length, int start, int range, struct re_registers *regs) { return -1; }
++int re_search_2(struct re_pattern_buffer *buffer, const char *string1, int length1, const char *string2, int length2, int start, int range, struct re_registers *regs, int stop) { return -1; }
++int re_match(struct re_pattern_buffer *buffer, const char *string, int length, int start, struct re_registers *regs) { return -1; }
++int re_match_2(struct re_pattern_buffer *buffer, const char *string1, int length1, const char *string2, int length2, int start, struct re_registers *regs, int stop) { return -1; }
++void re_set_registers(struct re_pattern_buffer *buffer, struct re_registers *regs, unsigned num_regs, regoff_t *starts, regoff_t *ends) { }
++char *re_comp(const char *pattern) { return "regex unavailable"; }
++int re_exec(const char *string) { return 0; }
++int regcomp(regex_t *preg, const char *pattern, int cflags) { return 1; }
++int regexec(const regex_t *preg, const char *string, size_t nmatch, regmatch_t pmatch[], int eflags) { return 1; }
++size_t regerror(int errcode, const regex_t *preg, char *errbuf, size_t errbuf_size) { if (errbuf && errbuf_size) errbuf[0] = 0; return 1; }
++void regfree(regex_t *preg) { }
++#else
+ /* Extended regular expression matching and search library,
+    version 0.12.
+    (Implements POSIX draft P1003.2/D11.2, except for some of the
+@@ -8203,3 +8223,4 @@
+ # undef WCHAR
+ 
+ # define DEFINED_ONCE
++#endif
+--- a/libiberty/cplus-dem.c
++++ b/libiberty/cplus-dem.c
+@@ -1,3 +1,20 @@
++#if 1
++#include <stddef.h>
++#include <demangle.h>
++enum demangling_styles current_demangling_style = auto_demangling;
++const struct demangler_engine libiberty_demanglers[] = {
++  { NO_DEMANGLING_STYLE_STRING, no_demangling, "Demangling disabled" },
++  { AUTO_DEMANGLING_STYLE_STRING, auto_demangling, "Automatic selection" },
++  { 0, unknown_demangling, 0 }
++};
++void set_cplus_marker_for_demangling(int ch) { }
++char *cplus_demangle(const char *mangled, int options) { return 0; }
++int cplus_demangle_opname(const char *opname, char *result, int options) { return 0; }
++const char *cplus_mangle_opname(const char *opname, int options) { return 0; }
++enum demangling_styles cplus_demangle_set_style(enum demangling_styles style) { current_demangling_style = style; return style; }
++enum demangling_styles cplus_demangle_name_to_style(const char *name) { return unknown_demangling; }
++char *ada_demangle(const char *mangled, int options) { return 0; }
++#else
+ /* Demangler for GNU C++
+    Copyright 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999,
+    2000, 2001, 2002, 2003, 2004, 2010 Free Software Foundation, Inc.
+@@ -4861,3 +4878,4 @@
+   sprintf(buf, "T%d", idx);
+   string_append (s, buf);
+ }
++#endif

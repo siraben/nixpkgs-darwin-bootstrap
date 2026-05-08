@@ -56,6 +56,7 @@ FILE *fdopen(int fd, const char *m) { return (FILE *)(long)(fd + 3); }
 FILE *fopen(const char *p, const char *m) { int flags = 0; if (m && m[0] == 'w') flags = 0x601; long fd = open(p, flags, 0666); return fd < 0 ? 0 : (FILE *)(fd + 3); }
 int fclose(FILE *f) { return close(file_fd(f)); }
 int fflush(FILE *f) { return 0; }
+int ferror(FILE *f) { return 0; }
 int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
 long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
 

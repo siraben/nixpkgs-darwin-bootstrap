@@ -2352,6 +2352,15 @@ let
       test -f $out/mpc/configure
     '';
 
+  gcc46DarwinBootstrapSrc =
+    runCommand "darwin-minimal-bootstrap-gcc-${gcc46Version}-darwin-bootstrap-source" { } ''
+      mkdir -p $out
+      cp -R ${phase26-gcc46-source}/. $out/
+      chmod -R u+w $out
+      cd $out
+      patch -p1 < ${./patches/gcc46-darwin-bootstrap.patch}
+    '';
+
   phase27-tinycc-elf-to-macho-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase27-tinycc-elf-to-macho-probe-amd64" { } ''
@@ -2894,7 +2903,182 @@ let
   phase34-tinycc-darwin-cc =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64" { } ''
-        mkdir -p $out/bin $out/share/darwin-bootstrap
+        mkdir -p $out/bin $out/include/tcc-darwin-bootstrap/sys $out/share/darwin-bootstrap
+
+        cat > $out/include/tcc-darwin-bootstrap/limits.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_LIMITS_H
+        #define _DARWIN_BOOTSTRAP_LIMITS_H
+        #define CHAR_BIT 8
+        #define SCHAR_MIN (-128)
+        #define SCHAR_MAX 127
+        #define UCHAR_MAX 255
+        #define CHAR_MIN SCHAR_MIN
+        #define CHAR_MAX SCHAR_MAX
+        #define SHRT_MIN (-32768)
+        #define SHRT_MAX 32767
+        #define USHRT_MAX 65535
+        #define INT_MIN (-2147483647 - 1)
+        #define INT_MAX 2147483647
+        #define UINT_MAX 4294967295U
+        #define LONG_MIN (-9223372036854775807L - 1L)
+        #define LONG_MAX 9223372036854775807L
+        #define ULONG_MAX 18446744073709551615UL
+        #define LLONG_MIN (-9223372036854775807LL - 1LL)
+        #define LLONG_MAX 9223372036854775807LL
+        #define ULLONG_MAX 18446744073709551615ULL
+        #define PATH_MAX 1024
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/assert.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_ASSERT_H
+        #define _DARWIN_BOOTSTRAP_ASSERT_H
+        #define assert(expr) ((void)0)
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/types.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_TYPES_H
+        #define _DARWIN_BOOTSTRAP_SYS_TYPES_H
+        typedef unsigned long size_t;
+        typedef long ssize_t;
+        typedef long ptrdiff_t;
+        typedef long intptr_t;
+        typedef unsigned long uintptr_t;
+        typedef int pid_t;
+        typedef long off_t;
+        typedef long time_t;
+        typedef long clock_t;
+        typedef char *caddr_t;
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/stddef.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDDEF_H
+        #define _DARWIN_BOOTSTRAP_STDDEF_H
+        typedef unsigned long size_t;
+        typedef long ptrdiff_t;
+        typedef long ssize_t;
+        typedef long intptr_t;
+        typedef unsigned long uintptr_t;
+        #ifndef NULL
+        #define NULL ((void *)0)
+        #endif
+        #define offsetof(type, field) ((size_t)&((type *)0)->field)
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/stdarg.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDARG_H
+        #define _DARWIN_BOOTSTRAP_STDARG_H
+        typedef char *va_list;
+        #define va_start(ap, last) ((ap) = (char *)&(last) + sizeof(last))
+        #define va_arg(ap, type) (*(type *)(((ap) += sizeof(type)) - sizeof(type)))
+        #define va_end(ap) ((void)0)
+        #define va_copy(dst, src) ((dst) = (src))
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/string.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STRING_H
+        #define _DARWIN_BOOTSTRAP_STRING_H
+        typedef unsigned long size_t;
+        void *memchr(const void *, int, size_t);
+        int memcmp(const void *, const void *, size_t);
+        void *memcpy(void *, const void *, size_t);
+        void *memmove(void *, const void *, size_t);
+        void *memset(void *, int, size_t);
+        char *strcat(char *, const char *);
+        char *strchr(const char *, int);
+        int strcmp(const char *, const char *);
+        char *strcpy(char *, const char *);
+        unsigned long strlen(const char *);
+        int strncmp(const char *, const char *, size_t);
+        char *strncpy(char *, const char *, size_t);
+        char *strrchr(const char *, int);
+        char *strstr(const char *, const char *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/strings.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STRINGS_H
+        #define _DARWIN_BOOTSTRAP_STRINGS_H
+        #include <string.h>
+        int bcmp(const void *, const void *, unsigned long);
+        void bcopy(const void *, void *, unsigned long);
+        void bzero(void *, unsigned long);
+        char *index(const char *, int);
+        char *rindex(const char *, int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/ctype.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_CTYPE_H
+        #define _DARWIN_BOOTSTRAP_CTYPE_H
+        int isalnum(int);
+        int isalpha(int);
+        int isdigit(int);
+        int islower(int);
+        int isspace(int);
+        int isupper(int);
+        int isxdigit(int);
+        int tolower(int);
+        int toupper(int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/stdlib.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDLIB_H
+        #define _DARWIN_BOOTSTRAP_STDLIB_H
+        typedef unsigned long size_t;
+        void abort(void);
+        int atexit(void (*)(void));
+        void free(void *);
+        char *getenv(const char *);
+        void *malloc(size_t);
+        void *calloc(size_t, size_t);
+        void *realloc(void *, size_t);
+        long strtol(const char *, char **, int);
+        unsigned long strtoul(const char *, char **, int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/stdio.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDIO_H
+        #define _DARWIN_BOOTSTRAP_STDIO_H
+        typedef struct FILE FILE;
+        typedef unsigned long size_t;
+        extern FILE *stdin;
+        extern FILE *stdout;
+        extern FILE *stderr;
+        int printf(const char *, ...);
+        int fprintf(FILE *, const char *, ...);
+        int sprintf(char *, const char *, ...);
+        int snprintf(char *, size_t, const char *, ...);
+        int vsnprintf(char *, size_t, const char *, void *);
+        FILE *fopen(const char *, const char *);
+        int fclose(FILE *);
+        int ferror(FILE *);
+        int fputs(const char *, FILE *);
+        int puts(const char *);
+        int fputc(int, FILE *);
+        int putchar(int);
+        int fflush(FILE *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/unistd.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_UNISTD_H
+        #define _DARWIN_BOOTSTRAP_UNISTD_H
+        typedef long ssize_t;
+        typedef long off_t;
+        int close(int);
+        ssize_t read(int, void *, unsigned long);
+        ssize_t write(int, const void *, unsigned long);
+        off_t lseek(int, off_t, int);
+        int unlink(const char *);
+        #endif
+        H
 
         ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
           ${./bootstrap/tinycc-sysv-libc.c} \
@@ -2922,14 +3106,23 @@ let
 
         out=a.out
         compile_only=0
+        preprocess_only=0
         args=()
         inputs=()
+        prepared_inputs=()
         objects=()
+        include_dirs=(@INCLUDE@)
+        cleanup_files=()
 
         while (($#)); do
           case "$1" in
             -c)
               compile_only=1
+              args+=("$1")
+              shift
+              ;;
+            -E)
+              preprocess_only=1
               args+=("$1")
               shift
               ;;
@@ -2947,6 +3140,16 @@ let
               fi
               shift
               ;;
+            -I)
+              args+=("$1" "$2")
+              include_dirs+=("$2")
+              shift 2
+              ;;
+            -I*)
+              args+=("$1")
+              include_dirs+=("''${1#-I}")
+              shift
+              ;;
             *.c)
               inputs+=("$1")
               shift
@@ -2962,17 +3165,60 @@ let
           esac
         done
 
-        if ((compile_only)); then
-          exec @TCC@ "''${args[@]}" "''${inputs[@]}" "''${objects[@]}"
+        materialize_quote_headers() {
+          for dir in "''${include_dirs[@]}"; do
+            test -d "$dir" || continue
+            for header in "$dir"/*.h "$dir"/*/*.h; do
+              test -f "$header" || continue
+              rel="''${header#$dir/}"
+              mkdir -p "$(dirname "$rel")"
+              test -e "$rel" || ln -s "$header" "$rel" 2>/dev/null || true
+            done
+          done
+        }
+
+        prepare_source_inputs() {
+          local index=0
+          for input in "''${inputs[@]}"; do
+            case "$input" in
+              */*)
+                local copy=".tcc-darwin-input-$index.c"
+                cp "$input" "$copy"
+                cleanup_files+=("$copy")
+                prepared_inputs+=("$copy")
+                include_dirs+=("$(dirname "$input")")
+                ;;
+              *)
+                prepared_inputs+=("$input")
+                ;;
+            esac
+            index=$((index + 1))
+          done
+        }
+
+        cleanup() {
+          for file in "''${cleanup_files[@]}"; do
+            rm -f "$file"
+          done
+        }
+        trap cleanup EXIT
+
+        if ((compile_only || preprocess_only)); then
+          prepare_source_inputs
+          materialize_quote_headers
+          @TCC@ "''${args[@]}" -I@INCLUDE@ "''${prepared_inputs[@]}" "''${objects[@]}"
+          exit "$?"
         fi
 
         tmp="$(mktemp -d)"
-        trap 'rm -rf "$tmp"' EXIT
+        trap 'cleanup; rm -rf "$tmp"' EXIT
 
+        prepare_source_inputs
+        materialize_quote_headers
         object_index=0
-        for input in "''${inputs[@]}"; do
+        for input in "''${prepared_inputs[@]}"; do
           object="$tmp/source-$object_index.o"
-          @TCC@ -c "''${args[@]}" "$input" -o "$object"
+          @TCC@ -c "''${args[@]}" -I@INCLUDE@ "$input" -o "$object"
           objects+=("$object")
           object_index=$((object_index + 1))
         done
@@ -3014,6 +3260,7 @@ let
 
         substituteInPlace $out/bin/tcc-darwin-cc \
           --replace-fail @TCC@ ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate \
+          --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
           --replace-fail @ELF_TO_M1@ ${./tools/elf64-to-m1.py} \
           --replace-fail @HEX2_RELOCS@ ${./tools/hex2-data-relocs.py} \
@@ -3187,6 +3434,7 @@ in
     phase24-tinycc-compile-probe
     phase25-tinycc-self-object-probe
     phase26-gcc46-source
+    gcc46DarwinBootstrapSrc
     phase27-tinycc-elf-to-macho-probe
     phase28-tinycc-self-m1-probe
     phase29-tinycc-sysv-libc-probe

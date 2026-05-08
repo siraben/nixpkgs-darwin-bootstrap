@@ -123,6 +123,7 @@
       - `phase33-tinycc-boot1-link-candidate` links `tcc-boot1.o` into a signed Mach-O; the candidate runs but does not yet pass `-version`, so `phase30` remains the current usable self-hosted TinyCC.
     - [x] Add a TinyCC-backed Darwin `cc` wrapper.
       - `phase34-tinycc-darwin-cc` wraps `tcc-self-candidate`, the ELF-to-M1 bridge, the seed SysV libc, and Mach-O signing to build runnable Darwin executables from simple C inputs.
+      - The wrapper now supports `-E`, materializes quote-include headers for GCC-style build directories, and carries a minimal bootstrap header set.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
@@ -132,6 +133,10 @@
 - [ ] Bootstrap toward GCC 4.6 on Darwin.
   - [ ] Establish the TCC-hosted C toolchain boundary: preprocessor, assembler input, object output, and runnable host tools.
   - [x] Add a `phase26-gcc46-source` source checkpoint with GCC 4.6.4 plus GMP 4.3.2, MPFR 2.4.2, and MPC 0.8.1.
+  - [x] Add a patched GCC 4.6 Darwin bootstrap source.
+    - `gcc46-darwin-bootstrap-src` applies `patches/gcc46-darwin-bootstrap.patch`, currently stubbing libiberty regex and legacy C++ demangling paths that the MesCC-built TinyCC cannot compile yet.
+  - [ ] Advance `make all-gcc` past libiberty.
+    - Current boundary: GCC and libiberty configure succeed for `x86_64-apple-darwin`; libiberty compiles through `alloca.c` and stops on a TinyCC crash while compiling `argv.c`.
   - [ ] Add bootstrap prerequisites in order: binutils/cctools-equivalent assembler+linker path, make/shell assumptions, GMP/MPFR/MPC as required.
   - [ ] Build GCC 4.6 stage1 with the bootstrapped C compiler, then iterate to a self-hosted stage2/stage3.
   - [ ] Keep each successful boundary as a Nix phase and a git checkpoint.
