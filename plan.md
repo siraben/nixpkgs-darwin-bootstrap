@@ -81,7 +81,7 @@
   - [x] Vendor the bootstrappable TinyCC fork in `vendor/tinycc-bootstrappable`.
   - [x] Add a reproducible M2-Planet probe for the vendored fork.
     - Current pristine-fork probe reaches `elf.h:88`; the failure confirms this is not a direct M2-Planet input.
-  - [ ] Compile `tinycc-boot-mes` with Darwin MesCC.
+  - [x] Compile `tinycc-boot-mes` with Darwin MesCC.
     - Use Mes `libc+tcc`, Darwin include paths, and `CONFIG_TCCBOOT`/`TCC_MES_LIBC`.
     - Replace Linux ELF interpreter/library paths with Darwin Mach-O/linker settings.
     - Link, pad, sign, and smoke-test `tcc -version`.
@@ -90,21 +90,29 @@
       - [x] Increase the Darwin Mes heap and run MesCC with the same large stack/arena sizing used by the MesCC wrapper path.
       - [x] Rewrite Mes' M2-built assertion reporter to avoid eager `&&` dereferences so bootstrap failures print useful diagnostics.
       - [ ] Investigate remaining MesCC type warnings emitted while producing `tcc.M1`.
-    - [ ] Link `tinycc-boot-mes.M1` with Darwin `libc+tcc.M1` into a signed Mach-O.
+    - [x] Link `tinycc-boot-mes.M1` with Darwin `libc+tcc.M1` into a signed Mach-O.
       - [x] Build a Darwin `libmescc.M1` archive checkpoint.
       - [x] Build a broad Darwin `libc.M1` archive checkpoint.
         - [x] Add and pass `phase21-mescc-libc-probe`.
       - [x] Build a Darwin `libc+tcc.M1` archive checkpoint.
         - [x] Add and pass `phase22-mescc-libc-tcc-probe`.
       - [x] Add `phase23-tinycc-mescc-link-probe` to link, pad, sign, and run `tcc -version`.
-      - [x] Keep version reporting on the early path while the Darwin `main` argument handoff and post-`tcc_new` runtime crash are debugged.
-    - [ ] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
+      - [x] Preserve Darwin `argc`/`argv`/`envp` on the MesCC stack frame through `crt1-libc.M1`.
+      - [x] Patch phase5 static-data relocation for RIP-relative `%rdi`/`%rsi` forms used by TinyCC globals.
+      - [x] Remove the temporary early `tcc.c` version-return shortcut; `tcc -version` now runs through `tcc_new` and argument parsing.
+    - [x] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
   - [ ] Run TinyCC self-advance stages.
+    - [ ] Add a `phase24` smoke stage that exercises real preprocessing and object generation.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
   - [ ] Port TinyCC output to signed Mach-O/Darwin.
     - Replace ELF object/executable emission and Linux runtime assumptions.
     - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.
+- [ ] Bootstrap toward GCC 4.6 on Darwin.
+  - [ ] Establish the TCC-hosted C toolchain boundary: preprocessor, assembler input, object output, and runnable host tools.
+  - [ ] Add bootstrap prerequisites in order: binutils/cctools-equivalent assembler+linker path, make/shell assumptions, GMP/MPFR/MPC as required.
+  - [ ] Build GCC 4.6 stage1 with the bootstrapped C compiler, then iterate to a self-hosted stage2/stage3.
+  - [ ] Keep each successful boundary as a Nix phase and a git checkpoint.
 
 ## aarch64 follow-up
 

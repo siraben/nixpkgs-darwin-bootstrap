@@ -123,11 +123,6 @@ let
         "if (file_type == TCC_OUTPUT_EXE && s1->static_link)\n        fill_got(s1);",
         "if (file_type == TCC_OUTPUT_EXE && s1->static_link) {\n        fill_got(s1);\n        relocate_plt(s1);\n    }",
     )
-    replace(
-        "tcc.c",
-        "int main(int argc, char **argv)\n{\n    TCCState *s;",
-        "int main(int argc, char **argv)\n{\n    TCCState *s;\n    return printf(version), 0;",
-    )
     Path("config.h").write_text("")
     PY
   '';
