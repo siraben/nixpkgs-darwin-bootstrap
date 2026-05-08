@@ -2628,7 +2628,7 @@ let
           -f tcc-self.hex2 \
           -o tcc-self
 
-        ${python3}/bin/python3 ${./tools/phase5-amd64-m2.py} patch tcc-self.hex2 tcc-self
+        ${python3}/bin/python3 ${./tools/hex2-data-relocs.py} patch tcc-self.hex2 tcc-self
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=tcc-self bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
@@ -2642,7 +2642,7 @@ let
         status="$?"
         set -e
         printf '%s\n' "$status" > tcc-self-version.status
-        test "$status" = 139
+        test "$status" = 1
 
         cp tcc-self $out/bin/tcc-self-candidate
         cp tinycc-sysv-libc.o tinycc-sysv-libc.M1 \
