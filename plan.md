@@ -57,6 +57,8 @@
       - The signed Mach-O `mes-m2` now boots Mes Scheme with `MES_PREFIX`/`GUILE_LOAD_PATH` and evaluates a smoke-test expression.
     - [x] Package `mes-m2` with a substituted Darwin `mescc.scm` and NYACC load path.
       - `mes-m2` now drives `mescc.scm -S` far enough to compile a trivial C translation unit to M1.
+    - [x] Link and run a signed Mach-O from MesCC-generated M1.
+      - A MesCC-compiled trivial C `main` links with a Darwin MesCC `crt1.M1`, signs, and exits cleanly.
     - Run the Mes bootstrap kaem script through `phase11-kaem`.
     - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
   - [ ] Rebuild full Mes Scheme on Darwin.
