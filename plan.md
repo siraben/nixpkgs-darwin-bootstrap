@@ -33,7 +33,8 @@
   - `M2-darwin --help` and `M2-darwin -f trivial.c -o trivial.M1` now work.
 - [ ] Build MesCC tools under the Darwin chain.
   - [x] Build `blood-macho-0` from `M2-darwin` and smoke-test footer generation.
-  - Build `M1-0`, `hex2-1`, full `M1`, full `hex2`, and `kaem`.
+  - [x] Build `M1-0` from `M2-darwin` and smoke-test M1 to hex2 conversion.
+  - Build `hex2-1`, full `M1`, full `hex2`, and `kaem`.
 - [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
   - Identify the smallest bootstrappable TCC fork inputs.
   - Add Darwin M2libc/TCC syscall and linker assumptions.
