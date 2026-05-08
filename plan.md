@@ -121,6 +121,8 @@
       - `phase32-tinycc-boot1-object-probe` uses `tcc-self-candidate` to compile the patched TinyCC source into a new x86_64 ELF relocatable `tcc-boot1.o`.
     - [x] Link a TinyCC boot1 binary candidate.
       - `phase33-tinycc-boot1-link-candidate` links `tcc-boot1.o` into a signed Mach-O; the candidate runs but does not yet pass `-version`, so `phase30` remains the current usable self-hosted TinyCC.
+    - [x] Add a TinyCC-backed Darwin `cc` wrapper.
+      - `phase34-tinycc-darwin-cc` wraps `tcc-self-candidate`, the ELF-to-M1 bridge, the seed SysV libc, and Mach-O signing to build runnable Darwin executables from simple C inputs.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.

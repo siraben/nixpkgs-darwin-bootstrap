@@ -2891,6 +2891,161 @@ let
     else
       null;
 
+  phase34-tinycc-darwin-cc =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
+          ${./bootstrap/tinycc-sysv-libc.c} \
+          -o tinycc-sysv-libc.o \
+          > tinycc-sysv-libc.stdout \
+          2> tinycc-sysv-libc.stderr
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix tinycc_sysv_libc_ \
+          tinycc-sysv-libc.o \
+          tinycc-sysv-libc.M1
+
+        cat > crt1-tcc-sysv.M1 <<'M1'
+        :_start
+        !0x48 !0x83 !0xe4 !0xf0
+        !0xe8 %main
+        !0x48 !0x89 !0xc7
+        !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
+        !0x0f !0x05
+        M1
+
+        cp crt1-tcc-sysv.M1 tinycc-sysv-libc.M1 $out/share/darwin-bootstrap/
+
+        cat > $out/bin/tcc-darwin-cc <<'SH'
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        out=a.out
+        compile_only=0
+        args=()
+        inputs=()
+        objects=()
+
+        while (($#)); do
+          case "$1" in
+            -c)
+              compile_only=1
+              args+=("$1")
+              shift
+              ;;
+            -o)
+              out="$2"
+              if ((compile_only)); then
+                args+=("-o" "$2")
+              fi
+              shift 2
+              ;;
+            -o*)
+              out="''${1#-o}"
+              if ((compile_only)); then
+                args+=("$1")
+              fi
+              shift
+              ;;
+            *.c)
+              inputs+=("$1")
+              shift
+              ;;
+            *.o)
+              objects+=("$1")
+              shift
+              ;;
+            *)
+              args+=("$1")
+              shift
+              ;;
+          esac
+        done
+
+        if ((compile_only)); then
+          exec @TCC@ "''${args[@]}" "''${inputs[@]}" "''${objects[@]}"
+        fi
+
+        tmp="$(mktemp -d)"
+        trap 'rm -rf "$tmp"' EXIT
+
+        object_index=0
+        for input in "''${inputs[@]}"; do
+          object="$tmp/source-$object_index.o"
+          @TCC@ -c "''${args[@]}" "$input" -o "$object"
+          objects+=("$object")
+          object_index=$((object_index + 1))
+        done
+
+        code_files=()
+        data_files=()
+        object_index=0
+        for object in "''${objects[@]}"; do
+          m1="$tmp/object-$object_index.M1"
+          @PYTHON@ @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
+          awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
+          awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
+          code_files+=("$tmp/object-$object_index.code.M1")
+          data_files+=("$tmp/object-$object_index.data.M1")
+          object_index=$((object_index + 1))
+        done
+
+        {
+          cat @CRT1@
+          cat @SYSCALLS@
+          for file in "''${code_files[@]}"; do cat "$file"; done
+          awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' @LIBC_M1@
+          echo ':ELF_data'
+          echo ':HEX2_data'
+          for file in "''${data_files[@]}"; do cat "$file"; done
+          awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
+        } > "$tmp/combined.M1"
+
+        @M1@ --architecture amd64 --little-endian -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
+        @HEX2@ --architecture amd64 --little-endian --base-address 0x1000000 \
+          -f @MACHO@ -f "$tmp/combined.hex2" -o "$out"
+        @PYTHON@ @HEX2_RELOCS@ patch "$tmp/combined.hex2" "$out"
+        linkeditOffset="$((0x800000 + 0x2000000))"
+        dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc 2>/dev/null
+        chmod +x "$out"
+        source @SIGNING@
+        sign "$out"
+        SH
+
+        substituteInPlace $out/bin/tcc-darwin-cc \
+          --replace-fail @TCC@ ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate \
+          --replace-fail @PYTHON@ ${python3}/bin/python3 \
+          --replace-fail @ELF_TO_M1@ ${./tools/elf64-to-m1.py} \
+          --replace-fail @HEX2_RELOCS@ ${./tools/hex2-data-relocs.py} \
+          --replace-fail @M1@ ${phase9-m1}/bin/M1 \
+          --replace-fail @HEX2@ ${phase10-hex2}/bin/hex2 \
+          --replace-fail @MACHO@ ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+          --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \
+          --replace-fail @SYSCALLS@ ${./bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1} \
+          --replace-fail @LIBC_M1@ $out/share/darwin-bootstrap/tinycc-sysv-libc.M1 \
+          --replace-fail @SIGNING@ ${darwin.signingUtils}
+        chmod +x $out/bin/tcc-darwin-cc
+
+        cat > hello.c <<'C'
+        int main(void) { return 42; }
+        C
+        $out/bin/tcc-darwin-cc hello.c -o hello
+        set +e
+        ./hello
+        status="$?"
+        set -e
+        test "$status" = 42
+
+        $out/bin/tcc-darwin-cc -c hello.c -o hello.o
+        test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
+
+        cp tinycc-sysv-libc.o tinycc-sysv-libc.stdout tinycc-sysv-libc.stderr \
+          hello.c hello hello.o \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -3039,6 +3194,7 @@ in
     phase31-tinycc-self-compile-probe
     phase32-tinycc-boot1-object-probe
     phase33-tinycc-boot1-link-candidate
+    phase34-tinycc-darwin-cc
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc
