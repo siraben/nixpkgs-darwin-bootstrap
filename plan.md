@@ -82,8 +82,16 @@
     - Use Mes `libc+tcc`, Darwin include paths, and `CONFIG_TCCBOOT`/`TCC_MES_LIBC`.
     - Replace Linux ELF interpreter/library paths with Darwin Mach-O/linker settings.
     - Link, pad, sign, and smoke-test `tcc -version`.
-    - [ ] First emit `tinycc-boot-mes.M1` with `mes-m2 --no-auto-compile -e main mescc.scm -- -S`.
+    - [x] First emit `tinycc-boot-mes.M1` with `mes-m2 --no-auto-compile -e main mescc.scm -- -S`.
+      - [x] Add and pass `phase19-tinycc-mescc-m1-probe` using a derived MesCC-patched TinyCC source.
+      - [x] Increase the Darwin Mes heap and run MesCC with the same large stack/arena sizing used by the MesCC wrapper path.
+      - [x] Rewrite Mes' M2-built assertion reporter to avoid eager `&&` dereferences so bootstrap failures print useful diagnostics.
+      - [ ] Investigate remaining MesCC type warnings emitted while producing `tcc.M1`.
     - [ ] Link `tinycc-boot-mes.M1` with Darwin `libc+tcc.M1` into a signed Mach-O.
+      - [ ] Build a Darwin `libmescc.M1` archive checkpoint.
+      - [ ] Build a broad Darwin `libc.M1` archive checkpoint.
+      - [ ] Build a Darwin `libc+tcc.M1` archive checkpoint.
+      - [ ] Add `phase20-tinycc-mescc-link-probe` to link, pad, sign, and run `tcc -version`.
     - [ ] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
   - [ ] Run TinyCC self-advance stages.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
