@@ -2953,6 +2953,20 @@ let
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/sys/stat.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_STAT_H
+        #define _DARWIN_BOOTSTRAP_SYS_STAT_H
+        typedef long off_t;
+        typedef int mode_t;
+        struct stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; off_t st_size; long st_atime; long st_mtime; long st_ctime; };
+        int stat(const char *, struct stat *);
+        int fstat(int, struct stat *);
+        #define S_IFMT 0170000
+        #define S_IFREG 0100000
+        #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/stddef.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_STDDEF_H
         #define _DARWIN_BOOTSTRAP_STDDEF_H

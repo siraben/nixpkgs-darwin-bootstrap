@@ -57,3 +57,40 @@
    string_append (s, buf);
  }
 +#endif
+--- a/libiberty/argv.c
++++ b/libiberty/argv.c
+@@ -1,3 +1,29 @@
++#if 1
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++#include <stdio.h>
++char **dupargv(char **argv) {
++  int argc;
++  char **copy;
++  if (!argv) return 0;
++  for (argc = 0; argv[argc]; argc++) ;
++  copy = (char **)malloc((argc + 1) * sizeof(char *));
++  if (!copy) return 0;
++  for (argc = 0; argv[argc]; argc++) {
++    unsigned long len = strlen(argv[argc]);
++    copy[argc] = (char *)malloc(len + 1);
++    if (!copy[argc]) return copy;
++    strcpy(copy[argc], argv[argc]);
++  }
++  copy[argc] = 0;
++  return copy;
++}
++void freeargv(char **vector) { int i; if (!vector) return; for (i = 0; vector[i]; i++) free(vector[i]); free(vector); }
++char **buildargv(const char *input) { return 0; }
++int writeargv(char **argv, FILE *f) { return 0; }
++void expandargv(int *argcp, char ***argvp) { }
++#else
+ /* Create and destroy argument vectors (argv's)
+    Copyright (C) 1992, 2001, 2010 Free Software Foundation, Inc.
+    Written by Fred Fish @ Cygnus Support
+@@ -542,3 +568,4 @@
+ }
+ 
+ #endif	/* MAIN */
++#endif
