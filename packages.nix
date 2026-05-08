@@ -1452,12 +1452,6 @@ let
       runCommand "darwin-minimal-bootstrap-phase15-mes-macho-link-probe-amd64" { } ''
         mkdir -p $out/share/darwin-bootstrap
 
-        ${phase6-blood-macho-0}/bin/blood-macho-0 \
-          --64 \
-          --little-endian \
-          -f ${phase14-mes-m2-probe}/share/darwin-bootstrap/mes.M1 \
-          -o mes.blood-M1
-
         ${phase9-m1}/bin/M1 \
           --architecture amd64 \
           --little-endian \
@@ -1465,24 +1459,34 @@ let
           -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
           -f ${phase13-mes-source}/lib/linux/x86_64-mes-m2/crt1.M1 \
           -f ${phase14-mes-m2-probe}/share/darwin-bootstrap/mes.M1 \
-          -f mes.blood-M1 \
           -o mes.hex2
 
-        set +e
         ${phase10-hex2}/bin/hex2 \
           --architecture amd64 \
           --little-endian \
           --base-address 0x1000000 \
           -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
           -f mes.hex2 \
-          -o mes-m2 > mes-hex2.stdout 2> mes-hex2.stderr
+          -o mes-m2
+
+        ${python3}/bin/python3 ${./tools/phase5-amd64-m2.py} patch mes.hex2 mes-m2
+
+        linkeditOffset="$((0x800000 + 0x2000000))"
+        dd if=/dev/zero of=mes-m2 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+        chmod +x mes-m2
+
+        source ${darwin.signingUtils}
+        sign mes-m2
+
+        set +e
+        ./mes-m2 -c "(display 'Hello,M2-mes!) (newline)" \
+          > mes-m2-run.stdout 2> mes-m2-run.stderr
         status="$?"
         set -e
 
-        test "$status" -ne 0
-        grep -q 'Target label ELF_text is not valid' mes-hex2.stderr
+        test "$status" -eq 140
 
-        cp mes.blood-M1 mes.hex2 mes-hex2.stdout mes-hex2.stderr \
+        cp mes-m2 mes.hex2 mes-m2-run.stdout mes-m2-run.stderr \
           $out/share/darwin-bootstrap/
       ''
     else

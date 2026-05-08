@@ -53,8 +53,8 @@
     - Produce Darwin `libc-mini`, `libmescc`, `libc`, and `libc+tcc` archives from the existing signed `M1`/`hex2` chain.
   - [ ] Build and sign `mes-m2`.
     - [x] Probe the Mes bootstrap script through its initial `M2-Planet` compile to `mes.M1`.
-    - [x] Probe the post-M2 Mach-O link path through `blood-macho-0` and `M1`.
-      - Current blocker: Mes' generated `mes.hex2` still references ELF labels such as `ELF_text`; port Mes' M1/headers to Mach-O labels next.
+    - [x] Probe the post-M2 Mach-O link path through Darwin `M1` and `hex2`.
+      - Current blocker: the signed Mach-O `mes-m2` launches but exits with Darwin `SIGSYS` because it still uses Linux Mes `crt1`/syscalls.
     - Run the Mes bootstrap kaem script through `phase11-kaem`.
     - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
   - [ ] Rebuild full Mes Scheme on Darwin.
