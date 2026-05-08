@@ -69,6 +69,7 @@
           phase28-tinycc-self-m1-probe = bootstrap.phase28-tinycc-self-m1-probe;
           phase29-tinycc-sysv-libc-probe = bootstrap.phase29-tinycc-sysv-libc-probe;
           phase30-tinycc-self-link-candidate = bootstrap.phase30-tinycc-self-link-candidate;
+          phase31-tinycc-self-compile-probe = bootstrap.phase31-tinycc-self-compile-probe;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;

@@ -115,6 +115,8 @@
       - `phase29-tinycc-sysv-libc-probe` compiles both a caller and a seed `strlen` implementation with bootstrapped TinyCC, converts both ELF relocatables to M1, links a signed Mach-O, and verifies exit status 9.
     - [x] Link the self-compiled TinyCC object with a seed SysV Darwin libc candidate.
       - `phase30-tinycc-self-link-candidate` produces a signed `tcc-self-candidate`; source-guided data relocation and SysV stack alignment make `tcc-self-candidate -version` run successfully.
+    - [x] Prove the self-host candidate can compile and link a C smoke object.
+      - `phase31-tinycc-self-compile-probe` compiles `hello.c` with `tcc-self-candidate`, converts the resulting ELF relocatable to M1, links a signed Mach-O, and verifies exit status 42.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
