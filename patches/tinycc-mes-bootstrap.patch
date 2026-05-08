@@ -1,0 +1,165 @@
+diff --git a/include/stddef.h b/include/stddef.h
+index 8f885fc..c09aa1d 100644
+--- a/include/stddef.h
++++ b/include/stddef.h
+@@ -30,6 +30,8 @@ typedef unsigned long long int uint64_t;
+ 
+ #define offsetof(type, field) ((size_t)&((type *)0)->field)
+ 
++typedef union { long double ld; long long ll; } max_align_t;
++
+ void *alloca(size_t size);
+ 
+ #endif
+diff --git a/libtcc.c b/libtcc.c
+index a995031..f12822f 100644
+--- a/libtcc.c
++++ b/libtcc.c
+@@ -223,9 +223,13 @@ PUB_FUNC void *tcc_malloc(unsigned long size)
+ 
+ PUB_FUNC void *tcc_mallocz(unsigned long size)
+ {
++    char *p;
++    unsigned long i;
+     void *ptr;
+     ptr = tcc_malloc(size);
+-    memset(ptr, 0, size);
++    p = ptr;
++    for (i = 0; i < size; i++)
++        p[i] = 0;
+     return ptr;
+ }
+ 
+@@ -1285,6 +1289,8 @@ ST_FUNC int set_flag(TCCState *s, const FlagDef *flags, const char *name)
+ static int strstart(const char *val, const char **str)
+ {
+     const char *p, *q;
++    if (!val || !*val)
++        return 0;
+     p = *str;
+     q = val;
+     while (*q) {
+@@ -1748,6 +1754,64 @@ reparse:
+             continue;
+         }
+ 
++        if (!strcmp(r, "-version") || !strcmp(r, "--version") || !strcmp(r, "-v")) {
++            ++s->verbose;
++            ++noaction;
++            continue;
++        }
++        if (!strcmp(r, "-E")) {
++            s->output_type = TCC_OUTPUT_PREPROCESS;
++            continue;
++        }
++        if (!strcmp(r, "-c")) {
++            s->output_type = TCC_OUTPUT_OBJ;
++            continue;
++        }
++        if (!strcmp(r, "-r")) {
++            s->option_r = 1;
++            s->output_type = TCC_OUTPUT_OBJ;
++            continue;
++        }
++        if (!strcmp(r, "-o")) {
++            if (optind >= argc)
++                goto arg_err;
++            if (s->outfile)
++                tcc_free(s->outfile);
++            s->outfile = tcc_strdup(argv[optind++]);
++            continue;
++        }
++        if (r[1] == 'o' && r[2] != '\0') {
++            if (s->outfile)
++                tcc_free(s->outfile);
++            s->outfile = tcc_strdup(r + 2);
++            continue;
++        }
++        if (r[1] == 'I' && r[2] != '\0') {
++            tcc_add_include_path(s, r + 2);
++            continue;
++        }
++        if (r[1] == 'D' && r[2] != '\0') {
++            parse_option_D(s, r + 2);
++            continue;
++        }
++        if (r[1] == 'U' && r[2] != '\0') {
++            tcc_undefine_symbol(s, r + 2);
++            continue;
++        }
++        if (r[1] == 'L' && r[2] != '\0') {
++            tcc_add_library_path(s, r + 2);
++            continue;
++        }
++        if (r[1] == 'B' && r[2] != '\0') {
++            tcc_set_lib_path(s, r + 2);
++            continue;
++        }
++        if (r[1] == 'l' && r[2] != '\0') {
++            args_parser_add_file(s, r + 2, AFF_TYPE_LIB);
++            s->nb_libraries++;
++            continue;
++        }
++
+         /* find option in table */
+         for(popt = tcc_options; ; ++popt) {
+             const char *p1 = popt->name;
+diff --git a/tccelf.c b/tccelf.c
+index 2b19f77..95b9250 100644
+--- a/tccelf.c
++++ b/tccelf.c
+@@ -2237,8 +2237,10 @@ static int elf_output_file(TCCState *s1, const char *filename)
+     }
+ 
+     /* Perform relocation to GOT or PLT entries */
+-    if (file_type == TCC_OUTPUT_EXE && s1->static_link)
++    if (file_type == TCC_OUTPUT_EXE && s1->static_link) {
+         fill_got(s1);
++        relocate_plt(s1);
++    }
+     else if (s1->got)
+         fill_local_got_entries(s1);
+ 
+diff --git a/x86_64-gen.c b/x86_64-gen.c
+index b939c0d..675afdf 100644
+--- a/x86_64-gen.c
++++ b/x86_64-gen.c
+@@ -583,7 +583,7 @@ void store(int r, SValue *v)
+             gen_modrm64(op64, r, v->r, v->sym, fc);
+         } else if (fr != r) {
+             /* XXX: don't we really come here? */
+-            abort();
++            /* abort(); */
+             o(0xc0 + fr + r * 8); /* mov r, fr */
+         }
+     } else {
+@@ -591,7 +591,7 @@ void store(int r, SValue *v)
+             gen_modrm(r, v->r, v->sym, fc);
+         } else if (fr != r) {
+             /* XXX: don't we really come here? */
+-            abort();
++            /* abort(); */
+             o(0xc0 + fr + r * 8); /* mov r, fr */
+         }
+     }
+@@ -1200,7 +1200,7 @@ void gfunc_call(int nb_args)
+     int nb_reg_args = 0;
+     int nb_sse_args = 0;
+     int sse_reg, gen_reg;
+-    char _onstack[nb_args], *onstack = _onstack;
++    char *onstack = tcc_malloc(nb_args);
+ 
+     /* calculate the number of integer/float register arguments, remember
+        arguments to be passed via stack (in onstack[]), and also remember
+@@ -1779,7 +1779,10 @@ void gen_opi(int op)
+             vswap();
+             orex(ll, r, 0, 0xc1); /* shl/shr/sar $xxx, r */
+             o(opc | REG_VALUE(r));
+-            g(vtop->c.i & (ll ? 63 : 31));
++            if (ll)
++                g(vtop->c.i & 63);
++            else
++                g(vtop->c.i & 31);
+         } else {
+             /* we generate the shift in ecx */
+             gv2(RC_INT, RC_RCX);

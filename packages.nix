@@ -92,39 +92,8 @@ let
     chmod -R u+w $out
     cd $out
 
-    ${python3}/bin/python3 - <<'PY'
-    from pathlib import Path
-
-    def replace(path, old, new):
-        file = Path(path)
-        text = file.read_text()
-        if old not in text:
-            raise SystemExit(f"missing patch context in {path}: {old!r}")
-        file.write_text(text.replace(old, new))
-
-    replace(
-        "include/stddef.h",
-        "void *alloca(size_t size);",
-        "typedef union { long double ld; long long ll; } max_align_t;\n\nvoid *alloca(size_t size);",
-    )
-    replace(
-        "x86_64-gen.c",
-        "char _onstack[nb_args], *onstack = _onstack;",
-        "char *onstack = tcc_malloc(nb_args);",
-    )
-    replace("x86_64-gen.c", "abort();", "/* abort(); */")
-    replace(
-        "x86_64-gen.c",
-        "g(vtop->c.i & (ll ? 63 : 31));",
-        "if (ll)\n                g(vtop->c.i & 63);\n            else\n                g(vtop->c.i & 31);",
-    )
-    replace(
-        "tccelf.c",
-        "if (file_type == TCC_OUTPUT_EXE && s1->static_link)\n        fill_got(s1);",
-        "if (file_type == TCC_OUTPUT_EXE && s1->static_link) {\n        fill_got(s1);\n        relocate_plt(s1);\n    }",
-    )
-    Path("config.h").write_text("")
-    PY
+    patch -p1 < ${./patches/tinycc-mes-bootstrap.patch}
+    : > config.h
   '';
 
   hex0 = stdenv.mkDerivation {
