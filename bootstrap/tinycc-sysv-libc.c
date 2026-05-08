@@ -12,6 +12,8 @@ extern long unlink(const char *path);
 extern void _exit(int code);
 extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
 
+static long file_fd(FILE *f) { long v = (long)f; return v <= 2 ? v : v - 3; }
+
 void exit(int code) { _exit(code); }
 void __assert_fail(const char *a, const char *b, unsigned int c, const char *d) { write(2, "assert\n", 7); _exit(1); }
 void *__va_start(void *ap, void *last) { return ap; }
@@ -37,21 +39,25 @@ unsigned long strtoul(const char *s, char **e, int b) { return (unsigned long)st
 unsigned long long strtoull(const char *s, char **e, int b) { return (unsigned long long)strtoul(s, e, b); }
 int atoi(const char *s) { return (int)strtol(s, 0, 10); }
 
-static void putnum(int fd, long v, int base) { char b[32]; int i = 0, neg = 0; unsigned long x; if (v < 0 && base == 10) { neg = 1; x = -v; } else x = v; do { int d = x % base; b[i++] = d < 10 ? '0' + d : 'a' + d - 10; x /= base; } while (x); if (neg) b[i++] = '-'; while (i--) write(fd, b + i, 1); }
+static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
+static int append_str(char *b, size_t n, size_t *pos, const char *s) { int count = 0; if (!s) s = "(null)"; if ((unsigned long)s < 4096) s = "(bad)"; while (*s) { append_char(b, n, pos, *s++); count++; } return count; }
+static int append_num(char *b, size_t n, size_t *pos, long v, int base) { char tmp[32]; int i = 0, neg = 0, count = 0; unsigned long x; if (v < 0 && base == 10) { neg = 1; x = -v; } else x = v; do { int d = x % base; tmp[i++] = d < 10 ? '0' + d : 'a' + d - 10; x /= base; } while (x); if (neg) tmp[i++] = '-'; while (i--) { append_char(b, n, pos, tmp[i]); count++; } return count; }
+static int format_buffer(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static void putnum(int fd, long v, int base) { char b[32]; size_t pos = 0; append_num(b, sizeof(b), &pos, v, base); write(fd, b, pos); }
 static int fmt_fd(int fd, const char *fmt, long a, long b, long c, long d) { long args[4]; int ai = 0; args[0] = a; args[1] = b; args[2] = c; args[3] = d; while (*fmt) { if (*fmt != '%') { write(fd, fmt, 1); fmt++; continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') { char *s = (char *)args[ai++]; if (!s) s = "(null)"; write(fd, s, strlen(s)); } else if (*fmt == 'd' || *fmt == 'i') putnum(fd, args[ai++], 10); else if (*fmt == 'x' || *fmt == 'p') putnum(fd, args[ai++], 16); else if (*fmt == 'c') { char ch = args[ai++]; write(fd, &ch, 1); } else if (*fmt == '%') write(fd, "%", 1); fmt++; } return 0; }
 int printf(const char *fmt, long a, long b, long c, long d) { return fmt_fd(1, fmt, a, b, c, d); }
-int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { long fd = (long)f - 1; if (fd < 0) fd = 2; return fmt_fd(fd, fmt, a, b, c, d); }
+int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { return fmt_fd(file_fd(f), fmt, a, b, c, d); }
 
-int fputs(const char *s, FILE *f) { long fd = (long)f - 1; if (fd < 0) fd = 1; return write(fd, s, strlen(s)); }
-int fputc(int c, FILE *f) { char ch = c; long fd = (long)f - 1; if (fd < 0) fd = 1; return write(fd, &ch, 1); }
-size_t fwrite(const void *p, size_t z, size_t n, FILE *f) { long fd = (long)f - 1; long r = write(fd, p, z * n); return r < 0 ? 0 : r / z; }
-size_t fread(void *p, size_t z, size_t n, FILE *f) { long fd = (long)f - 1; long r = read(fd, p, z * n); return r < 0 ? 0 : r / z; }
-FILE *fdopen(int fd, const char *m) { return (FILE *)(long)(fd + 1); }
-FILE *fopen(const char *p, const char *m) { int flags = 0; if (m && m[0] == 'w') flags = 0x601; long fd = open(p, flags, 0666); return fd < 0 ? 0 : (FILE *)(fd + 1); }
-int fclose(FILE *f) { return close((long)f - 1); }
+int fputs(const char *s, FILE *f) { return write(file_fd(f), s, strlen(s)); }
+int fputc(int c, FILE *f) { char ch = c; return write(file_fd(f), &ch, 1); }
+size_t fwrite(const void *p, size_t z, size_t n, FILE *f) { long r = write(file_fd(f), p, z * n); return r < 0 ? 0 : r / z; }
+size_t fread(void *p, size_t z, size_t n, FILE *f) { long r = read(file_fd(f), p, z * n); return r < 0 ? 0 : r / z; }
+FILE *fdopen(int fd, const char *m) { return (FILE *)(long)(fd + 3); }
+FILE *fopen(const char *p, const char *m) { int flags = 0; if (m && m[0] == 'w') flags = 0x601; long fd = open(p, flags, 0666); return fd < 0 ? 0 : (FILE *)(fd + 3); }
+int fclose(FILE *f) { return close(file_fd(f)); }
 int fflush(FILE *f) { return 0; }
-int fseek(FILE *f, long o, int w) { return lseek((long)f - 1, o, w) < 0 ? -1 : 0; }
-long ftell(FILE *f) { return lseek((long)f - 1, 0, 1); }
+int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
+long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
 
 int remove(const char *p) { return unlink(p); }
 char *getenv(const char *n) { return 0; }
@@ -62,7 +68,7 @@ void *localtime(const long *t) { return 0; }
 float strtof(const char *s, char **e) { if (e) *e = (char *)s; return 0; }
 double ldexp(double x, int e) { return x; }
 int sscanf(const char *s, const char *f, long a, long b) { return 0; }
-int sprintf(char *b, const char *f, long a, long c, long d, long e) { return 0; }
-int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { if (n) b[0] = 0; return 0; }
-int vsnprintf(char *b, size_t n, const char *f, void *ap) { if (n) b[0] = 0; return 0; }
+int sprintf(char *b, const char *f, long a, long c, long d, long e) { long args[4]; args[0] = a; args[1] = c; args[2] = d; args[3] = e; return format_buffer(b, (size_t)-1, f, args); }
+int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { long args[3]; args[0] = a; args[1] = c; args[2] = d; return format_buffer(b, n, f, args); }
+int vsnprintf(char *b, size_t n, const char *f, void *ap) { return format_buffer(b, n, f, (long *)ap); }
 void longjmp(void *env, int val) { _exit(2); }

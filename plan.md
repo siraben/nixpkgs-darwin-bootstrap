@@ -117,6 +117,8 @@
       - `phase30-tinycc-self-link-candidate` produces a signed `tcc-self-candidate`; source-guided data relocation and SysV stack alignment make `tcc-self-candidate -version` run successfully.
     - [x] Prove the self-host candidate can compile and link a C smoke object.
       - `phase31-tinycc-self-compile-probe` compiles `hello.c` with `tcc-self-candidate`, converts the resulting ELF relocatable to M1, links a signed Mach-O, and verifies exit status 42.
+    - [x] Compile TinyCC again with the self-host candidate.
+      - `phase32-tinycc-boot1-object-probe` uses `tcc-self-candidate` to compile the patched TinyCC source into a new x86_64 ELF relocatable `tcc-boot1.o`.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
