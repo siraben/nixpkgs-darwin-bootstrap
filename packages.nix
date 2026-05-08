@@ -40,6 +40,28 @@ let
     hash = "sha256-GDpA6kfqSfih470bnRLmdjdNZNY7x557wa59Zz398l0=";
   };
 
+  gcc46Version = "4.6.4";
+
+  gcc46Tarball = fetchurl {
+    url = "mirror://gnu/gcc/gcc-${gcc46Version}/gcc-${gcc46Version}.tar.bz2";
+    hash = "sha256-Na8Wr6C2evm46xXK+3bSvF9WhUBVJSL13CyI3UXZd+g=";
+  };
+
+  gcc46GmpTarball = fetchurl {
+    url = "mirror://gnu/gmp/gmp-4.3.2.tar.bz2";
+    hash = "sha256-k2FiwDEohsIVgQAreZMoKaoEjPr5k3xiZa6qFPHNF3U=";
+  };
+
+  gcc46MpfrTarball = fetchurl {
+    url = "https://www.mpfr.org/mpfr-2.4.2/mpfr-2.4.2.tar.bz2";
+    hash = "sha256-x+daCKjUnSCC5MruFZGgXRG51WJ1FOZ48C1moSS88ro=";
+  };
+
+  gcc46MpcTarball = fetchurl {
+    url = "https://gcc.gnu.org/pub/gcc/infrastructure/mpc-0.8.1.tar.gz";
+    hash = "sha256-5mRgN1clH9ijUoSCdkl6THm3+LIf2K7dXMBZijj+4+Q=";
+  };
+
   nyaccVersion = "1.09.1";
 
   nyaccTarball = fetchurl {
@@ -2308,6 +2330,28 @@ let
     else
       null;
 
+  phase26-gcc46-source =
+    runCommand "darwin-minimal-bootstrap-phase26-gcc-${gcc46Version}-source" { } ''
+      mkdir -p work $out
+      cd work
+
+      tar -xf ${gcc46Tarball}
+      tar -xf ${gcc46GmpTarball}
+      tar -xf ${gcc46MpfrTarball}
+      tar -xf ${gcc46MpcTarball}
+
+      mv gcc-${gcc46Version}/* $out/
+      cp -R gmp-4.3.2 $out/gmp
+      cp -R mpfr-2.4.2 $out/mpfr
+      cp -R mpc-0.8.1 $out/mpc
+
+      test -x $out/configure
+      test -f $out/gcc/gcc.c
+      test -f $out/gmp/configure
+      test -f $out/mpfr/configure
+      test -f $out/mpc/configure
+    '';
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -2448,6 +2492,7 @@ in
     phase23-tinycc-mescc-link-probe
     phase24-tinycc-compile-probe
     phase25-tinycc-self-object-probe
+    phase26-gcc46-source
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

@@ -115,6 +115,7 @@
     - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.
 - [ ] Bootstrap toward GCC 4.6 on Darwin.
   - [ ] Establish the TCC-hosted C toolchain boundary: preprocessor, assembler input, object output, and runnable host tools.
+  - [x] Add a `phase26-gcc46-source` source checkpoint with GCC 4.6.4 plus GMP 4.3.2, MPFR 2.4.2, and MPC 0.8.1.
   - [ ] Add bootstrap prerequisites in order: binutils/cctools-equivalent assembler+linker path, make/shell assumptions, GMP/MPFR/MPC as required.
   - [ ] Build GCC 4.6 stage1 with the bootstrapped C compiler, then iterate to a self-hosted stage2/stage3.
   - [ ] Keep each successful boundary as a Nix phase and a git checkpoint.
