@@ -17,17 +17,10 @@
 :_start
 
 	mov_rbp,rsp                 ; Protect rsp
-	push_rdi                    ; Preserve Darwin LC_MAIN argc
-	push_rsi                    ; Preserve Darwin LC_MAIN argv
-	488B3E                      ; mov_rdi,[rsi]               # argv[0]
-	mov_rsi, %0                 ; Open read-only
-	mov_rdx, %0                 ; No mode
-	mov_rax, %0x2000005         ; Darwin open
-	syscall                     ; Occupy fd 0 when launchd gives us none
-	5E                          ; pop_rsi
-	5F                          ; pop_rdi
 	push_rdi                    ; Darwin LC_MAIN argc
 	push_rsi                    ; Darwin LC_MAIN argv
+	push_rdx                    ; Darwin LC_MAIN envp
+	mov_rdi,rbp                 ; Current frame for generated call convention
 
 	;; Perform the main loop
 	call %FUNCTION_main

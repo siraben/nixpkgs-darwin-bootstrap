@@ -136,6 +136,7 @@ DEFINE mov_rbx,r13 4C89EB
 DEFINE mov_rbp,rdi 4889FD
 DEFINE mov_rbp,r13 4C89ED
 DEFINE mov_rbp,rsp 4889E5
+DEFINE mov_rdi,rbp 4889EF
 DEFINE mov_rcx,rax 4889C1
 DEFINE mov_rcx,rbx 4889D9
 DEFINE mov_rcx,r11 4C89D9

@@ -668,6 +668,15 @@ let
           test "$status" -eq 1
           grep -q 'Either no input files were given or they were empty' no-input.stderr
 
+          ./M2-darwin --help > help.stdout 2> help.stderr
+          grep -q 'Usage: M2-Planet' help.stdout
+
+          cat > trivial.c <<'C'
+          int main(){return 0;}
+          C
+          ./M2-darwin -f trivial.c -o trivial.M1
+          grep -q ':FUNCTION_main' trivial.M1
+
           runHook postBuild
         '';
 

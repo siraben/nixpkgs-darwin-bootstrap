@@ -27,9 +27,10 @@
   - Concatenate Darwin M2libc bootstrap C and M2-Planet C sources with `catm-darwin`.
   - Compile to M1 with `cc_arch-darwin`.
   - Prefix Darwin M2libc defs/core, assemble with `M0-darwin`, link with `hex2-darwin`, relocate static data into `__DATA`, sign, and smoke-test startup.
-- [ ] Fix `M2-darwin` option/file runtime.
-  - The candidate starts and reports the no-input diagnostic.
-  - `--help` and `-f` currently fall through to the no-input path, so the next blocker is the generated M2 runtime's argument/file handling.
+- [x] Fix `M2-darwin` option/file runtime.
+  - Preserve Darwin `envp` in the startup frame so generated `main` locals land at the offsets M2 expects.
+  - Encode `FILE*` descriptors as `fd + 1` so fd 0 is not confused with `NULL`.
+  - `M2-darwin --help` and `M2-darwin -f trivial.c -o trivial.M1` now work.
 - [ ] Build MesCC tools under the Darwin chain.
   - Build `blood-macho-0` or port `blood-elf` output handling to Mach-O.
   - Build `M1-0`, `hex2-1`, full `M1`, full `hex2`, and `kaem`.
