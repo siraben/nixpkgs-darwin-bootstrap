@@ -1390,6 +1390,7 @@ let
           cp -R . $out/
           chmod -R u+w $out
           cp ${mesDarwinConfigH} $out/include/mes/config.h
+          cp -R ${./mes-darwin}/. $out/
 
           cat > $out/share/darwin-bootstrap/darwin-mes-next.txt <<'EOF'
           This is the Darwin Mes source-prep checkpoint.
@@ -1401,6 +1402,8 @@ let
 
           test -f $out/kaem.x86_64
           test -f $out/scripts/mescc.scm.in
+          test -f $out/lib/darwin/x86_64-mes-m2/crt1.M1
+          test -f $out/include/darwin/x86_64/syscall.h
           grep -q 'MES_VERSION "${mesVersion}"' $out/include/mes/config.h
           grep -q 'typedef unsigned long uintptr_t' $out/include/mes/config.h
 
@@ -1424,8 +1427,34 @@ let
         # compilation.  This keeps the checkpoint focused on the next real
         # porting edge: replacing the downstream ELF/blood-elf link path with
         # the Darwin Mach-O path.
-        awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
-          ${phase13-mes-source}/kaem.run > mes-m2-only.sh
+          sed \
+          -e 's|lib/linux/''${mes_cpu}-mes-m2/crt1.c|lib/darwin/''${mes_cpu}-mes-m2/crt1.c|g' \
+          -e 's|lib/linux/''${mes_cpu}-mes-m2/_exit.c|lib/darwin/''${mes_cpu}-mes-m2/_exit.c|g' \
+          -e 's|lib/linux/''${mes_cpu}-mes-m2/_write.c|lib/darwin/''${mes_cpu}-mes-m2/_write.c|g' \
+          -e 's|include/linux/''${mes_cpu}/syscall.h|include/darwin/''${mes_cpu}/syscall.h|g' \
+          -e 's|lib/linux/''${mes_cpu}-mes-m2/syscall.c|lib/darwin/''${mes_cpu}-mes-m2/syscall.c|g' \
+          -e 's|lib/linux/brk.c|lib/darwin/brk.c|g' \
+          -e 's|lib/linux/malloc.c|lib/darwin/malloc.c|g' \
+          -e 's|lib/linux/read.c|lib/darwin/read.c|g' \
+          -e 's|lib/linux/_open3.c|lib/darwin/_open3.c|g' \
+          -e 's|lib/linux/open.c|lib/darwin/open.c|g' \
+          -e 's|lib/linux/access.c|lib/darwin/access.c|g' \
+          -e 's|lib/linux/chmod.c|lib/darwin/chmod.c|g' \
+          -e 's|lib/linux/ioctl3.c|lib/darwin/ioctl3.c|g' \
+          -e 's|lib/linux/fork.c|lib/darwin/fork.c|g' \
+          -e 's|lib/m2/execve.c|lib/darwin/execve.c|g' \
+          -e 's|lib/linux/wait4.c|lib/darwin/wait4.c|g' \
+          -e 's|lib/linux/waitpid.c|lib/darwin/waitpid.c|g' \
+          -e 's|lib/linux/gettimeofday.c|lib/darwin/gettimeofday.c|g' \
+          -e 's|lib/linux/clock_gettime.c|lib/darwin/clock_gettime.c|g' \
+          -e 's|lib/linux/_getcwd.c|lib/darwin/_getcwd.c|g' \
+          -e 's|lib/linux/dup.c|lib/darwin/dup.c|g' \
+          -e 's|lib/linux/dup2.c|lib/darwin/dup2.c|g' \
+          -e 's|lib/linux/uname.c|lib/darwin/uname.c|g' \
+          -e 's|lib/linux/unlink.c|lib/darwin/unlink.c|g' \
+          ${phase13-mes-source}/kaem.run \
+          | awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
+          > mes-m2-only.sh
 
         set +e
         PATH=${phase12-m2-planet}/bin:$PATH \
@@ -1457,7 +1486,7 @@ let
           --little-endian \
           -f ${phase13-mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
           -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
-          -f ${phase13-mes-source}/lib/linux/x86_64-mes-m2/crt1.M1 \
+          -f ${phase13-mes-source}/lib/darwin/x86_64-mes-m2/crt1.M1 \
           -f ${phase14-mes-m2-probe}/share/darwin-bootstrap/mes.M1 \
           -o mes.hex2
 
@@ -1484,7 +1513,8 @@ let
         status="$?"
         set -e
 
-        test "$status" -eq 140
+        test "$status" -eq 1
+        grep -q 'boot failed: no such file: boot-5.scm' mes-m2-run.stderr
 
         cp mes-m2 mes.hex2 mes-m2-run.stdout mes-m2-run.stderr \
           $out/share/darwin-bootstrap/

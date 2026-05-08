@@ -1,0 +1,19 @@
+DEFINE SYS_exit 01000002
+DEFINE SYS_write 04000002
+DEFINE neg____%rax 48f7d8
+DEFINE push___%rsi 56
+
+:_start
+	push___%rbp
+	mov____%rsp,%rbp
+
+	push___%rdi
+	push___%rsi
+	push___%rdx
+
+	call32 %FUNCTION___init_io
+	call32 %FUNCTION_main
+
+	mov____%rax,%rdi
+	mov____$i32,%rax SYS_exit
+	syscall
