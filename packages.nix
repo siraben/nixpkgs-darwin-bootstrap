@@ -2369,10 +2369,11 @@ let
         test ! -s hello-c.stderr
         test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
 
-        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} hello.o hello-object.M1
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix hello_ hello.o hello-object.M1
 
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start
+        !0x48 !0x83 !0xe4 !0xf0
         !0xe8 %main
         !0x48 !0x89 !0xc7
         !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
@@ -2436,7 +2437,7 @@ let
       runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
         mkdir -p $out/share/darwin-bootstrap
 
-        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} \
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix tcc_self_ \
           ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
           tcc-from-elf.M1
 
@@ -2490,11 +2491,12 @@ let
         test ! -s strlen-c.stdout
         test ! -s strlen-c.stderr
 
-        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} hello.o hello-object.M1
-        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} strlen.o strlen-object.M1
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix hello_ hello.o hello-object.M1
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix strlen_ strlen.o strlen-object.M1
 
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start
+        !0x48 !0x83 !0xe4 !0xf0
         !0xe8 %main
         !0x48 !0x89 !0xc7
         !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
@@ -2575,12 +2577,13 @@ let
           > tinycc-sysv-libc.stdout \
           2> tinycc-sysv-libc.stderr
 
-        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} \
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix tinycc_sysv_libc_ \
           tinycc-sysv-libc.o \
           tinycc-sysv-libc.M1
 
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start
+        !0x48 !0x83 !0xe4 !0xf0
         !0xe8 %main
         !0x48 !0x89 !0xc7
         !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
@@ -2642,7 +2645,9 @@ let
         status="$?"
         set -e
         printf '%s\n' "$status" > tcc-self-version.status
-        test "$status" = 1
+        test "$status" = 0
+        grep -q '0.9.28-darwin-bootstrap' tcc-self-version.stdout
+        test ! -s tcc-self-version.stderr
 
         cp tcc-self $out/bin/tcc-self-candidate
         cp tinycc-sysv-libc.o tinycc-sysv-libc.M1 \

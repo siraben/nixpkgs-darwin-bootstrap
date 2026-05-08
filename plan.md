@@ -114,7 +114,7 @@
     - [x] Prove multi-object SysV ABI linking for TinyCC output.
       - `phase29-tinycc-sysv-libc-probe` compiles both a caller and a seed `strlen` implementation with bootstrapped TinyCC, converts both ELF relocatables to M1, links a signed Mach-O, and verifies exit status 9.
     - [x] Link the self-compiled TinyCC object with a seed SysV Darwin libc candidate.
-      - `phase30-tinycc-self-link-candidate` produces a signed `tcc-self-candidate`; source-guided data relocation now avoids the previous segfault, but `-version` still exits 1 with incomplete output.
+      - `phase30-tinycc-self-link-candidate` produces a signed `tcc-self-candidate`; source-guided data relocation and SysV stack alignment make `tcc-self-candidate -version` run successfully.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.

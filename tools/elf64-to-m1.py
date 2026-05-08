@@ -35,16 +35,20 @@ def align(value, alignment):
     return (value + alignment - 1) & ~(alignment - 1)
 
 
-def label_name(name):
+def label_name(name, prefix=""):
     if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
-        return name
-    safe = re.sub(r"[^A-Za-z0-9_]", "_", name)
-    if not safe or safe[0].isdigit():
-        safe = "L_" + safe
-    return "ELF_" + safe
+        safe = name
+    else:
+        safe = re.sub(r"[^A-Za-z0-9_]", "_", name)
+        if not safe or safe[0].isdigit():
+            safe = "L_" + safe
+        safe = "ELF_" + safe
+    if prefix:
+        return prefix + safe
+    return safe
 
 
-def parse_elf(path):
+def parse_elf(path, prefix):
     data = path.read_bytes()
     if data[:4] != b"\x7fELF":
         raise SystemExit(f"{path}: not an ELF file")
@@ -101,12 +105,15 @@ def parse_elf(path):
                 "<IBBHQQ", data, offset
             )
             name = cstr(strtab, st_name) if st_name else ""
+            bind = st_info >> 4
+            symbol_prefix = prefix if bind == 0 and name else ""
             symbols.append(
                 {
                     "index": index,
                     "name": name,
-                    "label": label_name(name) if name else "",
+                    "label": label_name(name, symbol_prefix) if name else "",
                     "info": st_info,
+                    "bind": bind,
                     "shndx": st_shndx,
                     "value": st_value,
                     "size": st_size,
@@ -235,8 +242,8 @@ def emit_section(out, section, symbols, sections, labels, relocations):
         out.append(f":{label}")
 
 
-def convert(input_path, output_path):
-    sections, symbols, relocations = parse_elf(input_path)
+def convert(input_path, output_path, prefix):
+    sections, symbols, relocations = parse_elf(input_path, prefix)
     section_by_name = {section["name"]: section for section in sections}
 
     text = section_by_name.get(".text")
@@ -298,10 +305,11 @@ def convert(input_path, output_path):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--prefix", default="")
     parser.add_argument("input")
     parser.add_argument("output")
     args = parser.parse_args()
-    convert(pathlib.Path(args.input), pathlib.Path(args.output))
+    convert(pathlib.Path(args.input), pathlib.Path(args.output), args.prefix)
 
 
 if __name__ == "__main__":
