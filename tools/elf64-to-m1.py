@@ -205,18 +205,18 @@ def emit_section(out, section, symbols, sections, labels, relocations):
 
         relocation_type = relocation["type"]
         if relocation_type in (R_X86_64_PC32, R_X86_64_PLT32):
-            if relocation["addend"] != -4:
-                raise SystemExit(f"unsupported PC32 addend {relocation['addend']}")
-            out.append(f"%{symbol_label(symbols, sections, labels, relocation['sym'], 0)}")
+            out.append(
+                f"%{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'] + 4)}"
+            )
             offset += 4
         elif relocation_type in (
             R_X86_64_GOTPCREL,
             R_X86_64_GOTPCRELX,
             R_X86_64_REX_GOTPCRELX,
         ):
-            if relocation["addend"] != -4:
-                raise SystemExit(f"unsupported GOTPCREL addend {relocation['addend']}")
-            out.append(f"%{symbol_label(symbols, sections, labels, relocation['sym'], 0)}")
+            out.append(
+                f"%{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'] + 4)}"
+            )
             offset += 4
         elif relocation_type == R_X86_64_64:
             out.append(
@@ -261,7 +261,13 @@ def convert(input_path, output_path):
                 R_X86_64_GOTPCRELX,
                 R_X86_64_REX_GOTPCRELX,
             ):
-                symbol_label(symbols, sections, labels, relocation["sym"], 0)
+                symbol_label(
+                    symbols,
+                    sections,
+                    labels,
+                    relocation["sym"],
+                    relocation["addend"] + 4,
+                )
             elif relocation_type in (R_X86_64_64, R_X86_64_32, R_X86_64_32S):
                 symbol_label(
                     symbols,
