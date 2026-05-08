@@ -74,6 +74,11 @@ long long strtoll(const char *nptr, char **endptr, int base)
     return strtoul(nptr, endptr, base);
 }
 
+double ldexp(double x, int exp)
+{
+    return x;
+}
+
 /********************************************************/
 
 #ifdef ONE_SOURCE

@@ -38,6 +38,7 @@ unsigned long strtoul(const char *nptr, char **endptr, int base);
 long strtol(const char *nptr, char **endptr, int base);
 unsigned long long strtoull(const char *nptr, char **endptr, int base);
 long long strtoll(const char *nptr, char **endptr, int base);
+double ldexp(double x, int exp);
 
 #ifndef _WIN32
 # include <unistd.h>

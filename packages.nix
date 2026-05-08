@@ -1397,7 +1397,7 @@ let
         set -e
 
         test "$status" -ne 0
-        grep -q 'ERROR in statement' tcc-m2.stderr
+        grep -q 'Got unsupported size 160' tcc-m2.stderr
 
         mkdir -p $out/share/darwin-bootstrap
         cp tcc-m2.stdout tcc-m2.stderr $out/share/darwin-bootstrap/

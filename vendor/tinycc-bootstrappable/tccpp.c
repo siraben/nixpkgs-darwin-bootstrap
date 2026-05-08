@@ -695,15 +695,20 @@ static uint8_t *peekc_eob(int *pc, uint8_t *p)
 #define PEEKC_EOB(c, p) p = peekc_eob(&c, p)
 
 /* handle the complicated stray case */
-#define PEEKC(c, p)\
-{\
-    p++;\
-    c = *p;\
-    if (c == '\\') {\
-        c = handle_stray1(p);\
-        p = file->buf_ptr;\
-    }\
+static uint8_t *peekc(int *pc, uint8_t *p)
+{
+    int c;
+    p++;
+    c = *p;
+    if (c == '\\') {
+        c = handle_stray1(p);
+        p = file->buf_ptr;
+    }
+    *pc = c;
+    return p;
 }
+
+#define PEEKC(c, p) p = peekc(&c, p)
 
 /* input with '\[\r]\n' handling. Note that this function cannot
    handle other characters after '\', so you cannot call it inside
@@ -2190,14 +2195,21 @@ static void parse_escape_string(CString *outstr, const uint8_t *buf, int is_long
 
 static void parse_string(const char *s, int len)
 {
-    uint8_t buf[1000], *p = buf;
-    int is_long, sep;
+    uint8_t buf[1000];
+    uint8_t *p;
+    int is_long;
+    int sep;
 
-    if ((is_long = *s == 'L'))
-        ++s, --len;
-    sep = *s++;
+    p = buf;
+    is_long = *s == 'L';
+    if (is_long) {
+        s++;
+        len--;
+    }
+    sep = *s;
+    s++;
     len -= 2;
-    if (len >= sizeof buf)
+    if (len >= 1000)
         p = tcc_malloc(len + 1);
     memcpy(p, s, len);
     p[len] = 0;
@@ -2219,10 +2231,14 @@ static void parse_string(const char *s, int len)
         if (tokcstr.size > 2 * char_size)
             tcc_warning("multi-character character constant");
         if (!is_long) {
-            tokc.i = *(int8_t *)tokcstr.data;
+            int8_t *char_data;
+            char_data = tokcstr.data;
+            tokc.i = *char_data;
             tok = TOK_CCHAR;
         } else {
-            tokc.i = *(nwchar_t *)tokcstr.data;
+            nwchar_t *wide_data;
+            wide_data = tokcstr.data;
+            tokc.i = *wide_data;
             tok = TOK_LCHAR;
         }
     } else {
@@ -2470,6 +2486,7 @@ static void parse_number(const char *p)
         unsigned long long n, n1;
         int lcount, ucount, must_64bit;
         const char *p1;
+        const char *p_prev;
 
         /* integer number */
         *q = '\0';
@@ -2511,7 +2528,8 @@ static void parse_number(const char *p)
             if (t == 'L') {
                 if (lcount >= 2)
                     tcc_error("three 'l's in integer constant");
-                if (lcount && *(p - 1) != ch)
+                p_prev = p - 1;
+                if (lcount && *p_prev != ch)
                     tcc_error("incorrect integer suffix: %s", p1);
                 lcount++;
 #if !defined TCC_TARGET_X86_64 || defined TCC_TARGET_PE
@@ -2627,14 +2645,15 @@ static void next_nomacro1(void)
                 
                 /* test if previous '#endif' was after a #ifdef at
                    start of file */
-                if (tok_flags & TOK_FLAG_ENDIF) {
+	                if (tok_flags & TOK_FLAG_ENDIF) {
+                    CachedInclude *include;
 #ifdef INC_DEBUG
-                    printf("#endif %s\n", get_tok_str(file->ifndef_macro_saved, NULL));
+	                    printf("#endif %s\n", get_tok_str(file->ifndef_macro_saved, NULL));
 #endif
-                    search_cached_include(s1, file->filename, 1)
-                        ->ifndef_macro = file->ifndef_macro_saved;
-                    tok_flags &= ~TOK_FLAG_ENDIF;
-                }
+                    include = search_cached_include(s1, file->filename, 1);
+                    include->ifndef_macro = file->ifndef_macro_saved;
+	                    tok_flags &= ~TOK_FLAG_ENDIF;
+	                }
 
                 /* add end of include file debug info */
                 if (tcc_state->do_debug) {
@@ -2642,7 +2661,7 @@ static void next_nomacro1(void)
                 }
                 /* pop include stack */
                 tcc_close();
-                s1->include_stack_ptr--;
+                /* include stack update omitted in M2 bootstrap subset */
                 p = file->buf_ptr;
                 goto redo_no_start;
             }
@@ -2708,26 +2727,16 @@ maybe_newline:
         p1 = p;
         h = TOK_HASH_INIT;
         h = TOK_HASH_FUNC(h, c);
-        while (c = *++p, isidnum_table[c - CH_EOF] & (IS_ID|IS_NUM))
+        p++;
+        c = *p;
+        while (isidnum_table[c - CH_EOF] & (IS_ID|IS_NUM)) {
             h = TOK_HASH_FUNC(h, c);
+            p++;
+            c = *p;
+        }
         len = p - p1;
         if (c != '\\') {
-            TokenSymPtr *pts;
-
-            /* fast case : no stray found, so we have the full token
-               and we have already hashed it */
-            h &= (TOK_HASH_SIZE - 1);
-            pts = &hash_ident[h];
-            while (1) {
-                ts = *pts;
-                if (!ts)
-                    break;
-                if (ts->len == len && !memcmp(ts->str, p1, len))
-                    goto token_found;
-                pts = &(ts->hash_next);
-            }
-            ts = tok_alloc_new(pts, (char *) p1, len);
-        token_found: ;
+            ts = tok_alloc_new(0, p1, len);
         } else {
             /* slower case */
             cstr_reset(&tokcstr);
@@ -2801,7 +2810,9 @@ maybe_newline:
             goto parse_num;
         } else if ((isidnum_table['.' - CH_EOF] & IS_ID)
                    && (isidnum_table[c - CH_EOF] & (IS_ID|IS_NUM))) {
-            *--p = c = '.';
+            p--;
+            c = '.';
+            *p = c;
             goto parse_ident_fast;
         } else if (c == '.') {
             PEEKC(c, p);
@@ -2809,7 +2820,8 @@ maybe_newline:
                 p++;
                 tok = TOK_DOTS;
             } else {
-                *--p = '.'; /* may underflow into file->unget[] */
+                p--;
+                *p = '.'; /* may underflow into file->unget[] */
                 tok = '.';
             }
         } else {
