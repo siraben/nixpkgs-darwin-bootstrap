@@ -10,6 +10,8 @@
 #define SYS_wait4 0x2000007
 #define SYS_unlink 0x200000a
 #define SYS_chdir 0x200000c
+#define SYS_getpid 0x2000014
+#define SYS_kill 0x2000025
 #define SYS_fchmod 0x200007c
 #define SYS_chmod 0x200000f
 #define SYS_access 0x2000021
