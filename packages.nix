@@ -1447,6 +1447,47 @@ let
     else
       null;
 
+  phase15-mes-macho-link-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase15-mes-macho-link-probe-amd64" { } ''
+        mkdir -p $out/share/darwin-bootstrap
+
+        ${phase6-blood-macho-0}/bin/blood-macho-0 \
+          --64 \
+          --little-endian \
+          -f ${phase14-mes-m2-probe}/share/darwin-bootstrap/mes.M1 \
+          -o mes.blood-M1
+
+        ${phase9-m1}/bin/M1 \
+          --architecture amd64 \
+          --little-endian \
+          -f ${phase13-mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
+          -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
+          -f ${phase13-mes-source}/lib/linux/x86_64-mes-m2/crt1.M1 \
+          -f ${phase14-mes-m2-probe}/share/darwin-bootstrap/mes.M1 \
+          -f mes.blood-M1 \
+          -o mes.hex2
+
+        set +e
+        ${phase10-hex2}/bin/hex2 \
+          --architecture amd64 \
+          --little-endian \
+          --base-address 0x1000000 \
+          -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+          -f mes.hex2 \
+          -o mes-m2 > mes-hex2.stdout 2> mes-hex2.stderr
+        status="$?"
+        set -e
+
+        test "$status" -ne 0
+        grep -q 'Target label ELF_text is not valid' mes-hex2.stderr
+
+        cp mes.blood-M1 mes.hex2 mes-hex2.stdout mes-hex2.stderr \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -1576,6 +1617,7 @@ in
     phase12-m2-planet
     phase13-mes-source
     phase14-mes-m2-probe
+    phase15-mes-macho-link-probe
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tests
