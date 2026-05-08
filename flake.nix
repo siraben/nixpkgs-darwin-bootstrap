@@ -51,7 +51,8 @@
           phase10-hex2 = bootstrap.phase10-hex2;
           phase11-kaem = bootstrap.phase11-kaem;
           phase12-m2-planet = bootstrap.phase12-m2-planet;
-          phase13-tinycc-m2-probe = bootstrap.phase13-tinycc-m2-probe;
+          phase13-mes-source = bootstrap.phase13-mes-source;
+          phase14-tinycc-m2-probe = bootstrap.phase14-tinycc-m2-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
         }
       );

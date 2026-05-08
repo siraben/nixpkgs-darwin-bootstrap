@@ -1,5 +1,6 @@
 {
   darwin,
+  fetchurl,
   lib,
   minimal-bootstrap-sources,
   python3,
@@ -31,6 +32,32 @@ let
 
   stage0Sources =
     minimal-bootstrap-sources.minimal-bootstrap-sources or minimal-bootstrap-sources;
+
+  mesVersion = "0.27.1";
+
+  mesTarball = fetchurl {
+    url = "mirror://gnu/mes/mes-${mesVersion}.tar.gz";
+    hash = "sha256-GDpA6kfqSfih470bnRLmdjdNZNY7x557wa59Zz398l0=";
+  };
+
+  mesDarwinConfigH = builtins.toFile "darwin-mes-config.h" ''
+    #ifndef _MES_CONFIG_H
+    #undef SYSTEM_LIBC
+    #define MES_VERSION "${mesVersion}"
+    #ifndef __M2__
+    typedef unsigned long uintptr_t;
+    typedef unsigned long size_t;
+    typedef long ssize_t;
+    typedef long intptr_t;
+    typedef long ptrdiff_t;
+    #define __MES_SIZE_T
+    #define __MES_SSIZE_T
+    #define __MES_INTPTR_T
+    #define __MES_UINTPTR_T
+    #define __MES_PTRDIFF_T
+    #endif
+    #endif
+  '';
 
   tinyccBootstrappableSrc = runCommand "darwin-bootstrap-tinycc-bootstrappable-source" { } ''
     mkdir -p $out
@@ -1344,9 +1371,53 @@ let
     else
       null;
 
-  phase13-tinycc-m2-probe =
+  phase13-mes-source =
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase13-tinycc-m2-probe-amd64" { } ''
+      stdenv.mkDerivation {
+        pname = "darwin-minimal-bootstrap-phase13-mes-source";
+        version = mesVersion;
+
+        src = mesTarball;
+
+        dontConfigure = true;
+        dontBuild = true;
+        dontFixup = true;
+
+        installPhase = ''
+          runHook preInstall
+
+          mkdir -p $out/share/darwin-bootstrap
+          cp -R . $out/
+          chmod -R u+w $out
+          cp ${mesDarwinConfigH} $out/include/mes/config.h
+
+          cat > $out/share/darwin-bootstrap/darwin-mes-next.txt <<'EOF'
+          This is the Darwin Mes source-prep checkpoint.
+          Next steps:
+          - port Mes include/linux and lib/linux references to Darwin;
+          - add Darwin crt1, syscall, signal, stat, and setjmp support;
+          - build mes-m2 with phase11-kaem, phase9-M1, and phase10-hex2.
+          EOF
+
+          test -f $out/kaem.x86_64
+          test -f $out/scripts/mescc.scm.in
+          grep -q 'MES_VERSION "${mesVersion}"' $out/include/mes/config.h
+          grep -q 'typedef unsigned long uintptr_t' $out/include/mes/config.h
+
+          runHook postInstall
+        '';
+
+        meta = {
+          description = "Prepared GNU Mes source tree for the Darwin bootstrap path";
+          platforms = [ "x86_64-darwin" ];
+        };
+      }
+    else
+      null;
+
+  phase14-tinycc-m2-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase14-tinycc-m2-probe-amd64" { } ''
         set +e
         ${phase12-m2-planet}/bin/M2-Planet \
           --architecture amd64 \
@@ -1471,7 +1542,8 @@ in
     phase10-hex2
     phase11-kaem
     phase12-m2-planet
-    phase13-tinycc-m2-probe
+    phase13-mes-source
+    phase14-tinycc-m2-probe
     tinyccBootstrappableSrc
     tests
     ;

@@ -45,8 +45,8 @@
     - Linux minimal-bootstrap builds `mes-m2`, Mes libraries, and the Mes Scheme interpreter before TinyCC.
     - TinyCC is compiled by MesCC through `mes --no-auto-compile -e main mescc.scm --`, not directly by M2-Planet.
   - [ ] Add a Darwin Mes source-prep phase.
-    - Start from GNU Mes `0.27.1`, matching Nixpkgs minimal-bootstrap.
-    - Generate `include/mes/config.h` for amd64 Darwin sizes and Mes version.
+    - [x] Start from GNU Mes `0.27.1`, matching Nixpkgs minimal-bootstrap.
+    - [x] Generate `include/mes/config.h` for amd64 Darwin sizes and Mes version.
     - Replace Linux include/module assumptions with Darwin paths before running Mes kaem scripts.
   - [ ] Port Mes libc and MesCC support to Darwin.
     - Add Darwin syscall numbers, `crt1`, `setjmp`/`longjmp`, `kernel-stat`, signal, and file API shims needed by Mes.
