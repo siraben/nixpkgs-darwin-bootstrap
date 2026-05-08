@@ -1,0 +1,4 @@
+source = https://gitlab.com/janneke/tinycc
+rev = ea3900f6d5e71776c5cfabcabee317652e3a19ee
+archive = https://gitlab.com/janneke/tinycc/-/archive/ea3900f6d5e71776c5cfabcabee317652e3a19ee/tinycc-ea3900f6d5e71776c5cfabcabee317652e3a19ee.tar.gz
+nixpkgs reference = pkgs/os-specific/linux/minimal-bootstrap/tinycc/bootstrappable.nix
