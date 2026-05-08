@@ -174,7 +174,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
 {
     int sym_index, esym_index;
 
-    sym_index = ELFW(R_SYM)(rel->r_info);
+    sym_index = ELF64_R_SYM(rel->r_info);
 
     switch (type) {
         case R_X86_64_64:
@@ -182,12 +182,12 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                 esym_index = s1->sym_attrs[sym_index].dyn_index;
                 qrel->r_offset = rel->r_offset;
                 if (esym_index) {
-                    qrel->r_info = ELFW(R_INFO)(esym_index, R_X86_64_64);
+                    qrel->r_info = ELF64_R_INFO(esym_index, R_X86_64_64);
                     qrel->r_addend = rel->r_addend;
                     qrel++;
                     break;
                 } else {
-                    qrel->r_info = ELFW(R_INFO)(0, R_X86_64_RELATIVE);
+                    qrel->r_info = ELF64_R_INFO(0, R_X86_64_RELATIVE);
                     qrel->r_addend = read64le(ptr) + val;
                     qrel++;
                 }
@@ -199,7 +199,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
             if (s1->output_type == TCC_OUTPUT_DLL) {
                 /* XXX: this logic may depend on TCC's codegen
                    now TCC uses R_X86_64_32 even for a 64bit pointer */
-                qrel->r_info = ELFW(R_INFO)(0, R_X86_64_RELATIVE);
+                qrel->r_info = ELF64_R_INFO(0, R_X86_64_RELATIVE);
                 /* Use sign extension! */
                 qrel->r_addend = (int)read32le(ptr) + val;
                 qrel++;
@@ -213,7 +213,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                 esym_index = s1->sym_attrs[sym_index].dyn_index;
                 if (esym_index) {
                     qrel->r_offset = rel->r_offset;
-                    qrel->r_info = ELFW(R_INFO)(esym_index, R_X86_64_PC32);
+                    qrel->r_info = ELF64_R_INFO(esym_index, R_X86_64_PC32);
                     /* Use sign extension! */
                     qrel->r_addend = (int)read32le(ptr) + rel->r_addend;
                     qrel++;
@@ -246,7 +246,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                 esym_index = s1->sym_attrs[sym_index].dyn_index;
                 if (esym_index) {
                     qrel->r_offset = rel->r_offset;
-                    qrel->r_info = ELFW(R_INFO)(esym_index, R_X86_64_PC64);
+                    qrel->r_info = ELF64_R_INFO(esym_index, R_X86_64_PC64);
                     qrel->r_addend = read64le(ptr) + rel->r_addend;
                     qrel++;
                     break;

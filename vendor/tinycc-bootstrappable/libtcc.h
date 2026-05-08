@@ -23,8 +23,7 @@ LIBTCCAPI void tcc_delete(TCCState *s);
 LIBTCCAPI void tcc_set_lib_path(TCCState *s, const char *path);
 
 /* set error/warning display callback */
-LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque,
-    void (*error_func)(void *opaque, const char *msg));
+LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque, FUNCTION error_func);
 
 /* set options as from command line (multiple supported) */
 LIBTCCAPI void tcc_set_options(TCCState *s, const char *str);

@@ -1352,11 +1352,12 @@ let
           --architecture amd64 \
           -I ${tinyccBootstrappableSrc} \
           -I ${tinyccBootstrappableSrc}/include \
+          -D float=int \
+          -D double=long \
           -D BOOTSTRAP=1 \
           -D HAVE_LONG_LONG=1 \
           -D TCC_TARGET_X86_64=1 \
           -D LDOUBLE_SIZE=8 \
-          -D inline= \
           -D CONFIG_TCCBOOT=1 \
           -D CONFIG_TCC_STATIC=1 \
           -D CONFIG_USE_LIBGCC=1 \
@@ -1364,6 +1365,7 @@ let
           -D TCC_VERSION=\"0.9.28-bootstrap\" \
           -f ${stage0Sources}/M2libc/sys/types.h \
           -f ${stage0Sources}/M2libc/stddef.h \
+          -f ${stage0Sources}/M2libc/stdint.h \
           -f ${stage0Sources}/M2libc/sys/utsname.h \
           -f ${./M2libc/amd64/Darwin/unistd.c} \
           -f ${./M2libc/amd64/Darwin/fcntl.c} \
@@ -1376,6 +1378,7 @@ let
           -f ${stage0Sources}/M2libc/stdio.h \
           -f ${stage0Sources}/M2libc/stdio.c \
           -f ${stage0Sources}/M2libc/bootstrappable.c \
+          -f ${tinyccBootstrappableSrc}/elf.h \
           -f ${tinyccBootstrappableSrc}/libtcc.h \
           -f ${tinyccBootstrappableSrc}/tcc.h \
           -f ${tinyccBootstrappableSrc}/tccpp.c \
@@ -1394,7 +1397,7 @@ let
         set -e
 
         test "$status" -ne 0
-        grep -q 'forbidden character in argument variable name' tcc-m2.stderr
+        grep -q 'ERROR in process_switch' tcc-m2.stderr
 
         mkdir -p $out/share/darwin-bootstrap
         cp tcc-m2.stdout tcc-m2.stderr $out/share/darwin-bootstrap/

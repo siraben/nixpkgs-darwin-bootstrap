@@ -169,11 +169,11 @@ void relocate_init(Section *sr) {}
 
 void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t addr, addr_t val)
 {
-    ElfW(Sym) *sym;
+    Elf64_Sym *sym;
     int sym_index;
 
-    sym_index = ELFW(R_SYM)(rel->r_info);
-    sym = &((ElfW(Sym) *)symtab_section->data)[sym_index];
+    sym_index = ELF64_R_SYM(rel->r_info);
+    sym = &((Elf64_Sym *)symtab_section->data)[sym_index];
 
     switch(type) {
         case R_ARM_PC24:
@@ -225,7 +225,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
 
                 /* weak reference */
                 if (sym->st_shndx == SHN_UNDEF &&
-                    ELFW(ST_BIND)(sym->st_info) == STB_WEAK)
+                    ELF64_ST_BIND(sym->st_info) == STB_WEAK)
                     return;
 
                 /* Get initial offset */
@@ -266,7 +266,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                                         sym->st_shndx, buf);
                     to_thumb = 1;
                     val = text_section->data_offset + 1;
-                    rel->r_info = ELFW(R_INFO)(index, type);
+                    rel->r_info = ELF64_R_INFO(index, type);
                     /* Create a thumb stub function to switch to ARM mode */
                     put_elf_reloc(symtab_section, text_section,
                                   text_section->data_offset + 4, R_ARM_JUMP24,

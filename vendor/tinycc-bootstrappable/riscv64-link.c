@@ -177,8 +177,8 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr,
 {
     uint64_t off64;
     uint32_t off32;
-    int sym_index = ELFW(R_SYM)(rel->r_info), esym_index;
-    ElfW(Sym) *sym = &((ElfW(Sym) *)symtab_section->data)[sym_index];
+    int sym_index = ELF64_R_SYM(rel->r_info), esym_index;
+    Elf64_Sym *sym = &((Elf64_Sym *)symtab_section->data)[sym_index];
 
     switch(type) {
     case R_RISCV_ALIGN:
@@ -297,7 +297,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr,
             /* XXX: this logic may depend on TCC's codegen
                now TCC uses R_RISCV_RELATIVE even for a 64bit pointer */
             qrel->r_offset = rel->r_offset;
-            qrel->r_info = ELFW(R_INFO)(0, R_RISCV_RELATIVE);
+            qrel->r_info = ELF64_R_INFO(0, R_RISCV_RELATIVE);
             /* Use sign extension! */
             qrel->r_addend = (int)read32le(ptr) + val;
             qrel++;
@@ -309,12 +309,12 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr,
             esym_index = get_sym_attr(s1, sym_index, 0)->dyn_index;
             qrel->r_offset = rel->r_offset;
             if (esym_index) {
-                qrel->r_info = ELFW(R_INFO)(esym_index, R_RISCV_64);
+                qrel->r_info = ELF64_R_INFO(esym_index, R_RISCV_64);
                 qrel->r_addend = rel->r_addend;
                 qrel++;
                 break;
             } else {
-                qrel->r_info = ELFW(R_INFO)(0, R_RISCV_RELATIVE);
+                qrel->r_info = ELF64_R_INFO(0, R_RISCV_RELATIVE);
                 qrel->r_addend = read64le(ptr) + val;
                 qrel++;
             }

@@ -69,8 +69,8 @@ ST_FUNC Sym* get_asm_sym(int name, Sym *csym)
 	if (csym &&
 	    ((csym->r & (VT_SYM|VT_CONST)) == (VT_SYM|VT_CONST)) &&
 	    csym->c) {
-	    ElfW(Sym) *esym;
-	    esym = &((ElfW(Sym) *)symtab_section->data)[csym->c];
+	    Elf64_Sym *esym;
+	    esym = &((Elf64_Sym *)symtab_section->data)[csym->c];
 	    sym->c = csym->c;
 	    sym->r = esym->st_shndx;
 	    sym->jnext = esym->st_value;
@@ -261,7 +261,7 @@ static void asm_expr_logic(TCCState *s1, ExprValue *pe)
     }
 }
 
-static inline void asm_expr_sum(TCCState *s1, ExprValue *pe)
+static void asm_expr_sum(TCCState *s1, ExprValue *pe)
 {
     int op;
     ExprValue e2;
@@ -306,7 +306,7 @@ static inline void asm_expr_sum(TCCState *s1, ExprValue *pe)
     }
 }
 
-static inline void asm_expr_cmp(TCCState *s1, ExprValue *pe)
+static void asm_expr_cmp(TCCState *s1, ExprValue *pe)
 {
     int op;
     ExprValue e2;

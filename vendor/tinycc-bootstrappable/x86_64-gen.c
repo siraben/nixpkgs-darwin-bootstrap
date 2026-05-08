@@ -664,7 +664,7 @@ ST_FUNC void gen_bounded_ptr_add(void)
 
 
     /* relocation offset of the bounding function call point */
-    vtop->c.i = (cur_text_section->reloc->data_offset - sizeof(ElfW(Rela)));
+    vtop->c.i = (cur_text_section->reloc->data_offset - sizeof(Elf64_Rela));
 }
 
 /* patch pointer addition in vtop so that pointer dereferencing is
@@ -673,7 +673,7 @@ ST_FUNC void gen_bounded_ptr_deref(void)
 {
     addr_t func;
     int size, align;
-    ElfW(Rela) *rel;
+    Elf64_Rela *rel;
     Sym *sym;
 
     size = 0;
@@ -706,7 +706,7 @@ ST_FUNC void gen_bounded_ptr_deref(void)
     /* patch relocation */
     /* XXX: find a better solution ? */
 
-    rel = (ElfW(Rela) *)(cur_text_section->reloc->data + vtop->c.i);
+    rel = (Elf64_Rela *)(cur_text_section->reloc->data + vtop->c.i);
     rel->r_info = ELF64_R_INFO(sym->c, ELF64_R_TYPE(rel->r_info));
 }
 #endif

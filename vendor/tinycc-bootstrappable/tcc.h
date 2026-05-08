@@ -51,7 +51,7 @@
 # ifdef __GNUC__
 #  include <stdint.h>
 # endif
-# define inline __inline
+# define inline
 # define inp next_inp /* inp is an intrinsic on msvc */
 # define snprintf _snprintf
 # define vsnprintf _vsnprintf
@@ -286,7 +286,7 @@
 #endif
 
 #ifdef ONE_SOURCE
-#define ST_INLN static inline
+#define ST_INLN static
 #define ST_FUNC static
 #define ST_DATA static
 #else
@@ -338,19 +338,19 @@
 # define ELFCLASSW ELFCLASS64
 # define ElfW(type) Elf##64##_##type
 # define ELFW(type) ELF##64##_##type
-# define ElfW_Rel ElfW(Rela)
+typedef Elf64_Rela ElfW_Rel;
 # define SHT_RELX SHT_RELA
 # define REL_SECTION_FMT ".rela%s"
 #else
 # define ELFCLASSW ELFCLASS32
 # define ElfW(type) Elf##32##_##type
 # define ELFW(type) ELF##32##_##type
-# define ElfW_Rel ElfW(Rel)
+typedef Elf64_Rel ElfW_Rel;
 # define SHT_RELX SHT_REL
 # define REL_SECTION_FMT ".rel%s"
 #endif
 /* target address type */
-#define addr_t ElfW(Addr)
+typedef Elf64_Addr addr_t;
 
 /* -------------------------------------------- */
 
@@ -376,6 +376,7 @@ typedef struct TokenSym {
     int len;
     char str[1];
 } TokenSym;
+typedef TokenSym *TokenSymPtr;
 
 #ifdef TCC_TARGET_PE
 typedef unsigned short nwchar_t;
@@ -413,7 +414,7 @@ typedef union CValue {
 #if BOOTSTRAP && __arm__
     int tab[4];
 #else
-    int tab[LDOUBLE_SIZE/4];
+    int tab[2];
 #endif
 } CValue;
 
@@ -583,7 +584,7 @@ typedef struct BufferedFile {
 } BufferedFile;
 
 #define CH_EOB   '\\'       /* end of buffer or '\0' char in file */
-#define CH_EOF   (-1)   /* end of file */
+#define CH_EOF   -1   /* end of file */
 
 /* parsing state (used to save parser state to reparse part of the
    source several times) */
@@ -749,9 +750,9 @@ struct TCCState {
 
     /* error handling */
     void *error_opaque;
-    void (*error_func)(void *opaque, const char *msg);
+    FUNCTION error_func;
     int error_set_jmp_enabled;
-    jmp_buf error_jmp_buf;
+    int error_jmp_buf;
     int nb_errors;
 
     /* output file for preprocessing (-E) */
@@ -1015,6 +1016,133 @@ struct filespec {
 /* all identifiers and strings have token above that */
 #define TOK_IDENT 256
 
+#ifndef TOK_INT
+#define TOK_INT 256
+#define TOK_VOID 257
+#define TOK_CHAR 258
+#define TOK_IF 259
+#define TOK_ELSE 260
+#define TOK_WHILE 261
+#define TOK_BREAK 262
+#define TOK_RETURN 263
+#define TOK_FOR 264
+#define TOK_EXTERN 265
+#define TOK_STATIC 266
+#define TOK_UNSIGNED 267
+#define TOK_GOTO 268
+#define TOK_DO 269
+#define TOK_CONTINUE 270
+#define TOK_SWITCH 271
+#define TOK_CASE 272
+#define TOK_CONST1 273
+#define TOK_CONST2 274
+#define TOK_CONST3 275
+#define TOK_VOLATILE1 276
+#define TOK_VOLATILE2 277
+#define TOK_VOLATILE3 278
+#define TOK_LONG 279
+#define TOK_REGISTER 280
+#define TOK_SIGNED1 281
+#define TOK_SIGNED2 282
+#define TOK_SIGNED3 283
+#define TOK_AUTO 284
+#define TOK_INLINE1 285
+#define TOK_INLINE2 286
+#define TOK_INLINE3 287
+#define TOK_RESTRICT1 288
+#define TOK_RESTRICT2 289
+#define TOK_RESTRICT3 290
+#define TOK_EXTENSION 291
+#define TOK_FLOAT 292
+#define TOK_DOUBLE 293
+#define TOK_BOOL 294
+#define TOK_SHORT 295
+#define TOK_STRUCT 296
+#define TOK_UNION 297
+#define TOK_TYPEDEF 298
+#define TOK_DEFAULT 299
+#define TOK_ENUM 300
+#define TOK_SIZEOF 301
+#define TOK_ATTRIBUTE1 302
+#define TOK_ATTRIBUTE2 303
+#define TOK_ALIGNOF1 304
+#define TOK_ALIGNOF2 305
+#define TOK_TYPEOF1 306
+#define TOK_TYPEOF2 307
+#define TOK_TYPEOF3 308
+#define TOK_LABEL 309
+#define TOK_ASM1 310
+#define TOK_ASM2 311
+#define TOK_ASM3 312
+#define TOK_DEFINE 313
+#define TOK_INCLUDE 314
+#define TOK_INCLUDE_NEXT 315
+#define TOK_IFDEF 316
+#define TOK_IFNDEF 317
+#define TOK_ELIF 318
+#define TOK_ENDIF 319
+#define TOK_DEFINED 320
+#define TOK_UNDEF 321
+#define TOK_ERROR 322
+#define TOK_WARNING 323
+#define TOK_LINE 324
+#define TOK_PRAGMA 325
+#define TOK___LINE__ 326
+#define TOK___FILE__ 327
+#define TOK___DATE__ 328
+#define TOK___TIME__ 329
+#define TOK___FUNCTION__ 330
+#define TOK___VA_ARGS__ 331
+#define TOK___COUNTER__ 332
+#define TOK___FUNC__ 333
+#define TOK___NAN__ 334
+#define TOK___SNAN__ 335
+#define TOK___INF__ 336
+#define TOK_SECTION1 337
+#define TOK_SECTION2 338
+#define TOK_ALIGNED1 339
+#define TOK_ALIGNED2 340
+#define TOK_PACKED1 341
+#define TOK_PACKED2 342
+#define TOK_WEAK1 343
+#define TOK_WEAK2 344
+#define TOK_ALIAS1 345
+#define TOK_ALIAS2 346
+#define TOK_UNUSED1 347
+#define TOK_UNUSED2 348
+#define TOK_CDECL1 349
+#define TOK_CDECL2 350
+#define TOK_CDECL3 351
+#define TOK_STDCALL1 352
+#define TOK_STDCALL2 353
+#define TOK_STDCALL3 354
+#define TOK_FASTCALL1 355
+#define TOK_FASTCALL2 356
+#define TOK_FASTCALL3 357
+#define TOK_MODE 358
+#define TOK_MODE_QI 359
+#define TOK_MODE_DI 360
+#define TOK_MODE_HI 361
+#define TOK_MODE_SI 362
+#define TOK_MODE_word 363
+#define TOK_DLLEXPORT 364
+#define TOK_DLLIMPORT 365
+#define TOK_NORETURN1 366
+#define TOK_NORETURN2 367
+#define TOK_VISIBILITY1 368
+#define TOK_VISIBILITY2 369
+#define TOK_builtin_types_compatible_p 370
+#define TOK_builtin_choose_expr 371
+#define TOK_builtin_constant_p 372
+#define TOK_builtin_frame_address 373
+#define TOK_builtin_return_address 374
+#define TOK_builtin_expect 375
+#define TOK_builtin_va_arg_types 376
+#define TOK_REGPARM1 377
+#define TOK_REGPARM2 378
+#define TOK_alloca 379
+#endif
+
 #define DEF_ASM(x) DEF(TOK_ASM_ ## x, #x)
 #define TOK_ASM_int TOK_INT
 #define DEF_ASMDIR(x) DEF(TOK_ASMDIR_ ## x, "." #x)
@@ -1152,7 +1280,7 @@ PUB_FUNC char *tcc_strdup_debug(const char *str, const char *file, int line);
 #define strdup(s) use_tcc_strdup(s)
 PUB_FUNC void tcc_memcheck(void);
 PUB_FUNC void tcc_error_noabort(const char *fmt, ...);
-PUB_FUNC NORETURN void tcc_error(const char *fmt, ...);
+PUB_FUNC void tcc_error(const char *fmt, ...);
 PUB_FUNC void tcc_warning(const char *fmt, ...);
 
 /* other utilities */
@@ -1231,7 +1359,7 @@ ST_DATA CString tokcstr; /* current parsed string, if any */
 ST_DATA int total_lines;
 ST_DATA int total_bytes;
 ST_DATA int tok_ident;
-ST_DATA TokenSym **table_ident;
+ST_DATA TokenSymPtr *table_ident;
 
 #define TOK_FLAG_BOL   0x0001 /* beginning of line before */
 #define TOK_FLAG_BOF   0x0002 /* beginning of file before */
@@ -1253,7 +1381,7 @@ ST_DATA TokenSym **table_ident;
 #define IS_ID  2
 #define IS_NUM 4
 
-ST_FUNC TokenSym *tok_alloc(const char *str, int len);
+ST_FUNC TokenSymPtr tok_alloc(const char *str, int len);
 ST_FUNC const char *get_tok_str(int v, CValue *cv);
 ST_FUNC void begin_macro(TokenString *str, int alloc);
 ST_FUNC void end_macro(void);
@@ -1283,23 +1411,25 @@ ST_FUNC void tccpp_new(TCCState *s);
 ST_FUNC void tccpp_delete(TCCState *s);
 ST_FUNC int tcc_preprocess(TCCState *s1);
 ST_FUNC void skip(int c);
-ST_FUNC NORETURN void expect(const char *msg);
+ST_FUNC void expect(const char *msg);
 
 /* space excluding newline */
-static inline int is_space(int ch) {
+static int is_space(int ch) {
     return ch == ' ' || ch == '\t' || ch == '\v' || ch == '\f' || ch == '\r';
 }
-static inline int isid(int c) {
+static int isid(int c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
-static inline int isnum(int c) {
+static int isnum(int c) {
     return c >= '0' && c <= '9';
 }
-static inline int isoct(int c) {
+static int isoct(int c) {
     return c >= '0' && c <= '7';
 }
-static inline int toup(int c) {
-    return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
+static int toup(int c) {
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 'A';
+    return c;
 }
 
 /* ------------ tccgen.c ------------ */
@@ -1455,7 +1585,7 @@ ST_FUNC void relocate_syms(TCCState *s1, Section *symtab, int do_resolve);
 ST_FUNC void relocate_section(TCCState *s1, Section *s);
 
 ST_FUNC void tcc_add_linker_symbols(TCCState *s1);
-ST_FUNC int tcc_object_type(int fd, ElfW(Ehdr) *h);
+ST_FUNC int tcc_object_type(int fd, Elf64_Ehdr *h);
 ST_FUNC int tcc_load_object_file(TCCState *s1, int fd, unsigned long file_offset);
 ST_FUNC int tcc_load_archive(TCCState *s1, int fd);
 ST_FUNC void tcc_add_bcheck(TCCState *s1);
@@ -1499,6 +1629,9 @@ ST_FUNC void relocate_plt(TCCState *s1);
 
 /* ------------ xxx-gen.c ------------ */
 
+#ifndef NB_REGS
+#define NB_REGS 25
+#endif
 ST_DATA const int reg_classes[NB_REGS];
 
 ST_FUNC void gsym_addr(int t, int a);
@@ -1532,29 +1665,32 @@ ST_FUNC void gen_vla_sp_save(int addr);
 ST_FUNC void gen_vla_sp_restore(int addr);
 ST_FUNC void gen_vla_alloc(CType *type, int align);
 
-static inline uint16_t read16le(unsigned char *p) {
+static uint16_t read16le(unsigned char *p) {
     return p[0] | (uint16_t)p[1] << 8;
 }
-static inline void write16le(unsigned char *p, uint16_t x) {
-    p[0] = x & 255, p[1] = x >> 8 & 255;
+static void write16le(unsigned char *p, uint16_t x) {
+    p[0] = x & 255;
+    p[1] = x >> 8 & 255;
 }
-static inline uint32_t read32le(unsigned char *p) {
+static uint32_t read32le(unsigned char *p) {
   return read16le(p) | (uint32_t)read16le(p + 2) << 16;
 }
-static inline void write32le(unsigned char *p, uint32_t x) {
-    write16le(p, x), write16le(p + 2, x >> 16);
+static void write32le(unsigned char *p, uint32_t x) {
+    write16le(p, x);
+    write16le(p + 2, x >> 16);
 }
-static inline void add32le(unsigned char *p, int32_t x) {
+static void add32le(unsigned char *p, int32_t x) {
     write32le(p, read32le(p) + x);
 }
 #if HAVE_LONG_LONG
-static inline uint64_t read64le(unsigned char *p) {
+static uint64_t read64le(unsigned char *p) {
   return read32le(p) | (uint64_t)read32le(p + 4) << 32;
 }
-static inline void write64le(unsigned char *p, uint64_t x) {
-    write32le(p, x), write32le(p + 4, x >> 32);
+static void write64le(unsigned char *p, uint64_t x) {
+    write32le(p, x);
+    write32le(p + 4, x >> 32);
 }
-static inline void add64le(unsigned char *p, int64_t x) {
+static void add64le(unsigned char *p, int64_t x) {
     write64le(p, read64le(p) + x);
 }
 #endif

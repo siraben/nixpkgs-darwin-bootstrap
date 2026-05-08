@@ -410,14 +410,14 @@ no_stabs:
     incl_index = 0;
     if (symtab_section)
     {
-        ElfW(Sym) *sym, *sym_end;
+        Elf64_Sym *sym, *sym_end;
         int type;
 
-        sym_end = (ElfW(Sym) *)(symtab_section->data + symtab_section->data_offset);
-        for(sym = (ElfW(Sym) *)symtab_section->data + 1;
+        sym_end = (Elf64_Sym *)(symtab_section->data + symtab_section->data_offset);
+        for(sym = (Elf64_Sym *)symtab_section->data + 1;
             sym < sym_end;
             sym++) {
-            type = ELFW(ST_TYPE)(sym->st_info);
+            type = ELF64_ST_TYPE(sym->st_info);
             if (type == STT_FUNC || type == STT_GNU_IFUNC) {
                 if (wanted_pc >= sym->st_value &&
                     wanted_pc < sym->st_value + sym->st_size) {

@@ -36,6 +36,16 @@ ST_DATA struct TCCState *tcc_state;
 
 static int nb_states;
 
+int setjmp(int env)
+{
+    return 0;
+}
+
+void longjmp(int env, int value)
+{
+    exit(value);
+}
+
 /********************************************************/
 
 #ifdef ONE_SOURCE
@@ -527,8 +537,7 @@ static void error1(TCCState *s1, int is_warning, const char *fmt, va_list ap)
         s1->nb_errors++;
 }
 
-LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque,
-                        void (*error_func)(void *opaque, const char *msg))
+LIBTCCAPI void tcc_set_error_func(TCCState *s, void *error_opaque, FUNCTION error_func)
 {
     s->error_opaque = error_opaque;
     s->error_func = error_func;
@@ -1074,7 +1083,7 @@ ST_FUNC int tcc_add_file_internal(TCCState *s1, const char *filename, int flags)
         ret = tcc_assemble(s1, 0);
 #endif
     } else {
-        ElfW(Ehdr) ehdr;
+        Elf64_Ehdr ehdr;
         int fd, obj_type;
 
         fd = file->fd;
@@ -1221,7 +1230,7 @@ LIBTCCAPI int tcc_add_symbol(TCCState *s, const char *name, const void *val)
     pe_putimport(s, 0, name, (uintptr_t)val);
 #else
     set_elf_sym(symtab_section, (uintptr_t)val, 0,
-        ELFW(ST_INFO)(STB_GLOBAL, STT_NOTYPE), 0,
+        ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE), 0,
         SHN_ABS, name);
 #endif
     return 0;
