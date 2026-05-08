@@ -20,7 +20,7 @@ let
       builder = "hex0";
       inputs = [ "stage0-posix/<arch>/hex1_<arch>.hex0" ];
       output = "hex1";
-      darwinStatus = "blocked: upstream hex1_<arch>.hex0 emits ELF, needs Mach-O replacement";
+      darwinStatus = "implemented for amd64 Darwin as a signed Mach-O wrapper around the stage0 payload";
     }
     {
       number = 2;
@@ -28,7 +28,7 @@ let
       builder = "hex1";
       inputs = [ "stage0-posix/<arch>/hex2_<arch>.hex1" ];
       output = "hex2-0";
-      darwinStatus = "blocked on phase 1 and Mach-O syscall/header port";
+      darwinStatus = "implemented for amd64 Darwin as phase2-hex2";
     }
     {
       number = 3;
@@ -36,7 +36,7 @@ let
       builder = "hex1 or hex2-0";
       inputs = [ "stage0-posix/<arch>/catm_<arch>.hex{1,2}" ];
       output = "catm";
-      darwinStatus = "blocked on phase 1/2 and Mach-O syscall/header port";
+      darwinStatus = "implemented for amd64 Darwin as phase2-catm";
     }
     {
       number = 4;
@@ -44,7 +44,7 @@ let
       builder = "hex2-0";
       inputs = [ (macho "<arch>") "stage0-posix/<arch>/M0_<arch>.hex2" ];
       output = "M0";
-      darwinStatus = "MACHO-<arch>.hex2 template started; blocked on signed phase wrapper and Darwin M0/syscall source";
+      darwinStatus = "implemented for amd64 Darwin as phase3-m0";
     }
     {
       number = 5;
@@ -52,7 +52,7 @@ let
       builder = "M0 then hex2-0";
       inputs = [ (macho "<arch>") "stage0-posix/<arch>/cc_<arch>.M1" ];
       output = "cc_arch";
-      darwinStatus = "blocked on M0 and signed Mach-O phase output";
+      darwinStatus = "implemented for amd64 Darwin as phase4-cc-arch";
     }
     {
       number = 6;
@@ -60,7 +60,7 @@ let
       builder = "cc_arch then M0 then hex2-0";
       inputs = [ (darwinM2libc "<arch>") (defs "<arch>") (libcCore "<arch>") (macho "<arch>") "M2-Planet/*.c" ];
       output = "M2";
-      darwinStatus = "M2libc Darwin startup/syscalls started; blocked on prior Mach-O executable phases";
+      darwinStatus = "implemented for amd64 Darwin as phase5-m2";
     }
     {
       number = 7;
@@ -68,7 +68,7 @@ let
       builder = "M2 then M0 then hex2-0";
       inputs = [ (darwinM2libc "<arch>") (defs "<arch>") (libcCore "<arch>") (macho "<arch>") "mescc-tools/blood-elf.c" ];
       output = "blood-macho-0";
-      darwinStatus = "blocked: blood-elf must be ported/replaced for Mach-O symbol/footer generation";
+      darwinStatus = "implemented for amd64 Darwin as phase6-blood-macho-0; ELF debug footer use remains disabled for Mach-O-linked tools";
     }
     {
       number = 8;
@@ -76,7 +76,7 @@ let
       builder = "M2, blood-macho-0, M0, hex2-0";
       inputs = [ "mescc-tools/M1-macro.c" ];
       output = "M1-0";
-      darwinStatus = "blocked on blood-macho-0";
+      darwinStatus = "implemented for amd64 Darwin as phase7-m1-0";
     }
     {
       number = 9;
@@ -84,7 +84,7 @@ let
       builder = "M2, blood-macho-0, M1-0, hex2-0";
       inputs = [ "mescc-tools/hex2*.c" ];
       output = "hex2-1";
-      darwinStatus = "blocked: hex2_linker needs --macho/final wrapper support";
+      darwinStatus = "implemented for amd64 Darwin as phase8-hex2-1 using the Mach-O low-data header";
     }
     {
       number = 10;
@@ -92,7 +92,7 @@ let
       builder = "M2, blood-macho-0, M1-0, hex2-1";
       inputs = [ "mescc-tools/M1-macro.c" ];
       output = "M1";
-      darwinStatus = "blocked on hex2-1 Mach-O output";
+      darwinStatus = "implemented for amd64 Darwin as phase9-m1";
     }
     {
       number = 11;
@@ -100,7 +100,7 @@ let
       builder = "M2, blood-macho-0, M1, hex2-1";
       inputs = [ "mescc-tools/hex2*.c" ];
       output = "hex2";
-      darwinStatus = "blocked on --macho implementation";
+      darwinStatus = "implemented for amd64 Darwin as phase10-hex2 using the Mach-O low-data header";
     }
     {
       number = 12;
@@ -108,7 +108,7 @@ let
       builder = "M2, blood-macho-0, M1, hex2";
       inputs = [ "mescc-tools/Kaem/*.c" ];
       output = "kaem";
-      darwinStatus = "blocked on hex2 Mach-O output";
+      darwinStatus = "implemented for amd64 Darwin as phase11-kaem";
     }
     {
       number = 13;
@@ -116,7 +116,7 @@ let
       builder = "M2, blood-macho, M1, hex2";
       inputs = [ (darwinM2libc "<arch>") "M2-Planet/*.c" ];
       output = "M2-Planet";
-      darwinStatus = "blocked on kaem/hex2 Mach-O output";
+      darwinStatus = "implemented for amd64 Darwin as phase12-m2-planet";
     }
     {
       number = 14;
@@ -124,7 +124,7 @@ let
       builder = "M2-Planet/MesCC chain";
       inputs = [ "tinycc bootstrappable fork" "Darwin M2libc" "Mach-O hex2" ];
       output = "tcc";
-      darwinStatus = "blocked until phases 1-13 produce runnable Mach-O tools";
+      darwinStatus = "blocked: the bootstrappable TinyCC fork is MesCC-oriented and ELF-only at this point; Darwin needs a Mes compiler path plus Mach-O TCC backend/runtime work";
     }
   ];
 in
@@ -136,15 +136,14 @@ in
     "C-built hex0 seed for experimentation"
     "Darwin M2libc bootstrap syscall stubs"
     "Darwin M2libc startup M1 snippets"
+    "amd64 Darwin MesCC tools through kaem"
+    "amd64 Darwin full M2-Planet"
   ];
 
   missingCriticalPath = [
     "hand-written Mach-O hex0 seed bytes"
-    "Mach-O hex1_<arch>.hex0 and hex2_<arch>.hex1 sources"
-    "signed Darwin phase wrapper around generated Mach-O tools"
-    "blood-macho footer/symbol generator"
-    "hex2 --macho final wrapper support"
-    "TCC Darwin bootstrap flags after M2/MesCC is runnable"
+    "Mach-O debug footer/symbol generator for debug-enabled MesCC stages"
+    "TCC Darwin bootstrap path: Mes compiler input, Mach-O backend, and libc/libtcc1 runtime"
   ];
 
   sameLengthAsLinuxMesccToolsBoot = builtins.length phases == 15;

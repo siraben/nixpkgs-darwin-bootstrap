@@ -31,7 +31,7 @@
   - Preserve Darwin `envp` in the startup frame so generated `main` locals land at the offsets M2 expects.
   - Encode `FILE*` descriptors as `fd + 1` so fd 0 is not confused with `NULL`.
   - `M2-darwin --help` and `M2-darwin -f trivial.c -o trivial.M1` now work.
-- [ ] Build MesCC tools under the Darwin chain.
+- [x] Build MesCC tools under the Darwin chain.
   - [x] Build `blood-macho-0` from `M2-darwin` and smoke-test footer generation.
   - [x] Build `M1-0` from `M2-darwin` and smoke-test M1 to hex2 conversion.
   - [x] Add amd64 Darwin full M2libc syscall/core layer for MesCC tools.
@@ -41,8 +41,12 @@
   - [x] Build `kaem` from `M2-darwin`, full `M1`, and full `hex2`.
   - [x] Build full `M2-Planet` from the Darwin MesCC toolchain.
 - [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
-  - Identify the smallest bootstrappable TCC fork inputs.
-  - Add Darwin M2libc/TCC syscall and linker assumptions.
+  - [x] Identify the smallest bootstrappable TCC fork inputs.
+    - Nixpkgs uses Jan Nieuwenhuizen's `tinycc` fork at `ea3900f6d5e71776c5cfabcabee317652e3a19ee` for the MesCC-oriented TCC seed.
+  - [x] Verify that the fork is not directly M2-Planet-compilable.
+    - `M2-Planet` stops immediately in `tcc.c` on non-M2 C constructs, before code generation.
+  - [ ] Add a Darwin Mes compiler path or another C99-capable pre-TCC compiler.
+  - [ ] Port the TCC backend/runtime from ELF/Linux assumptions to signed Mach-O/Darwin.
   - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.
 
 ## aarch64 follow-up

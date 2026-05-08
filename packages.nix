@@ -1373,7 +1373,7 @@ let
 
     stage0-posix-phase-graph = runCommand "darwin-minimal-bootstrap-stage0-posix-phase-graph" { } ''
       test ${lib.escapeShellArg (toString stage0-posix.sameLengthAsLinuxMesccToolsBoot)} = 1
-      test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 6
+      test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 3
       test ${lib.escapeShellArg stage0-posix.m2libcOS} = Darwin
       test ${lib.escapeShellArg stage0-posix.executableHeader} = MACHO-${arch}.hex2
       if grep -q '/linux/' ${./stage0-posix/mescc-tools-boot.nix}; then
