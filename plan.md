@@ -152,3 +152,4 @@
 - 2026-05-08: Switched `plan.md` progress tracking to append-only log entries; keep the checklist as a roadmap and record each new bootstrap boundary here instead of rewriting prior TODO text.
 - 2026-05-08: Added proper GCC 4.6 bootstrap patch hunks for libiberty `fnmatch.c`, `getopt.c`, `hex.c`, and `make-relative-prefix.c`; latest run reached GCC subconfigure after passing the prior libiberty compile boundary.
 - 2026-05-08: Validated the `make-relative-prefix.c` bootstrap stub in `make all-gcc`; libiberty now compiles through `make-relative-prefix.c` and stops while compiling `make-temp-file.c`.
+- 2026-05-08: Added a bootstrap `make-temp-file.c` implementation; libiberty now compiles through `objalloc.c` and stops while compiling `obstack.c`.
