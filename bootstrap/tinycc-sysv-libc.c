@@ -16,14 +16,14 @@ void exit(int code) { _exit(code); }
 void __assert_fail(const char *a, const char *b, unsigned int c, const char *d) { write(2, "assert\n", 7); _exit(1); }
 void *__va_start(void *ap, void *last) { return ap; }
 
-void *malloc(size_t n) { size_t sz = (n + 4095) & ~4095; void *p = mmap(0, sz, 3, 0x1002, -1, 0); if ((long)p < 0) return 0; return p; }
+void *malloc(size_t n) { size_t sz = (n + 4095 + 16) & ~4095; unsigned long *p = mmap(0, sz, 3, 0x1002, -1, 0); if ((long)p < 0) return 0; p[0] = sz - 16; p[1] = 0; return p + 2; }
 void free(void *p) { }
 
 void *memcpy(void *d, const void *s, size_t n) { char *dd = d; const char *ss = s; while (n--) *dd++ = *ss++; return d; }
 void *memmove(void *d, const void *s, size_t n) { char *dd = d; const char *ss = s; if (dd < ss) while (n--) *dd++ = *ss++; else { dd += n; ss += n; while (n--) *--dd = *--ss; } return d; }
 void *memset(void *d, int c, size_t n) { unsigned char *p = d; while (n--) *p++ = (unsigned char)c; return d; }
 int memcmp(const void *a, const void *b, size_t n) { const unsigned char *x = a, *y = b; while (n--) { if (*x != *y) return *x - *y; x++; y++; } return 0; }
-void *realloc(void *p, size_t n) { void *q = malloc(n); if (p && q) memcpy(q, p, n); return q; }
+void *realloc(void *p, size_t n) { void *q = malloc(n); if (p && q) { size_t old = ((unsigned long *)p)[-2]; memcpy(q, p, old < n ? old : n); } return q; }
 size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
 char *strcpy(char *d, const char *s) { char *r = d; while ((*d++ = *s++)); return r; }
 int strcmp(const char *a, const char *b) { while (*a && *a == *b) { a++; b++; } return *(unsigned char *)a - *(unsigned char *)b; }
