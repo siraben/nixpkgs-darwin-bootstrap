@@ -104,7 +104,10 @@
   - [ ] Run TinyCC self-advance stages.
     - [x] Add a `phase24` smoke stage that exercises real preprocessing and object generation.
       - MesCC-built TinyCC now preprocesses a C file and emits an x86_64 ELF relocatable object.
-    - [ ] Debug TinyCC self-compilation with Mes includes before enabling boot0.
+    - [x] Debug TinyCC self-compilation with Mes includes before enabling boot0.
+      - Avoid the copied-`__DATA` function-pointer trap by replacing switch-case `qsort` with a direct insertion sort in the TinyCC Mes patch.
+      - Add `phase25-tinycc-self-object-probe` to compile TinyCC itself to an x86_64 ELF relocatable object.
+    - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
   - [ ] Port TinyCC output to signed Mach-O/Darwin.

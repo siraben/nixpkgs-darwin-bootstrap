@@ -120,6 +120,36 @@ index 2b19f77..95b9250 100644
      else if (s1->got)
          fill_local_got_entries(s1);
  
+diff --git a/tccgen.c b/tccgen.c
+index 487dbf1..dfea8fe 100644
+--- a/tccgen.c
++++ b/tccgen.c
+@@ -5902,6 +5902,8 @@ static void block(int *bsym, int *csym, int is_expr)
+     if (tok == TOK_SWITCH) {
+         struct switch_t *saved, sw;
+ 	int saved_nocode_wanted = nocode_wanted;
++        struct case_t *case_tmp;
++        int case_i, case_j;
+ 	SValue switchval;
+         next();
+         skip('(');
+@@ -5918,7 +5920,15 @@ static void block(int *bsym, int *csym, int is_expr)
+         a = gjmp(a); /* add implicit break */
+         /* case lookup */
+         gsym(b);
+-        qsort(sw.p, sw.n, sizeof(void*), case_cmp);
++        for (case_i = 1; case_i < sw.n; case_i++) {
++            case_tmp = sw.p[case_i];
++            case_j = case_i;
++            while (case_j > 0 && case_cmp(&sw.p[case_j - 1], &case_tmp) > 0) {
++                sw.p[case_j] = sw.p[case_j - 1];
++                case_j--;
++            }
++            sw.p[case_j] = case_tmp;
++        }
+         for (b = 1; b < sw.n; b++)
+             if (sw.p[b - 1]->v2 >= sw.p[b]->v1)
+                 tcc_error("duplicate case value");
 diff --git a/x86_64-gen.c b/x86_64-gen.c
 index b939c0d..675afdf 100644
 --- a/x86_64-gen.c
