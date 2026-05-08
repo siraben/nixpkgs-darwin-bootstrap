@@ -381,7 +381,7 @@ struct pe_info {
 
 /* --------------------------------------------*/
 
-static const char *pe_export_name(TCCState *s1, Elf64_Sym *sym)
+static const char *pe_export_name(TCCState *s1, ElfW(Sym) *sym)
 {
     const char *name = (char*)symtab_section->link->data + sym->st_name;
     if (s1->leading_underscore && name[0] == '_' && !(sym->st_other & ST_PE_STDCALL))
@@ -389,7 +389,7 @@ static const char *pe_export_name(TCCState *s1, Elf64_Sym *sym)
     return name;
 }
 
-static int pe_find_import(TCCState * s1, Elf64_Sym *sym)
+static int pe_find_import(TCCState * s1, ElfW(Sym) *sym)
 {
     char buffer[200];
     const char *s, *p;
@@ -421,7 +421,7 @@ static int pe_find_import(TCCState * s1, Elf64_Sym *sym)
         sym_index = find_elf_sym(s1->dynsymtab_section, s);
         // printf("find (%d) %d %s\n", n, sym_index, s);
         if (sym_index
-            && ELF64_ST_TYPE(sym->st_info) == STT_OBJECT
+            && ELFW(ST_TYPE)(sym->st_info) == STT_OBJECT
             && 0 == (sym->st_other & ST_PE_IMPORT)
             && 0 == a
             ) err = -1, sym_index = 0;
@@ -751,9 +751,9 @@ static struct import_symbol *pe_add_import(struct pe_info *pe, int sym_index)
     int dll_index;
     struct pe_import_info *p;
     struct import_symbol *s;
-    Elf64_Sym *isym;
+    ElfW(Sym) *isym;
 
-    isym = (Elf64_Sym *)pe->s1->dynsymtab_section->data + sym_index;
+    isym = (ElfW(Sym) *)pe->s1->dynsymtab_section->data + sym_index;
     dll_index = isym->st_size;
 
     i = dynarray_assoc ((void**)pe->imp_info, pe->imp_count, dll_index);
@@ -835,8 +835,8 @@ static void pe_build_imports(struct pe_info *pe)
             if (k < n) {
                 int iat_index = p->symbols[k]->iat_index;
                 int sym_index = p->symbols[k]->sym_index;
-                Elf64_Sym *imp_sym = (Elf64_Sym *)pe->s1->dynsymtab_section->data + sym_index;
-                Elf64_Sym *org_sym = (Elf64_Sym *)symtab_section->data + iat_index;
+                ElfW(Sym) *imp_sym = (ElfW(Sym) *)pe->s1->dynsymtab_section->data + sym_index;
+                ElfW(Sym) *org_sym = (ElfW(Sym) *)symtab_section->data + iat_index;
                 const char *name = (char*)pe->s1->dynsymtab_section->link->data + imp_sym->st_name;
                 int ordinal;
 
@@ -897,7 +897,7 @@ static int sym_cmp(const void *va, const void *vb)
 
 static void pe_build_exports(struct pe_info *pe)
 {
-    Elf64_Sym *sym;
+    ElfW(Sym) *sym;
     int sym_index, sym_end;
     DWORD rva_base, func_o, name_o, ord_o, str_o;
     IMAGE_EXPORT_DIRECTORY *hdr;
@@ -912,9 +912,9 @@ static void pe_build_exports(struct pe_info *pe)
     rva_base = pe->thunk->sh_addr - pe->imagebase;
     sym_count = 0, sorted = NULL, op = NULL;
 
-    sym_end = symtab_section->data_offset / sizeof(Elf64_Sym);
+    sym_end = symtab_section->data_offset / sizeof(ElfW(Sym));
     for (sym_index = 1; sym_index < sym_end; ++sym_index) {
-        sym = (Elf64_Sym*)symtab_section->data + sym_index;
+        sym = (ElfW(Sym)*)symtab_section->data + sym_index;
         name = pe_export_name(pe->s1, sym);
         if ((sym->st_other & ST_PE_EXPORT)
             /* export only symbols from actually written sections */
@@ -1007,7 +1007,7 @@ static void pe_build_reloc (struct pe_info *pe)
 
     for(;;) {
         if (rel < rel_end) {
-            int type = ELF64_R_TYPE(rel->r_info);
+            int type = ELFW(R_TYPE)(rel->r_info);
             addr = rel->r_offset + s->sh_addr;
             ++ rel;
             if (type != REL_TYPE_DIRECT)
@@ -1195,11 +1195,11 @@ static void pe_relocate_rva (struct pe_info *pe, Section *s)
     ElfW_Rel *rel, *rel_end;
     rel_end = (ElfW_Rel *)(sr->data + sr->data_offset);
     for(rel = (ElfW_Rel *)sr->data; rel < rel_end; rel++) {
-        if (ELF64_R_TYPE(rel->r_info) == R_XXX_RELATIVE) {
-            int sym_index = ELF64_R_SYM(rel->r_info);
+        if (ELFW(R_TYPE)(rel->r_info) == R_XXX_RELATIVE) {
+            int sym_index = ELFW(R_SYM)(rel->r_info);
             DWORD addr = s->sh_addr;
             if (sym_index) {
-                Elf64_Sym *sym = (Elf64_Sym *)symtab_section->data + sym_index;
+                ElfW(Sym) *sym = (ElfW(Sym) *)symtab_section->data + sym_index;
                 addr = sym->st_value;
             }
             // printf("reloc rva %08x %08x %s\n", (DWORD)rel->r_offset, addr, s->name);
@@ -1227,20 +1227,20 @@ static int pe_isafunc(int sym_index)
 /*----------------------------------------------------------------------------*/
 static int pe_check_symbols(struct pe_info *pe)
 {
-    Elf64_Sym *sym;
+    ElfW(Sym) *sym;
     int sym_index, sym_end;
     int ret = 0;
 
     pe_align_section(text_section, 8);
 
-    sym_end = symtab_section->data_offset / sizeof(Elf64_Sym);
+    sym_end = symtab_section->data_offset / sizeof(ElfW(Sym));
     for (sym_index = 1; sym_index < sym_end; ++sym_index) {
 
-        sym = (Elf64_Sym *)symtab_section->data + sym_index;
+        sym = (ElfW(Sym) *)symtab_section->data + sym_index;
         if (sym->st_shndx == SHN_UNDEF) {
 
             const char *name = (char*)symtab_section->link->data + sym->st_name;
-            unsigned type = ELF64_ST_TYPE(sym->st_info);
+            unsigned type = ELFW(ST_TYPE)(sym->st_info);
             int imp_sym = pe_find_import(pe->s1, sym);
             struct import_symbol *is;
 
@@ -1284,7 +1284,7 @@ static int pe_check_symbols(struct pe_info *pe)
                     sprintf(buffer, "IAT.%s", name);
                     is->iat_index = put_elf_sym(
                         symtab_section, 0, sizeof(DWORD),
-                        ELF64_ST_INFO(STB_GLOBAL, STT_OBJECT),
+                        ELFW(ST_INFO)(STB_GLOBAL, STT_OBJECT),
                         0, SHN_UNDEF, buffer);
 #ifdef TCC_TARGET_ARM
                     put_elf_reloc(symtab_section, text_section,
@@ -1297,7 +1297,7 @@ static int pe_check_symbols(struct pe_info *pe)
                 }
 
                 /* tcc_realloc might have altered sym's address */
-                sym = (Elf64_Sym *)symtab_section->data + sym_index;
+                sym = (ElfW(Sym) *)symtab_section->data + sym_index;
 
                 /* patch the original symbol */
                 sym->st_value = offset;
@@ -1315,7 +1315,7 @@ static int pe_check_symbols(struct pe_info *pe)
             }
 
         not_found:
-            if (ELF64_ST_BIND(sym->st_info) == STB_WEAK)
+            if (ELFW(ST_BIND)(sym->st_info) == STB_WEAK)
                 /* STB_WEAK undefined symbols are accepted */
                 continue;
             tcc_error_noabort("undefined symbol '%s'%s", name,
@@ -1323,7 +1323,7 @@ static int pe_check_symbols(struct pe_info *pe)
             ret = -1;
 
         } else if (pe->s1->rdynamic
-                   && ELF64_ST_BIND(sym->st_info) != STB_LOCAL) {
+                   && ELFW(ST_BIND)(sym->st_info) != STB_LOCAL) {
             /* if -rdynamic option, then export all non local symbols */
             sym->st_other |= ST_PE_EXPORT;
         }
@@ -1358,7 +1358,7 @@ static void pe_print_section(FILE * f, Section * s)
         return;
 
     if (s->sh_type == SHT_SYMTAB)
-        m = sizeof(Elf64_Sym);
+        m = sizeof(ElfW(Sym));
     else if (s->sh_type == SHT_RELX)
         m = sizeof(ElfW_Rel);
     else
@@ -1416,27 +1416,27 @@ static void pe_print_section(FILE * f, Section * s)
         }
 
         if (s->sh_type == SHT_SYMTAB) {
-            Elf64_Sym *sym = (Elf64_Sym *) (p + i);
+            ElfW(Sym) *sym = (ElfW(Sym) *) (p + i);
             const char *name = s->link->data + sym->st_name;
             fprintf(f, "  %04X  %04X  %04X   %02X    %02X    %02X   %04X  \"%s\"",
                     (unsigned)sym->st_name,
                     (unsigned)sym->st_value,
                     (unsigned)sym->st_size,
-                    (unsigned)ELF64_ST_BIND(sym->st_info),
-                    (unsigned)ELF64_ST_TYPE(sym->st_info),
+                    (unsigned)ELFW(ST_BIND)(sym->st_info),
+                    (unsigned)ELFW(ST_TYPE)(sym->st_info),
                     (unsigned)sym->st_other,
                     (unsigned)sym->st_shndx,
                     name);
 
         } else if (s->sh_type == SHT_RELX) {
             ElfW_Rel *rel = (ElfW_Rel *) (p + i);
-            Elf64_Sym *sym =
-                (Elf64_Sym *) s->link->data + ELF64_R_SYM(rel->r_info);
+            ElfW(Sym) *sym =
+                (ElfW(Sym) *) s->link->data + ELFW(R_SYM)(rel->r_info);
             const char *name = s->link->link->data + sym->st_name;
             fprintf(f, "  %04X   %02X   %04X  \"%s\"",
                     (unsigned)rel->r_offset,
-                    (unsigned)ELF64_R_TYPE(rel->r_info),
-                    (unsigned)ELF64_R_SYM(rel->r_info),
+                    (unsigned)ELFW(R_TYPE)(rel->r_info),
+                    (unsigned)ELFW(R_SYM)(rel->r_info),
                     name);
         } else {
             fprintf(f, "   ");
@@ -1508,7 +1508,7 @@ ST_FUNC int pe_putimport(TCCState *s1, int dllindex, const char *name, addr_t va
         s1->dynsymtab_section,
         value,
         dllindex, /* st_size */
-        ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE),
+        ELFW(ST_INFO)(STB_GLOBAL, STT_NOTYPE),
         0,
         value ? SHN_ABS : SHN_UNDEF,
         name
@@ -1891,7 +1891,7 @@ static void pe_add_runtime(TCCState *s1, struct pe_info *pe)
 #endif
     set_elf_sym(symtab_section,
         0, 0,
-        ELF64_ST_INFO(STB_GLOBAL, STT_NOTYPE), 0,
+        ELFW(ST_INFO)(STB_GLOBAL, STT_NOTYPE), 0,
         SHN_UNDEF, start_symbol);
 
     tcc_add_pragma_libs(s1);

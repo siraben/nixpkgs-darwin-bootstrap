@@ -156,9 +156,9 @@ void relocate_init(Section *sr) {}
 
 void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t addr, addr_t val)
 {
-    int sym_index = ELF64_R_SYM(rel->r_info);
+    int sym_index = ELFW(R_SYM)(rel->r_info);
 #ifdef DEBUG_RELOC
-    Elf64_Sym *sym = &((Elf64_Sym *)symtab_section->data)[sym_index];
+    ElfW(Sym) *sym = &((ElfW(Sym) *)symtab_section->data)[sym_index];
 #endif
 
     switch(type) {

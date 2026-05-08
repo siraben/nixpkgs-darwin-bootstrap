@@ -166,7 +166,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
 {
     int sym_index, esym_index;
 
-    sym_index = ELF64_R_SYM(rel->r_info);
+    sym_index = ELFW(R_SYM)(rel->r_info);
 
     switch (type) {
         case R_386_32:
@@ -174,11 +174,11 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                 esym_index = s1->sym_attrs[sym_index].dyn_index;
                 qrel->r_offset = rel->r_offset;
                 if (esym_index) {
-                    qrel->r_info = ELF64_R_INFO(esym_index, R_386_32);
+                    qrel->r_info = ELFW(R_INFO)(esym_index, R_386_32);
                     qrel++;
                     return;
                 } else {
-                    qrel->r_info = ELF64_R_INFO(0, R_386_RELATIVE);
+                    qrel->r_info = ELFW(R_INFO)(0, R_386_RELATIVE);
                     qrel++;
                 }
             }
@@ -190,7 +190,7 @@ void relocate(TCCState *s1, ElfW_Rel *rel, int type, unsigned char *ptr, addr_t 
                 esym_index = s1->sym_attrs[sym_index].dyn_index;
                 if (esym_index) {
                     qrel->r_offset = rel->r_offset;
-                    qrel->r_info = ELF64_R_INFO(esym_index, R_386_PC32);
+                    qrel->r_info = ELFW(R_INFO)(esym_index, R_386_PC32);
                     qrel++;
                     return;
                 }

@@ -84,7 +84,7 @@ ST_DATA struct switch_t {
 /* ------------------------------------------------------------------------- */
 
 static void gen_cast(CType *type);
-static CType *pointed_type(CType *type);
+static inline CType *pointed_type(CType *type);
 static int is_compatible_types(CType *type1, CType *type2);
 static int parse_btype(CType *type, AttributeDef *ad);
 static CType *type_decl(CType *type, AttributeDef *ad, int *v, int td);
@@ -100,10 +100,10 @@ static void vla_sp_restore(void);
 static void vla_sp_restore_root(void);
 static int is_compatible_parameter_types(CType *type1, CType *type2);
 #if HAVE_LONG_LONG
-static int64_t expr_const64(void);
+static inline int64_t expr_const64(void);
 ST_FUNC void vpush64(int ty, unsigned long long v);
 #else
-static int32_t expr_const32(void);
+static inline int32_t expr_const32(void);
 #endif
 ST_FUNC void vpush(CType *type);
 ST_FUNC int gvtst(int inv, int t);
@@ -163,7 +163,7 @@ ST_FUNC void tcc_debug_start(TCCState *s1)
 
         /* file info: full path + filename */
         section_sym = put_elf_sym(symtab_section, 0, 0,
-                                  ELF64_ST_INFO(STB_LOCAL, STT_SECTION), 0,
+                                  ELFW(ST_INFO)(STB_LOCAL, STT_SECTION), 0,
                                   text_section->sh_num, NULL);
         getcwd(buf, sizeof(buf));
 #ifdef _WIN32
@@ -181,7 +181,7 @@ ST_FUNC void tcc_debug_start(TCCState *s1)
     /* an elf symbol of type STT_FILE must be put so that STB_LOCAL
        symbols can be safely used */
     put_elf_sym(symtab_section, 0, 0,
-                ELF64_ST_INFO(STB_LOCAL, STT_FILE), 0,
+                ELFW(ST_INFO)(STB_LOCAL, STT_FILE), 0,
                 SHN_ABS, file->filename);
 }
 
@@ -279,21 +279,21 @@ ST_FUNC void tccgen_end(TCCState *s1)
 static void update_storage(Sym *sym)
 {
     int t;
-    Elf64_Sym *esym;
+    ElfW(Sym) *esym;
 
     if (0 == sym->c)
         return;
 
     t = sym->type.t;
-    esym = &((Elf64_Sym *)symtab_section->data)[sym->c];
+    esym = &((ElfW(Sym) *)symtab_section->data)[sym->c];
 
 #if !__MESC__ // Nyacc 0.80.40 cpp-bug
     if (t & VT_VIS_MASK)
-        esym->st_other = (esym->st_other & ~ELF64_ST_VISIBILITY(-1))
+        esym->st_other = (esym->st_other & ~ELFW(ST_VISIBILITY)(-1))
             | ((t & VT_VIS_MASK) >> VT_VIS_SHIFT);
 
     if (t & VT_WEAK)
-        esym->st_info = ELF64_ST_INFO(STB_WEAK, ELF64_ST_TYPE(esym->st_info));
+        esym->st_info = ELFW(ST_INFO)(STB_WEAK, ELFW(ST_TYPE)(esym->st_info));
 #else //__MESC__
     // #warning work around Nyacc 0.80.42 bug.
 #endif // __MESC__
@@ -312,7 +312,7 @@ ST_FUNC void put_extern_sym2(Sym *sym, Section *section,
                             int can_add_underscore)
 {
     int sym_type, sym_bind, sh_num, info, other, t;
-    Elf64_Sym *esym;
+    ElfW(Sym) *esym;
     const char *name;
     char buf1[256];
 #ifdef CONFIG_TCC_BCHECK
@@ -388,10 +388,10 @@ ST_FUNC void put_extern_sym2(Sym *sym, Section *section,
         }
         if (sym->asm_label)
             name = get_tok_str(sym->asm_label, NULL);
-        info = ELF64_ST_INFO(sym_bind, sym_type);
+        info = ELFW(ST_INFO)(sym_bind, sym_type);
         sym->c = set_elf_sym(symtab_section, value, size, info, other, sh_num, name);
     } else {
-        esym = &((Elf64_Sym *)symtab_section->data)[sym->c];
+        esym = &((ElfW(Sym) *)symtab_section->data)[sym->c];
         esym->st_value = value;
         esym->st_size = size;
         esym->st_shndx = sh_num;
@@ -452,7 +452,7 @@ static Sym *__sym_malloc(void)
     return last_sym;
 }
 
-static Sym *sym_malloc(void)
+static inline Sym *sym_malloc(void)
 {
     Sym *sym;
 #ifndef SYM_DEBUG
@@ -712,7 +712,7 @@ ST_FUNC void vpush64(int ty, unsigned long long v)
 }
 
 /* push long long constant */
-static void vpushll(long long v)
+static inline void vpushll(long long v)
 {
     vpush64(VT_LLONG, v);
 }
@@ -783,7 +783,7 @@ ST_FUNC void vrott(int n)
 }
 
 /* push a symbol value of TYPE */
-static void vpushsym(CType *type, Sym *sym)
+static inline void vpushsym(CType *type, Sym *sym)
 {
     CValue cval;
     cval.i = 0;
@@ -1891,7 +1891,7 @@ static void gen_opif(int op)
 {
     int c1, c2;
     SValue *v1, *v2;
-    double f1, f2;
+    long double f1, f2;
 
     v1 = vtop - 1;
     v2 = vtop;
@@ -1960,7 +1960,7 @@ static void vla_runtime_pointed_size(CType *type)
     vla_runtime_type_size(pointed_type(type), &align);
 }
 
-static int is_null_pointer(SValue *p)
+static inline int is_null_pointer(SValue *p)
 {
     if ((p->r & (VT_VALMASK | VT_LVAL | VT_SYM)) != VT_CONST)
         return 0;
@@ -1970,7 +1970,7 @@ static int is_null_pointer(SValue *p)
          (PTR_SIZE == 4 ? (uint32_t)p->c.i == 0 : p->c.i == 0));
 }
 
-static int is_integer_btype(int bt)
+static inline int is_integer_btype(int bt)
 {
     return (bt == VT_BYTE || bt == VT_SHORT || 
             bt == VT_INT || bt == VT_LLONG);
@@ -2353,12 +2353,12 @@ static void gen_cast(CType *type)
                     if ((sbt & VT_UNSIGNED) || !(vtop->c.i >> 63))
                         vtop->c.ld = vtop->c.i;
                     else
-                        vtop->c.ld = -(double)-vtop->c.i;
+                        vtop->c.ld = -(long double)-vtop->c.i;
                 } else if(!sf) {
                     if ((sbt & VT_UNSIGNED) || !(vtop->c.i >> 31))
                         vtop->c.ld = (uint32_t)vtop->c.i;
                     else
-                        vtop->c.ld = -(double)-(uint32_t)vtop->c.i;
+                        vtop->c.ld = -(long double)-(uint32_t)vtop->c.i;
                 }
 
                 if (dbt == VT_FLOAT)
@@ -2622,7 +2622,7 @@ static void vla_sp_restore_root(void) {
 }
 
 /* return the pointed type of t */
-static CType *pointed_type(CType *type)
+static inline CType *pointed_type(CType *type)
 {
     return &type->ref->type;
 }
@@ -2797,7 +2797,7 @@ static void type_to_str(char *buf, int buf_size,
         tstr = "double";
         goto add_tstr;
     case VT_LDOUBLE:
-        tstr = "double";
+        tstr = "long double";
     add_tstr:
         pstrcat(buf, buf_size, tstr);
         break;
@@ -3869,7 +3869,7 @@ static int parse_btype(CType *type, AttributeDef *ad)
 #if defined TCC_TARGET_ARM64 || defined TCC_TARGET_RISCV64
         case TOK_UINT128:
             /* GCC's __uint128_t appears in some Linux header files. Make it a
-               synonym for double to get the size and alignment right. */
+               synonym for long double to get the size and alignment right. */
             u = VT_LDOUBLE;
             goto basic_type;
 #endif
@@ -4032,7 +4032,7 @@ the_end:
 
 /* convert a function parameter type (array to pointer and function to
    function pointer) */
-static void convert_parameter_type(CType *pt)
+static inline void convert_parameter_type(CType *pt)
 {
     /* remove const and volatile qualifiers (XXX: const could be used
        to indicate a const function parameter */
@@ -5483,7 +5483,7 @@ static void expr_const1(void)
 
 #if HAVE_LONG_LONG
 /* parse an integer constant and return its value. */
-static int64_t expr_const64(void)
+static inline int64_t expr_const64(void)
 {
     int64_t c;
     expr_const1();
@@ -5495,7 +5495,7 @@ static int64_t expr_const64(void)
 }
 #else
 /* parse an integer constant and return its value. */
-static int32_t expr_const32(void)
+static inline int32_t expr_const32(void)
 {
     int32_t c;
     expr_const1();
@@ -6308,9 +6308,9 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 	    (vtop->type.t & VT_BTYPE) != VT_PTR) {
 	    /* These come from compound literals, memcpy stuff over.  */
 	    Section *ssec;
-	    Elf64_Sym *esym;
+	    ElfW(Sym) *esym;
 	    ElfW_Rel *rel;
-	    esym = &((Elf64_Sym *)symtab_section->data)[vtop->sym->c];
+	    esym = &((ElfW(Sym) *)symtab_section->data)[vtop->sym->c];
 	    ssec = tcc_state->sections[esym->st_shndx];
 	    memmove (ptr, ssec->data + esym->st_value, size);
 	    if (ssec->reloc) {
@@ -6334,8 +6334,8 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 		       initializer is parsed.  */
 		    put_elf_reloca(symtab_section, sec,
 				   c + rel->r_offset - esym->st_value,
-				   ELF64_R_TYPE(rel->r_info),
-				   ELF64_R_SYM(rel->r_info),
+				   ELFW(R_TYPE)(rel->r_info),
+				   ELFW(R_SYM)(rel->r_info),
 #if PTR_SIZE == 8
 				   rel->r_addend
 #else
@@ -6362,7 +6362,7 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 	    switch(bt) {
 		/* XXX: when cross-compiling we assume that each type has the
 		   same representation on host and target, which is likely to
-		   be wrong in the case of double */
+		   be wrong in the case of long double */
 	    case VT_BOOL:
 		vtop->c.i = (vtop->c.i != 0);
 	    case VT_BYTE:
@@ -6397,9 +6397,9 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 		break;
 	    case VT_LDOUBLE:
 #if HAVE_FLOAT
-                if (sizeof(double) == LDOUBLE_SIZE)
+                if (sizeof(long double) == LDOUBLE_SIZE)
 #if !(BOOTSTRAP && __arm__)
-		    *(double *)ptr = vtop->c.ld;
+		    *(long double *)ptr = vtop->c.ld;
 #else
                 {
                   // XXX TODO: breaks on mescc/tcc-mes based build
@@ -6412,16 +6412,16 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 		else if (sizeof(double) == LDOUBLE_SIZE)
 		    *(double *)ptr = (double)vtop->c.ld;
 #if (defined __i386__ || defined __x86_64__) && (defined TCC_TARGET_I386 || defined TCC_TARGET_X86_64)
-                else if (sizeof (double) >= 10)
+                else if (sizeof (long double) >= 10)
                     memcpy(memset(ptr, 0, LDOUBLE_SIZE), &vtop->c.ld, 10);
 #if defined (__TINYC__)
-                else if (sizeof (double) == sizeof (double))
+                else if (sizeof (long double) == sizeof (double))
                     __asm__("fldl %1\nfstpt %0\n" : "=m"
                         (memset(ptr, 0, LDOUBLE_SIZE), ptr) : "m" (vtop->c.ld));
 #endif
 #endif
 		else
-                    tcc_error("can't cross compile double constants");
+                    tcc_error("can't cross compile long double constants");
 #endif
 		break;
 #if PTR_SIZE != 8
@@ -6793,8 +6793,8 @@ static void decl_initializer_alloc(CType *type, AttributeDef *ad, int r,
                     update_storage(sym);
                     goto no_alloc;
                 } else if (sym->c) {
-                    Elf64_Sym *esym;
-                    esym = &((Elf64_Sym *)symtab_section->data)[sym->c];
+                    ElfW(Sym) *esym;
+                    esym = &((ElfW(Sym) *)symtab_section->data)[sym->c];
                     if (esym->st_shndx == data_section->sh_num)
                         tcc_error("redefinition of '%s'", get_tok_str(v, NULL));
                 }
@@ -6920,7 +6920,7 @@ static void gen_function(Sym *sym)
     sym_pop(&local_stack, NULL, 0);
     /* end of function */
     /* patch symbol size */
-    ((Elf64_Sym *)symtab_section->data)[sym->c].st_size = 
+    ((ElfW(Sym) *)symtab_section->data)[sym->c].st_size = 
         ind - func_ind;
     tcc_debug_funcend(tcc_state, ind - func_ind);
     /* It's better to crash than to generate wrong code */
@@ -7216,13 +7216,13 @@ found:
                         sym->asm_label = ad.asm_label;
                         if (ad.alias_target) {
                             Section tsec;
-                            Elf64_Sym *esym;
+                            ElfW(Sym) *esym;
                             Sym *alias_target;
 
                             alias_target = sym_find(ad.alias_target);
                             if (!alias_target || !alias_target->c)
                                 tcc_error("unsupported forward __alias__ attribute");
-                            esym = &((Elf64_Sym *)symtab_section->data)[alias_target->c];
+                            esym = &((ElfW(Sym) *)symtab_section->data)[alias_target->c];
                             tsec.sh_num = esym->st_shndx;
                             put_extern_sym2(sym, &tsec, esym->st_value, esym->st_size, 0);
                         }

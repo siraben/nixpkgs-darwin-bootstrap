@@ -510,7 +510,7 @@ ST_FUNC void store(int r, SValue *sv)
     int bt = sv->type.t & VT_BTYPE;
     int align, size = type_size(&sv->type, &align);
     assert(!is_float(bt) || is_freg(r) || bt == VT_LDOUBLE);
-    /* doubles are in two integer registers, but the load/store
+    /* long doubles are in two integer registers, but the load/store
        primitives only deal with one, so do as if it's one reg.  */
     if (bt == VT_LDOUBLE)
       size = align = 8;

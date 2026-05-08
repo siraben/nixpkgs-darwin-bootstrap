@@ -91,9 +91,9 @@ ST_FUNC int tcc_tool_ar(TCCState *s1, int argc, char **argv)
         };
 
     FILE *fi, *fh = NULL, *fo = NULL;
-    Elf64_Ehdr *ehdr;
-    Elf64_Shdr *shdr;
-    Elf64_Sym *sym;
+    ElfW(Ehdr) *ehdr;
+    ElfW(Shdr) *shdr;
+    ElfW(Sym) *sym;
     int i, fsize, i_lib, i_obj;
     char *buf, *shstr, *symtab = NULL, *strtab = NULL;
     int symtabsize = 0;//, strtabsize = 0;
@@ -169,18 +169,18 @@ ST_FUNC int tcc_tool_ar(TCCState *s1, int argc, char **argv)
         fclose(fi);
 
         // elf header
-        ehdr = (Elf64_Ehdr *)buf;
+        ehdr = (ElfW(Ehdr) *)buf;
         if (ehdr->e_ident[4] != ELFCLASSW)
         {
             fprintf(stderr, "tcc: ar: Unsupported Elf Class: %s\n", argv[i_obj]);
             goto the_end;
         }
 
-        shdr = (Elf64_Shdr *) (buf + ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize);
+        shdr = (ElfW(Shdr) *) (buf + ehdr->e_shoff + ehdr->e_shstrndx * ehdr->e_shentsize);
         shstr = (char *)(buf + shdr->sh_offset);
         for (i = 0; i < ehdr->e_shnum; i++)
         {
-            shdr = (Elf64_Shdr *) (buf + ehdr->e_shoff + i * ehdr->e_shentsize);
+            shdr = (ElfW(Shdr) *) (buf + ehdr->e_shoff + i * ehdr->e_shentsize);
             if (!shdr->sh_offset)
                 continue;
             if (shdr->sh_type == SHT_SYMTAB)
@@ -200,11 +200,11 @@ ST_FUNC int tcc_tool_ar(TCCState *s1, int argc, char **argv)
 
         if (symtab && symtabsize)
         {
-            int nsym = symtabsize / sizeof(Elf64_Sym);
+            int nsym = symtabsize / sizeof(ElfW(Sym));
             //printf("symtab: info size shndx name\n");
             for (i = 1; i < nsym; i++)
             {
-                sym = (Elf64_Sym *) (symtab + i * sizeof(Elf64_Sym));
+                sym = (ElfW(Sym) *) (symtab + i * sizeof(ElfW(Sym)));
                 if (sym->st_shndx &&
                     (sym->st_info == 0x10
                     || sym->st_info == 0x11

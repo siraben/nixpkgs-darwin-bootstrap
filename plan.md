@@ -65,7 +65,7 @@
     - The probe is a negative check only: M2-Planet reaches non-M2 C constructs in the vendored fork before code generation.
   - [x] Vendor the bootstrappable TinyCC fork in `vendor/tinycc-bootstrappable`.
   - [x] Add a reproducible M2-Planet probe for the vendored fork.
-    - Current probe reaches `tccpp.c:3117`; the remaining blocker is another struct-pointer load outside M2-Planet's accepted subset.
+    - Current pristine-fork probe reaches `elf.h:88`; the failure confirms this is not a direct M2-Planet input.
   - [ ] Compile `tinycc-boot-mes` with Darwin MesCC.
     - Use Mes `libc+tcc`, Darwin include paths, and `CONFIG_TCCBOOT`/`TCC_MES_LIBC`.
     - Replace Linux ELF interpreter/library paths with Darwin Mach-O/linker settings.

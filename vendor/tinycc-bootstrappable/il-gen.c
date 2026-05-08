@@ -64,7 +64,7 @@ const int reg_classes[NB_REGS] = {
 /* pointer size, in bytes */
 #define PTR_SIZE 4
 
-/* double size and alignment, in bytes */
+/* long double size and alignment, in bytes */
 #define LDOUBLE_SIZE  8
 #define LDOUBLE_ALIGN 8
 

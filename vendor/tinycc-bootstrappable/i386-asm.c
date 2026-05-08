@@ -258,7 +258,7 @@ static const uint16_t op0_codes[] = {
 #endif
 };
 
-static int get_reg_shift(TCCState *s1)
+static inline int get_reg_shift(TCCState *s1)
 {
     int shift, v;
     v = asm_int_expr(s1);
@@ -522,7 +522,7 @@ static void gen_disp32(ExprValue *pe)
 }
 
 /* generate the modrm operand */
-static int asm_modrm(int reg, Operand *op)
+static inline int asm_modrm(int reg, Operand *op)
 {
     int mod, reg1, reg2, sib_reg1;
 
@@ -1135,7 +1135,7 @@ ST_FUNC void asm_opcode(TCCState *s1, int opcode)
 
 /* return the constraint priority (we allocate first the lowest
    numbered constraints) */
-static int constraint_priority(const char *str)
+static inline int constraint_priority(const char *str)
 {
     int priority, c, pr;
 

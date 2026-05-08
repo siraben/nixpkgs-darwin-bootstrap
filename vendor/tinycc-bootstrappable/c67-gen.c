@@ -102,7 +102,7 @@ enum {
 /* pointer size, in bytes */
 #define PTR_SIZE 4
 
-/* double size and alignment, in bytes */
+/* long double size and alignment, in bytes */
 #define LDOUBLE_SIZE  12
 #define LDOUBLE_ALIGN 4
 /* maximum alignment (for aligned attribute support) */
@@ -1565,7 +1565,7 @@ void load(int r, SValue * sv)
 	    load(r, &v1);
 	    fr = r;
 	} else if ((ft & VT_BTYPE) == VT_LDOUBLE) {
-	    tcc_error("double not supported");
+	    tcc_error("long double not supported");
 	} else if ((ft & VT_TYPE) == VT_BYTE) {
 	    size = 1;
 	} else if ((ft & VT_TYPE) == (VT_BYTE | VT_UNSIGNED)) {
@@ -1719,7 +1719,7 @@ void store(int r, SValue * v)
     /* XXX: incorrect if float reg to reg */
 
     if (bt == VT_LDOUBLE) {
-	tcc_error("double not supported");
+	tcc_error("long double not supported");
     } else {
 	if (bt == VT_SHORT)
 	    size = 2;
@@ -1896,7 +1896,7 @@ void gfunc_call(int nb_args)
 	    if ((vtop->type.t & VT_BTYPE) == VT_LLONG) {
 		tcc_error("long long not supported");
 	    } else if ((vtop->type.t & VT_BTYPE) == VT_LDOUBLE) {
-		tcc_error("double not supported");
+		tcc_error("long double not supported");
 	    } else if ((vtop->type.t & VT_BTYPE) == VT_DOUBLE) {
 		size = 8;
 	    } else {
@@ -2300,7 +2300,7 @@ void gen_opf(int op)
 
 
     if ((ft & VT_BTYPE) == VT_LDOUBLE)
-	tcc_error("doubles not supported");
+	tcc_error("long doubles not supported");
 
     if (op >= TOK_ULT && op <= TOK_GT) {
 
