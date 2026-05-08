@@ -8,6 +8,7 @@ DEFINE push___%rsi 56
 	push___%rdi
 	push___%rsi
 	push___%rdx
+	call %__init_io
 	call %main
 	mov____%rax,%rdi
 	mov____$i32,%rax SYS_exit

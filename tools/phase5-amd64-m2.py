@@ -38,7 +38,13 @@ def first_static_offset(source):
         token = line.split("#", 1)[0].strip()
         if not token:
             continue
-        if token.startswith(":GLOBAL_") or token.startswith(":STRING_"):
+        if (
+            token == ":ELF_data"
+            or token == ":HEX2_data"
+            or token.startswith(":GLOBAL_")
+            or token.startswith(":STRING_")
+            or token.startswith(":_string_")
+        ):
             return offset
         if token.startswith(":"):
             continue
@@ -88,15 +94,27 @@ def patch_binary(source_path, binary_path):
         b"\x48\x8d\x0d",
         b"\x48\x8d\x15",
         b"\x48\x8d\x35",
+        b"\x4c\x8d\x05",
+        b"\x4c\x8d\x0d",
+        b"\x4c\x8d\x15",
+        b"\x4c\x8d\x1d",
         b"\x48\x8b\x05",
         b"\x48\x8b\x1d",
         b"\x48\x8b\x0d",
         b"\x48\x8b\x15",
         b"\x48\x8b\x35",
+        b"\x4c\x8b\x05",
+        b"\x4c\x8b\x0d",
+        b"\x4c\x8b\x15",
+        b"\x4c\x8b\x1d",
         b"\x48\x89\x05",
         b"\x48\x89\x1d",
         b"\x48\x89\x0d",
         b"\x48\x89\x15",
+        b"\x4c\x89\x05",
+        b"\x4c\x89\x0d",
+        b"\x4c\x89\x15",
+        b"\x4c\x89\x1d",
         b"\x88\x05",
         b"\x8a\x05",
     ]:

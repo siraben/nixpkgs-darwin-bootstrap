@@ -51,6 +51,11 @@
   - [ ] Port Mes libc and MesCC support to Darwin.
     - Add Darwin syscall numbers, `crt1`, `setjmp`/`longjmp`, `kernel-stat`, signal, and file API shims needed by Mes.
     - Produce Darwin `libc-mini`, `libmescc`, `libc`, and `libc+tcc` archives from the existing signed `M1`/`hex2` chain.
+    - [x] Build `libc-mini.M1` with Darwin MesCC syscall shims and run a signed `puts` smoke binary.
+    - [ ] Build `libmescc.M1` with Darwin `syscall-internal.c` and verify `__raise` resolves.
+    - [ ] Build broad `libc.M1` by replacing Linux syscall translation units with Darwin shims.
+    - [ ] Build `libc+tcc.M1` and add/stub the extra file APIs needed by bootstrappable TCC.
+    - [ ] Re-link Mes itself as a signed Mach-O using MesCC-generated Mes objects plus Darwin libc.
   - [ ] Build and sign `mes-m2`.
     - [x] Probe the Mes bootstrap script through its initial `M2-Planet` compile to `mes.M1`.
     - [x] Probe the post-M2 Mach-O link path through Darwin `M1` and `hex2`.
@@ -77,6 +82,9 @@
     - Use Mes `libc+tcc`, Darwin include paths, and `CONFIG_TCCBOOT`/`TCC_MES_LIBC`.
     - Replace Linux ELF interpreter/library paths with Darwin Mach-O/linker settings.
     - Link, pad, sign, and smoke-test `tcc -version`.
+    - [ ] First emit `tinycc-boot-mes.M1` with `mes-m2 --no-auto-compile -e main mescc.scm -- -S`.
+    - [ ] Link `tinycc-boot-mes.M1` with Darwin `libc+tcc.M1` into a signed Mach-O.
+    - [ ] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
   - [ ] Run TinyCC self-advance stages.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
