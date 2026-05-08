@@ -48,6 +48,7 @@
           phase7-m1-0 = bootstrap.phase7-m1-0;
           phase8-hex2-1 = bootstrap.phase8-hex2-1;
           phase9-m1 = bootstrap.phase9-m1;
+          phase10-hex2 = bootstrap.phase10-hex2;
         }
       );
 
