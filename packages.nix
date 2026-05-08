@@ -1415,9 +1415,41 @@ let
     else
       null;
 
-  phase14-tinycc-m2-probe =
+  phase14-mes-m2-probe =
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase14-tinycc-m2-probe-amd64" { } ''
+      runCommand "darwin-minimal-bootstrap-phase14-mes-m2-probe-amd64" { } ''
+        mkdir -p $out/share/darwin-bootstrap
+
+        # Stop Mes' bootstrap script immediately after the first M2-Planet
+        # compilation.  This keeps the checkpoint focused on the next real
+        # porting edge: replacing the downstream ELF/blood-elf link path with
+        # the Darwin Mach-O path.
+        awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
+          ${phase13-mes-source}/kaem.run > mes-m2-only.sh
+
+        set +e
+        PATH=${phase12-m2-planet}/bin:$PATH \
+          srcdest=${phase13-mes-source}/ \
+          cc_cpu=x86_64 \
+          mes_cpu=x86_64 \
+          stage0_cpu=amd64 \
+          blood_elf_flag=--64 \
+          sh mes-m2-only.sh > mes-m2.stdout 2> mes-m2.stderr
+        status="$?"
+        set -e
+
+        test "$status" -eq 99
+        test -s m2/mes.M1
+
+        cp mes-m2.stdout mes-m2.stderr m2/mes.M1 \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
+  tinycc-m2-negative-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
         set +e
         ${phase12-m2-planet}/bin/M2-Planet \
           --architecture amd64 \
@@ -1543,7 +1575,8 @@ in
     phase11-kaem
     phase12-m2-planet
     phase13-mes-source
-    phase14-tinycc-m2-probe
+    phase14-mes-m2-probe
+    tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tests
     ;

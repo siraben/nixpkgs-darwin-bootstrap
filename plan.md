@@ -52,6 +52,7 @@
     - Add Darwin syscall numbers, `crt1`, `setjmp`/`longjmp`, `kernel-stat`, signal, and file API shims needed by Mes.
     - Produce Darwin `libc-mini`, `libmescc`, `libc`, and `libc+tcc` archives from the existing signed `M1`/`hex2` chain.
   - [ ] Build and sign `mes-m2`.
+    - [x] Probe the Mes bootstrap script through its initial `M2-Planet` compile to `mes.M1`.
     - Run the Mes bootstrap kaem script through `phase11-kaem`.
     - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
   - [ ] Rebuild full Mes Scheme on Darwin.

@@ -52,7 +52,8 @@
           phase11-kaem = bootstrap.phase11-kaem;
           phase12-m2-planet = bootstrap.phase12-m2-planet;
           phase13-mes-source = bootstrap.phase13-mes-source;
-          phase14-tinycc-m2-probe = bootstrap.phase14-tinycc-m2-probe;
+          phase14-mes-m2-probe = bootstrap.phase14-mes-m2-probe;
+          tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
         }
       );
