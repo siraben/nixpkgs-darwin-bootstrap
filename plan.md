@@ -32,7 +32,7 @@
   - Encode `FILE*` descriptors as `fd + 1` so fd 0 is not confused with `NULL`.
   - `M2-darwin --help` and `M2-darwin -f trivial.c -o trivial.M1` now work.
 - [ ] Build MesCC tools under the Darwin chain.
-  - Build `blood-macho-0` or port `blood-elf` output handling to Mach-O.
+  - [x] Build `blood-macho-0` from `M2-darwin` and smoke-test footer generation.
   - Build `M1-0`, `hex2-1`, full `M1`, full `hex2`, and `kaem`.
 - [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
   - Identify the smallest bootstrappable TCC fork inputs.

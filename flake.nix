@@ -44,6 +44,7 @@
           phase3-m0 = bootstrap.phase3-m0;
           phase4-cc-arch = bootstrap.phase4-cc-arch;
           phase5-m2 = bootstrap.phase5-m2;
+          phase6-blood-macho-0 = bootstrap.phase6-blood-macho-0;
         }
       );
 
