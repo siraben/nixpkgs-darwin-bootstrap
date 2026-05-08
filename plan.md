@@ -136,7 +136,7 @@
   - [x] Add a patched GCC 4.6 Darwin bootstrap source.
     - `gcc46-darwin-bootstrap-src` applies `patches/gcc46-darwin-bootstrap.patch`, currently stubbing libiberty regex and legacy C++ demangling paths that the MesCC-built TinyCC cannot compile yet.
   - [ ] Advance `make all-gcc` past libiberty.
-    - Current boundary: GCC and libiberty configure succeed for `x86_64-apple-darwin`; libiberty now compiles through `filename_cmp.c` and stops while compiling `floatformat.c`.
+    - Current boundary: GCC and libiberty configure succeed for `x86_64-apple-darwin`; libiberty now compiles through `fopen_unlocked.c` and stops while compiling `getopt.c`.
   - [ ] Add bootstrap prerequisites in order: binutils/cctools-equivalent assembler+linker path, make/shell assumptions, GMP/MPFR/MPC as required.
   - [ ] Build GCC 4.6 stage1 with the bootstrapped C compiler, then iterate to a self-hosted stage2/stage3.
   - [ ] Keep each successful boundary as a Nix phase and a git checkpoint.

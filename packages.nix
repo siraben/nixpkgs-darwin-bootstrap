@@ -2930,6 +2930,28 @@ let
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/float.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_FLOAT_H
+        #define _DARWIN_BOOTSTRAP_FLOAT_H
+        #define FLT_RADIX 2
+        #define FLT_MANT_DIG 24
+        #define DBL_MANT_DIG 53
+        #define LDBL_MANT_DIG 64
+        #define FLT_DIG 6
+        #define DBL_DIG 15
+        #define LDBL_DIG 18
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/math.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_MATH_H
+        #define _DARWIN_BOOTSTRAP_MATH_H
+        double ldexp(double, int);
+        double frexp(double, int *);
+        double fabs(double);
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/assert.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_ASSERT_H
         #define _DARWIN_BOOTSTRAP_ASSERT_H
@@ -3038,6 +3060,27 @@ let
         int isxdigit(int);
         int tolower(int);
         int toupper(int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/errno.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_ERRNO_H
+        #define _DARWIN_BOOTSTRAP_ERRNO_H
+        extern int errno;
+        #define EINVAL 22
+        #define ENOMEM 12
+        #define ENOENT 2
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/fnmatch.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_FNMATCH_H
+        #define _DARWIN_BOOTSTRAP_FNMATCH_H
+        #define FNM_NOMATCH 1
+        #define FNM_NOESCAPE 0x01
+        #define FNM_PATHNAME 0x02
+        #define FNM_PERIOD 0x04
+        int fnmatch(const char *, const char *, int);
         #endif
         H
 
