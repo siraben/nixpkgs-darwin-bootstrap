@@ -146,3 +146,9 @@
 - [ ] Revisit aarch64 after the amd64 Darwin chain is stable.
   - Replace the low-address ELF-era writable data assumptions.
   - Use high-base Mach-O templates and Darwin `LC_MAIN` argv throughout.
+
+## Running log
+
+- 2026-05-08: Switched `plan.md` progress tracking to append-only log entries; keep the checklist as a roadmap and record each new bootstrap boundary here instead of rewriting prior TODO text.
+- 2026-05-08: Added proper GCC 4.6 bootstrap patch hunks for libiberty `fnmatch.c`, `getopt.c`, `hex.c`, and `make-relative-prefix.c`; latest run reached GCC subconfigure after passing the prior libiberty compile boundary.
+- 2026-05-08: Validated the `make-relative-prefix.c` bootstrap stub in `make all-gcc`; libiberty now compiles through `make-relative-prefix.c` and stops while compiling `make-temp-file.c`.
