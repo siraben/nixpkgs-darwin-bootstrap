@@ -1,0 +1,32 @@
+## AMD64 Darwin startup for the M2libc full POSIX layer.
+
+:_start
+
+	mov_rbp,rsp
+	push_rdi
+	push_rsi
+	push_rdx
+
+	lea_rbx,[rip+DWORD] %GLOBAL__envp
+	mov_rax,rdx
+	mov_[rbx],rax
+
+	mov_rdi,rbp
+	call %FUNCTION___init_malloc
+
+	mov_rdi,rbp
+	call %FUNCTION___init_io
+
+	mov_rdi,rbp
+	call %FUNCTION_main
+
+	push_rax
+	push_rax
+
+:FUNCTION_exit
+	call %FUNCTION___kill_io
+:FUNCTION__exit
+	pop_rbx
+	pop_rdi
+	mov_rax, %0x2000001
+	syscall

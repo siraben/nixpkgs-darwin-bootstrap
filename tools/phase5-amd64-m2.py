@@ -22,6 +22,16 @@ def hex2_width(token):
     return 0
 
 
+def hex2_line_width(line):
+    width = 0
+    for token in line.split():
+        token_width = hex2_width(token)
+        if token_width == 0:
+            raise ValueError(f"untranslated token in hex2: {line!r}")
+        width += token_width
+    return width
+
+
 def first_static_offset(source):
     offset = 0
     for line in source.splitlines():
@@ -32,10 +42,7 @@ def first_static_offset(source):
             return offset
         if token.startswith(":"):
             continue
-        width = hex2_width(token)
-        if width == 0:
-            raise ValueError(f"untranslated token in hex2: {token!r}")
-        offset += width
+        offset += hex2_line_width(token)
     raise ValueError("static data label not found")
 
 
