@@ -1454,6 +1454,10 @@ let
           chmod -R u+w $out
           cp ${mesDarwinConfigH} $out/include/mes/config.h
           cp -R ${./mes-darwin}/. $out/
+          mkdir -p $out/include/arch
+          cp $out/include/darwin/x86_64/kernel-stat.h $out/include/arch/kernel-stat.h
+          cp $out/include/darwin/x86_64/signal.h $out/include/arch/signal.h
+          cp $out/include/darwin/x86_64/syscall.h $out/include/arch/syscall.h
           ${python3}/bin/python3 - <<'PY'
           import os
           from pathlib import Path
@@ -1483,6 +1487,9 @@ let
           test -f $out/scripts/mescc.scm.in
           test -f $out/lib/darwin/x86_64-mes-m2/crt1.M1
           test -f $out/include/darwin/x86_64/syscall.h
+          test -f $out/include/arch/kernel-stat.h
+          test -f $out/include/arch/signal.h
+          test -f $out/include/arch/syscall.h
           grep -q 'MES_VERSION "${mesVersion}"' $out/include/mes/config.h
           grep -q 'typedef unsigned long uintptr_t' $out/include/mes/config.h
 
@@ -1938,6 +1945,116 @@ let
     else
       null;
 
+  phase21-mescc-libc-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase21-mescc-libc-probe-amd64" { } ''
+        mkdir -p $out/share/darwin-bootstrap m1 logs
+
+        mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
+        mescc() {
+          MES_PREFIX=${phase13-mes-source} \
+            GUILE_LOAD_PATH="$mesLoadPath" \
+            srcdest=${phase13-mes-source}/ \
+            includedir=${phase13-mes-source}/include \
+            libdir=${phase13-mes-source}/lib \
+            M1=${phase9-m1}/bin/M1 \
+            HEX2=${phase10-hex2}/bin/hex2 \
+            ${phase16-mes-m2}/bin/mes-m2 --no-auto-compile -e main ${phase16-mes-m2}/bin/mescc.scm -- "$@"
+        }
+
+        cat > config.sh <<'EOF'
+        mes_cpu=x86_64
+        mes_kernel=linux
+        compiler=mescc
+        mes_libc=mes
+        EOF
+        . ./config.sh
+        . ${phase13-mes-source}/build-aux/configure-lib.sh
+
+        map_source() {
+          source="$1"
+          case "$source" in
+            lib/linux/x86_64-mes-mescc/*)
+              mapped="lib/darwin/x86_64-mes-mescc/$(basename "$source")"
+              ;;
+            lib/linux/*)
+              mapped="lib/darwin/''${source#lib/linux/}"
+              ;;
+            *)
+              mapped="$source"
+              ;;
+          esac
+          if test -f "${phase13-mes-source}/$mapped"; then
+            printf '%s\n' "$mapped"
+          else
+            printf '%s\n' "$source"
+          fi
+        }
+
+        compile_m1() {
+          source="$1"
+          mapped="$(map_source "$source")"
+          source_path="${phase13-mes-source}/$mapped"
+          object_name="$(printf '%s\n' "$mapped" | sed -e 's|/|-|g' -e 's|[.]c$||').M1"
+          output_path="m1/$object_name"
+          echo "$source -> $mapped" >> logs/sources.map
+          mescc -S -I ${phase13-mes-source}/include -D HAVE_CONFIG_H=1 "$source_path" -o "$output_path" \
+            > "$output_path.stdout" 2> "$output_path.stderr"
+          test -s "$output_path"
+          sed -i.bak '/^<$/d' "$output_path"
+          rm -f "$output_path.bak"
+          chmod 444 "$output_path"
+          printf '%s\n' "$output_path" >> logs/objects.list
+        }
+
+        for source in $libc_SOURCES; do
+          compile_m1 "$source"
+        done
+
+        while read -r object; do
+          case "$object" in
+            *lib-mes-globals.M1)
+              ;;
+            *)
+              awk '
+                /^:ELF_data$/ { data = 1; next }
+                /^:HEX2_data$/ { next }
+                data != 1 { print }
+              ' "$object"
+              ;;
+          esac
+        done < logs/objects.list > logs/code.M1
+
+        {
+          cat logs/code.M1
+          echo ':ELF_data'
+          echo ':HEX2_data'
+          while read -r object; do
+            case "$object" in
+              *lib-mes-globals.M1)
+                cat "$object"
+                ;;
+              *)
+                awk '
+                  /^:ELF_data$/ { data = 1; next }
+                  /^:HEX2_data$/ { next }
+                  data == 1 { print }
+                ' "$object"
+                ;;
+            esac
+          done < logs/objects.list
+        } > libc.M1
+
+        grep -q '^:write' libc.M1
+        grep -q '^:_open3' libc.M1
+        grep -q '^:__sys_call4' libc.M1
+        grep -q '^:ELF_data' libc.M1
+
+        cp libc.M1 logs/sources.map logs/objects.list $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -2073,6 +2190,7 @@ in
     phase18-mescc-libc-mini-probe
     phase19-tinycc-mescc-m1-probe
     phase20-mescc-libmescc-probe
+    phase21-mescc-libc-probe
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

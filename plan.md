@@ -54,7 +54,8 @@
     - [x] Build `libc-mini.M1` with Darwin MesCC syscall shims and run a signed `puts` smoke binary.
     - [x] Build `libmescc.M1` with Darwin `syscall-internal.c` and verify `__raise` resolves.
       - [x] Add and pass `phase20-mescc-libmescc-probe`.
-    - [ ] Build broad `libc.M1` by replacing Linux syscall translation units with Darwin shims.
+    - [x] Build broad `libc.M1` by replacing Linux syscall translation units with Darwin shims.
+      - [x] Add and pass `phase21-mescc-libc-probe`.
     - [ ] Build `libc+tcc.M1` and add/stub the extra file APIs needed by bootstrappable TCC.
     - [ ] Re-link Mes itself as a signed Mach-O using MesCC-generated Mes objects plus Darwin libc.
   - [ ] Build and sign `mes-m2`.
@@ -90,7 +91,8 @@
       - [ ] Investigate remaining MesCC type warnings emitted while producing `tcc.M1`.
     - [ ] Link `tinycc-boot-mes.M1` with Darwin `libc+tcc.M1` into a signed Mach-O.
       - [x] Build a Darwin `libmescc.M1` archive checkpoint.
-      - [ ] Build a broad Darwin `libc.M1` archive checkpoint.
+      - [x] Build a broad Darwin `libc.M1` archive checkpoint.
+        - [x] Add and pass `phase21-mescc-libc-probe`.
       - [ ] Build a Darwin `libc+tcc.M1` archive checkpoint.
       - [ ] Add `phase20-tinycc-mescc-link-probe` to link, pad, sign, and run `tcc -version`.
     - [ ] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
