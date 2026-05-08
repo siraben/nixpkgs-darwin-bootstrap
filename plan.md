@@ -102,7 +102,9 @@
       - [x] Remove the temporary early `tcc.c` version-return shortcut; `tcc -version` now runs through `tcc_new` and argument parsing.
     - [x] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
   - [ ] Run TinyCC self-advance stages.
-    - [ ] Add a `phase24` smoke stage that exercises real preprocessing and object generation.
+    - [x] Add a `phase24` smoke stage that exercises real preprocessing and object generation.
+      - MesCC-built TinyCC now preprocesses a C file and emits an x86_64 ELF relocatable object.
+    - [ ] Debug TinyCC self-compilation with Mes includes before enabling boot0.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
   - [ ] Port TinyCC output to signed Mach-O/Darwin.
