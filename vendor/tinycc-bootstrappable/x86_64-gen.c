@@ -35,7 +35,7 @@
 #define RC_RAX     0x0004
 #define RC_RCX     0x0008
 #define RC_RDX     0x0010
-#define RC_ST0     0x0080 /* only for long double */
+#define RC_ST0     0x0080 /* only for double */
 #define RC_R8      0x0100
 #define RC_R9      0x0200
 #define RC_R10     0x0400
@@ -96,7 +96,7 @@ enum {
 /* pointer size, in bytes */
 #define PTR_SIZE 8
 
-/* long double size and alignment, in bytes */
+/* double size and alignment, in bytes */
 #define LDOUBLE_SIZE  16
 #define LDOUBLE_ALIGN 16
 /* maximum alignment (for aligned attribute support) */
@@ -1891,7 +1891,7 @@ void gen_opf(int op)
             vtop->r = VT_CMP;
             vtop->c.i = op;
         } else {
-            /* no memory reference possible for long double operations */
+            /* no memory reference possible for double operations */
             load(TREG_ST0, vtop);
             swapped = !swapped;
 
@@ -2036,21 +2036,21 @@ void gen_cvt_itof(int t)
         save_reg(TREG_ST0);
         gv(RC_INT);
         if ((vtop->type.t & VT_BTYPE) == VT_LLONG) {
-            /* signed long long to float/double/long double (unsigned case
+            /* signed long long to float/double/double (unsigned case
                is handled generically) */
             o(0x50 + (vtop->r & VT_VALMASK)); /* push r */
             o(0x242cdf); /* fildll (%rsp) */
             o(0x08c48348); /* add $8, %rsp */
         } else if ((vtop->type.t & (VT_BTYPE | VT_UNSIGNED)) ==
                    (VT_INT | VT_UNSIGNED)) {
-            /* unsigned int to float/double/long double */
+            /* unsigned int to float/double/double */
             o(0x6a); /* push $0 */
             g(0x00);
             o(0x50 + (vtop->r & VT_VALMASK)); /* push r */
             o(0x242cdf); /* fildll (%rsp) */
             o(0x10c48348); /* add $16, %rsp */
         } else {
-            /* int to float/double/long double */
+            /* int to float/double/double */
             o(0x50 + (vtop->r & VT_VALMASK)); /* push r */
             o(0x2404db); /* fildl (%rsp) */
             o(0x08c48348); /* add $8, %rsp */

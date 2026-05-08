@@ -532,7 +532,7 @@ ST_FUNC const char *get_tok_str(int v, CValue *cv)
 	cstr_cat(&cstr_buf, "<double>", 0);
 	break;
     case TOK_CLDOUBLE:
-	cstr_cat(&cstr_buf, "<long double>", 0);
+	cstr_cat(&cstr_buf, "<double>", 0);
 	break;
     case TOK_LINENUM:
 	cstr_cat(&cstr_buf, "<linenumber>", 0);
@@ -1203,7 +1203,7 @@ static void tok_str_add2(TokenString *s, int t, CValue *cv)
         str[len++] = cv->tab[2];
         str[len++] = cv->tab[3];
 #elif LDOUBLE_SIZE != 8
-#error add long double size support
+#error add double size support
 #endif
         break;
     default:
@@ -1267,7 +1267,7 @@ static inline void TOK_GET(int *t, const int **pp, CValue *cv)
 #elif LDOUBLE_SIZE == 8
         n = 2;
 #else
-# error add long double size support
+# error add double size support
 #endif
     copy:
         do
@@ -2379,7 +2379,7 @@ static void parse_number(const char *p)
 #else
                 tok = TOK_CLDOUBLE;
                 /* XXX: not large enough */
-                tokc.ld = (long double)d;
+                tokc.ld = (double)d;
 #endif
             } else {
                 tok = TOK_CDOUBLE;

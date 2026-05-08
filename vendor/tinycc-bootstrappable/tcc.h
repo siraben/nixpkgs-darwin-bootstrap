@@ -42,7 +42,7 @@
 # endif
 /* XXX: need to define this to use them in non ISOC99 context */
  extern float strtof (const char *__nptr, char **__endptr);
- extern long double strtold (const char *__nptr, char **__endptr);
+ extern double strtold (const char *__nptr, char **__endptr);
 
 #else /* on _WIN32: */
 # include <windows.h>
@@ -56,7 +56,7 @@
 # define snprintf _snprintf
 # define vsnprintf _vsnprintf
 # ifndef __GNUC__
-#  define strtold (long double)strtod
+#  define strtold (double)strtod
 #  define strtof (float)strtod
 #  define strtoll _strtoi64
 #  define strtoull _strtoui64
@@ -397,7 +397,7 @@ typedef struct CType {
 
 /* constant value */
 typedef union CValue {
-    long double ld;
+    double ld;
     double d;
     float f;
 #if HAVE_LONG_LONG_STUB || HAVE_LONG_LONG
@@ -893,7 +893,7 @@ struct filespec {
 #define VT_STRUCT           7  /* struct/union definition */
 #define VT_FLOAT            8  /* IEEE float */
 #define VT_DOUBLE           9  /* IEEE double */
-#define VT_LDOUBLE         10  /* IEEE long double */
+#define VT_LDOUBLE         10  /* IEEE double */
 #define VT_BOOL            11  /* ISOC99 boolean type */
 #define VT_LLONG           12  /* 64 bit integer */
 #define VT_LONG            13  /* long integer (NEVER USED as type, only
@@ -967,7 +967,7 @@ struct filespec {
 #define TOK_LSTR    0xba
 #define TOK_CFLOAT  0xbb /* float constant */
 #define TOK_CDOUBLE 0xbc /* double constant */
-#define TOK_CLDOUBLE 0xbd /* long double constant */
+#define TOK_CLDOUBLE 0xbd /* double constant */
 #define TOK_PPNUM   0xbe /* preprocessor number */
 #define TOK_PPSTR   0xbf /* preprocessor string */
 #define TOK_LINENUM 0xc0 /* line number info */

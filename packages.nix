@@ -1355,7 +1355,7 @@ let
           -D BOOTSTRAP=1 \
           -D HAVE_LONG_LONG=1 \
           -D TCC_TARGET_X86_64=1 \
-          -D LDOUBLE_SIZE=16 \
+          -D LDOUBLE_SIZE=8 \
           -D inline= \
           -D CONFIG_TCCBOOT=1 \
           -D CONFIG_TCC_STATIC=1 \

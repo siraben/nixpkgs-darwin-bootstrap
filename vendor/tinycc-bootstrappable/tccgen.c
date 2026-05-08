@@ -1891,7 +1891,7 @@ static void gen_opif(int op)
 {
     int c1, c2;
     SValue *v1, *v2;
-    long double f1, f2;
+    double f1, f2;
 
     v1 = vtop - 1;
     v2 = vtop;
@@ -2353,12 +2353,12 @@ static void gen_cast(CType *type)
                     if ((sbt & VT_UNSIGNED) || !(vtop->c.i >> 63))
                         vtop->c.ld = vtop->c.i;
                     else
-                        vtop->c.ld = -(long double)-vtop->c.i;
+                        vtop->c.ld = -(double)-vtop->c.i;
                 } else if(!sf) {
                     if ((sbt & VT_UNSIGNED) || !(vtop->c.i >> 31))
                         vtop->c.ld = (uint32_t)vtop->c.i;
                     else
-                        vtop->c.ld = -(long double)-(uint32_t)vtop->c.i;
+                        vtop->c.ld = -(double)-(uint32_t)vtop->c.i;
                 }
 
                 if (dbt == VT_FLOAT)
@@ -2797,7 +2797,7 @@ static void type_to_str(char *buf, int buf_size,
         tstr = "double";
         goto add_tstr;
     case VT_LDOUBLE:
-        tstr = "long double";
+        tstr = "double";
     add_tstr:
         pstrcat(buf, buf_size, tstr);
         break;
@@ -3869,7 +3869,7 @@ static int parse_btype(CType *type, AttributeDef *ad)
 #if defined TCC_TARGET_ARM64 || defined TCC_TARGET_RISCV64
         case TOK_UINT128:
             /* GCC's __uint128_t appears in some Linux header files. Make it a
-               synonym for long double to get the size and alignment right. */
+               synonym for double to get the size and alignment right. */
             u = VT_LDOUBLE;
             goto basic_type;
 #endif
@@ -6362,7 +6362,7 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 	    switch(bt) {
 		/* XXX: when cross-compiling we assume that each type has the
 		   same representation on host and target, which is likely to
-		   be wrong in the case of long double */
+		   be wrong in the case of double */
 	    case VT_BOOL:
 		vtop->c.i = (vtop->c.i != 0);
 	    case VT_BYTE:
@@ -6397,9 +6397,9 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 		break;
 	    case VT_LDOUBLE:
 #if HAVE_FLOAT
-                if (sizeof(long double) == LDOUBLE_SIZE)
+                if (sizeof(double) == LDOUBLE_SIZE)
 #if !(BOOTSTRAP && __arm__)
-		    *(long double *)ptr = vtop->c.ld;
+		    *(double *)ptr = vtop->c.ld;
 #else
                 {
                   // XXX TODO: breaks on mescc/tcc-mes based build
@@ -6412,16 +6412,16 @@ static void init_putv(CType *type, Section *sec, unsigned long c)
 		else if (sizeof(double) == LDOUBLE_SIZE)
 		    *(double *)ptr = (double)vtop->c.ld;
 #if (defined __i386__ || defined __x86_64__) && (defined TCC_TARGET_I386 || defined TCC_TARGET_X86_64)
-                else if (sizeof (long double) >= 10)
+                else if (sizeof (double) >= 10)
                     memcpy(memset(ptr, 0, LDOUBLE_SIZE), &vtop->c.ld, 10);
 #if defined (__TINYC__)
-                else if (sizeof (long double) == sizeof (double))
+                else if (sizeof (double) == sizeof (double))
                     __asm__("fldl %1\nfstpt %0\n" : "=m"
                         (memset(ptr, 0, LDOUBLE_SIZE), ptr) : "m" (vtop->c.ld));
 #endif
 #endif
 		else
-                    tcc_error("can't cross compile long double constants");
+                    tcc_error("can't cross compile double constants");
 #endif
 		break;
 #if PTR_SIZE != 8

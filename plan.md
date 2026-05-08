@@ -47,7 +47,7 @@
     - `M2-Planet` stops immediately in `tcc.c` on non-M2 C constructs, before code generation.
   - [x] Vendor the bootstrappable TinyCC fork in `vendor/tinycc-bootstrappable`.
   - [x] Add a reproducible M2-Planet probe for the vendored fork.
-    - After reducing global string arrays and one ternary, the current blocker is `long double`/C syntax outside M2-Planet's accepted subset.
+    - After reducing global string arrays, one ternary, and `long double`, the current blocker is C declarator syntax outside M2-Planet's accepted subset.
   - [ ] Add a Darwin Mes compiler path or another C99-capable pre-TCC compiler.
   - [ ] Port the TCC backend/runtime from ELF/Linux assumptions to signed Mach-O/Darwin.
   - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.

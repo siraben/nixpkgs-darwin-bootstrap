@@ -109,7 +109,7 @@ enum {
 /* pointer size, in bytes */
 #define PTR_SIZE 4
 
-/* long double size and alignment, in bytes */
+/* double size and alignment, in bytes */
 #ifdef TCC_ARM_VFP
 #define LDOUBLE_SIZE  8
 #endif
@@ -1797,7 +1797,7 @@ void gen_opf(int op)
 static uint32_t is_fconst()
 {
 #if HAVE_FLOAT
-  long double f;
+  double f;
   uint32_t r;
   if((vtop->r & (VT_VALMASK | VT_LVAL | VT_SYM)) != VT_CONST)
     return 0;
