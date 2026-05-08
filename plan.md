@@ -54,7 +54,7 @@
   - [ ] Build and sign `mes-m2`.
     - [x] Probe the Mes bootstrap script through its initial `M2-Planet` compile to `mes.M1`.
     - [x] Probe the post-M2 Mach-O link path through Darwin `M1` and `hex2`.
-      - Current blocker: the signed Mach-O `mes-m2` launches and reaches Mes' Scheme boot loader, then stops because the boot files are not installed beside it yet.
+      - The signed Mach-O `mes-m2` now boots Mes Scheme with `MES_PREFIX`/`GUILE_LOAD_PATH` and evaluates a smoke-test expression.
     - Run the Mes bootstrap kaem script through `phase11-kaem`.
     - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
   - [ ] Rebuild full Mes Scheme on Darwin.

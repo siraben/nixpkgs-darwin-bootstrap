@@ -1508,13 +1508,16 @@ let
         sign mes-m2
 
         set +e
-        ./mes-m2 -c "(display 'Hello,M2-mes!) (newline)" \
+        MES_PREFIX=${phase13-mes-source} \
+          GUILE_LOAD_PATH=${phase13-mes-source}/module:${phase13-mes-source}/mes/module \
+          ./mes-m2 -c "(display 'Hello,M2-mes!) (newline)" \
           > mes-m2-run.stdout 2> mes-m2-run.stderr
         status="$?"
         set -e
 
-        test "$status" -eq 1
-        grep -q 'boot failed: no such file: boot-5.scm' mes-m2-run.stderr
+        test "$status" -eq 0
+        grep -q 'Hello,M2-mes!' mes-m2-run.stdout
+        test ! -s mes-m2-run.stderr
 
         cp mes-m2 mes.hex2 mes-m2-run.stdout mes-m2-run.stderr \
           $out/share/darwin-bootstrap/
