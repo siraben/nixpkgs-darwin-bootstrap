@@ -113,6 +113,8 @@
       - `phase28-tinycc-self-m1-probe` translates `tcc.o` into M1/hex2 while preserving unresolved SysV libc references for the next link stage.
     - [x] Prove multi-object SysV ABI linking for TinyCC output.
       - `phase29-tinycc-sysv-libc-probe` compiles both a caller and a seed `strlen` implementation with bootstrapped TinyCC, converts both ELF relocatables to M1, links a signed Mach-O, and verifies exit status 9.
+    - [x] Link the self-compiled TinyCC object with a seed SysV Darwin libc candidate.
+      - `phase30-tinycc-self-link-candidate` produces a signed `tcc-self-candidate`; current `-version` exits 139, so the next task is debugging the SysV libc/runtime candidate rather than TinyCC code generation.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
