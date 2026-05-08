@@ -11,9 +11,10 @@ brk (void *addr)
 {
   if (__darwin_brk == 0)
     {
-      __darwin_brk = _sys_call6 (SYS_mmap, 0, DARWIN_BRK_SIZE, 3, 4098, -1, 0);
-      if (__darwin_brk == -1)
+      long mapped = _sys_call6 (SYS_mmap, 0, DARWIN_BRK_SIZE, 3, 4098, -1, 0);
+      if (mapped < 0)
         return -1;
+      __darwin_brk = cast_long_to_charp (mapped);
       __darwin_brk_end = __darwin_brk + DARWIN_BRK_SIZE;
     }
   if (addr == 0)

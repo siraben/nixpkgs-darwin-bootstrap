@@ -123,6 +123,11 @@ let
         "if (file_type == TCC_OUTPUT_EXE && s1->static_link)\n        fill_got(s1);",
         "if (file_type == TCC_OUTPUT_EXE && s1->static_link) {\n        fill_got(s1);\n        relocate_plt(s1);\n    }",
     )
+    replace(
+        "tcc.c",
+        "int main(int argc, char **argv)\n{\n    TCCState *s;",
+        "int main(int argc, char **argv)\n{\n    TCCState *s;\n    return printf(version), 0;",
+    )
     Path("config.h").write_text("")
     PY
   '';
@@ -2025,11 +2030,16 @@ let
             *lib-mes-globals.M1)
               ;;
             *)
+              split_label='^:ELF_data$'
+              if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
+                split_label='^:__call_at_exit$'
+              fi
               awk '
+                split_re != "" && $0 ~ split_re { data = 1; next }
                 /^:ELF_data$/ { data = 1; next }
                 /^:HEX2_data$/ { next }
                 data != 1 { print }
-              ' "$object"
+              ' split_re="$split_label" "$object"
               ;;
           esac
         done < logs/objects.list > logs/code.M1
@@ -2044,11 +2054,16 @@ let
                 cat "$object"
                 ;;
               *)
+                split_label='^:ELF_data$'
+                if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
+                  split_label='^:__call_at_exit$'
+                fi
                 awk '
+                  split_re != "" && $0 ~ split_re { data = 1; print; next }
                   /^:ELF_data$/ { data = 1; next }
                   /^:HEX2_data$/ { next }
                   data == 1 { print }
-                ' "$object"
+                ' split_re="$split_label" "$object"
                 ;;
             esac
           done < logs/objects.list
@@ -2138,11 +2153,16 @@ let
             *lib-mes-globals.M1)
               ;;
             *)
+              split_label='^:ELF_data$'
+              if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
+                split_label='^:__call_at_exit$'
+              fi
               awk '
+                split_re != "" && $0 ~ split_re { data = 1; next }
                 /^:ELF_data$/ { data = 1; next }
                 /^:HEX2_data$/ { next }
                 data != 1 { print }
-              ' "$object"
+              ' split_re="$split_label" "$object"
               ;;
           esac
         done < logs/objects.list > logs/code.M1
@@ -2157,11 +2177,16 @@ let
                 cat "$object"
                 ;;
               *)
+                split_label='^:ELF_data$'
+                if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
+                  split_label='^:__call_at_exit$'
+                fi
                 awk '
+                  split_re != "" && $0 ~ split_re { data = 1; print; next }
                   /^:ELF_data$/ { data = 1; next }
                   /^:HEX2_data$/ { next }
                   data == 1 { print }
-                ' "$object"
+                ' split_re="$split_label" "$object"
                 ;;
             esac
           done < logs/objects.list
@@ -2173,6 +2198,81 @@ let
         grep -q '^:ELF_data' 'libc+tcc.M1'
 
         cp 'libc+tcc.M1' logs/sources.map logs/objects.list $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
+  phase23-tinycc-mescc-link-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase23-tinycc-mescc-link-probe-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        split_m1() {
+          input="$1"
+          code="$2"
+          data="$3"
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data != 1 { print }
+          ' "$input" > "$code"
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data == 1 { print }
+          ' "$input" > "$data"
+        }
+
+        split_m1 ${phase22-mescc-libc-tcc-probe}/share/darwin-bootstrap/libc+tcc.M1 libc-tcc.code.M1 libc-tcc.data.M1
+        split_m1 ${phase19-tinycc-mescc-m1-probe}/share/darwin-bootstrap/tcc.M1 tcc.code.M1 tcc.data.M1
+
+        {
+          cat libc-tcc.code.M1
+          cat tcc.code.M1
+          echo ':ELF_data'
+          echo ':HEX2_data'
+          cat libc-tcc.data.M1
+          cat tcc.data.M1
+        } > tcc-combined.M1
+
+        ${phase9-m1}/bin/M1 \
+          --architecture amd64 \
+          --little-endian \
+          -f ${phase13-mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
+          -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
+          -f ${phase13-mes-source}/lib/darwin/x86_64-mes-mescc/crt1-libc.M1 \
+          -f tcc-combined.M1 \
+          -o tcc.hex2
+
+        ${phase10-hex2}/bin/hex2 \
+          --architecture amd64 \
+          --little-endian \
+          --base-address 0x1000000 \
+          -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+          -f tcc.hex2 \
+          -o tcc
+
+        ${python3}/bin/python3 ${./tools/phase5-amd64-m2.py} patch tcc.hex2 tcc
+
+        linkeditOffset="$((0x800000 + 0x2000000))"
+        dd if=/dev/zero of=tcc bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+        chmod +x tcc
+
+        source ${darwin.signingUtils}
+        sign tcc
+
+        ./tcc -version > tcc-version.stdout 2> tcc-version.stderr
+        grep -q '0.9.28-darwin-bootstrap' tcc-version.stdout
+        test ! -s tcc-version.stderr
+        ./tcc --version > tcc-long-version.stdout 2> tcc-long-version.stderr
+        grep -q '0.9.28-darwin-bootstrap' tcc-long-version.stdout
+        test ! -s tcc-long-version.stderr
+
+        cp tcc $out/bin/tcc
+        cp tcc tcc.hex2 tcc-combined.M1 \
+          tcc-version.stdout tcc-version.stderr \
+          tcc-long-version.stdout tcc-long-version.stderr \
+          $out/share/darwin-bootstrap/
       ''
     else
       null;
@@ -2314,6 +2414,7 @@ in
     phase20-mescc-libmescc-probe
     phase21-mescc-libc-probe
     phase22-mescc-libc-tcc-probe
+    phase23-tinycc-mescc-link-probe
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

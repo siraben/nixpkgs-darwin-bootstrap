@@ -96,7 +96,8 @@
         - [x] Add and pass `phase21-mescc-libc-probe`.
       - [x] Build a Darwin `libc+tcc.M1` archive checkpoint.
         - [x] Add and pass `phase22-mescc-libc-tcc-probe`.
-      - [ ] Add `phase20-tinycc-mescc-link-probe` to link, pad, sign, and run `tcc -version`.
+      - [x] Add `phase23-tinycc-mescc-link-probe` to link, pad, sign, and run `tcc -version`.
+      - [x] Keep version reporting on the early path while the Darwin `main` argument handoff and post-`tcc_new` runtime crash are debugged.
     - [ ] Patch or gate TinyCC's ELF-only paths until `tcc -version` runs before enabling self-hosting.
   - [ ] Run TinyCC self-advance stages.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.

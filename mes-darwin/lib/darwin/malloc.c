@@ -14,7 +14,8 @@ malloc (size_t size)
   __brk = (char*) (((uintptr_t) __brk
                     + sizeof (max_align_t) - 1) & -sizeof (max_align_t));
 #endif
-  if (brk (__brk + size) == -1)
+  long brk_result = brk (__brk + size);
+  if (brk_result < 0)
     return 0;
   char *p = __brk;
   __brk = __brk + size;

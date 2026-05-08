@@ -3,7 +3,20 @@
 #include <fcntl.h>
 #include <errno.h>
 
-int __darwin_open_flags (int flags);
+int
+__darwin_open_flags (int flags)
+{
+  int result = flags & 3;
+  if (flags & 0x40)
+    result = result | 0x200;
+  if (flags & 0x80)
+    result = result | 0x800;
+  if (flags & 0x200)
+    result = result | 0x400;
+  if (flags & 0x400)
+    result = result | 0x8;
+  return result;
+}
 
 int
 _open3 (char const *file_name, int flags, int mask)

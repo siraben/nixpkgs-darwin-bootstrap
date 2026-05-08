@@ -85,7 +85,8 @@ __sys_call6 (long sys_call, long one, long two, long three, long four, long five
   asm ("mov____0x8(%rbp),%rdx !0x28");
   asm ("mov____0x8(%rbp),%r10 !0x30");
   asm ("mov____0x8(%rbp),%r8 !0x38");
-  asm ("mov____0x8(%rbp),%r9 !0x40");
+  asm ("lea_r9,[rbp+DWORD] %0x40");
+  asm ("mov_r9,[r9]");
   asm ("syscall");
   asm ("jae32 %__sys_call6_ok");
   asm ("neg____%rax");
