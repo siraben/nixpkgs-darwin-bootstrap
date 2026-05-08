@@ -23,10 +23,13 @@
   - Build `cc_arch-0.hex2` with `M0-darwin`.
   - Concatenate Mach-O low-data header and `cc_arch-0.hex2` with `catm-darwin`.
   - Assemble with `hex2-darwin`, pad to `__LINKEDIT`, sign, and smoke-test.
-- [ ] Package amd64 Darwin `M2`.
+- [x] Package amd64 Darwin `M2` candidate.
   - Concatenate Darwin M2libc bootstrap C and M2-Planet C sources with `catm-darwin`.
   - Compile to M1 with `cc_arch-darwin`.
-  - Prefix Darwin M2libc defs/core, assemble with `M0-darwin`, link with `hex2-darwin`, sign, and smoke-test.
+  - Prefix Darwin M2libc defs/core, assemble with `M0-darwin`, link with `hex2-darwin`, relocate static data into `__DATA`, sign, and smoke-test startup.
+- [ ] Fix `M2-darwin` option/file runtime.
+  - The candidate starts and reports the no-input diagnostic.
+  - `--help` and `-f` currently fall through to the no-input path, so the next blocker is the generated M2 runtime's argument/file handling.
 - [ ] Build MesCC tools under the Darwin chain.
   - Build `blood-macho-0` or port `blood-elf` output handling to Mach-O.
   - Build `M1-0`, `hex2-1`, full `M1`, full `hex2`, and `kaem`.

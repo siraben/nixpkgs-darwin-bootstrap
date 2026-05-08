@@ -609,6 +609,84 @@ let
     else
       null;
 
+  phase5-m2 =
+    if hostPlatform.isx86_64 then
+      stdenv.mkDerivation {
+        pname = "darwin-minimal-bootstrap-phase5-m2-amd64";
+        version = "0-unstable-2026-05-07";
+
+        dontUnpack = true;
+        dontStrip = true;
+        strictDeps = true;
+
+        nativeBuildInputs = [ python3 ];
+
+        buildPhase = ''
+          runHook preBuild
+
+          ${phase2-catm}/bin/catm-darwin M2-0.c \
+            ${./M2libc/amd64/Darwin/bootstrap.c} \
+            ${stage0Sources}/M2-Planet/cc.h \
+            ${stage0Sources}/M2libc/bootstrappable.c \
+            ${stage0Sources}/M2-Planet/cc_globals.c \
+            ${stage0Sources}/M2-Planet/cc_reader.c \
+            ${stage0Sources}/M2-Planet/cc_strings.c \
+            ${stage0Sources}/M2-Planet/cc_types.c \
+            ${stage0Sources}/M2-Planet/cc_emit.c \
+            ${stage0Sources}/M2-Planet/cc_core.c \
+            ${stage0Sources}/M2-Planet/cc_macro.c \
+            ${stage0Sources}/M2-Planet/cc.c
+          ${phase4-cc-arch}/bin/cc_arch-darwin M2-0.c M2-0.M1
+          ${phase2-catm}/bin/catm-darwin M2-0-0.M1 \
+            ${./M2libc/amd64/amd64_defs.M1} \
+            ${./M2libc/amd64/libc-core-Darwin.M1} \
+            M2-0.M1
+          ${phase3-m0}/bin/M0-darwin M2-0-0.M1 M2-0.hex2
+
+          if grep -q 'sub_rdi\|lea_r9\|DWORD\|DEFINE' M2-0.hex2; then
+            echo "M2 hex2 contains untranslated M1 tokens" >&2
+            exit 1
+          fi
+
+          ${phase2-catm}/bin/catm-darwin M2-0-0.hex2 \
+            ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+            M2-0.hex2
+          ${phase2-hex2}/bin/hex2-darwin M2-0-0.hex2 M2-darwin
+          python3 ${./tools/phase5-amd64-m2.py} patch M2-0.hex2 M2-darwin
+
+          linkeditOffset="$((0x800000 + 0x2000000))"
+          dd if=/dev/zero of=M2-darwin bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+          chmod +x M2-darwin
+
+          source ${darwin.signingUtils}
+          sign M2-darwin
+
+          set +e
+          ./M2-darwin > no-input.stdout 2> no-input.stderr
+          status="$?"
+          set -e
+          test "$status" -eq 1
+          grep -q 'Either no input files were given or they were empty' no-input.stderr
+
+          runHook postBuild
+        '';
+
+        installPhase = ''
+          runHook preInstall
+          install -Dm755 M2-darwin $out/bin/M2-darwin
+          install -Dm644 M2-0.M1 $out/share/darwin-bootstrap/M2-0.M1
+          install -Dm644 M2-0.hex2 $out/share/darwin-bootstrap/M2-0.hex2
+          runHook postInstall
+        '';
+
+        meta = {
+          description = "Signed Darwin Mach-O phase-5 AMD64 M2-Planet candidate";
+          platforms = [ "x86_64-darwin" ];
+        };
+      }
+    else
+      null;
+
   tests = {
     hex0-converts-hex = runCommand "darwin-minimal-bootstrap-hex0-converts-hex" { } ''
       cat > input.hex0 <<'HEX'
@@ -667,6 +745,7 @@ in
     phase2-catm
     phase3-m0
     phase4-cc-arch
+    phase5-m2
     tests
     ;
 }

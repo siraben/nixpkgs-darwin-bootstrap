@@ -17,9 +17,9 @@
 
 enum
 {
-	stdin = 0,
-	stdout = 1,
-	stderr = 2,
+	stdin = 1,
+	stdout = 2,
+	stderr = 3,
 };
 
 enum
@@ -51,6 +51,7 @@ unsigned read(FILE* f, char* buffer, unsigned count) {
 			"mov_rdx,[rdx]"
 			"lea_rdi,[rsp+DWORD] %24"
 			"mov_rdi,[rdi]"
+			"sub_rdi,BYTE !1"
 			"syscall");
 }
 
@@ -81,6 +82,7 @@ unsigned write(FILE* f, char* buffer, unsigned count) {
 			"mov_rdx,[rdx]"
 			"lea_rdi,[rsp+DWORD] %24"
 			"mov_rdi,[rdi]"
+			"sub_rdi,BYTE !1"
 			"syscall");
 }
 
@@ -123,7 +125,8 @@ FILE* open(char* name, int flag, int mode)
 	    "lea_rdx,[rsp+DWORD] %8"
 	    "mov_rdx,[rdx]"
 	    "mov_rax, %0x2000005"
-	    "syscall");
+	    "syscall"
+	    "add_rax,BYTE !1");
 }
 
 FILE* fopen(char* filename, char* mode)
@@ -142,6 +145,17 @@ FILE* fopen(char* filename, char* mode)
 	{
 		return 0;
 	}
+	if(0 == f)
+	{
+		if('w' == mode[0])
+		{
+			f = open(filename, 1537 , 384);
+		}
+		else
+		{
+			f = open(filename, 0, 0);
+		}
+	}
 	return f;
 }
 
@@ -149,6 +163,7 @@ int close(int fd)
 {
 	asm("lea_rdi,[rsp+DWORD] %8"
 	    "mov_rdi,[rdi]"
+	    "sub_rdi,BYTE !1"
 	    "mov_rax, %0x2000006"
 	    "syscall");
 }
@@ -159,18 +174,38 @@ int fclose(FILE* stream)
 	return error;
 }
 
-char __malloc_area[16777216];
+void* mmap(void* addr, int length, int prot, int flags, int fd, int offset)
+{
+	asm("lea_rdi,[rsp+DWORD] %48"
+	    "mov_rdi,[rdi]"
+	    "lea_rsi,[rsp+DWORD] %40"
+	    "mov_rsi,[rsi]"
+	    "lea_rdx,[rsp+DWORD] %32"
+	    "mov_rdx,[rdx]"
+	    "lea_r10,[rsp+DWORD] %24"
+	    "mov_r10,[r10]"
+	    "lea_r8,[rsp+DWORD] %16"
+	    "mov_r8,[r8]"
+	    "lea_r9,[rsp+DWORD] %8"
+	    "mov_r9,[r9]"
+	    "mov_rax, %0x20000C5"
+	    "syscall");
+}
+
 long _malloc_ptr;
+long _malloc_end;
 
 void* malloc(int size)
 {
 	if(NULL == _malloc_ptr)
 	{
-		_malloc_ptr = __malloc_area;
+		_malloc_ptr = mmap(0, 16777216, 3, 4098, -1, 0);
+		if(-1 == _malloc_ptr) return 0;
+		_malloc_end = _malloc_ptr + 16777216;
 	}
 
 	size = (size + 7) & -8;
-	if((__malloc_area + 16777216) < (_malloc_ptr + size)) return 0;
+	if(_malloc_end < (_malloc_ptr + size)) return 0;
 
 	long old_malloc = _malloc_ptr;
 	_malloc_ptr = _malloc_ptr + size;

@@ -7,7 +7,7 @@ import sys
 BASE = 0x600000
 DATA_FILE_OFFSET = 0x800000
 DATA_VM = 0xE00000
-HEAP_VM = 0x2000000
+HEAP_VM = 0xF00000
 
 
 def replace_once(source, old, new):
@@ -124,7 +124,7 @@ def patch_binary(source_path, binary_path):
     displacement = int.from_bytes(binary[lea_position + 3 : lea_position + 7], "little", signed=True)
     static_vm = next_instruction + displacement
     static_file_offset = static_vm - BASE
-    static_length = DATA_FILE_OFFSET - static_file_offset
+    static_length = len(binary) - static_file_offset
 
     if len(binary) < DATA_FILE_OFFSET + static_length:
         binary.extend(bytes(DATA_FILE_OFFSET + static_length - len(binary)))
