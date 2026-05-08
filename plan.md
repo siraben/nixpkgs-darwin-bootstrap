@@ -38,7 +38,7 @@
   - [x] Build `hex2-1` from `M2-darwin` and `M1-0`.
   - [x] Build full `M1` from `M2-darwin`, `M1-0`, and `hex2-1`.
   - [x] Build full `hex2` from `M2-darwin`, full `M1`, and `hex2-1`.
-  - Build `kaem`.
+  - [x] Build `kaem` from `M2-darwin`, full `M1`, and full `hex2`.
 - [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
   - Identify the smallest bootstrappable TCC fork inputs.
   - Add Darwin M2libc/TCC syscall and linker assumptions.
