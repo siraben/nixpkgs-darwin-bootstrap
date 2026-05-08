@@ -852,6 +852,7 @@ struct TCCState {
     int argc;
     char **argv;
 };
+typedef struct TCCState TCCState;
 
 struct filespec {
     char type;

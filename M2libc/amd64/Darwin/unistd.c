@@ -174,9 +174,9 @@ int brk(void *addr)
 {
 	if(NULL == __darwin_brk_ptr)
 	{
-		__darwin_brk_ptr = __darwin_mmap(0, 134217728, 3, 4098, -1, 0);
+		__darwin_brk_ptr = __darwin_mmap(0, 536870912, 3, 4098, -1, 0);
 		if(-1 == __darwin_brk_ptr) return -1;
-		__darwin_brk_end = __darwin_brk_ptr + 134217728;
+		__darwin_brk_end = __darwin_brk_ptr + 536870912;
 	}
 
 	if(NULL == addr) return __darwin_brk_ptr;

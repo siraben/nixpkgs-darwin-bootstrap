@@ -199,9 +199,9 @@ void* malloc(int size)
 {
 	if(NULL == _malloc_ptr)
 	{
-			_malloc_ptr = mmap(0, 134217728, 3, 4098, -1, 0);
+			_malloc_ptr = mmap(0, 536870912, 3, 4098, -1, 0);
 			if(-1 == _malloc_ptr) return 0;
-			_malloc_end = _malloc_ptr + 134217728;
+			_malloc_end = _malloc_ptr + 536870912;
 	}
 
 	size = (size + 7) & -8;
