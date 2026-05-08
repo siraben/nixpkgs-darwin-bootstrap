@@ -36,7 +36,8 @@
   - [x] Build `M1-0` from `M2-darwin` and smoke-test M1 to hex2 conversion.
   - [x] Add amd64 Darwin full M2libc syscall/core layer for MesCC tools.
   - [x] Build `hex2-1` from `M2-darwin` and `M1-0`.
-  - Build full `M1`, full `hex2`, and `kaem`.
+  - [x] Build full `M1` from `M2-darwin`, `M1-0`, and `hex2-1`.
+  - Build full `hex2` and `kaem`.
 - [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
   - Identify the smallest bootstrappable TCC fork inputs.
   - Add Darwin M2libc/TCC syscall and linker assumptions.
