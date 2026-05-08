@@ -220,7 +220,7 @@ def emit_section(out, section, symbols, sections, labels, relocations):
             offset += 4
         elif relocation_type == R_X86_64_64:
             out.append(
-                f"&{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'])} 00000000"
+                f"&{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'])} !0x00 !0x00 !0x00 !0x00"
             )
             offset += 8
         elif relocation_type in (R_X86_64_32, R_X86_64_32S):

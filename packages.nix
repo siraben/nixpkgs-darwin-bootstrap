@@ -2431,6 +2431,34 @@ let
     else
       null;
 
+  phase28-tinycc-self-m1-probe =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
+        mkdir -p $out/share/darwin-bootstrap
+
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} \
+          ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
+          tcc-from-elf.M1
+
+        grep -q '^:main$' tcc-from-elf.M1
+        grep -q '^:tcc_new$' tcc-from-elf.M1
+        grep -q '^%memcpy$' tcc-from-elf.M1
+        grep -q '^%vsnprintf$' tcc-from-elf.M1
+        grep -q '^:ELF_data$' tcc-from-elf.M1
+
+        ${phase9-m1}/bin/M1 \
+          --architecture amd64 \
+          --little-endian \
+          -f tcc-from-elf.M1 \
+          -o tcc-from-elf.hex2
+
+        test -s tcc-from-elf.hex2
+
+        cp tcc-from-elf.M1 tcc-from-elf.hex2 $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -2573,6 +2601,7 @@ in
     phase25-tinycc-self-object-probe
     phase26-gcc46-source
     phase27-tinycc-elf-to-macho-probe
+    phase28-tinycc-self-m1-probe
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc
