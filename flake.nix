@@ -54,6 +54,7 @@
           phase13-mes-source = bootstrap.phase13-mes-source;
           phase14-mes-m2-probe = bootstrap.phase14-mes-m2-probe;
           phase15-mes-macho-link-probe = bootstrap.phase15-mes-macho-link-probe;
+          phase16-mes-m2 = bootstrap.phase16-mes-m2;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
         }

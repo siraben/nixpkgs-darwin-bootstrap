@@ -55,6 +55,8 @@
     - [x] Probe the Mes bootstrap script through its initial `M2-Planet` compile to `mes.M1`.
     - [x] Probe the post-M2 Mach-O link path through Darwin `M1` and `hex2`.
       - The signed Mach-O `mes-m2` now boots Mes Scheme with `MES_PREFIX`/`GUILE_LOAD_PATH` and evaluates a smoke-test expression.
+    - [x] Package `mes-m2` with a substituted Darwin `mescc.scm` and NYACC load path.
+      - `mes-m2` now drives `mescc.scm -S` far enough to compile a trivial C translation unit to M1.
     - Run the Mes bootstrap kaem script through `phase11-kaem`.
     - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
   - [ ] Rebuild full Mes Scheme on Darwin.
