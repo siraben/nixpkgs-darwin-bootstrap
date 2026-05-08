@@ -1,5 +1,5 @@
 {
-  description = "Darwin minimal bootstrap experiments for a stage0/M2-Planet/TCC path";
+  description = "Darwin minimal bootstrap experiments for a stage0/M2-Planet/Mes/TCC path";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

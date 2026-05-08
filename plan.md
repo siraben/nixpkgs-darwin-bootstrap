@@ -40,17 +40,42 @@
   - [x] Build full `hex2` from `M2-darwin`, full `M1`, and `hex2-1`.
   - [x] Build `kaem` from `M2-darwin`, full `M1`, and full `hex2`.
   - [x] Build full `M2-Planet` from the Darwin MesCC toolchain.
-- [ ] Bootstrap TCC from Darwin MesCC/M2 outputs.
+- [ ] Bootstrap GNU Mes Scheme from Darwin MesCC/M2 outputs.
+  - [x] Confirm the required ordering from Nixpkgs minimal-bootstrap.
+    - Linux minimal-bootstrap builds `mes-m2`, Mes libraries, and the Mes Scheme interpreter before TinyCC.
+    - TinyCC is compiled by MesCC through `mes --no-auto-compile -e main mescc.scm --`, not directly by M2-Planet.
+  - [ ] Add a Darwin Mes source-prep phase.
+    - Start from GNU Mes `0.27.1`, matching Nixpkgs minimal-bootstrap.
+    - Generate `include/mes/config.h` for amd64 Darwin sizes and Mes version.
+    - Replace Linux include/module assumptions with Darwin paths before running Mes kaem scripts.
+  - [ ] Port Mes libc and MesCC support to Darwin.
+    - Add Darwin syscall numbers, `crt1`, `setjmp`/`longjmp`, `kernel-stat`, signal, and file API shims needed by Mes.
+    - Produce Darwin `libc-mini`, `libmescc`, `libc`, and `libc+tcc` archives from the existing signed `M1`/`hex2` chain.
+  - [ ] Build and sign `mes-m2`.
+    - Run the Mes bootstrap kaem script through `phase11-kaem`.
+    - Link with the Mach-O template, pad `__LINKEDIT`, sign, and smoke-test `mes-m2 --version`.
+  - [ ] Rebuild full Mes Scheme on Darwin.
+    - Compile Mes sources using `mes-m2` plus Darwin Mes libraries.
+    - Install `mes`, `mescc.scm`, Mes modules, headers, and libraries as a Darwin bootstrap output.
+    - Smoke-test `mes --version` and a tiny `mescc.scm -S` compile.
+- [ ] Bootstrap TCC from Darwin Mes Scheme/MesCC outputs.
   - [x] Identify the smallest bootstrappable TCC fork inputs.
     - Nixpkgs uses Jan Nieuwenhuizen's `tinycc` fork at `ea3900f6d5e71776c5cfabcabee317652e3a19ee` for the MesCC-oriented TCC seed.
   - [x] Verify that the fork is not directly M2-Planet-compilable.
-    - `M2-Planet` stops immediately in `tcc.c` on non-M2 C constructs, before code generation.
+    - The probe is a negative check only: M2-Planet reaches non-M2 C constructs in the vendored fork before code generation.
   - [x] Vendor the bootstrappable TinyCC fork in `vendor/tinycc-bootstrappable`.
   - [x] Add a reproducible M2-Planet probe for the vendored fork.
     - Current probe reaches `tccpp.c:3117`; the remaining blocker is another struct-pointer load outside M2-Planet's accepted subset.
-  - [ ] Add a Darwin Mes compiler path or another C99-capable pre-TCC compiler.
-  - [ ] Port the TCC backend/runtime from ELF/Linux assumptions to signed Mach-O/Darwin.
-  - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.
+  - [ ] Compile `tinycc-boot-mes` with Darwin MesCC.
+    - Use Mes `libc+tcc`, Darwin include paths, and `CONFIG_TCCBOOT`/`TCC_MES_LIBC`.
+    - Replace Linux ELF interpreter/library paths with Darwin Mach-O/linker settings.
+    - Link, pad, sign, and smoke-test `tcc -version`.
+  - [ ] Run TinyCC self-advance stages.
+    - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
+    - Rebuild `libtcc1.a` at each required feature level.
+  - [ ] Port TinyCC output to signed Mach-O/Darwin.
+    - Replace ELF object/executable emission and Linux runtime assumptions.
+    - Build and run a signed Mach-O TCC that compiles a hello-world Mach-O.
 
 ## aarch64 follow-up
 
