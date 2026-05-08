@@ -65,6 +65,7 @@
           phase24-tinycc-compile-probe = bootstrap.phase24-tinycc-compile-probe;
           phase25-tinycc-self-object-probe = bootstrap.phase25-tinycc-self-object-probe;
           phase26-gcc46-source = bootstrap.phase26-gcc46-source;
+          phase27-tinycc-elf-to-macho-probe = bootstrap.phase27-tinycc-elf-to-macho-probe;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;

@@ -107,6 +107,8 @@
     - [x] Debug TinyCC self-compilation with Mes includes before enabling boot0.
       - Avoid the copied-`__DATA` function-pointer trap by replacing switch-case `qsort` with a direct insertion sort in the TinyCC Mes patch.
       - Add `phase25-tinycc-self-object-probe` to compile TinyCC itself to an x86_64 ELF relocatable object.
+    - [x] Add a narrow ELF relocatable to signed Mach-O checkpoint for TinyCC output.
+      - `phase27-tinycc-elf-to-macho-probe` compiles a C object with the MesCC-built TinyCC, converts the ELF relocatable to M1, links a signed Mach-O, and verifies exit status 42.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
