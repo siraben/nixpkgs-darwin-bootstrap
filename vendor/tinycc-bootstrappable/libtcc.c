@@ -46,6 +46,34 @@ void longjmp(int env, int value)
     exit(value);
 }
 
+unsigned long strtoul(const char *nptr, char **endptr, int base)
+{
+    unsigned long value;
+    value = 0;
+    while (*nptr >= '0' && *nptr <= '9') {
+        value = value * 10 + (*nptr - '0');
+        nptr++;
+    }
+    if (endptr)
+        *endptr = nptr;
+    return value;
+}
+
+long strtol(const char *nptr, char **endptr, int base)
+{
+    return strtoul(nptr, endptr, base);
+}
+
+unsigned long long strtoull(const char *nptr, char **endptr, int base)
+{
+    return strtoul(nptr, endptr, base);
+}
+
+long long strtoll(const char *nptr, char **endptr, int base)
+{
+    return strtoul(nptr, endptr, base);
+}
+
 /********************************************************/
 
 #ifdef ONE_SOURCE

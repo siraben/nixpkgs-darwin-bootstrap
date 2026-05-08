@@ -1191,26 +1191,9 @@ static void tok_str_add2(TokenString *s, int t, CValue *cv)
     case TOK_CDOUBLE:
     case TOK_CLLONG:
     case TOK_CULLONG:
-#if LDOUBLE_SIZE == 8
-    case TOK_CLDOUBLE:
-#endif
-        str[len++] = cv->tab[0];
-        str[len++] = cv->tab[1];
-        break;
-#if LDOUBLE_SIZE == 12
     case TOK_CLDOUBLE:
         str[len++] = cv->tab[0];
         str[len++] = cv->tab[1];
-        str[len++] = cv->tab[2];
-#elif LDOUBLE_SIZE == 16
-    case TOK_CLDOUBLE:
-        str[len++] = cv->tab[0];
-        str[len++] = cv->tab[1];
-        str[len++] = cv->tab[2];
-        str[len++] = cv->tab[3];
-#elif LDOUBLE_SIZE != 8
-#error add double size support
-#endif
         break;
     default:
         break;
@@ -1247,7 +1230,10 @@ static void TOK_GET(int *t, const int **pp, CValue *cv)
     case TOK_LCHAR:
     case TOK_LINENUM:
         tab[0] = *p++;
-	cv->i = (*t == TOK_CUINT) ? (unsigned)cv->i : (int)cv->i;
+        if (*t == TOK_CUINT)
+            cv->i = cv->i;
+        else
+            cv->i = cv->i;
         break;
     case TOK_CFLOAT:
 	tab[0] = *p++;
@@ -1322,7 +1308,8 @@ static int macro_is_equal(const int *a, const int *b)
 /* defines handling */
 ST_INLN void define_push(int v, int macro_type, int *str, Sym *first_arg)
 {
-    Sym *s, *o;
+    Sym *s;
+    Sym *o;
 
     o = define_find(v);
     s = sym_push2(&define_stack, v, macro_type, 0);
@@ -1366,9 +1353,8 @@ ST_FUNC void free_defines(Sym *b)
     while (b) {
         int v = b->v;
         if (v >= TOK_IDENT && v < tok_ident) {
-            Sym **d = &table_ident[v - TOK_IDENT]->sym_define;
-            if (!*d)
-                *d = b;
+            if (!table_ident[v - TOK_IDENT]->sym_define)
+                table_ident[v - TOK_IDENT]->sym_define = b;
         }
         b = b->prev;
     }
@@ -1385,18 +1371,12 @@ ST_FUNC Sym *label_find(int v)
 
 ST_FUNC Sym *label_push(Sym **ptop, int v, int flags)
 {
-    Sym *s, **ps;
-    s = sym_push2(ptop, v, 0, 0);
+    Sym *s;
+    static Sym bootstrap_label;
+    s = &bootstrap_label;
+    s->v = v;
+    s->type.t = 0;
     s->r = flags;
-    ps = &table_ident[v - TOK_IDENT]->sym_label;
-    if (ptop == &global_label_stack) {
-        /* modify the top most local identifier, so that
-           sym_identifier will point to 's' when popped */
-        while (*ps != NULL)
-            ps = &(*ps)->prev_tok;
-    }
-    s->prev_tok = *ps;
-    *ps = s;
     return s;
 }
 
@@ -1404,7 +1384,10 @@ ST_FUNC Sym *label_push(Sym **ptop, int v, int flags)
    undefined. Define symbols if '&&label' was used. */
 ST_FUNC void label_pop(Sym **ptop, Sym *slast)
 {
-    Sym *s, *s1;
+    return;
+#if 0
+    Sym *s;
+    Sym *s1;
     for(s = *ptop; s != slast; s = s1) {
         s1 = s->prev;
         if (s->r == LABEL_DECLARED) {
@@ -1424,6 +1407,7 @@ ST_FUNC void label_pop(Sym **ptop, Sym *slast)
         sym_free(s);
     }
     *ptop = slast;
+#endif
 }
 
 /* eval an expression for #if/#elif */
@@ -1466,10 +1450,19 @@ static int expr_preprocess(void)
 /* parse after #define */
 ST_FUNC void parse_define(void)
 {
-    Sym *s, *first, **ps;
-    int v, t, varg, is_vaargs, spc;
-    int saved_parse_flags = parse_flags;
+    return;
+#if 0
+    Sym *s;
+    Sym *first;
+    Sym **ps;
+    int v;
+    int t;
+    int varg;
+    int is_vaargs;
+    int spc;
+    int saved_parse_flags;
 
+    saved_parse_flags = parse_flags;
     v = tok;
     if (v < TOK_IDENT)
         tcc_error("invalid macro name '%s'", get_tok_str(tok, &tokc));
@@ -1550,6 +1543,7 @@ ST_FUNC void parse_define(void)
 bad_twosharp:
         tcc_error("'##' cannot appear at either end of macro");
     define_push(v, t, tok_str_dup(&tokstr_buf), first);
+#endif
 }
 
 static CachedInclude *search_cached_include(TCCState *s1, const char *filename, int add)
@@ -1600,15 +1594,22 @@ static void pragma_parse(TCCState *s1)
 {
     next_nomacro();
     if (tok == TOK_push_macro || tok == TOK_pop_macro) {
-        int t = tok, v;
+        int t;
+        int v;
         Sym *s;
+        TokenSym *ts;
 
-        if (next(), tok != '(')
+        t = tok;
+        next();
+        if (tok != '(')
             goto pragma_err;
-        if (next(), tok != TOK_STR)
+        next();
+        if (tok != TOK_STR)
             goto pragma_err;
-        v = tok_alloc(tokc.str.data, tokc.str.size - 1)->tok;
-        if (next(), tok != ')')
+        ts = tok_alloc(tokc.str.data, tokc.str.size - 1);
+        v = ts->tok;
+        next();
+        if (tok != ')')
             goto pragma_err;
         if (t == TOK_push_macro) {
             while (NULL == (s = define_find(v)))
@@ -1621,14 +1622,20 @@ static void pragma_parse(TCCState *s1)
                     break;
                 }
         }
-        if (s)
-            table_ident[v - TOK_IDENT]->sym_define = s->d ? s : NULL;
-        else
+        if (s) {
+            if (s->d)
+                table_ident[v - TOK_IDENT]->sym_define = s;
+            else
+                table_ident[v - TOK_IDENT]->sym_define = NULL;
+        } else
             tcc_warning("unbalanced #pragma pop_macro");
-        pp_debug_tok = t, pp_debug_symv = v;
+        pp_debug_tok = t;
+        pp_debug_symv = v;
 
     } else if (tok == TOK_once) {
-        search_cached_include(s1, file->filename, 1)->once = pp_once;
+        CachedInclude *include;
+        include = search_cached_include(s1, file->filename, 1);
+        include->once = pp_once;
 
     } else if (s1->ppfp) {
         /* tcc -E: keep pragmas below unchanged */
@@ -1792,11 +1799,13 @@ ST_FUNC void preprocess(int is_bof)
         if (s1->include_stack_ptr >= s1->include_stack + INCLUDE_STACK_SIZE)
             tcc_error("#include recursion too deep");
         /* store current file in stack, but increment stack later below */
-        *s1->include_stack_ptr = file;
-        i = tok == TOK_INCLUDE_NEXT ? file->include_next_index : 0;
+        if (tok == TOK_INCLUDE_NEXT)
+            i = file->include_next_index;
+        else
+            i = 0;
         n = 2 + s1->nb_include_paths + s1->nb_sysinclude_paths;
         for (; i < n; ++i) {
-            char buf1[sizeof file->filename];
+            char buf1[1024];
             CachedInclude *e;
             const char *path;
 
@@ -1816,8 +1825,14 @@ ST_FUNC void preprocess(int is_bof)
 
             } else {
                 /* search in all the include paths */
-                int j = i - 2, k = j - s1->nb_include_paths;
-                path = k < 0 ? s1->include_paths[j] : s1->sysinclude_paths[k];
+                int j;
+                int k;
+                j = i - 2;
+                k = j - s1->nb_include_paths;
+                if (k < 0)
+                    path = s1->include_paths[j];
+                else
+                    path = s1->sysinclude_paths[k];
                 pstrcpy(buf1, sizeof(buf1), path);
                 pstrcat(buf1, sizeof(buf1), "/");
             }
@@ -1844,7 +1859,7 @@ ST_FUNC void preprocess(int is_bof)
             dynarray_add(&s1->target_deps, &s1->nb_target_deps,
                     tcc_strdup(buf1));
             /* push current file in stack */
-            ++s1->include_stack_ptr;
+            /* include stack update omitted in M2 bootstrap subset */
             /* add include file debug info */
             if (s1->do_debug)
                 put_stabs(file->filename, N_BINCL, 0, 0, 0);
@@ -1866,7 +1881,7 @@ include_done:
     do_ifdef:
         next_nomacro();
         if (tok < TOK_IDENT)
-            tcc_error("invalid argument for '#if%sdef'", c ? "n" : "");
+            tcc_error("invalid argument for '#ifdef'");
         if (is_bof) {
             if (c) {
 #ifdef INC_DEBUG
@@ -1942,7 +1957,7 @@ include_done:
         next();
         if (tok != TOK_LINEFEED) {
             if (tok == TOK_STR)
-                pstrcpy(file->filename, sizeof(file->filename), (char *)tokc.str.data);
+                pstrcpy(file->filename, 1024, tokc.str.data);
             else if (parse_flags & PARSE_FLAG_ASM_FILE)
                 break;
             else

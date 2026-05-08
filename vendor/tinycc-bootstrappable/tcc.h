@@ -34,6 +34,11 @@
 #include <setjmp.h>
 #include <time.h>
 
+unsigned long strtoul(const char *nptr, char **endptr, int base);
+long strtol(const char *nptr, char **endptr, int base);
+unsigned long long strtoull(const char *nptr, char **endptr, int base);
+long long strtoll(const char *nptr, char **endptr, int base);
+
 #ifndef _WIN32
 # include <unistd.h>
 # include <sys/time.h>
@@ -97,7 +102,7 @@
 # define PATHCMP stricmp
 #else
 # define IS_DIRSEP(c) (c == '/')
-# define IS_ABSPATH(p) IS_DIRSEP(p[0])
+# define IS_ABSPATH(p) (p[0] == '/')
 # define PATHCMP strcmp
 #endif
 
@@ -1141,6 +1146,77 @@ struct filespec {
 #define TOK_REGPARM1 377
 #define TOK_REGPARM2 378
 #define TOK_alloca 379
+#define TOK_pack 380
+#define TOK_comment 381
+#define TOK_lib 382
+#define TOK_push_macro 383
+#define TOK_pop_macro 384
+#define TOK_once 385
+#define TOK_memcpy 386
+#define TOK_memmove 387
+#define TOK_memset 388
+#define TOK___divdi3 389
+#define TOK___moddi3 390
+#define TOK___udivdi3 391
+#define TOK___umoddi3 392
+#define TOK___ashrdi3 393
+#define TOK___lshrdi3 394
+#define TOK___ashldi3 395
+#define TOK___floatundisf 396
+#define TOK___floatundidf 397
+#define TOK___floatundixf 398
+#define TOK___fixunsxfdi 399
+#define TOK___fixunssfdi 400
+#define TOK___fixunsdfdi 401
+#define TOK_ASM_push 402
+#define TOK_ASM_pop 403
+#define TOK_ASM_first 404
+#define TOK_ASM_last 405
+#define TOK_ASM_alllast 406
+#define TOK_ASM_al 407
+#define TOK_ASM_ah 408
+#define TOK_ASM_ax 409
+#define TOK_ASM_eax 410
+#define TOK_ASM_rax 411
+#define TOK_ASM_di 412
+#define TOK_ASM_edi 413
+#define TOK_ASM_rdi 414
+#define TOK_ASM_dil 415
+#define TOK_ASM_spl 416
+#define TOK_ASM_rip 417
+#define TOK_ASM_st 418
+#define TOK_ASM_es 419
+#define TOK_ASM_gs 420
+#define TOK_ASM_dr0 421
+#define TOK_ASM_dr7 422
+#define TOK_ASM_db7 423
+#define TOK_ASM_call 424
+#define TOK_ASM_jmp 425
+#define TOK_ASM_pushw 426
+#define TOK_ASM_pushl 427
+#define TOK_ASM_pushq 428
+#define TOK_ASM_popw 429
+#define TOK_ASM_popl 430
+#define TOK_ASM_popq 431
+#define TOK_ASM_addb 432
+#define TOK_ASM_subps 433
+#define TOK_ASM_clc 434
+#define TOK_ASM_emms 435
+#define TOK_ASM_wait 436
+#define TOK_ASM_repnz 437
+#define TOK_ASM_xxx 438
+#define TOK_ASM_arch 439
+#define TOK_ASM_nopic 440
+#define TOK_ASM_norelax 441
+#define TOK_ASM_pic 442
+#define TOK_ASM_relax 443
+#endif
+
+#ifndef N_FUN
+#define N_FUN 0x24
+#define N_SO 0x64
+#define N_BINCL 0x82
+#define N_EINCL 0xa2
 #endif
 
 #define DEF_ASM(x) DEF(TOK_ASM_ ## x, #x)
