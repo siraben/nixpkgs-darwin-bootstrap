@@ -111,6 +111,8 @@
       - `phase27-tinycc-elf-to-macho-probe` compiles a C object with the MesCC-built TinyCC, converts the ELF relocatable to M1, links a signed Mach-O, and verifies exit status 42.
     - [x] Convert the full self-compiled TinyCC ELF relocatable to M1.
       - `phase28-tinycc-self-m1-probe` translates `tcc.o` into M1/hex2 while preserving unresolved SysV libc references for the next link stage.
+    - [x] Prove multi-object SysV ABI linking for TinyCC output.
+      - `phase29-tinycc-sysv-libc-probe` compiles both a caller and a seed `strlen` implementation with bootstrapped TinyCC, converts both ELF relocatables to M1, links a signed Mach-O, and verifies exit status 9.
     - [ ] Add the ELF/Mach-O link boundary needed to turn the self-compiled TinyCC object into a runnable compiler.
     - Build `tinycc-boot0`, `tinycc-boot1`, `tinycc-boot2`, `tinycc-boot3`, and final `tinycc-bootstrappable`.
     - Rebuild `libtcc1.a` at each required feature level.
