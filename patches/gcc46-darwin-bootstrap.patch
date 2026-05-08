@@ -94,3 +94,30 @@
  
  #endif	/* MAIN */
 +#endif
+--- a/libiberty/fibheap.c
++++ b/libiberty/fibheap.c
+@@ -1,3 +1,19 @@
++#if 1
++#include <stdlib.h>
++#include <fibheap.h>
++fibheap_t fibheap_new(void) { return (fibheap_t)calloc(1, sizeof(struct fibheap)); }
++fibnode_t fibheap_insert(fibheap_t heap, fibheapkey_t key, void *data) { fibnode_t node = (fibnode_t)calloc(1, sizeof(struct fibnode)); if (!node) return 0; node->key = key; node->data = data; if (heap) { heap->min = node; heap->root = node; heap->nodes = 1; } return node; }
++int fibheap_empty(fibheap_t heap) { return !heap || !heap->nodes; }
++fibheapkey_t fibheap_min_key(fibheap_t heap) { return heap && heap->min ? heap->min->key : 0; }
++fibheapkey_t fibheap_replace_key(fibheap_t heap, fibnode_t node, fibheapkey_t key) { fibheapkey_t old = node ? node->key : 0; if (node) node->key = key; return old; }
++void *fibheap_replace_key_data(fibheap_t heap, fibnode_t node, fibheapkey_t key, void *data) { void *old = node ? node->data : 0; if (node) { node->key = key; node->data = data; } return old; }
++void *fibheap_extract_min(fibheap_t heap) { void *data = heap && heap->min ? heap->min->data : 0; if (heap) { heap->min = 0; heap->root = 0; heap->nodes = 0; } return data; }
++void *fibheap_min(fibheap_t heap) { return heap && heap->min ? heap->min->data : 0; }
++void *fibheap_replace_data(fibheap_t heap, fibnode_t node, void *data) { void *old = node ? node->data : 0; if (node) node->data = data; return old; }
++void *fibheap_delete_node(fibheap_t heap, fibnode_t node) { void *data = node ? node->data : 0; if (node) free(node); if (heap) { heap->min = 0; heap->root = 0; heap->nodes = 0; } return data; }
++void fibheap_delete(fibheap_t heap) { if (heap) free(heap); }
++fibheap_t fibheap_union(fibheap_t a, fibheap_t b) { if (a) return a; return b; }
++#else
+ /* A Fibonacci heap datatype.
+    Copyright 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+    Contributed by Daniel Berlin (dan@cgsoftware.com).
+@@ -484,3 +500,4 @@
+ 
+   return ret;
+ }
++#endif
