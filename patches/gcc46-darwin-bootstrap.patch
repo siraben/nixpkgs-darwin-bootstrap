@@ -499,3 +499,57 @@
  #endif
  }
 +#endif
+--- a/libiberty/simple-object-mach-o.c
++++ b/libiberty/simple-object-mach-o.c
+@@ -1,3 +1,46 @@
++#if 1
++#include "config.h"
++#include "simple-object.h"
++#include "simple-object-common.h"
++#include <stdlib.h>
++static void *simple_object_mach_o_match(unsigned char header[SIMPLE_OBJECT_MATCH_HEADER_LEN], int descriptor, off_t offset, const char *segment_name, const char **errmsg, int *err) {
++  (void)header; (void)descriptor; (void)offset; (void)segment_name;
++  if (errmsg) *errmsg = 0;
++  if (err) *err = 0;
++  return 0;
++}
++static const char *simple_object_mach_o_find_sections(simple_object_read *sobj, int (*pfn)(void *, const char *, off_t, off_t), void *data, int *err) {
++  (void)sobj; (void)pfn; (void)data;
++  if (err) *err = 0;
++  return 0;
++}
++static void *simple_object_mach_o_fetch_attributes(simple_object_read *sobj, const char **errmsg, int *err) {
++  (void)sobj;
++  if (errmsg) *errmsg = 0;
++  if (err) *err = 0;
++  return malloc(1);
++}
++static void simple_object_mach_o_release_read(void *data) { if (data) free(data); }
++static const char *simple_object_mach_o_attributes_merge(void *to, void *from, int *err) {
++  (void)to; (void)from;
++  if (err) *err = 0;
++  return 0;
++}
++static void simple_object_mach_o_release_attributes(void *data) { if (data) free(data); }
++static void *simple_object_mach_o_start_write(void *attributes_data, const char **errmsg, int *err) {
++  (void)attributes_data;
++  if (errmsg) *errmsg = 0;
++  if (err) *err = 0;
++  return malloc(1);
++}
++static const char *simple_object_mach_o_write_to_file(simple_object_write *sobj, int descriptor, int *err) {
++  (void)sobj; (void)descriptor;
++  if (err) *err = 0;
++  return 0;
++}
++static void simple_object_mach_o_release_write(void *data) { if (data) free(data); }
++const struct simple_object_functions simple_object_mach_o_functions = { simple_object_mach_o_match, simple_object_mach_o_find_sections, simple_object_mach_o_fetch_attributes, simple_object_mach_o_release_read, simple_object_mach_o_attributes_merge, simple_object_mach_o_release_attributes, simple_object_mach_o_start_write, simple_object_mach_o_write_to_file, simple_object_mach_o_release_write };
++#else
+ /* simple-object-mach-o.c -- routines to manipulate Mach-O object files.
+    Copyright 2010, 2011 Free Software Foundation, Inc.
+    Written by Ian Lance Taylor, Google.
+@@ -1375,3 +1418,4 @@
+   simple_object_mach_o_write_to_file,
+   simple_object_mach_o_release_write
+ };
++#endif
