@@ -2516,6 +2516,63 @@ C
         set -e
         echo "$xgccSmokeStatus" > $out/share/darwin-bootstrap/xgcc-smoke.status
         test "$xgccSmokeStatus" = 42
+
+        cd ..
+        mkdir -p $out/share/darwin-bootstrap/work
+        cp -R src $out/share/darwin-bootstrap/work/src
+        cp -R build $out/share/darwin-bootstrap/work/build
+      ''
+    else
+      null;
+
+  phase36-gcc46-cc1 =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase36-gcc-${gcc46Version}-cc1-amd64" { } ''
+        mkdir -p work $out/bin $out/share/darwin-bootstrap
+
+        cp -R ${phase35-gcc46-all-gcc}/share/darwin-bootstrap/work/src work/src
+        cp -R ${phase35-gcc46-all-gcc}/share/darwin-bootstrap/work/build work/build
+        chmod -R u+w work
+        find work/build -type f -name Makefile -print | while read makefile; do
+          sed -i \
+            -e "s#/nix/var/nix/builds/[^/]*/build#$PWD/work/build#g" \
+            -e "s#/nix/var/nix/builds/[^/]*/src#$PWD/work/src#g" \
+            "$makefile"
+        done
+        for sourceDir in config c-family ada cp java objc; do
+          rm -rf "work/build/gcc/$sourceDir"
+          cp -R "work/src/gcc/$sourceDir" "work/build/gcc/$sourceDir"
+        done
+        find work/src/gcc -maxdepth 1 -type f -name '*.def' -exec cp {} work/build/gcc/ \;
+
+        export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
+        export CPP="$CC -E"
+        export CC_FOR_BUILD="$CC"
+        export AR=${cctools}/bin/ar
+        export NM=${cctools}/bin/nm
+        export RANLIB=${cctools}/bin/ranlib
+        export STRIP=${cctools}/bin/strip
+        export LIPO=${cctools}/bin/lipo
+        export OTOOL=${cctools}/bin/otool
+        export CFLAGS="-g"
+        export CFLAGS_FOR_BUILD="-g"
+        export CXX="$CC"
+        export CXXCPP="$CC -E"
+
+        cd work/build
+        make -C gcc cc1 -j1 \
+          CPP="$CPP" \
+          AR="$AR" \
+          NM="$NM" \
+          RANLIB="$RANLIB" \
+          STRIP="$STRIP" \
+          LIPO="$LIPO" \
+          OTOOL="$OTOOL" \
+          > $out/share/darwin-bootstrap/make-cc1.stdout \
+          2> $out/share/darwin-bootstrap/make-cc1.stderr
+
+        test -x gcc/cc1
+        cp gcc/cc1 $out/bin/cc1
       ''
     else
       null;
@@ -3764,6 +3821,7 @@ in
     phase26-gcc46-source
     gcc46DarwinBootstrapSrc
     phase35-gcc46-all-gcc
+    phase36-gcc46-cc1
     phase27-tinycc-elf-to-macho-probe
     phase28-tinycc-self-m1-probe
     phase29-tinycc-sysv-libc-probe

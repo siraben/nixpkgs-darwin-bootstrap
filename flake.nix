@@ -67,6 +67,7 @@
           phase26-gcc46-source = bootstrap.phase26-gcc46-source;
           gcc46-darwin-bootstrap-src = bootstrap.gcc46DarwinBootstrapSrc;
           phase35-gcc46-all-gcc = bootstrap.phase35-gcc46-all-gcc;
+          phase36-gcc46-cc1 = bootstrap.phase36-gcc46-cc1;
           phase27-tinycc-elf-to-macho-probe = bootstrap.phase27-tinycc-elf-to-macho-probe;
           phase28-tinycc-self-m1-probe = bootstrap.phase28-tinycc-self-m1-probe;
           phase29-tinycc-sysv-libc-probe = bootstrap.phase29-tinycc-sysv-libc-probe;

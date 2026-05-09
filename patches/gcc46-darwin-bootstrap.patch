@@ -6515,4 +6515,66 @@
 +}
  
  #if defined (GGC_ZONE) && !defined (GENERATOR_FILE)
+--- a/gcc/c-lang.c
++++ b/gcc/c-lang.c
+@@ -20,31 +20,14 @@
+ <http://www.gnu.org/licenses/>.  */
+ 
+ 
+-#include "config.h"
+-#include "system.h"
+-#include "coretypes.h"
+-#include "tm.h"
+-#include "tree.h"
+-#include "c-tree.h"
+-#include "c-family/c-common.h"
+-#include "langhooks.h"
+-#include "langhooks-def.h"
+-#include "tree-inline.h"
+-#include "diagnostic-core.h"
+-#include "c-objc-common.h"
+-#include "c-family/c-pragma.h"
+-
+-enum c_language_kind c_language = clk_c;
++int c_language = 0;
+ 
+ /* Lang hooks common to C and ObjC are declared in c-objc-common.h;
+    consequently, there should be very few hooks below.  */
+ 
+-#undef LANG_HOOKS_NAME
+-#define LANG_HOOKS_NAME "GNU C"
+-#undef LANG_HOOKS_INIT
+-#define LANG_HOOKS_INIT c_objc_common_init
++static const char bootstrap_lang_name[] = "GNU C";
+ 
+ /* Each front end provides its own lang hook initializer.  */
+-struct lang_hooks lang_hooks = LANG_HOOKS_INITIALIZER;
++void *lang_hooks[512] = { (void *) bootstrap_lang_name };
+ 
+-#include "gtype-c.h"
++int bootstrap_c_lang_stub;
+--- a/gcc/c-family/stub-objc.c
++++ b/gcc/c-family/stub-objc.c
+@@ -21,12 +21,15 @@
+ <http://www.gnu.org/licenses/>.  */
+ 
+ #include "config.h"
+-#include "system.h"
+-#include "coretypes.h"
+-#include "tree.h"
+-#include "c-common.h"
+-#include "c-objc.h"
+-
++typedef void *tree;
++typedef int bool;
++typedef int location_t;
++typedef int objc_ivar_visibility_kind;
++enum tree_code { bootstrap_tree_code };
++#define false 0
++#define true 1
++#define NULL ((void *) 0)
++#define ARG_UNUSED(name) name
+ tree
+ objc_is_class_name (tree ARG_UNUSED (arg))
+ {
  
