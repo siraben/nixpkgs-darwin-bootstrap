@@ -655,3 +655,17 @@
    UNLOCK;
  }
 +#endif
+--- a/libiberty/sigsetmask.c
++++ b/libiberty/sigsetmask.c
+@@ -1,3 +1,6 @@
++#if 1
++int sigsetmask(int set) { (void)set; return 0; }
++#else
+ /* Version of sigsetmask.c
+    Written by Steve Chamberlain (sac@cygnus.com).
+    Contributed by Cygnus Support.
+@@ -38,3 +41,4 @@
+     return 1;	/* FIXME, we always return 1 as old value.  */
+ }
+ #endif
++#endif
