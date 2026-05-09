@@ -171,3 +171,4 @@
 - 2026-05-08: Replaced MPFR's build with a minimal bootstrap `libmpfr.a`; `make all-gcc` now builds GMP, MPFR, MPC, host libiberty, and stops in build-side `fixincludes/fixincl.c`.
 - 2026-05-08: Skipped the build-side `fixincludes` executable in the bootstrap source; `make all-gcc` now advances through fixincludes and stops at a TinyCC crash while compiling `zlib/gzio.c`.
 - 2026-05-08: Replaced zlib's build with a minimal bootstrap `libz.a` and allowed libcpp's no-dependency mode; `make all-gcc` now advances through zlib and stops at a TinyCC parse failure while compiling `libcpp/charset.c`.
+- 2026-05-08: Added libcpp configure fallbacks for host word sizes and replaced `charset.o` with a TinyCC-safe bootstrap implementation; `make all-gcc` now compiles `charset.o` and stops while compiling `libcpp/directives.c`.

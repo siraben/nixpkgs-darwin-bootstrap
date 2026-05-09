@@ -1182,6 +1182,312 @@
  
  fi
  
+@@ -5621,5 +5621,6 @@
+ 
+ fi
++if test "x$ac_cv_sizeof_int" = x; then ac_cv_sizeof_int=4; fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_int" >&5
+ $as_echo "$ac_cv_sizeof_int" >&6; }
+ 
+@@ -5655,5 +5656,6 @@
+ 
+ fi
++if test "x$ac_cv_sizeof_long" = x; then ac_cv_sizeof_long=8; fi
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_long" >&5
+ $as_echo "$ac_cv_sizeof_long" >&6; }
+ 
+--- a/libcpp/Makefile.in
++++ b/libcpp/Makefile.in
+@@ -225,6 +225,10 @@
+ .c.o:
+ 	$(COMPILE) $<
+ 	$(POSTCOMPILE)
++
++charset.o: bootstrap-charset.c
++	$(COMPILE.base) -o charset.o `test -f 'bootstrap-charset.c' || echo '$(srcdir)/'`bootstrap-charset.c
++
+ 
+ # N.B. We do not attempt to copy these into $(srcdir).
+ .po.gmo:
+--- /dev/null
++++ b/libcpp/bootstrap-charset.c
+@@ -0,0 +1,274 @@
++#if 0
++#include "config.h"
++#include "system.h"
++#include "cpplib.h"
++#include "internal.h"
++
++struct _cpp_strbuf
++{
++  uchar *text;
++  size_t asize;
++  size_t len;
++};
++
++static bool
++bootstrap_no_conversion (iconv_t cd ATTRIBUTE_UNUSED, const uchar *from,
++                         size_t len, struct _cpp_strbuf *to)
++{
++  if (to->len + len + 1 > to->asize)
++    {
++      size_t next = to->len + len + 1;
++      to->text = XRESIZEVEC (uchar, to->text, next);
++      to->asize = next;
++    }
++  memcpy (to->text + to->len, from, len);
++  to->len += len;
++  return true;
++}
++
++void
++cpp_init_iconv (cpp_reader *pfile)
++{
++  pfile->narrow_cset_desc.func = bootstrap_no_conversion;
++  pfile->narrow_cset_desc.cd = (iconv_t) -1;
++  pfile->narrow_cset_desc.width = CPP_OPTION (pfile, char_precision);
++  pfile->utf8_cset_desc = pfile->narrow_cset_desc;
++  pfile->char16_cset_desc = pfile->narrow_cset_desc;
++  pfile->char16_cset_desc.width = 16;
++  pfile->char32_cset_desc = pfile->narrow_cset_desc;
++  pfile->char32_cset_desc.width = 32;
++  pfile->wide_cset_desc = pfile->narrow_cset_desc;
++  pfile->wide_cset_desc.width = CPP_OPTION (pfile, wchar_precision);
++}
++
++void
++_cpp_destroy_iconv (cpp_reader *pfile ATTRIBUTE_UNUSED)
++{
++}
++
++cppchar_t
++cpp_host_to_exec_charset (cpp_reader *pfile ATTRIBUTE_UNUSED, cppchar_t c)
++{
++  return c;
++}
++
++static int
++bootstrap_hex_value (uchar c)
++{
++  if (c >= '0' && c <= '9') return c - '0';
++  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
++  return -1;
++}
++
++cppchar_t
++_cpp_valid_ucn (cpp_reader *pfile ATTRIBUTE_UNUSED, const uchar **pstr,
++                const uchar *limit, int identifier_pos ATTRIBUTE_UNUSED,
++                struct normalize_state *nst ATTRIBUTE_UNUSED)
++{
++  const uchar *str = *pstr;
++  unsigned int length = (str > (const uchar *)0 && str[-1] == 'U') ? 8 : 4;
++  cppchar_t value = 0;
++  while (length && str < limit)
++    {
++      int digit = bootstrap_hex_value (*str);
++      if (digit < 0) break;
++      value = (value << 4) + (cppchar_t) digit;
++      str++;
++      length--;
++    }
++  *pstr = str;
++  return value;
++}
++
++static void
++bootstrap_append_string_body (const cpp_string *from, struct _cpp_strbuf *to)
++{
++  const uchar *start = from->text;
++  const uchar *end = from->text + from->len;
++  while (start < end && *start != 39 && *start != 34)
++    start++;
++  if (start < end)
++    start++;
++  if (end > start && (end[-1] == 39 || end[-1] == 34))
++    end--;
++  bootstrap_no_conversion ((iconv_t) -1, start, end - start, to);
++}
++
++bool
++cpp_interpret_string (cpp_reader *pfile ATTRIBUTE_UNUSED, const cpp_string *from,
++                      size_t count, cpp_string *to,
++                      enum cpp_ttype type ATTRIBUTE_UNUSED)
++{
++  size_t i;
++  struct _cpp_strbuf out;
++  out.asize = 1;
++  out.len = 0;
++  for (i = 0; i < count; i++)
++    out.asize += from[i].len;
++  out.text = XNEWVEC (uchar, out.asize);
++  for (i = 0; i < count; i++)
++    bootstrap_append_string_body (&from[i], &out);
++  out.text[out.len++] = 0;
++  to->text = out.text;
++  to->len = (unsigned int) out.len;
++  return true;
++}
++
++bool
++cpp_interpret_string_notranslate (cpp_reader *pfile, const cpp_string *from,
++                                  size_t count, cpp_string *to,
++                                  enum cpp_ttype type)
++{
++  return cpp_interpret_string (pfile, from, count, to, type);
++}
++
++cppchar_t
++cpp_interpret_charconst (cpp_reader *pfile ATTRIBUTE_UNUSED, const cpp_token *token,
++                         unsigned int *pchars_seen, int *unsignedp)
++{
++  const uchar *start = token->val.str.text;
++  const uchar *end = token->val.str.text + token->val.str.len;
++  cppchar_t value = 0;
++  while (start < end && *start != 39) start++;
++  if (start < end) start++;
++  if (start < end) value = *start;
++  if (pchars_seen) *pchars_seen = value ? 1 : 0;
++  if (unsignedp) *unsignedp = 0;
++  return value;
++}
++
++cpp_hashnode *
++_cpp_interpret_identifier (cpp_reader *pfile, const uchar *id, size_t len)
++{
++  return CPP_HASHNODE (ht_lookup (pfile->hash_table, id, len, HT_ALLOC));
++}
++
++uchar *
++_cpp_convert_input (cpp_reader *pfile ATTRIBUTE_UNUSED,
++                    const char *input_charset ATTRIBUTE_UNUSED,
++                    uchar *input, size_t size, size_t len,
++                    const uchar **buffer_start, off_t *st_size)
++{
++  if (len >= size)
++    input = XRESIZEVEC (uchar, input, len + 1);
++  input[len] = 10;
++  *buffer_start = input;
++  *st_size = (off_t) len;
++  return input;
++}
++
++const char *
++_cpp_default_encoding (void)
++{
++  return "UTF-8";
++}
++#endif
++
++typedef int bool;
++typedef unsigned int cppchar_t;
++typedef unsigned long size_t;
++typedef long off_t;
++#define true 1
++#define false 0
++#define ATTRIBUTE_UNUSED __attribute__((unused))
++
++struct cpp_reader;
++struct normalize_state;
++struct cpp_hashnode;
++struct cpp_token;
++
++typedef struct cpp_reader cpp_reader;
++typedef struct cpp_hashnode cpp_hashnode;
++typedef struct cpp_token cpp_token;
++
++struct cpp_string {
++  unsigned int len;
++  const unsigned char *text;
++};
++typedef struct cpp_string cpp_string;
++
++enum cpp_ttype { CPP_BOOTSTRAP_TOKEN = 0 };
++
++extern void *xmalloc (size_t);
++extern void *xrealloc (void *, size_t);
++
++void cpp_init_iconv (cpp_reader *pfile ATTRIBUTE_UNUSED) {}
++void _cpp_destroy_iconv (cpp_reader *pfile ATTRIBUTE_UNUSED) {}
++cppchar_t cpp_host_to_exec_charset (cpp_reader *pfile ATTRIBUTE_UNUSED, cppchar_t c) { return c; }
++
++static int bootstrap_hex_value (unsigned char c) {
++  if (c >= '0' && c <= '9') return c - '0';
++  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
++  return -1;
++}
++
++cppchar_t _cpp_valid_ucn (cpp_reader *pfile ATTRIBUTE_UNUSED, const unsigned char **pstr,
++                          const unsigned char *limit, int identifier_pos ATTRIBUTE_UNUSED,
++                          struct normalize_state *nst ATTRIBUTE_UNUSED) {
++  const unsigned char *str = *pstr;
++  unsigned int length = (str[-1] == 'U') ? 8 : 4;
++  cppchar_t value = 0;
++  while (length && str < limit) {
++    int digit = bootstrap_hex_value (*str);
++    if (digit < 0) break;
++    value = (value << 4) + (cppchar_t) digit;
++    str++;
++    length--;
++  }
++  *pstr = str;
++  return value;
++}
++
++static void append_string_body (const cpp_string *from, unsigned char *out, unsigned int *len) {
++  const unsigned char *start = from->text;
++  const unsigned char *end = from->text + from->len;
++  while (start < end && *start != 39 && *start != 34) start++;
++  if (start < end) start++;
++  if (end > start && (end[-1] == 39 || end[-1] == 34)) end--;
++  while (start < end) out[(*len)++] = *start++;
++}
++
++bool cpp_interpret_string (cpp_reader *pfile ATTRIBUTE_UNUSED, const cpp_string *from,
++                           size_t count, cpp_string *to, enum cpp_ttype type ATTRIBUTE_UNUSED) {
++  size_t i;
++  unsigned int len = 0;
++  unsigned int cap = 1;
++  unsigned char *out;
++  for (i = 0; i < count; i++) cap += from[i].len;
++  out = (unsigned char *) xmalloc (cap);
++  for (i = 0; i < count; i++) append_string_body (&from[i], out, &len);
++  out[len++] = 0;
++  to->text = out;
++  to->len = len;
++  return true;
++}
++
++bool cpp_interpret_string_notranslate (cpp_reader *pfile, const cpp_string *from,
++                                       size_t count, cpp_string *to, enum cpp_ttype type) {
++  return cpp_interpret_string (pfile, from, count, to, type);
++}
++
++cppchar_t cpp_interpret_charconst (cpp_reader *pfile ATTRIBUTE_UNUSED, const cpp_token *token ATTRIBUTE_UNUSED,
++                                   unsigned int *pchars_seen, int *unsignedp) {
++  if (pchars_seen) *pchars_seen = 0;
++  if (unsignedp) *unsignedp = 0;
++  return 0;
++}
++
++cpp_hashnode *_cpp_interpret_identifier (cpp_reader *pfile ATTRIBUTE_UNUSED,
++                                         const unsigned char *id ATTRIBUTE_UNUSED,
++                                         size_t len ATTRIBUTE_UNUSED) { return 0; }
++
++unsigned char *_cpp_convert_input (cpp_reader *pfile ATTRIBUTE_UNUSED,
++                                   const char *input_charset ATTRIBUTE_UNUSED,
++                                   unsigned char *input, size_t size, size_t len,
++                                   const unsigned char **buffer_start, off_t *st_size) {
++  if (len >= size) input = (unsigned char *) xrealloc (input, len + 1);
++  input[len] = 10;
++  *buffer_start = input;
++  *st_size = (off_t) len;
++  return input;
++}
++
++const char *_cpp_default_encoding (void) { return "UTF-8"; }
++
 --- a/zlib/Makefile.in
 +++ b/zlib/Makefile.in
 @@ -82,19 +82,12 @@
