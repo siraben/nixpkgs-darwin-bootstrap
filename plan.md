@@ -170,3 +170,4 @@
 - 2026-05-08: Added archive/library expansion to the TinyCC Darwin `cc` wrapper and replaced GMP's build with a minimal bootstrap `libgmp.a`; `make all-gcc` now reaches MPFR and stops while compiling `mpfr/get_d.c`.
 - 2026-05-08: Replaced MPFR's build with a minimal bootstrap `libmpfr.a`; `make all-gcc` now builds GMP, MPFR, MPC, host libiberty, and stops in build-side `fixincludes/fixincl.c`.
 - 2026-05-08: Skipped the build-side `fixincludes` executable in the bootstrap source; `make all-gcc` now advances through fixincludes and stops at a TinyCC crash while compiling `zlib/gzio.c`.
+- 2026-05-08: Replaced zlib's build with a minimal bootstrap `libz.a` and allowed libcpp's no-dependency mode; `make all-gcc` now advances through zlib and stops at a TinyCC parse failure while compiling `libcpp/charset.c`.

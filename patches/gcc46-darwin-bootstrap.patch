@@ -1160,3 +1160,149 @@
  gen : $(srcdir)/fixincl.x
  
  
+--- a/libcpp/configure
++++ b/libcpp/configure
+@@ -4879,7 +4879,7 @@
+ $as_echo "$am_cv_CC_dependencies_compiler_type" >&6; }
+ if test x${am_cv_CC_dependencies_compiler_type-none} = xnone
+-then as_fn_error "no usable dependency style found" "$LINENO" 5
+-else CCDEPMODE=depmode=$am_cv_CC_dependencies_compiler_type
++then CCDEPMODE=depmode=none
++else CCDEPMODE=depmode=$am_cv_CC_dependencies_compiler_type
+ 
+ fi
+ 
+@@ -4999,7 +4999,7 @@
+ $as_echo "$am_cv_CXX_dependencies_compiler_type" >&6; }
+ if test x${am_cv_CXX_dependencies_compiler_type-none} = xnone
+-then as_fn_error "no usable dependency style found" "$LINENO" 5
+-else CXXDEPMODE=depmode=$am_cv_CXX_dependencies_compiler_type
++then CXXDEPMODE=depmode=none
++else CXXDEPMODE=depmode=$am_cv_CXX_dependencies_compiler_type
+ 
+ fi
+ 
+--- a/zlib/Makefile.in
++++ b/zlib/Makefile.in
+@@ -82,19 +82,12 @@
+ ARFLAGS = cru
+ libz_a_AR = $(AR) $(ARFLAGS)
+ libz_a_LIBADD =
+-am__objects_1 = libz_a-adler32.$(OBJEXT) libz_a-compress.$(OBJEXT) \
+-	libz_a-crc32.$(OBJEXT) libz_a-deflate.$(OBJEXT) \
+-	libz_a-gzio.$(OBJEXT) libz_a-infback.$(OBJEXT) \
+-	libz_a-inffast.$(OBJEXT) libz_a-inflate.$(OBJEXT) \
+-	libz_a-inftrees.$(OBJEXT) libz_a-trees.$(OBJEXT) \
+-	libz_a-uncompr.$(OBJEXT) libz_a-zutil.$(OBJEXT)
++am__objects_1 = bootstrap-zlib.$(OBJEXT)
+ @TARGET_LIBRARY_FALSE@am_libz_a_OBJECTS = $(am__objects_1)
+ libz_a_OBJECTS = $(am_libz_a_OBJECTS)
+ LTLIBRARIES = $(noinst_LTLIBRARIES)
+ libzgcj_convenience_la_LIBADD =
+-am__objects_2 = adler32.lo compress.lo crc32.lo deflate.lo gzio.lo \
+-	infback.lo inffast.lo inflate.lo inftrees.lo trees.lo \
+-	uncompr.lo zutil.lo
++am__objects_2 = bootstrap-zlib.lo
+ @TARGET_LIBRARY_TRUE@am_libzgcj_convenience_la_OBJECTS =  \
+ @TARGET_LIBRARY_TRUE@	$(am__objects_2)
+ libzgcj_convenience_la_OBJECTS = $(am_libzgcj_convenience_la_OBJECTS)
+@@ -249,9 +243,9 @@
+ 	zconf.in.h zlib.h zutil.c zutil.h
+ 
+ @TARGET_LIBRARY_TRUE@noinst_LTLIBRARIES = libzgcj_convenience.la
+-@TARGET_LIBRARY_TRUE@libzgcj_convenience_la_SOURCES = $(ZLIB_SOURCES)
++@TARGET_LIBRARY_TRUE@libzgcj_convenience_la_SOURCES = bootstrap-zlib.c
+ @TARGET_LIBRARY_FALSE@toolexeclib_LIBRARIES = libz.a
+-@TARGET_LIBRARY_FALSE@libz_a_SOURCES = $(ZLIB_SOURCES)
++@TARGET_LIBRARY_FALSE@libz_a_SOURCES = bootstrap-zlib.c
+ @TARGET_LIBRARY_FALSE@libz_a_CFLAGS = $(AM_CFLAGS)
+ 
+ # Work around what appears to be a GNU make bug handling MAKEFLAGS
+@@ -469,6 +463,12 @@
+ libz_a-zutil.obj: zutil.c
+ 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libz_a_CFLAGS) $(CFLAGS) -c -o libz_a-zutil.obj `if test -f 'zutil.c'; then $(CYGPATH_W) 'zutil.c'; else $(CYGPATH_W) '$(srcdir)/zutil.c'; fi`
+ 
++bootstrap-zlib.o: bootstrap-zlib.c
++	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libz_a_CFLAGS) $(CFLAGS) -c -o bootstrap-zlib.o `test -f 'bootstrap-zlib.c' || echo '$(srcdir)/'`bootstrap-zlib.c
++
++bootstrap-zlib.obj: bootstrap-zlib.c
++	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libz_a_CFLAGS) $(CFLAGS) -c -o bootstrap-zlib.obj `if test -f 'bootstrap-zlib.c'; then $(CYGPATH_W) 'bootstrap-zlib.c'; else $(CYGPATH_W) '$(srcdir)/bootstrap-zlib.c'; fi`
++
+ mostlyclean-libtool:
+ 	-rm -f *.lo
+ 
+--- /dev/null
++++ b/zlib/bootstrap-zlib.c
+@@ -0,0 +1,72 @@
++#include "zlib.h"
++
++static const char bootstrap_zlib_error[] = "bootstrap zlib";
++static const uLongf bootstrap_crc_table[1] = { 0 };
++
++static void bootstrap_copy(Bytef *dest, const Bytef *source, uLong len) {
++  uLong i;
++  if (!dest || !source) return;
++  for (i = 0; i < len; i++) dest[i] = source[i];
++}
++
++const char * ZEXPORT zlibVersion(void) { return ZLIB_VERSION; }
++uLong ZEXPORT adler32(uLong adler, const Bytef *buf, uInt len) { (void)buf; (void)len; return adler ? adler : 1; }
++uLong ZEXPORT adler32_combine(uLong a, uLong b, z_off_t len2) { (void)b; (void)len2; return a; }
++uLong ZEXPORT crc32(uLong crc, const Bytef *buf, uInt len) { (void)buf; (void)len; return crc; }
++uLong ZEXPORT crc32_combine(uLong a, uLong b, z_off_t len2) { (void)b; (void)len2; return a; }
++const uLongf * ZEXPORT get_crc_table(void) { return bootstrap_crc_table; }
++const char * ZEXPORT zError(int err) { (void)err; return bootstrap_zlib_error; }
++
++uLong ZEXPORT compressBound(uLong sourceLen) { return sourceLen + 16; }
++int ZEXPORT compress2(Bytef *dest, uLongf *destLen, const Bytef *source, uLong sourceLen, int level) {
++  (void)level;
++  if (!destLen) return Z_STREAM_ERROR;
++  if (*destLen < sourceLen) return Z_BUF_ERROR;
++  bootstrap_copy(dest, source, sourceLen);
++  *destLen = sourceLen;
++  return Z_OK;
++}
++int ZEXPORT compress(Bytef *dest, uLongf *destLen, const Bytef *source, uLong sourceLen) { return compress2(dest, destLen, source, sourceLen, Z_DEFAULT_COMPRESSION); }
++int ZEXPORT uncompress(Bytef *dest, uLongf *destLen, const Bytef *source, uLong sourceLen) { return compress2(dest, destLen, source, sourceLen, Z_NO_COMPRESSION); }
++
++int ZEXPORT deflateInit_(z_streamp strm, int level, const char *version, int stream_size) { (void)strm; (void)level; (void)version; (void)stream_size; return Z_OK; }
++int ZEXPORT inflateInit_(z_streamp strm, const char *version, int stream_size) { (void)strm; (void)version; (void)stream_size; return Z_OK; }
++int ZEXPORT deflateInit2_(z_streamp strm, int level, int method, int windowBits, int memLevel, int strategy, const char *version, int stream_size) { (void)strm; (void)level; (void)method; (void)windowBits; (void)memLevel; (void)strategy; (void)version; (void)stream_size; return Z_OK; }
++int ZEXPORT inflateInit2_(z_streamp strm, int windowBits, const char *version, int stream_size) { (void)strm; (void)windowBits; (void)version; (void)stream_size; return Z_OK; }
++int ZEXPORT inflateBackInit_(z_streamp strm, int windowBits, unsigned char FAR *window, const char *version, int stream_size) { (void)strm; (void)windowBits; (void)window; (void)version; (void)stream_size; return Z_OK; }
++int ZEXPORT deflate(z_streamp strm, int flush) { (void)strm; return flush == Z_FINISH ? Z_STREAM_END : Z_OK; }
++int ZEXPORT inflate(z_streamp strm, int flush) { (void)strm; return flush == Z_FINISH ? Z_STREAM_END : Z_OK; }
++int ZEXPORT inflateBack(z_streamp strm, in_func in, void FAR *in_desc, out_func out, void FAR *out_desc) { (void)strm; (void)in; (void)in_desc; (void)out; (void)out_desc; return Z_STREAM_END; }
++int ZEXPORT deflateEnd(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT inflateEnd(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT inflateBackEnd(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT deflateReset(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT inflateReset(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT deflateParams(z_streamp strm, int level, int strategy) { (void)strm; (void)level; (void)strategy; return Z_OK; }
++int ZEXPORT deflateSetDictionary(z_streamp strm, const Bytef *dictionary, uInt dictLength) { (void)strm; (void)dictionary; (void)dictLength; return Z_OK; }
++int ZEXPORT inflateSetDictionary(z_streamp strm, const Bytef *dictionary, uInt dictLength) { (void)strm; (void)dictionary; (void)dictLength; return Z_OK; }
++int ZEXPORT inflateSync(z_streamp strm) { (void)strm; return Z_OK; }
++int ZEXPORT inflateSyncPoint(z_streamp strm) { (void)strm; return 0; }
++int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) { (void)dest; (void)source; return Z_OK; }
++int ZEXPORT inflateCopy(z_streamp dest, z_streamp source) { (void)dest; (void)source; return Z_OK; }
++
++gzFile ZEXPORT gzopen(const char *path, const char *mode) { (void)path; (void)mode; return Z_NULL; }
++gzFile ZEXPORT gzdopen(int fd, const char *mode) { (void)fd; (void)mode; return Z_NULL; }
++int ZEXPORT gzsetparams(gzFile file, int level, int strategy) { (void)file; (void)level; (void)strategy; return Z_STREAM_ERROR; }
++int ZEXPORT gzread(gzFile file, voidp buf, unsigned len) { (void)file; (void)buf; (void)len; return 0; }
++int ZEXPORT gzwrite(gzFile file, voidpc buf, unsigned len) { (void)file; (void)buf; (void)len; return 0; }
++int ZEXPORTVA gzprintf(gzFile file, const char *format, ...) { (void)file; (void)format; return 0; }
++int ZEXPORT gzputs(gzFile file, const char *s) { (void)file; (void)s; return 0; }
++char * ZEXPORT gzgets(gzFile file, char *buf, int len) { (void)file; (void)buf; (void)len; return Z_NULL; }
++int ZEXPORT gzputc(gzFile file, int c) { (void)file; (void)c; return -1; }
++int ZEXPORT gzgetc(gzFile file) { (void)file; return -1; }
++int ZEXPORT gzungetc(int c, gzFile file) { (void)c; (void)file; return -1; }
++int ZEXPORT gzflush(gzFile file, int flush) { (void)file; (void)flush; return Z_STREAM_ERROR; }
++z_off_t ZEXPORT gzseek(gzFile file, z_off_t offset, int whence) { (void)file; (void)offset; (void)whence; return -1; }
++z_off_t ZEXPORT gztell(gzFile file) { (void)file; return -1; }
++int ZEXPORT gzrewind(gzFile file) { (void)file; return -1; }
++int ZEXPORT gzeof(gzFile file) { (void)file; return 1; }
++int ZEXPORT gzdirect(gzFile file) { (void)file; return 1; }
++int ZEXPORT gzclose(gzFile file) { (void)file; return Z_OK; }
++const char * ZEXPORT gzerror(gzFile file, int *errnum) { (void)file; if (errnum) *errnum = Z_STREAM_ERROR; return bootstrap_zlib_error; }
++void ZEXPORT gzclearerr(gzFile file) { (void)file; }
