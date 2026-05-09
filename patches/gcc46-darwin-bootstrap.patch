@@ -1149,3 +1149,14 @@
 +int mpfr_ui_sub(mpfr_ptr r, unsigned long a, mpfr_srcptr b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
 +int mpfr_const_pi(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
 +int mpfr_const_log2(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
+--- a/fixincludes/Makefile.in
++++ b/fixincludes/Makefile.in
+@@ -99,7 +99,7 @@
+ FI  = fixincl@EXEEXT@
+ AF  = applyfix@EXEEXT@
+ 
+-all : @TARGET@ fixinc.sh mkheaders
++all : fixinc.sh mkheaders
+ gen : $(srcdir)/fixincl.x
+ 
+ 

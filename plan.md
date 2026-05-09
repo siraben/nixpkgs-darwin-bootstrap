@@ -169,3 +169,4 @@
 - 2026-05-08: Added TinyCC-safe GMP bootstrap generators for factorial, Fibonacci, base, and perfect-square tables; GMP now generates its derived files and stops while compiling `mpn/add.c`.
 - 2026-05-08: Added archive/library expansion to the TinyCC Darwin `cc` wrapper and replaced GMP's build with a minimal bootstrap `libgmp.a`; `make all-gcc` now reaches MPFR and stops while compiling `mpfr/get_d.c`.
 - 2026-05-08: Replaced MPFR's build with a minimal bootstrap `libmpfr.a`; `make all-gcc` now builds GMP, MPFR, MPC, host libiberty, and stops in build-side `fixincludes/fixincl.c`.
+- 2026-05-08: Skipped the build-side `fixincludes` executable in the bootstrap source; `make all-gcc` now advances through fixincludes and stops at a TinyCC crash while compiling `zlib/gzio.c`.
