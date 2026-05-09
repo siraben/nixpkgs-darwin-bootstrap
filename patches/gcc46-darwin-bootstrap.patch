@@ -683,3 +683,87 @@
    return s;
  }
 +#endif
+--- a/gmp/gen-fac_ui.c
++++ b/gmp/gen-fac_ui.c
+@@ -1,3 +1,11 @@
++#if 1
++#include <stdio.h>
++int main(int argc, char **argv) {
++  (void)argc; (void)argv;
++  printf("/* bootstrap fac_ui.h */\n#define ONE_LIMB_FACTORIAL_TABLE CNST_LIMB(0x1),CNST_LIMB(0x1),CNST_LIMB(0x2)\n#define FAC2OVERE CNST_LIMB(0x1)\n#define FACMUL2 CNST_LIMB(0x1)\n#define FACMUL3 CNST_LIMB(0x1)\n#define FACMUL4 CNST_LIMB(0x1)\n");
++  return 0;
++}
++#else
+ /* Generate mpz_fac_ui data.
+ 
+ Copyright 2002 Free Software Foundation, Inc.
+@@ -157,3 +165,4 @@
+   gen_consts (numb_bits, nail_bits, limb_bits);
+   return 0;
+ }
++#endif
+--- a/gmp/gen-fib.c
++++ b/gmp/gen-fib.c
+@@ -1,3 +1,15 @@
++#if 1
++#include <stdio.h>
++int main(int argc, char **argv) {
++  int header = argc > 1 && argv[1][0] == 'h';
++  if (header) {
++    printf("/* bootstrap fib_table.h */\n#define FIB_TABLE_LIMIT 1\n#define FIB_TABLE_LUCNUM_LIMIT 1\n");
++  } else {
++    printf("/* bootstrap mpn/fib_table.c */\ntypedef unsigned long mp_limb_t;\nconst mp_limb_t __gmp_fib_table[3] = { 1, 0, 1 };\n");
++  }
++  return 0;
++}
++#else
+ /* Generate Fibonacci table data.
+ 
+ Copyright 2001, 2002, 2004 Free Software Foundation, Inc.
+@@ -143,3 +155,4 @@
+ 
+   return 0;
+ }
++#endif
+--- a/gmp/gen-bases.c
++++ b/gmp/gen-bases.c
+@@ -1,3 +1,15 @@
++#if 1
++#include <stdio.h>
++int main(int argc, char **argv) {
++  int header = argc > 1 && argv[1][0] == 'h';
++  if (header) {
++    printf("/* bootstrap mp_bases.h */\n#define MP_BASES_CHARS_PER_LIMB_10 1\n#define MP_BASES_BIG_BASE_10 CNST_LIMB(0xa)\n#define MP_BASES_BIG_BASE_INVERTED_10 CNST_LIMB(0x0)\n#define MP_BASES_NORMALIZATION_STEPS_10 0\n");
++  } else {
++    printf("/* bootstrap mpn/mp_bases.c */\ntypedef unsigned long mp_limb_t;\nstruct bases { int chars_per_limb; double chars_per_bit_exactly; mp_limb_t big_base; mp_limb_t big_base_inverted; };\nconst struct bases __gmpn_bases[257] = { { 0, 0.0, 0, 0 }, { 0, 0.0, 0, 0 }, { 1, 1.0, 2, 0 } };\n");
++  }
++  return 0;
++}
++#else
+ /* Generate mp_bases data.
+ 
+ Copyright 1991, 1993, 1994, 1996, 2000, 2002, 2004 Free Software Foundation,
+@@ -178,3 +190,4 @@
+ 
+   return 0;
+ }
++#endif
+--- a/gmp/gen-psqr.c
++++ b/gmp/gen-psqr.c
+@@ -1,3 +1,11 @@
++#if 1
++#include <stdio.h>
++int main(int argc, char **argv) {
++  (void)argc; (void)argv;
++  printf("/* bootstrap perfsqr.h */\nstatic const mp_limb_t sq_res_0x100[4] = { ~(CNST_LIMB(0)), ~(CNST_LIMB(0)), ~(CNST_LIMB(0)), ~(CNST_LIMB(0)) };\n#define PERFSQR_MOD_BITS 1\n#define PERFSQR_MOD_TEST(up, usize) do { (void)(up); (void)(usize); } while (0)\n#define PERFSQR_DIVISORS { 256, }\n");
++  return 0;
++}
++#else
+ /* Generate perfect square testing data.
+ 
+ Copyright 2002, 2003, 2004 Free Software Foundation, Inc.
+@@ -574,3 +582,4 @@
+ 
+   return 0;
+ }
++#endif
