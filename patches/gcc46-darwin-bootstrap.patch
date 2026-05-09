@@ -767,3 +767,156 @@
    return 0;
  }
 +#endif
+--- a/gmp/Makefile.in
++++ b/gmp/Makefile.in
+@@ -167,13 +167,7 @@
+ am__DEPENDENCIES_7 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_2) \
+ 	$(am__DEPENDENCIES_3) $(am__DEPENDENCIES_4) \
+ 	$(am__DEPENDENCIES_5) $(am__DEPENDENCIES_6)
+-am_libgmp_la_OBJECTS = assert$U.lo compat$U.lo errno$U.lo \
+-	extract-dbl$U.lo invalid$U.lo memory$U.lo mp_bpl$U.lo \
+-	mp_clz_tab$U.lo mp_dv_tab$U.lo mp_minv_tab$U.lo \
+-	mp_get_fns$U.lo mp_set_fns$U.lo rand$U.lo randclr$U.lo \
+-	randdef$U.lo randiset$U.lo randlc2s$U.lo randlc2x$U.lo \
+-	randmt$U.lo randmts$U.lo rands$U.lo randsd$U.lo randsdui$U.lo \
+-	randbui$U.lo randmui$U.lo version$U.lo
++am_libgmp_la_OBJECTS = bootstrap-gmp$U.lo
+ libgmp_la_OBJECTS = $(am_libgmp_la_OBJECTS)
+ am__DEPENDENCIES_8 = cxx/isfuns.lo cxx/ismpf.lo cxx/ismpq.lo \
+ 	cxx/ismpz.lo cxx/ismpznw.lo cxx/osdoprnti.lo cxx/osfuns.lo \
+@@ -450,7 +444,7 @@
+ LIBMP_LT_CURRENT = 4
+ LIBMP_LT_REVISION = 16
+ LIBMP_LT_AGE = 1
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf cxx mpbsd demos tune doc
++SUBDIRS =
+ 
+ # The ansi2knr setups for the build programs are the same as the normal
+ # automake ansi2knr rules, but using $(CC_FOR_BUILD) instead of $(CC).
+@@ -615,19 +609,12 @@
+ # Currently, for libgmp, unlike libmp below, we're not using
+ # -export-symbols, since the tune and speed programs, and perhaps some of
+ # the test programs, want to access undocumented symbols.
+-libgmp_la_SOURCES = gmp-impl.h longlong.h randmt.h			\
+-  assert.c compat.c errno.c extract-dbl.c invalid.c memory.c		\
+-  mp_bpl.c mp_clz_tab.c mp_dv_tab.c mp_minv_tab.c mp_get_fns.c mp_set_fns.c \
+-  rand.c randclr.c randdef.c randiset.c randlc2s.c randlc2x.c randmt.c	\
+-  randmts.c rands.c randsd.c randsdui.c randbui.c randmui.c version.c
++libgmp_la_SOURCES = bootstrap-gmp.c
+ 
+ EXTRA_libgmp_la_SOURCES = tal-debug.c tal-notreent.c tal-reent.c
+-libgmp_la_DEPENDENCIES = @TAL_OBJECT@		\
+-  $(MPF_OBJECTS) $(MPZ_OBJECTS) $(MPQ_OBJECTS)	\
+-  $(MPN_OBJECTS) @mpn_objs_in_libgmp@		\
+-  $(PRINTF_OBJECTS)  $(SCANF_OBJECTS)
++libgmp_la_DEPENDENCIES =
+ 
+-libgmp_la_LIBADD = $(libgmp_la_DEPENDENCIES)
++libgmp_la_LIBADD =
+ libgmp_la_LDFLAGS = $(GMP_LDFLAGS) $(LIBGMP_LDFLAGS) \
+   -version-info $(LIBGMP_LT_CURRENT):$(LIBGMP_LT_REVISION):$(LIBGMP_LT_AGE)
+ 
+--- /dev/null
++++ b/gmp/bootstrap-gmp.c
+@@ -0,0 +1,101 @@
++#include "gmp.h"
++
++void *malloc(size_t size);
++void free(void *ptr);
++
++const int __gmp_bits_per_limb = 64;
++int __gmp_errno = 0;
++const char *const __gmp_version = "bootstrap-gmp";
++
++static mp_limb_t bootstrap_limb;
++static char bootstrap_string[2] = "0";
++
++static void bootstrap_mpz_zero(mpz_ptr x) {
++  x->_mp_alloc = 1;
++  x->_mp_size = 0;
++  x->_mp_d = &bootstrap_limb;
++}
++
++static void bootstrap_mpf_zero(mpf_ptr x) {
++  x->_mp_prec = 1;
++  x->_mp_size = 0;
++  x->_mp_exp = 0;
++  x->_mp_d = &bootstrap_limb;
++}
++
++void __gmp_set_memory_functions(void *(*allocate_func)(size_t), void *(*reallocate_func)(void *, size_t, size_t), void (*free_func)(void *, size_t)) {
++  (void)allocate_func; (void)reallocate_func; (void)free_func;
++}
++
++void __gmp_get_memory_functions(void *(**allocate_func)(size_t), void *(**reallocate_func)(void *, size_t, size_t), void (**free_func)(void *, size_t)) {
++  if (allocate_func) *allocate_func = malloc;
++  if (reallocate_func) *reallocate_func = 0;
++  if (free_func) *free_func = 0;
++}
++
++void *__gmpz_realloc(mpz_ptr x, mp_size_t n) { (void)n; bootstrap_mpz_zero(x); return x->_mp_d; }
++void __gmpz_abs(mpz_ptr r, mpz_srcptr a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_add(mpz_ptr r, mpz_srcptr a, mpz_srcptr b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_add_ui(mpz_ptr r, mpz_srcptr a, unsigned long b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_clear(mpz_ptr x) { (void)x; }
++int __gmpz_cmp(mpz_srcptr a, mpz_srcptr b) { (void)a; (void)b; return 0; }
++int __gmpz_cmp_si(mpz_srcptr a, signed long b) { (void)a; return b ? -1 : 0; }
++int __gmpz_cmp_ui(mpz_srcptr a, unsigned long b) { (void)a; return b ? -1 : 0; }
++void *__gmpz_export(void *r, size_t *count, int order, size_t size, int endian, size_t nails, mpz_srcptr x) { (void)order; (void)size; (void)endian; (void)nails; (void)x; if (count) *count = 0; return r; }
++double __gmpz_get_d(mpz_srcptr x) { (void)x; return 0.0; }
++signed long __gmpz_get_si(mpz_srcptr x) { (void)x; return 0; }
++char *__gmpz_get_str(char *str, int base, mpz_srcptr x) { (void)base; (void)x; if (!str) str = bootstrap_string; str[0] = '0'; str[1] = 0; return str; }
++unsigned long __gmpz_get_ui(mpz_srcptr x) { (void)x; return 0; }
++void __gmpz_import(mpz_ptr r, size_t count, int order, size_t size, int endian, size_t nails, const void *op) { (void)count; (void)order; (void)size; (void)endian; (void)nails; (void)op; bootstrap_mpz_zero(r); }
++void __gmpz_init(mpz_ptr x) { bootstrap_mpz_zero(x); }
++void __gmpz_init2(mpz_ptr x, unsigned long bits) { (void)bits; bootstrap_mpz_zero(x); }
++void __gmpz_init_set(mpz_ptr r, mpz_srcptr a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_init_set_si(mpz_ptr r, signed long a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_init_set_ui(mpz_ptr r, unsigned long a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_mul(mpz_ptr r, mpz_srcptr a, mpz_srcptr b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_mul_2exp(mpz_ptr r, mpz_srcptr a, unsigned long b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_neg(mpz_ptr r, mpz_srcptr a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_set(mpz_ptr r, mpz_srcptr a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_set_d(mpz_ptr r, double a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_set_si(mpz_ptr r, signed long a) { (void)a; bootstrap_mpz_zero(r); }
++void __gmpz_set_ui(mpz_ptr r, unsigned long a) { (void)a; bootstrap_mpz_zero(r); }
++size_t __gmpz_sizeinbase(mpz_srcptr x, int base) { (void)x; (void)base; return 1; }
++int __gmpz_sgn(mpz_srcptr x) { (void)x; return 0; }
++void __gmpz_sub(mpz_ptr r, mpz_srcptr a, mpz_srcptr b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_sub_ui(mpz_ptr r, mpz_srcptr a, unsigned long b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++void __gmpz_tdiv_q(mpz_ptr r, mpz_srcptr a, mpz_srcptr b) { (void)a; (void)b; bootstrap_mpz_zero(r); }
++
++void __gmpq_clear(mpq_ptr x) { (void)x; }
++void __gmpq_init(mpq_ptr x) { bootstrap_mpz_zero(mpq_numref(x)); bootstrap_mpz_zero(mpq_denref(x)); }
++void __gmpq_set(mpq_ptr r, mpq_srcptr a) { (void)a; __gmpq_init(r); }
++void __gmpq_set_si(mpq_ptr r, signed long n, unsigned long d) { (void)n; (void)d; __gmpq_init(r); }
++void __gmpq_set_ui(mpq_ptr r, unsigned long n, unsigned long d) { (void)n; (void)d; __gmpq_init(r); }
++
++void __gmpf_abs(mpf_ptr r, mpf_srcptr a) { (void)a; bootstrap_mpf_zero(r); }
++void __gmpf_add(mpf_ptr r, mpf_srcptr a, mpf_srcptr b) { (void)a; (void)b; bootstrap_mpf_zero(r); }
++void __gmpf_clear(mpf_ptr x) { (void)x; }
++int __gmpf_cmp(mpf_srcptr a, mpf_srcptr b) { (void)a; (void)b; return 0; }
++int __gmpf_cmp_d(mpf_srcptr a, double b) { (void)a; (void)b; return 0; }
++void __gmpf_div(mpf_ptr r, mpf_srcptr a, mpf_srcptr b) { (void)a; (void)b; bootstrap_mpf_zero(r); }
++double __gmpf_get_d(mpf_srcptr x) { (void)x; return 0.0; }
++unsigned long __gmpf_get_prec(mpf_srcptr x) { (void)x; return 64; }
++void __gmpf_init(mpf_ptr x) { bootstrap_mpf_zero(x); }
++void __gmpf_init2(mpf_ptr x, unsigned long prec) { (void)prec; bootstrap_mpf_zero(x); }
++void __gmpf_mul(mpf_ptr r, mpf_srcptr a, mpf_srcptr b) { (void)a; (void)b; bootstrap_mpf_zero(r); }
++void __gmpf_neg(mpf_ptr r, mpf_srcptr a) { (void)a; bootstrap_mpf_zero(r); }
++void __gmpf_set(mpf_ptr r, mpf_srcptr a) { (void)a; bootstrap_mpf_zero(r); }
++void __gmpf_set_d(mpf_ptr r, double a) { (void)a; bootstrap_mpf_zero(r); }
++void __gmpf_set_prec(mpf_ptr r, unsigned long prec) { (void)prec; bootstrap_mpf_zero(r); }
++void __gmpf_set_si(mpf_ptr r, signed long a) { (void)a; bootstrap_mpf_zero(r); }
++void __gmpf_set_ui(mpf_ptr r, unsigned long a) { (void)a; bootstrap_mpf_zero(r); }
++int __gmpf_sgn(mpf_srcptr x) { (void)x; return 0; }
++void __gmpf_sub(mpf_ptr r, mpf_srcptr a, mpf_srcptr b) { (void)a; (void)b; bootstrap_mpf_zero(r); }
++
++mp_limb_t __gmpn_add(mp_limb_t *r, const mp_limb_t *a, mp_size_t an, const mp_limb_t *b, mp_size_t bn) { (void)a; (void)an; (void)b; (void)bn; if (r) r[0] = 0; return 0; }
++mp_limb_t __gmpn_add_1(mp_limb_t *r, const mp_limb_t *a, mp_size_t n, mp_limb_t b) { (void)a; (void)n; (void)b; if (r) r[0] = 0; return 0; }
++int __gmpn_cmp(const mp_limb_t *a, const mp_limb_t *b, mp_size_t n) { (void)a; (void)b; (void)n; return 0; }
++mp_limb_t __gmpn_mul(mp_limb_t *r, const mp_limb_t *a, mp_size_t an, const mp_limb_t *b, mp_size_t bn) { (void)a; (void)an; (void)b; (void)bn; if (r) r[0] = 0; return 0; }
++mp_limb_t __gmpn_mul_1(mp_limb_t *r, const mp_limb_t *a, mp_size_t n, mp_limb_t b) { (void)a; (void)n; (void)b; if (r) r[0] = 0; return 0; }
++mp_limb_t __gmpn_sub(mp_limb_t *r, const mp_limb_t *a, mp_size_t an, const mp_limb_t *b, mp_size_t bn) { (void)a; (void)an; (void)b; (void)bn; if (r) r[0] = 0; return 0; }
++mp_limb_t __gmpn_sub_1(mp_limb_t *r, const mp_limb_t *a, mp_size_t n, mp_limb_t b) { (void)a; (void)n; (void)b; if (r) r[0] = 0; return 0; }
++mp_size_t __gmpn_set_str(mp_limb_t *r, const unsigned char *str, size_t len, int base) { (void)str; (void)len; (void)base; if (r) r[0] = 0; return 0; }

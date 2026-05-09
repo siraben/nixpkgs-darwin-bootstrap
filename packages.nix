@@ -3169,6 +3169,9 @@ let
         inputs=()
         prepared_inputs=()
         objects=()
+        archives=()
+        library_dirs=()
+        libraries=()
         include_dirs=(@INCLUDE@)
         cleanup_files=()
 
@@ -3216,6 +3219,25 @@ let
               objects+=("$1")
               shift
               ;;
+            *.a)
+              case "$1" in
+                /*) archives+=("$1") ;;
+                *) archives+=("$(pwd)/$1") ;;
+              esac
+              shift
+              ;;
+            -L)
+              library_dirs+=("$2")
+              shift 2
+              ;;
+            -L*)
+              library_dirs+=("''${1#-L}")
+              shift
+              ;;
+            -l*)
+              libraries+=("''${1#-l}")
+              shift
+              ;;
             *)
               args+=("$1")
               shift
@@ -3254,6 +3276,42 @@ let
           done
         }
 
+        resolve_libraries() {
+          local lib dir path found
+          for lib in "''${libraries[@]}"; do
+            found=0
+            for dir in "''${library_dirs[@]}" .; do
+              path="$dir/lib$lib.a"
+              if [ -f "$path" ]; then
+                case "$path" in
+                  /*) archives+=("$path") ;;
+                  *) archives+=("$(cd "$(dirname "$path")" && pwd)/$(basename "$path")") ;;
+                esac
+                found=1
+                break
+              fi
+            done
+            if [ "$found" = 0 ]; then
+              echo "tcc-darwin-cc: library not found: -l$lib" >&2
+              return 1
+            fi
+          done
+        }
+
+        expand_archives() {
+          local archive archive_dir member archive_index=0
+          for archive in "''${archives[@]}"; do
+            archive_dir="$tmp/archive-$archive_index"
+            mkdir -p "$archive_dir"
+            (cd "$archive_dir" && ar -x "$archive")
+            for member in "$archive_dir"/*.o; do
+              test -f "$member" || continue
+              objects+=("$member")
+            done
+            archive_index=$((archive_index + 1))
+          done
+        }
+
         cleanup() {
           for file in "''${cleanup_files[@]}"; do
             rm -f "$file"
@@ -3280,6 +3338,8 @@ let
           objects+=("$object")
           object_index=$((object_index + 1))
         done
+        resolve_libraries
+        expand_archives
 
         code_files=()
         data_files=()
