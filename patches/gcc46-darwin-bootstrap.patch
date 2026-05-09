@@ -626,3 +626,17 @@
    return 0;
  }
 +#endif
+--- a/libiberty/rename.c
++++ b/libiberty/rename.c
+@@ -1,3 +1,6 @@
++#if 1
++int rename(const char *zfrom, const char *zto) { (void)zfrom; (void)zto; return -1; }
++#else
+ /* rename -- rename a file
+    This function is in the public domain. */
+ 
+@@ -34,3 +37,4 @@
+     }
+   return unlink (zfrom);
+ }
++#endif

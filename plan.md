@@ -162,3 +162,4 @@
 - 2026-05-08: Added a simple linear `bsearch.c` bootstrap implementation; libiberty now compiles through `mempcpy.c` and stops while compiling `mkstemps.c`.
 - 2026-05-08: Added a minimal `mkstemps.c` bootstrap stub; libiberty now compiles through `mkstemps.c` and stops while compiling `putenv.c`.
 - 2026-05-08: Added a minimal `putenv.c` bootstrap stub; libiberty now compiles through `random.c` and stops while compiling `rename.c`.
+- 2026-05-08: Added a minimal `rename.c` bootstrap stub; libiberty now compiles through `rindex.c` and stops while compiling `setenv.c`.
