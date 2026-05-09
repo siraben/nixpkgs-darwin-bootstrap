@@ -1625,6 +1625,20 @@
 +
 +const char *_cpp_default_encoding (void) { return "UTF-8"; }
 +
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -5715,5 +5715,11 @@
+ 
+ # sizeof(char) is 1 by definition.
++test -z "$ac_cv_sizeof_void_p" && ac_cv_sizeof_void_p=8
++test -z "$ac_cv_sizeof_short" && ac_cv_sizeof_short=2
++test -z "$ac_cv_sizeof_int" && ac_cv_sizeof_int=4
++test -z "$ac_cv_sizeof_long" && ac_cv_sizeof_long=8
++test -z "$ac_cv_sizeof_long_long" && ac_cv_sizeof_long_long=8
++
+ # The cast to long int works around a bug in the HP C Compiler
+ # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+ # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 --- a/libdecnumber/configure
 +++ b/libdecnumber/configure
 @@ -3912,6 +3912,14 @@

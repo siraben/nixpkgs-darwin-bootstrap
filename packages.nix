@@ -3007,7 +3007,10 @@ let
         cat > $out/include/tcc-darwin-bootstrap/stdarg.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_STDARG_H
         #define _DARWIN_BOOTSTRAP_STDARG_H
+        #ifndef _DARWIN_BOOTSTRAP_VA_LIST_TYPE
+        #define _DARWIN_BOOTSTRAP_VA_LIST_TYPE
         typedef char *va_list;
+        #endif
         #define va_start(ap, last) ((ap) = (char *)&(last) + sizeof(last))
         #define va_arg(ap, type) (*(type *)(((ap) += sizeof(type)) - sizeof(type)))
         #define va_end(ap) ((void)0)
@@ -3084,6 +3087,22 @@ let
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/signal.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SIGNAL_H
+        #define _DARWIN_BOOTSTRAP_SIGNAL_H
+        typedef int sig_atomic_t;
+        typedef void (*__sighandler_t)(int);
+        #define SIG_DFL ((__sighandler_t)0)
+        #define SIG_IGN ((__sighandler_t)1)
+        #define SIG_ERR ((__sighandler_t)-1)
+        #define SIGABRT 6
+        #define SIGINT 2
+        #define SIGTERM 15
+        __sighandler_t signal(int, __sighandler_t);
+        int raise(int);
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/stdlib.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_STDLIB_H
         #define _DARWIN_BOOTSTRAP_STDLIB_H
@@ -3095,6 +3114,7 @@ let
         void *malloc(size_t);
         void *calloc(size_t, size_t);
         void *realloc(void *, size_t);
+        int abs(int);
         long strtol(const char *, char **, int);
         unsigned long strtoul(const char *, char **, int);
         #endif
@@ -3106,21 +3126,32 @@ let
         #define EOF (-1)
         typedef struct FILE FILE;
         typedef unsigned long size_t;
+        #ifndef _DARWIN_BOOTSTRAP_VA_LIST_TYPE
+        #define _DARWIN_BOOTSTRAP_VA_LIST_TYPE
+        typedef char *va_list;
+        #endif
         extern FILE *stdin;
         extern FILE *stdout;
         extern FILE *stderr;
         int printf(const char *, ...);
         int fprintf(FILE *, const char *, ...);
+        int vfprintf(FILE *, const char *, va_list);
         int sprintf(char *, const char *, ...);
         int snprintf(char *, size_t, const char *, ...);
-        int vsnprintf(char *, size_t, const char *, void *);
+        int vsprintf(char *, const char *, va_list);
+        int vsnprintf(char *, size_t, const char *, va_list);
+        int vasprintf(char **, const char *, va_list);
         FILE *fopen(const char *, const char *);
+        FILE *fopen_unlocked(const char *, const char *);
         int fclose(FILE *);
         int ferror(FILE *);
         int fputs(const char *, FILE *);
         int puts(const char *);
         int fputc(int, FILE *);
         int putchar(int);
+        int getc(FILE *);
+        int ungetc(int, FILE *);
+        int putc(int, FILE *);
         int fflush(FILE *);
         #endif
         H
