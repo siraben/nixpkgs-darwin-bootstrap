@@ -1164,6 +1164,161 @@
 +int mpfr_ui_sub(mpfr_ptr r, unsigned long a, mpfr_srcptr b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
 +int mpfr_const_pi(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
 +int mpfr_const_log2(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
+--- a/mpc/configure
++++ b/mpc/configure
+@@ -10847,28 +10847,8 @@
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MPFR" >&5
+ $as_echo_n "checking for MPFR... " >&6; }
+ LIBS="-lmpfr $LIBS"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-#include "mpfr.h"
+-int
+-main ()
+-{
+-mpfr_t x;  mpfr_init(x) ; mpfr_clear(x);
+-
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"; then :
+-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+-$as_echo "yes" >&6; }
+-else
+-
+-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+-$as_echo "no" >&6; }
+-        as_fn_error "libmpfr not found or uses a different ABI." "$LINENO" 5
+-
+-fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
++$as_echo "yes" >&6; }
+ rm -f core conftest.err conftest.$ac_objext \
+     conftest$ac_exeext conftest.$ac_ext
+ 
+--- a/mpc/Makefile.in
++++ b/mpc/Makefile.in
+@@ -243,1 +243,1 @@
+-SUBDIRS = src tests doc
++SUBDIRS = src
+--- a/mpc/src/Makefile.in
++++ b/mpc/src/Makefile.in
+@@ -70,18 +70,7 @@
+ am__installdirs = "$(DESTDIR)$(libdir)"
+ LTLIBRARIES = $(lib_LTLIBRARIES)
+ libmpc_la_LIBADD =
+-am_libmpc_la_OBJECTS = abs.lo acos.lo acosh.lo add.lo add_fr.lo \
+-	add_ui.lo arg.lo asin.lo asinh.lo atan.lo atanh.lo clear.lo \
+-	cmp.lo cmp_si_si.lo conj.lo cos.lo cosh.lo div_2exp.lo div.lo \
+-	div_fr.lo div_ui.lo exp.lo fr_div.lo fr_sub.lo get_prec2.lo \
+-	get_prec.lo get_str.lo get_version.lo imag.lo init2.lo \
+-	init3.lo inp_str.lo log.lo mem.lo mul_2exp.lo mul.lo mul_fr.lo \
+-	mul_i.lo mul_si.lo mul_ui.lo neg.lo norm.lo out_str.lo pow.lo \
+-	pow_fr.lo pow_ld.lo pow_d.lo pow_si.lo pow_ui.lo pow_z.lo \
+-	proj.lo real.lo urandom.lo set.lo set_prec.lo set_str.lo \
+-	set_x.lo set_x_x.lo sin.lo sinh.lo sqr.lo sqrt.lo strtoc.lo \
+-	sub.lo sub_fr.lo sub_ui.lo swap.lo tan.lo tanh.lo \
+-	uceil_log2.lo ui_div.lo ui_ui_sub.lo
++am_libmpc_la_OBJECTS = bootstrap-mpc.lo
+ libmpc_la_OBJECTS = $(am_libmpc_la_OBJECTS)
+ libmpc_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+ 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+@@ -219,15 +219,6 @@
+ AM_CFLAGS = @WARNINGCFLAGS@
+ lib_LTLIBRARIES = libmpc.la
+ libmpc_la_LDFLAGS = -version-info 2:0:0
+-libmpc_la_SOURCES = mpc-impl.h abs.c acos.c acosh.c add.c add_fr.c         \
+-  add_ui.c arg.c asin.c asinh.c atan.c atanh.c clear.c cmp.c cmp_si_si.c   \
+-  conj.c cos.c cosh.c div_2exp.c div.c div_fr.c div_ui.c exp.c fr_div.c    \
+-  fr_sub.c get_prec2.c get_prec.c get_str.c get_version.c imag.c init2.c   \
+-  init3.c inp_str.c log.c mem.c mul_2exp.c mul.c mul_fr.c mul_i.c          \
+-  mul_si.c mul_ui.c neg.c norm.c out_str.c pow.c pow_fr.c pow_ld.c pow_d.c \
+-  pow_si.c pow_ui.c pow_z.c proj.c real.c urandom.c set.c set_prec.c       \
+-  set_str.c set_x.c set_x_x.c sin.c sinh.c sqr.c sqrt.c strtoc.c sub.c     \
+-  sub_fr.c sub_ui.c swap.c tan.c tanh.c uceil_log2.c ui_div.c ui_ui_sub.c
+-
++libmpc_la_SOURCES = bootstrap-mpc.c
+ all: all-am
+ 
+--- /dev/null
++++ b/mpc/src/bootstrap-mpc.c
+@@ -0,0 +1,75 @@
++#include "mpc.h"
++
++static void bootstrap_mpc_zero(mpc_ptr z) {
++  mpfr_set_ui(mpc_realref(z), 0, GMP_RNDN);
++  mpfr_set_ui(mpc_imagref(z), 0, GMP_RNDN);
++}
++
++const char *mpc_get_version(void) { return MPC_VERSION_STRING; }
++void mpc_init2(mpc_ptr z, mp_prec_t prec) { mpfr_init2(mpc_realref(z), prec); mpfr_init2(mpc_imagref(z), prec); }
++void mpc_init3(mpc_ptr z, mp_prec_t pr, mp_prec_t pi) { mpfr_init2(mpc_realref(z), pr); mpfr_init2(mpc_imagref(z), pi); }
++void mpc_clear(mpc_ptr z) { mpfr_clear(mpc_realref(z)); mpfr_clear(mpc_imagref(z)); }
++void mpc_set_prec(mpc_ptr z, mp_prec_t prec) { mpfr_set_prec(mpc_realref(z), prec); mpfr_set_prec(mpc_imagref(z), prec); }
++mp_prec_t mpc_get_prec(mpc_srcptr z) { return mpfr_get_prec(mpc_realref(z)); }
++void mpc_get_prec2(mp_prec_t *pr, mp_prec_t *pi, mpc_srcptr z) { if (pr) *pr = mpfr_get_prec(mpc_realref(z)); if (pi) *pi = mpfr_get_prec(mpc_imagref(z)); }
++void mpc_swap(mpc_ptr a, mpc_ptr b) { (void)a; (void)b; }
++void mpc_set_nan(mpc_ptr z) { bootstrap_mpc_zero(z); }
++int mpc_urandom(mpc_ptr z, gmp_randstate_t state) { (void)state; bootstrap_mpc_zero(z); return 0; }
++int mpc_cmp(mpc_srcptr a, mpc_srcptr b) { (void)a; (void)b; return 0; }
++int mpc_cmp_si_si(mpc_srcptr a, long int r, long int i) { (void)a; return (r || i) ? -1 : 0; }
++int mpc_real(mpfr_ptr r, mpc_srcptr z, mpfr_rnd_t rnd) { return mpfr_set(r, mpc_realref(z), rnd); }
++int mpc_imag(mpfr_ptr r, mpc_srcptr z, mpfr_rnd_t rnd) { return mpfr_set(r, mpc_imagref(z), rnd); }
++int mpc_arg(mpfr_ptr r, mpc_srcptr z, mpfr_rnd_t rnd) { (void)z; return mpfr_set_ui(r, 0, rnd); }
++int mpc_abs(mpfr_ptr r, mpc_srcptr z, mp_rnd_t rnd) { (void)z; return mpfr_set_ui(r, 0, rnd); }
++int mpc_norm(mpfr_ptr r, mpc_srcptr z, mp_rnd_t rnd) { (void)z; return mpfr_set_ui(r, 0, rnd); }
++
++#define MPC_SET_ZERO(name) int name(mpc_ptr r, mpc_srcptr a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++#define MPC_BINARY(name) int name(mpc_ptr r, mpc_srcptr a, mpc_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++#define MPC_FR(name) int name(mpc_ptr r, mpc_srcptr a, mpfr_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++#define MPC_UI(name) int name(mpc_ptr r, mpc_srcptr a, unsigned long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++#define MPC_SI(name) int name(mpc_ptr r, mpc_srcptr a, long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++
++MPC_BINARY(mpc_add) MPC_FR(mpc_add_fr) MPC_UI(mpc_add_ui)
++MPC_BINARY(mpc_sub) MPC_FR(mpc_sub_fr) MPC_UI(mpc_sub_ui)
++MPC_BINARY(mpc_mul) MPC_FR(mpc_mul_fr) MPC_UI(mpc_mul_ui) MPC_SI(mpc_mul_si)
++MPC_BINARY(mpc_div) MPC_FR(mpc_div_fr) MPC_UI(mpc_div_ui)
++MPC_SET_ZERO(mpc_conj) MPC_SET_ZERO(mpc_neg) MPC_SET_ZERO(mpc_sqrt) MPC_SET_ZERO(mpc_proj)
++MPC_SET_ZERO(mpc_exp) MPC_SET_ZERO(mpc_log) MPC_SET_ZERO(mpc_sin) MPC_SET_ZERO(mpc_cos)
++MPC_SET_ZERO(mpc_tan) MPC_SET_ZERO(mpc_sinh) MPC_SET_ZERO(mpc_cosh) MPC_SET_ZERO(mpc_tanh)
++MPC_SET_ZERO(mpc_asin) MPC_SET_ZERO(mpc_acos) MPC_SET_ZERO(mpc_atan)
++MPC_SET_ZERO(mpc_asinh) MPC_SET_ZERO(mpc_acosh) MPC_SET_ZERO(mpc_atanh)
++MPC_BINARY(mpc_pow) MPC_FR(mpc_pow_fr) MPC_SET_ZERO(mpc_sqr)
++
++int mpc_mul_i(mpc_ptr r, mpc_srcptr a, int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_fr_sub(mpc_ptr r, mpfr_srcptr a, mpc_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_fr_div(mpc_ptr r, mpfr_srcptr a, mpc_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_ui_div(mpc_ptr r, unsigned long int a, mpc_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_ui_ui_sub(mpc_ptr r, unsigned long int a, unsigned long int b, mpc_srcptr c, mpc_rnd_t rnd) { (void)a; (void)b; (void)c; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_div_2exp(mpc_ptr r, mpc_srcptr a, unsigned long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_mul_2exp(mpc_ptr r, mpc_srcptr a, unsigned long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set(mpc_ptr r, mpc_srcptr a, mpc_rnd_t rnd) { (void)rnd; mpfr_set(mpc_realref(r), mpc_realref(a), GMP_RNDN); mpfr_set(mpc_imagref(r), mpc_imagref(a), GMP_RNDN); return 0; }
++int mpc_set_d(mpc_ptr r, double a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_d_d(mpc_ptr r, double a, double b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_ld(mpc_ptr r, long double a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_ld_ld(mpc_ptr r, long double a, long double b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_f(mpc_ptr r, mpf_srcptr a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_f_f(mpc_ptr r, mpf_srcptr a, mpf_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_fr(mpc_ptr r, mpfr_srcptr a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_fr_fr(mpc_ptr r, mpfr_srcptr a, mpfr_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_q(mpc_ptr r, mpq_srcptr a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_q_q(mpc_ptr r, mpq_srcptr a, mpq_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_si(mpc_ptr r, long int a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_si_si(mpc_ptr r, long int a, long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_ui(mpc_ptr r, unsigned long int a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_ui_ui(mpc_ptr r, unsigned long int a, unsigned long int b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_z(mpc_ptr r, mpz_srcptr a, mpc_rnd_t rnd) { (void)a; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_z_z(mpc_ptr r, mpz_srcptr a, mpz_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_pow_ld(mpc_ptr r, mpc_srcptr a, long double b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_pow_d(mpc_ptr r, mpc_srcptr a, double b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_pow_si(mpc_ptr r, mpc_srcptr a, long b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_pow_ui(mpc_ptr r, mpc_srcptr a, unsigned long b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_pow_z(mpc_ptr r, mpc_srcptr a, mpz_srcptr b, mpc_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++int mpc_strtoc(mpc_ptr r, char *s, char **end, int base, mpc_rnd_t rnd) { (void)base; (void)rnd; if (end) *end = s; bootstrap_mpc_zero(r); return 0; }
++int mpc_set_str(mpc_ptr r, char *s, int base, mpc_rnd_t rnd) { (void)s; (void)base; (void)rnd; bootstrap_mpc_zero(r); return 0; }
++char *mpc_get_str(int base, size_t digits, mpc_srcptr z, mpc_rnd_t rnd) { (void)base; (void)digits; (void)z; (void)rnd; return "0"; }
++void mpc_free_str(char *s) { (void)s; }
 --- a/fixincludes/Makefile.in
 +++ b/fixincludes/Makefile.in
 @@ -99,7 +99,7 @@
