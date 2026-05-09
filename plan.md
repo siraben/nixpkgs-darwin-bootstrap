@@ -156,3 +156,4 @@
 - 2026-05-08: Added a minimal bootstrap `obstack.c`; libiberty now compiles through `physmem.c` and stops while compiling `pex-common.c`.
 - 2026-05-08: Added minimal `pex-common.c` process API stubs; libiberty now compiles through `pex-one.c` and stops while compiling `pex-unix.c`.
 - 2026-05-08: Added a minimal `pex-unix.c` bootstrap stub; libiberty now compiles through `pex-unix.c` and stops while compiling `safe-ctype.c`.
+- 2026-05-08: Added `EOF` to the TinyCC Darwin bootstrap `stdio.h`; GCC and libiberty configure now complete, libiberty compiles through `safe-ctype.c`, and the next boundary is a TinyCC crash while compiling `simple-object-mach-o.c`.
