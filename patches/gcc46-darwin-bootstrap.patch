@@ -4488,7 +4488,7 @@
  
 --- a/gcc/Makefile.in
 +++ b/gcc/Makefile.in
-@@ -3803,16 +3803,25 @@
+@@ -3803,15 +3803,24 @@
  	$(SHELL) $(srcdir)/../move-if-change tmp-gi.list gtyp-input.list
  	$(STAMP) s-gtyp-input
  
@@ -4522,3 +4522,1448 @@
  	$(STAMP) s-gtype
  
  generated_files = config.h tm.h $(TM_P_H) $(TM_H) multilib.h \
+--- a/gcc/rtl.c
++++ b/gcc/rtl.c
+@@ -42,22 +42,14 @@
+    Does NOT include rtx header data (code and links).  */
+ 
+-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   sizeof FORMAT - 1 ,
+-
+ const unsigned char rtx_length[NUM_RTX_CODE] = {
+-#include "rtl.def"
++#include "bootstrap-rtl-length.inc"
+ };
+ 
+-#undef DEF_RTL_EXPR
+-
+ /* Indexed by rtx code, gives the name of that kind of rtx, as a C string.  */
+ 
+-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   NAME ,
+-
+ const char * const rtx_name[NUM_RTX_CODE] = {
+-#include "rtl.def"		/* rtl expressions are documented here */
++#include "bootstrap-rtl-name.inc"
+ };
+ 
+-#undef DEF_RTL_EXPR
+-
+ /* Indexed by rtx code, gives a sequence of operand-types for
+    rtx's of that code.  The sequence is a C string in which
+@@ -91,28 +83,18 @@
+      "t" is a tree pointer.  */
+ 
+-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   FORMAT ,
+-#include "rtl.def"		/* rtl expressions are defined here */
+-#undef DEF_RTL_EXPR
++#include "bootstrap-rtl-format.inc"
+ };
+ 
+ /* Indexed by rtx code, gives a character representing the "class" of
+    that rtx code.  See rtl.def for documentation on the defined classes.  */
+ 
+ const enum rtx_class rtx_class[NUM_RTX_CODE] = {
+-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)   CLASS,
+-#include "rtl.def"		/* rtl expressions are defined here */
+-#undef DEF_RTL_EXPR
++#include "bootstrap-rtl-class.inc"
+ };
+ 
+ /* Indexed by rtx code, gives the size of the rtx in bytes.  */
+ 
+ const unsigned char rtx_code_size[NUM_RTX_CODE] = {
+-#define DEF_RTL_EXPR(ENUM, NAME, FORMAT, CLASS)				\
+-  ((ENUM) == CONST_INT || (ENUM) == CONST_DOUBLE || (ENUM) == CONST_FIXED\
+-   ? RTX_HDR_SIZE + (sizeof FORMAT - 1) * sizeof (HOST_WIDE_INT)	\
+-   : RTX_HDR_SIZE + (sizeof FORMAT - 1) * sizeof (rtunion)),
+-
+-#include "rtl.def"
+-#undef DEF_RTL_EXPR
++#include "bootstrap-rtl-code-size.inc"
+ };
+ 
+@@ -123,16 +101,12 @@
+ 
+ const char * const note_insn_name[NOTE_INSN_MAX] =
+ {
+-#define DEF_INSN_NOTE(NAME) #NAME,
+-#include "insn-notes.def"
+-#undef DEF_INSN_NOTE
++#include "bootstrap-insn-note-name.inc"
+ };
+ 
+ const char * const reg_note_name[REG_NOTE_MAX] =
+ {
+-#define DEF_REG_NOTE(NAME) #NAME,
+-#include "reg-notes.def"
+-#undef DEF_REG_NOTE
++#include "bootstrap-reg-note-name.inc"
+ };
+ 
+ #ifdef GATHER_STATISTICS
+--- /dev/null
++++ b/gcc/bootstrap-rtl-length.inc
+@@ -0,0 +1,186 @@
++  sizeof "*" - 1,
++  sizeof "0" - 1,
++  sizeof "0" - 1,
++  sizeof "ee" - 1,
++  sizeof "ue" - 1,
++  sizeof "E" - 1,
++  sizeof "e" - 1,
++  sizeof "iuuBeiie" - 1,
++  sizeof "iuuBeiie" - 1,
++  sizeof "iuuBeiie0" - 1,
++  sizeof "iuuBeiiee" - 1,
++  sizeof "iuu00000" - 1,
++  sizeof "iuuB00is" - 1,
++  sizeof "iuuB0ni" - 1,
++  sizeof "ee" - 1,
++  sizeof "E" - 1,
++  sizeof "si" - 1,
++  sizeof "ssiEEEi" - 1,
++  sizeof "Ei" - 1,
++  sizeof "Ei" - 1,
++  sizeof "E" - 1,
++  sizeof "eEee0" - 1,
++  sizeof "eee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "" - 1,
++  sizeof "" - 1,
++  sizeof "ee" - 1,
++  sizeof "w" - 1,
++  sizeof "www" - 1,
++  sizeof CONST_DOUBLE_FORMAT - 1,
++  sizeof "E" - 1,
++  sizeof "s" - 1,
++  sizeof "e" - 1,
++  sizeof "" - 1,
++  sizeof "i00" - 1,
++  sizeof "0" - 1,
++  sizeof "ei" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "E" - 1,
++  sizeof "e0" - 1,
++  sizeof "u" - 1,
++  sizeof "s00" - 1,
++  sizeof "" - 1,
++  sizeof "eee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "eee" - 1,
++  sizeof "eee" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "eee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "ee" - 1,
++  sizeof "e" - 1,
++  sizeof "e" - 1,
++  sizeof "eee" - 1,
++  sizeof "tei" - 1,
++  sizeof "t" - 1,
++  sizeof "iss" - 1,
++  sizeof "is" - 1,
++  sizeof "isE" - 1,
++  sizeof "isE" - 1,
++  sizeof "i" - 1,
++  sizeof "iE" - 1,
++  sizeof "iE" - 1,
++  sizeof "ss" - 1,
++  sizeof "s" - 1,
++  sizeof "sEsTV" - 1,
++  sizeof "EsTV" - 1,
++  sizeof "EsES" - 1,
++  sizeof "sEsTsESV" - 1,
++  sizeof "EsES" - 1,
++  sizeof "sEss" - 1,
++  sizeof "eE" - 1,
++  sizeof "V" - 1,
++  sizeof "Ess" - 1,
++  sizeof "ses" - 1,
++  sizeof "ses" - 1,
++  sizeof "sss" - 1,
++  sizeof "sse" - 1,
++  sizeof "sse" - 1,
++  sizeof "sse" - 1,
++  sizeof "sS" - 1,
++  sizeof "sS" - 1,
++  sizeof "ss" - 1,
++  sizeof "ss" - 1,
++  sizeof "ss" - 1,
++  sizeof "ss" - 1,
++  sizeof "ss" - 1,
++  sizeof "issS" - 1,
++  sizeof "s" - 1,
++  sizeof "s" - 1,
++  sizeof "ss" - 1,
++  sizeof "sies" - 1,
++  sizeof "sse" - 1,
++  sizeof "sse" - 1,
++  sizeof "s" - 1,
++  sizeof "ss" - 1,
++  sizeof "sE" - 1,
++  sizeof "ss" - 1,
++  sizeof "ii" - 1,
++  sizeof "s" - 1,
++  sizeof "Ee" - 1,
+--- /dev/null
++++ b/gcc/bootstrap-rtl-name.inc
+@@ -0,0 +1,186 @@
++  "UnKnown",
++  "value",
++  "debug_expr",
++  "expr_list",
++  "insn_list",
++  "sequence",
++  "address",
++  "debug_insn",
++  "insn",
++  "jump_insn",
++  "call_insn",
++  "barrier",
++  "code_label",
++  "note",
++  "cond_exec",
++  "parallel",
++  "asm_input",
++  "asm_operands",
++  "unspec",
++  "unspec_volatile",
++  "addr_vec",
++  "addr_diff_vec",
++  "prefetch",
++  "set",
++  "use",
++  "clobber",
++  "call",
++  "return",
++  "eh_return",
++  "trap_if",
++  "const_int",
++  "const_fixed",
++  "const_double",
++  "const_vector",
++  "const_string",
++  "const",
++  "pc",
++  "reg",
++  "scratch",
++  "subreg",
++  "strict_low_part",
++  "concat",
++  "concatn",
++  "mem",
++  "label_ref",
++  "symbol_ref",
++  "cc0",
++  "if_then_else",
++  "compare",
++  "plus",
++  "minus",
++  "neg",
++  "mult",
++  "ss_mult",
++  "us_mult",
++  "div",
++  "ss_div",
++  "us_div",
++  "mod",
++  "udiv",
++  "umod",
++  "and",
++  "ior",
++  "xor",
++  "not",
++  "ashift",
++  "rotate",
++  "ashiftrt",
++  "lshiftrt",
++  "rotatert",
++  "smin",
++  "smax",
++  "umin",
++  "umax",
++  "pre_dec",
++  "pre_inc",
++  "post_dec",
++  "post_inc",
++  "pre_modify",
++  "post_modify",
++  "ne",
++  "eq",
++  "ge",
++  "gt",
++  "le",
++  "lt",
++  "geu",
++  "gtu",
++  "leu",
++  "ltu",
++  "unordered",
++  "ordered",
++  "uneq",
++  "unge",
++  "ungt",
++  "unle",
++  "unlt",
++  "ltgt",
++  "sign_extend",
++  "zero_extend",
++  "truncate",
++  "float_extend",
++  "float_truncate",
++  "float",
++  "fix",
++  "unsigned_float",
++  "unsigned_fix",
++  "fract_convert",
++  "unsigned_fract_convert",
++  "sat_fract",
++  "unsigned_sat_fract",
++  "abs",
++  "sqrt",
++  "bswap",
++  "ffs",
++  "clz",
++  "ctz",
++  "popcount",
++  "parity",
++  "sign_extract",
++  "zero_extract",
++  "high",
++  "lo_sum",
++  "vec_merge",
++  "vec_select",
++  "vec_concat",
++  "vec_duplicate",
++  "ss_plus",
++  "us_plus",
++  "ss_minus",
++  "ss_neg",
++  "us_neg",
++  "ss_abs",
++  "ss_ashift",
++  "us_ashift",
++  "us_minus",
++  "ss_truncate",
++  "us_truncate",
++  "fma",
++  "var_location",
++  "debug_implicit_ptr",
++  "match_operand",
++  "match_scratch",
++  "match_operator",
++  "match_parallel",
++  "match_dup",
++  "match_op_dup",
++  "match_par_dup",
++  "match_code",
++  "match_test",
++  "define_insn",
++  "define_peephole",
++  "define_split",
++  "define_insn_and_split",
++  "define_peephole2",
++  "define_expand",
++  "define_delay",
++  "define_asm_attributes",
++  "define_cond_exec",
++  "define_predicate",
++  "define_special_predicate",
++  "define_register_constraint",
++  "define_constraint",
++  "define_memory_constraint",
++  "define_address_constraint",
++  "define_cpu_unit",
++  "define_query_cpu_unit",
++  "exclusion_set",
++  "presence_set",
++  "final_presence_set",
++  "absence_set",
++  "final_absence_set",
++  "define_bypass",
++  "define_automaton",
++  "automata_option",
++  "define_reservation",
++  "define_insn_reservation",
++  "define_attr",
++  "define_enum_attr",
++  "attr",
++  "set_attr",
++  "set_attr_alternative",
++  "eq_attr",
++  "eq_attr_alt",
++  "attr_flag",
++  "cond",
+--- /dev/null
++++ b/gcc/bootstrap-rtl-format.inc
+@@ -0,0 +1,186 @@
++  "*",
++  "0",
++  "0",
++  "ee",
++  "ue",
++  "E",
++  "e",
++  "iuuBeiie",
++  "iuuBeiie",
++  "iuuBeiie0",
++  "iuuBeiiee",
++  "iuu00000",
++  "iuuB00is",
++  "iuuB0ni",
++  "ee",
++  "E",
++  "si",
++  "ssiEEEi",
++  "Ei",
++  "Ei",
++  "E",
++  "eEee0",
++  "eee",
++  "ee",
++  "e",
++  "e",
++  "ee",
++  "",
++  "",
++  "ee",
++  "w",
++  "www",
++  CONST_DOUBLE_FORMAT,
++  "E",
++  "s",
++  "e",
++  "",
++  "i00",
++  "0",
++  "ei",
++  "e",
++  "ee",
++  "E",
++  "e0",
++  "u",
++  "s00",
++  "",
++  "eee",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "e",
++  "e",
++  "e",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "e",
++  "eee",
++  "eee",
++  "e",
++  "ee",
++  "eee",
++  "ee",
++  "ee",
++  "e",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "e",
++  "e",
++  "ee",
++  "ee",
++  "ee",
++  "e",
++  "e",
++  "eee",
++  "tei",
++  "t",
++  "iss",
++  "is",
++  "isE",
++  "isE",
++  "i",
++  "iE",
++  "iE",
++  "ss",
++  "s",
++  "sEsTV",
++  "EsTV",
++  "EsES",
++  "sEsTsESV",
++  "EsES",
++  "sEss",
++  "eE",
++  "V",
++  "Ess",
++  "ses",
++  "ses",
++  "sss",
++  "sse",
++  "sse",
++  "sse",
++  "sS",
++  "sS",
++  "ss",
++  "ss",
++  "ss",
++  "ss",
++  "ss",
++  "issS",
++  "s",
++  "s",
++  "ss",
++  "sies",
++  "sse",
++  "sse",
++  "s",
++  "ss",
++  "sE",
++  "ss",
++  "ii",
++  "s",
++  "Ee",
+--- /dev/null
++++ b/gcc/bootstrap-rtl-class.inc
+@@ -0,0 +1,186 @@
++  RTX_EXTRA,
++  RTX_OBJ,
++  RTX_OBJ,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_MATCH,
++  RTX_INSN,
++  RTX_INSN,
++  RTX_INSN,
++  RTX_INSN,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_CONST_OBJ,
++  RTX_CONST_OBJ,
++  RTX_CONST_OBJ,
++  RTX_CONST_OBJ,
++  RTX_OBJ,
++  RTX_CONST_OBJ,
++  RTX_OBJ,
++  RTX_OBJ,
++  RTX_OBJ,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_OBJ,
++  RTX_OBJ,
++  RTX_OBJ,
++  RTX_CONST_OBJ,
++  RTX_CONST_OBJ,
++  RTX_OBJ,
++  RTX_TERNARY,
++  RTX_BIN_ARITH,
++  RTX_COMM_ARITH,
++  RTX_BIN_ARITH,
++  RTX_UNARY,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_UNARY,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_AUTOINC,
++  RTX_AUTOINC,
++  RTX_AUTOINC,
++  RTX_AUTOINC,
++  RTX_AUTOINC,
++  RTX_AUTOINC,
++  RTX_COMM_COMPARE,
++  RTX_COMM_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMM_COMPARE,
++  RTX_COMM_COMPARE,
++  RTX_COMM_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMPARE,
++  RTX_COMM_COMPARE,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_BITFIELD_OPS,
++  RTX_BITFIELD_OPS,
++  RTX_CONST_OBJ,
++  RTX_OBJ,
++  RTX_TERNARY,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_UNARY,
++  RTX_COMM_ARITH,
++  RTX_COMM_ARITH,
++  RTX_BIN_ARITH,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_BIN_ARITH,
++  RTX_UNARY,
++  RTX_UNARY,
++  RTX_TERNARY,
++  RTX_EXTRA,
++  RTX_OBJ,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_MATCH,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
++  RTX_EXTRA,
+--- /dev/null
++++ b/gcc/bootstrap-rtl-code-size.inc
+@@ -0,0 +1,558 @@
++  ((UNKNOWN) == CONST_INT || (UNKNOWN) == CONST_DOUBLE || (UNKNOWN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "*" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "*" - 1) * sizeof (rtunion)),
++  ((VALUE) == CONST_INT || (VALUE) == CONST_DOUBLE || (VALUE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (rtunion)),
++  ((DEBUG_EXPR) == CONST_INT || (DEBUG_EXPR) == CONST_DOUBLE || (DEBUG_EXPR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (rtunion)),
++  ((EXPR_LIST) == CONST_INT || (EXPR_LIST) == CONST_DOUBLE || (EXPR_LIST) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((INSN_LIST) == CONST_INT || (INSN_LIST) == CONST_DOUBLE || (INSN_LIST) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ue" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ue" - 1) * sizeof (rtunion)),
++  ((SEQUENCE) == CONST_INT || (SEQUENCE) == CONST_DOUBLE || (SEQUENCE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (rtunion)),
++  ((ADDRESS) == CONST_INT || (ADDRESS) == CONST_DOUBLE || (ADDRESS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((DEBUG_INSN) == CONST_INT || (DEBUG_INSN) == CONST_DOUBLE || (DEBUG_INSN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuBeiie" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuBeiie" - 1) * sizeof (rtunion)),
++  ((INSN) == CONST_INT || (INSN) == CONST_DOUBLE || (INSN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuBeiie" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuBeiie" - 1) * sizeof (rtunion)),
++  ((JUMP_INSN) == CONST_INT || (JUMP_INSN) == CONST_DOUBLE || (JUMP_INSN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuBeiie0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuBeiie0" - 1) * sizeof (rtunion)),
++  ((CALL_INSN) == CONST_INT || (CALL_INSN) == CONST_DOUBLE || (CALL_INSN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuBeiiee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuBeiiee" - 1) * sizeof (rtunion)),
++  ((BARRIER) == CONST_INT || (BARRIER) == CONST_DOUBLE || (BARRIER) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuu00000" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuu00000" - 1) * sizeof (rtunion)),
++  ((CODE_LABEL) == CONST_INT || (CODE_LABEL) == CONST_DOUBLE || (CODE_LABEL) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuB00is" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuB00is" - 1) * sizeof (rtunion)),
++  ((NOTE) == CONST_INT || (NOTE) == CONST_DOUBLE || (NOTE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iuuB0ni" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iuuB0ni" - 1) * sizeof (rtunion)),
++  ((COND_EXEC) == CONST_INT || (COND_EXEC) == CONST_DOUBLE || (COND_EXEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((PARALLEL) == CONST_INT || (PARALLEL) == CONST_DOUBLE || (PARALLEL) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (rtunion)),
++  ((ASM_INPUT) == CONST_INT || (ASM_INPUT) == CONST_DOUBLE || (ASM_INPUT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "si" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "si" - 1) * sizeof (rtunion)),
++  ((ASM_OPERANDS) == CONST_INT || (ASM_OPERANDS) == CONST_DOUBLE || (ASM_OPERANDS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ssiEEEi" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ssiEEEi" - 1) * sizeof (rtunion)),
++  ((UNSPEC) == CONST_INT || (UNSPEC) == CONST_DOUBLE || (UNSPEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "Ei" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "Ei" - 1) * sizeof (rtunion)),
++  ((UNSPEC_VOLATILE) == CONST_INT || (UNSPEC_VOLATILE) == CONST_DOUBLE || (UNSPEC_VOLATILE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "Ei" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "Ei" - 1) * sizeof (rtunion)),
++  ((ADDR_VEC) == CONST_INT || (ADDR_VEC) == CONST_DOUBLE || (ADDR_VEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (rtunion)),
++  ((ADDR_DIFF_VEC) == CONST_INT || (ADDR_DIFF_VEC) == CONST_DOUBLE || (ADDR_DIFF_VEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eEee0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eEee0" - 1) * sizeof (rtunion)),
++  ((PREFETCH) == CONST_INT || (PREFETCH) == CONST_DOUBLE || (PREFETCH) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((SET) == CONST_INT || (SET) == CONST_DOUBLE || (SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((USE) == CONST_INT || (USE) == CONST_DOUBLE || (USE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((CLOBBER) == CONST_INT || (CLOBBER) == CONST_DOUBLE || (CLOBBER) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((CALL) == CONST_INT || (CALL) == CONST_DOUBLE || (CALL) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((RETURN) == CONST_INT || (RETURN) == CONST_DOUBLE || (RETURN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (rtunion)),
++  ((EH_RETURN) == CONST_INT || (EH_RETURN) == CONST_DOUBLE || (EH_RETURN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (rtunion)),
++  ((TRAP_IF) == CONST_INT || (TRAP_IF) == CONST_DOUBLE || (TRAP_IF) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((CONST_INT) == CONST_INT || (CONST_INT) == CONST_DOUBLE || (CONST_INT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "w" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "w" - 1) * sizeof (rtunion)),
++  ((CONST_FIXED) == CONST_INT || (CONST_FIXED) == CONST_DOUBLE || (CONST_FIXED) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "www" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "www" - 1) * sizeof (rtunion)),
++  ((CONST_DOUBLE) == CONST_INT || (CONST_DOUBLE) == CONST_DOUBLE || (CONST_DOUBLE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof CONST_DOUBLE_FORMAT - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof CONST_DOUBLE_FORMAT - 1) * sizeof (rtunion)),
++  ((CONST_VECTOR) == CONST_INT || (CONST_VECTOR) == CONST_DOUBLE || (CONST_VECTOR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (rtunion)),
++  ((CONST_STRING) == CONST_INT || (CONST_STRING) == CONST_DOUBLE || (CONST_STRING) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((CONST) == CONST_INT || (CONST) == CONST_DOUBLE || (CONST) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((PC) == CONST_INT || (PC) == CONST_DOUBLE || (PC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (rtunion)),
++  ((REG) == CONST_INT || (REG) == CONST_DOUBLE || (REG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "i00" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "i00" - 1) * sizeof (rtunion)),
++  ((SCRATCH) == CONST_INT || (SCRATCH) == CONST_DOUBLE || (SCRATCH) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "0" - 1) * sizeof (rtunion)),
++  ((SUBREG) == CONST_INT || (SUBREG) == CONST_DOUBLE || (SUBREG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ei" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ei" - 1) * sizeof (rtunion)),
++  ((STRICT_LOW_PART) == CONST_INT || (STRICT_LOW_PART) == CONST_DOUBLE || (STRICT_LOW_PART) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((CONCAT) == CONST_INT || (CONCAT) == CONST_DOUBLE || (CONCAT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((CONCATN) == CONST_INT || (CONCATN) == CONST_DOUBLE || (CONCATN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "E" - 1) * sizeof (rtunion)),
++  ((MEM) == CONST_INT || (MEM) == CONST_DOUBLE || (MEM) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e0" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e0" - 1) * sizeof (rtunion)),
++  ((LABEL_REF) == CONST_INT || (LABEL_REF) == CONST_DOUBLE || (LABEL_REF) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "u" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "u" - 1) * sizeof (rtunion)),
++  ((SYMBOL_REF) == CONST_INT || (SYMBOL_REF) == CONST_DOUBLE || (SYMBOL_REF) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s00" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s00" - 1) * sizeof (rtunion)),
++  ((CC0) == CONST_INT || (CC0) == CONST_DOUBLE || (CC0) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "" - 1) * sizeof (rtunion)),
++  ((IF_THEN_ELSE) == CONST_INT || (IF_THEN_ELSE) == CONST_DOUBLE || (IF_THEN_ELSE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((COMPARE) == CONST_INT || (COMPARE) == CONST_DOUBLE || (COMPARE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((PLUS) == CONST_INT || (PLUS) == CONST_DOUBLE || (PLUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((MINUS) == CONST_INT || (MINUS) == CONST_DOUBLE || (MINUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((NEG) == CONST_INT || (NEG) == CONST_DOUBLE || (NEG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((MULT) == CONST_INT || (MULT) == CONST_DOUBLE || (MULT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SS_MULT) == CONST_INT || (SS_MULT) == CONST_DOUBLE || (SS_MULT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((US_MULT) == CONST_INT || (US_MULT) == CONST_DOUBLE || (US_MULT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((DIV) == CONST_INT || (DIV) == CONST_DOUBLE || (DIV) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SS_DIV) == CONST_INT || (SS_DIV) == CONST_DOUBLE || (SS_DIV) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((US_DIV) == CONST_INT || (US_DIV) == CONST_DOUBLE || (US_DIV) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((MOD) == CONST_INT || (MOD) == CONST_DOUBLE || (MOD) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UDIV) == CONST_INT || (UDIV) == CONST_DOUBLE || (UDIV) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UMOD) == CONST_INT || (UMOD) == CONST_DOUBLE || (UMOD) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((AND) == CONST_INT || (AND) == CONST_DOUBLE || (AND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((IOR) == CONST_INT || (IOR) == CONST_DOUBLE || (IOR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((XOR) == CONST_INT || (XOR) == CONST_DOUBLE || (XOR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((NOT) == CONST_INT || (NOT) == CONST_DOUBLE || (NOT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((ASHIFT) == CONST_INT || (ASHIFT) == CONST_DOUBLE || (ASHIFT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((ROTATE) == CONST_INT || (ROTATE) == CONST_DOUBLE || (ROTATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((ASHIFTRT) == CONST_INT || (ASHIFTRT) == CONST_DOUBLE || (ASHIFTRT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LSHIFTRT) == CONST_INT || (LSHIFTRT) == CONST_DOUBLE || (LSHIFTRT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((ROTATERT) == CONST_INT || (ROTATERT) == CONST_DOUBLE || (ROTATERT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SMIN) == CONST_INT || (SMIN) == CONST_DOUBLE || (SMIN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SMAX) == CONST_INT || (SMAX) == CONST_DOUBLE || (SMAX) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UMIN) == CONST_INT || (UMIN) == CONST_DOUBLE || (UMIN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UMAX) == CONST_INT || (UMAX) == CONST_DOUBLE || (UMAX) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((PRE_DEC) == CONST_INT || (PRE_DEC) == CONST_DOUBLE || (PRE_DEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((PRE_INC) == CONST_INT || (PRE_INC) == CONST_DOUBLE || (PRE_INC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((POST_DEC) == CONST_INT || (POST_DEC) == CONST_DOUBLE || (POST_DEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((POST_INC) == CONST_INT || (POST_INC) == CONST_DOUBLE || (POST_INC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((PRE_MODIFY) == CONST_INT || (PRE_MODIFY) == CONST_DOUBLE || (PRE_MODIFY) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((POST_MODIFY) == CONST_INT || (POST_MODIFY) == CONST_DOUBLE || (POST_MODIFY) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((NE) == CONST_INT || (NE) == CONST_DOUBLE || (NE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((EQ) == CONST_INT || (EQ) == CONST_DOUBLE || (EQ) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((GE) == CONST_INT || (GE) == CONST_DOUBLE || (GE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((GT) == CONST_INT || (GT) == CONST_DOUBLE || (GT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LE) == CONST_INT || (LE) == CONST_DOUBLE || (LE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LT) == CONST_INT || (LT) == CONST_DOUBLE || (LT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((GEU) == CONST_INT || (GEU) == CONST_DOUBLE || (GEU) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((GTU) == CONST_INT || (GTU) == CONST_DOUBLE || (GTU) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LEU) == CONST_INT || (LEU) == CONST_DOUBLE || (LEU) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LTU) == CONST_INT || (LTU) == CONST_DOUBLE || (LTU) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNORDERED) == CONST_INT || (UNORDERED) == CONST_DOUBLE || (UNORDERED) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((ORDERED) == CONST_INT || (ORDERED) == CONST_DOUBLE || (ORDERED) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNEQ) == CONST_INT || (UNEQ) == CONST_DOUBLE || (UNEQ) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNGE) == CONST_INT || (UNGE) == CONST_DOUBLE || (UNGE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNGT) == CONST_INT || (UNGT) == CONST_DOUBLE || (UNGT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNLE) == CONST_INT || (UNLE) == CONST_DOUBLE || (UNLE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((UNLT) == CONST_INT || (UNLT) == CONST_DOUBLE || (UNLT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((LTGT) == CONST_INT || (LTGT) == CONST_DOUBLE || (LTGT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SIGN_EXTEND) == CONST_INT || (SIGN_EXTEND) == CONST_DOUBLE || (SIGN_EXTEND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((ZERO_EXTEND) == CONST_INT || (ZERO_EXTEND) == CONST_DOUBLE || (ZERO_EXTEND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((TRUNCATE) == CONST_INT || (TRUNCATE) == CONST_DOUBLE || (TRUNCATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FLOAT_EXTEND) == CONST_INT || (FLOAT_EXTEND) == CONST_DOUBLE || (FLOAT_EXTEND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FLOAT_TRUNCATE) == CONST_INT || (FLOAT_TRUNCATE) == CONST_DOUBLE || (FLOAT_TRUNCATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FLOAT) == CONST_INT || (FLOAT) == CONST_DOUBLE || (FLOAT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FIX) == CONST_INT || (FIX) == CONST_DOUBLE || (FIX) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((UNSIGNED_FLOAT) == CONST_INT || (UNSIGNED_FLOAT) == CONST_DOUBLE || (UNSIGNED_FLOAT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((UNSIGNED_FIX) == CONST_INT || (UNSIGNED_FIX) == CONST_DOUBLE || (UNSIGNED_FIX) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FRACT_CONVERT) == CONST_INT || (FRACT_CONVERT) == CONST_DOUBLE || (FRACT_CONVERT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((UNSIGNED_FRACT_CONVERT) == CONST_INT || (UNSIGNED_FRACT_CONVERT) == CONST_DOUBLE || (UNSIGNED_FRACT_CONVERT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SAT_FRACT) == CONST_INT || (SAT_FRACT) == CONST_DOUBLE || (SAT_FRACT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((UNSIGNED_SAT_FRACT) == CONST_INT || (UNSIGNED_SAT_FRACT) == CONST_DOUBLE || (UNSIGNED_SAT_FRACT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((ABS) == CONST_INT || (ABS) == CONST_DOUBLE || (ABS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SQRT) == CONST_INT || (SQRT) == CONST_DOUBLE || (SQRT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((BSWAP) == CONST_INT || (BSWAP) == CONST_DOUBLE || (BSWAP) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FFS) == CONST_INT || (FFS) == CONST_DOUBLE || (FFS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((CLZ) == CONST_INT || (CLZ) == CONST_DOUBLE || (CLZ) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((CTZ) == CONST_INT || (CTZ) == CONST_DOUBLE || (CTZ) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((POPCOUNT) == CONST_INT || (POPCOUNT) == CONST_DOUBLE || (POPCOUNT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((PARITY) == CONST_INT || (PARITY) == CONST_DOUBLE || (PARITY) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SIGN_EXTRACT) == CONST_INT || (SIGN_EXTRACT) == CONST_DOUBLE || (SIGN_EXTRACT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((ZERO_EXTRACT) == CONST_INT || (ZERO_EXTRACT) == CONST_DOUBLE || (ZERO_EXTRACT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((HIGH) == CONST_INT || (HIGH) == CONST_DOUBLE || (HIGH) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((LO_SUM) == CONST_INT || (LO_SUM) == CONST_DOUBLE || (LO_SUM) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((VEC_MERGE) == CONST_INT || (VEC_MERGE) == CONST_DOUBLE || (VEC_MERGE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((VEC_SELECT) == CONST_INT || (VEC_SELECT) == CONST_DOUBLE || (VEC_SELECT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((VEC_CONCAT) == CONST_INT || (VEC_CONCAT) == CONST_DOUBLE || (VEC_CONCAT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((VEC_DUPLICATE) == CONST_INT || (VEC_DUPLICATE) == CONST_DOUBLE || (VEC_DUPLICATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SS_PLUS) == CONST_INT || (SS_PLUS) == CONST_DOUBLE || (SS_PLUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((US_PLUS) == CONST_INT || (US_PLUS) == CONST_DOUBLE || (US_PLUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SS_MINUS) == CONST_INT || (SS_MINUS) == CONST_DOUBLE || (SS_MINUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SS_NEG) == CONST_INT || (SS_NEG) == CONST_DOUBLE || (SS_NEG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((US_NEG) == CONST_INT || (US_NEG) == CONST_DOUBLE || (US_NEG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SS_ABS) == CONST_INT || (SS_ABS) == CONST_DOUBLE || (SS_ABS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((SS_ASHIFT) == CONST_INT || (SS_ASHIFT) == CONST_DOUBLE || (SS_ASHIFT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((US_ASHIFT) == CONST_INT || (US_ASHIFT) == CONST_DOUBLE || (US_ASHIFT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((US_MINUS) == CONST_INT || (US_MINUS) == CONST_DOUBLE || (US_MINUS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ee" - 1) * sizeof (rtunion)),
++  ((SS_TRUNCATE) == CONST_INT || (SS_TRUNCATE) == CONST_DOUBLE || (SS_TRUNCATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((US_TRUNCATE) == CONST_INT || (US_TRUNCATE) == CONST_DOUBLE || (US_TRUNCATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "e" - 1) * sizeof (rtunion)),
++  ((FMA) == CONST_INT || (FMA) == CONST_DOUBLE || (FMA) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eee" - 1) * sizeof (rtunion)),
++  ((VAR_LOCATION) == CONST_INT || (VAR_LOCATION) == CONST_DOUBLE || (VAR_LOCATION) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "tei" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "tei" - 1) * sizeof (rtunion)),
++  ((DEBUG_IMPLICIT_PTR) == CONST_INT || (DEBUG_IMPLICIT_PTR) == CONST_DOUBLE || (DEBUG_IMPLICIT_PTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "t" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "t" - 1) * sizeof (rtunion)),
++  ((MATCH_OPERAND) == CONST_INT || (MATCH_OPERAND) == CONST_DOUBLE || (MATCH_OPERAND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iss" - 1) * sizeof (rtunion)),
++  ((MATCH_SCRATCH) == CONST_INT || (MATCH_SCRATCH) == CONST_DOUBLE || (MATCH_SCRATCH) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "is" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "is" - 1) * sizeof (rtunion)),
++  ((MATCH_OPERATOR) == CONST_INT || (MATCH_OPERATOR) == CONST_DOUBLE || (MATCH_OPERATOR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "isE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "isE" - 1) * sizeof (rtunion)),
++  ((MATCH_PARALLEL) == CONST_INT || (MATCH_PARALLEL) == CONST_DOUBLE || (MATCH_PARALLEL) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "isE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "isE" - 1) * sizeof (rtunion)),
++  ((MATCH_DUP) == CONST_INT || (MATCH_DUP) == CONST_DOUBLE || (MATCH_DUP) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "i" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "i" - 1) * sizeof (rtunion)),
++  ((MATCH_OP_DUP) == CONST_INT || (MATCH_OP_DUP) == CONST_DOUBLE || (MATCH_OP_DUP) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iE" - 1) * sizeof (rtunion)),
++  ((MATCH_PAR_DUP) == CONST_INT || (MATCH_PAR_DUP) == CONST_DOUBLE || (MATCH_PAR_DUP) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "iE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "iE" - 1) * sizeof (rtunion)),
++  ((MATCH_CODE) == CONST_INT || (MATCH_CODE) == CONST_DOUBLE || (MATCH_CODE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((MATCH_TEST) == CONST_INT || (MATCH_TEST) == CONST_DOUBLE || (MATCH_TEST) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((DEFINE_INSN) == CONST_INT || (DEFINE_INSN) == CONST_DOUBLE || (DEFINE_INSN) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sEsTV" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sEsTV" - 1) * sizeof (rtunion)),
++  ((DEFINE_PEEPHOLE) == CONST_INT || (DEFINE_PEEPHOLE) == CONST_DOUBLE || (DEFINE_PEEPHOLE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "EsTV" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "EsTV" - 1) * sizeof (rtunion)),
++  ((DEFINE_SPLIT) == CONST_INT || (DEFINE_SPLIT) == CONST_DOUBLE || (DEFINE_SPLIT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "EsES" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "EsES" - 1) * sizeof (rtunion)),
++  ((DEFINE_INSN_AND_SPLIT) == CONST_INT || (DEFINE_INSN_AND_SPLIT) == CONST_DOUBLE || (DEFINE_INSN_AND_SPLIT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sEsTsESV" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sEsTsESV" - 1) * sizeof (rtunion)),
++  ((DEFINE_PEEPHOLE2) == CONST_INT || (DEFINE_PEEPHOLE2) == CONST_DOUBLE || (DEFINE_PEEPHOLE2) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "EsES" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "EsES" - 1) * sizeof (rtunion)),
++  ((DEFINE_EXPAND) == CONST_INT || (DEFINE_EXPAND) == CONST_DOUBLE || (DEFINE_EXPAND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sEss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sEss" - 1) * sizeof (rtunion)),
++  ((DEFINE_DELAY) == CONST_INT || (DEFINE_DELAY) == CONST_DOUBLE || (DEFINE_DELAY) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "eE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "eE" - 1) * sizeof (rtunion)),
++  ((DEFINE_ASM_ATTRIBUTES) == CONST_INT || (DEFINE_ASM_ATTRIBUTES) == CONST_DOUBLE || (DEFINE_ASM_ATTRIBUTES) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "V" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "V" - 1) * sizeof (rtunion)),
++  ((DEFINE_COND_EXEC) == CONST_INT || (DEFINE_COND_EXEC) == CONST_DOUBLE || (DEFINE_COND_EXEC) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "Ess" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "Ess" - 1) * sizeof (rtunion)),
++  ((DEFINE_PREDICATE) == CONST_INT || (DEFINE_PREDICATE) == CONST_DOUBLE || (DEFINE_PREDICATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ses" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ses" - 1) * sizeof (rtunion)),
++  ((DEFINE_SPECIAL_PREDICATE) == CONST_INT || (DEFINE_SPECIAL_PREDICATE) == CONST_DOUBLE || (DEFINE_SPECIAL_PREDICATE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ses" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ses" - 1) * sizeof (rtunion)),
++  ((DEFINE_REGISTER_CONSTRAINT) == CONST_INT || (DEFINE_REGISTER_CONSTRAINT) == CONST_DOUBLE || (DEFINE_REGISTER_CONSTRAINT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sss" - 1) * sizeof (rtunion)),
++  ((DEFINE_CONSTRAINT) == CONST_INT || (DEFINE_CONSTRAINT) == CONST_DOUBLE || (DEFINE_CONSTRAINT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (rtunion)),
++  ((DEFINE_MEMORY_CONSTRAINT) == CONST_INT || (DEFINE_MEMORY_CONSTRAINT) == CONST_DOUBLE || (DEFINE_MEMORY_CONSTRAINT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (rtunion)),
++  ((DEFINE_ADDRESS_CONSTRAINT) == CONST_INT || (DEFINE_ADDRESS_CONSTRAINT) == CONST_DOUBLE || (DEFINE_ADDRESS_CONSTRAINT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (rtunion)),
++  ((DEFINE_CPU_UNIT) == CONST_INT || (DEFINE_CPU_UNIT) == CONST_DOUBLE || (DEFINE_CPU_UNIT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sS" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sS" - 1) * sizeof (rtunion)),
++  ((DEFINE_QUERY_CPU_UNIT) == CONST_INT || (DEFINE_QUERY_CPU_UNIT) == CONST_DOUBLE || (DEFINE_QUERY_CPU_UNIT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sS" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sS" - 1) * sizeof (rtunion)),
++  ((EXCLUSION_SET) == CONST_INT || (EXCLUSION_SET) == CONST_DOUBLE || (EXCLUSION_SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((PRESENCE_SET) == CONST_INT || (PRESENCE_SET) == CONST_DOUBLE || (PRESENCE_SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((FINAL_PRESENCE_SET) == CONST_INT || (FINAL_PRESENCE_SET) == CONST_DOUBLE || (FINAL_PRESENCE_SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((ABSENCE_SET) == CONST_INT || (ABSENCE_SET) == CONST_DOUBLE || (ABSENCE_SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((FINAL_ABSENCE_SET) == CONST_INT || (FINAL_ABSENCE_SET) == CONST_DOUBLE || (FINAL_ABSENCE_SET) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((DEFINE_BYPASS) == CONST_INT || (DEFINE_BYPASS) == CONST_DOUBLE || (DEFINE_BYPASS) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "issS" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "issS" - 1) * sizeof (rtunion)),
++  ((DEFINE_AUTOMATON) == CONST_INT || (DEFINE_AUTOMATON) == CONST_DOUBLE || (DEFINE_AUTOMATON) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((AUTOMATA_OPTION) == CONST_INT || (AUTOMATA_OPTION) == CONST_DOUBLE || (AUTOMATA_OPTION) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((DEFINE_RESERVATION) == CONST_INT || (DEFINE_RESERVATION) == CONST_DOUBLE || (DEFINE_RESERVATION) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((DEFINE_INSN_RESERVATION) == CONST_INT || (DEFINE_INSN_RESERVATION) == CONST_DOUBLE || (DEFINE_INSN_RESERVATION) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sies" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sies" - 1) * sizeof (rtunion)),
++  ((DEFINE_ATTR) == CONST_INT || (DEFINE_ATTR) == CONST_DOUBLE || (DEFINE_ATTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (rtunion)),
++  ((DEFINE_ENUM_ATTR) == CONST_INT || (DEFINE_ENUM_ATTR) == CONST_DOUBLE || (DEFINE_ENUM_ATTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sse" - 1) * sizeof (rtunion)),
++  ((ATTR) == CONST_INT || (ATTR) == CONST_DOUBLE || (ATTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((SET_ATTR) == CONST_INT || (SET_ATTR) == CONST_DOUBLE || (SET_ATTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((SET_ATTR_ALTERNATIVE) == CONST_INT || (SET_ATTR_ALTERNATIVE) == CONST_DOUBLE || (SET_ATTR_ALTERNATIVE) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "sE" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "sE" - 1) * sizeof (rtunion)),
++  ((EQ_ATTR) == CONST_INT || (EQ_ATTR) == CONST_DOUBLE || (EQ_ATTR) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ss" - 1) * sizeof (rtunion)),
++  ((EQ_ATTR_ALT) == CONST_INT || (EQ_ATTR_ALT) == CONST_DOUBLE || (EQ_ATTR_ALT) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "ii" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "ii" - 1) * sizeof (rtunion)),
++  ((ATTR_FLAG) == CONST_INT || (ATTR_FLAG) == CONST_DOUBLE || (ATTR_FLAG) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "s" - 1) * sizeof (rtunion)),
++  ((COND) == CONST_INT || (COND) == CONST_DOUBLE || (COND) == CONST_FIXED
++   ? RTX_HDR_SIZE + (sizeof "Ee" - 1) * sizeof (HOST_WIDE_INT)
++   : RTX_HDR_SIZE + (sizeof "Ee" - 1) * sizeof (rtunion)),
+--- /dev/null
++++ b/gcc/bootstrap-insn-note-name.inc
+@@ -0,0 +1,13 @@
++  "NOTE_INSN_DELETED",
++  "NOTE_INSN_DELETED_LABEL",
++  "NOTE_INSN_BLOCK_BEG",
++  "NOTE_INSN_BLOCK_END",
++  "NOTE_INSN_FUNCTION_BEG",
++  "NOTE_INSN_PROLOGUE_END",
++  "NOTE_INSN_EPILOGUE_BEG",
++  "NOTE_INSN_EH_REGION_BEG",
++  "NOTE_INSN_EH_REGION_END",
++  "NOTE_INSN_VAR_LOCATION",
++  "NOTE_INSN_BASIC_BLOCK",
++  "NOTE_INSN_SWITCH_TEXT_SECTIONS",
++  "NOTE_INSN_CFA_RESTORE_STATE",
+--- /dev/null
++++ b/gcc/bootstrap-reg-note-name.inc
+@@ -0,0 +1,31 @@
++  "REG_DEP_TRUE",
++  "REG_DEAD",
++  "REG_INC",
++  "REG_EQUIV",
++  "REG_EQUAL",
++  "REG_NONNEG",
++  "REG_UNUSED",
++  "REG_CC_SETTER",
++  "REG_CC_USER",
++  "REG_LABEL_TARGET",
++  "REG_LABEL_OPERAND",
++  "REG_DEP_OUTPUT",
++  "REG_DEP_ANTI",
++  "REG_BR_PROB",
++  "REG_NOALIAS",
++  "REG_BR_PRED",
++  "REG_FRAME_RELATED_EXPR",
++  "REG_CFA_DEF_CFA",
++  "REG_CFA_ADJUST_CFA",
++  "REG_CFA_OFFSET",
++  "REG_CFA_REGISTER",
++  "REG_CFA_EXPRESSION",
++  "REG_CFA_RESTORE",
++  "REG_CFA_SET_VDRAP",
++  "REG_EH_CONTEXT",
++  "REG_EH_REGION",
++  "REG_SAVE_NOTE",
++  "REG_NORETURN",
++  "REG_NON_LOCAL_GOTO",
++  "REG_CROSSING_JUMP",
++  "REG_SETJMP",
