@@ -163,3 +163,4 @@
 - 2026-05-08: Added a minimal `mkstemps.c` bootstrap stub; libiberty now compiles through `mkstemps.c` and stops while compiling `putenv.c`.
 - 2026-05-08: Added a minimal `putenv.c` bootstrap stub; libiberty now compiles through `random.c` and stops while compiling `rename.c`.
 - 2026-05-08: Added a minimal `rename.c` bootstrap stub; libiberty now compiles through `rindex.c` and stops while compiling `setenv.c`.
+- 2026-05-08: Added minimal `setenv.c`/`unsetenv.c` bootstrap stubs; libiberty now compiles through `setenv.c` and stops while compiling `sigsetmask.c`.
