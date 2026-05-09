@@ -669,3 +669,17 @@
  }
  #endif
 +#endif
+--- a/libiberty/tmpnam.c
++++ b/libiberty/tmpnam.c
+@@ -1,3 +1,6 @@
++#if 1
++char *tmpnam(char *s) { static char b[16]; if (!s) s = b; s[0] = 't'; s[1] = 0; return s; }
++#else
+ /*
+ 
+ @deftypefn Supplemental char* tmpnam (char *@var{s})
+@@ -50,3 +53,4 @@
+ 
+   return s;
+ }
++#endif
