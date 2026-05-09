@@ -417,3 +417,70 @@
  
  #endif	/* !ELIDE_CODE */
 +#endif
+--- a/libiberty/pex-common.c
++++ b/libiberty/pex-common.c
+@@ -1,3 +1,59 @@
++#if 1
++#include "pex-common.h"
++#include <stdlib.h>
++#include <string.h>
++struct pex_obj *pex_init_common(int flags, const char *pname, const char *tempbase, const struct pex_funcs *funcs) {
++  struct pex_obj *obj = (struct pex_obj *)malloc(sizeof(struct pex_obj));
++  if (!obj) return 0;
++  memset(obj, 0, sizeof(struct pex_obj));
++  obj->flags = flags;
++  obj->pname = pname;
++  obj->tempbase = tempbase;
++  obj->next_input = STDIN_FILE_NO;
++  obj->stderr_pipe = -1;
++  obj->funcs = funcs;
++  return obj;
++}
++const char *pex_run_in_environment(struct pex_obj *obj, int flags, const char *executable, char * const *argv, char * const *env, const char *orig_outname, const char *errname, int *err) {
++  (void)flags;
++  (void)executable;
++  (void)argv;
++  (void)env;
++  (void)orig_outname;
++  (void)errname;
++  if (obj) obj->count++;
++  if (err) *err = 0;
++  return 0;
++}
++const char *pex_run(struct pex_obj *obj, int flags, const char *executable, char * const *argv, const char *orig_outname, const char *errname, int *err) {
++  return pex_run_in_environment(obj, flags, executable, argv, 0, orig_outname, errname, err);
++}
++FILE *pex_input_file(struct pex_obj *obj, int flags, const char *in_name) {
++  (void)obj;
++  (void)flags;
++  if (!in_name) in_name = "/tmp/gcc-bootstrap-pex-input";
++  return fopen(in_name, "w+");
++}
++FILE *pex_input_pipe(struct pex_obj *obj, int binary) {
++  (void)obj;
++  (void)binary;
++  return 0;
++}
++FILE *pex_read_output(struct pex_obj *obj, int binary) { (void)obj; (void)binary; return 0; }
++FILE *pex_read_err(struct pex_obj *obj, int binary) { (void)obj; (void)binary; return 0; }
++int pex_get_status(struct pex_obj *obj, int count, int *vector) {
++  int i;
++  (void)obj;
++  for (i = 0; i < count; i++) vector[i] = 0;
++  return 1;
++}
++int pex_get_times(struct pex_obj *obj, int count, struct pex_time *vector) {
++  (void)obj;
++  memset(vector, 0, count * sizeof(struct pex_time));
++  return 1;
++}
++void pex_free(struct pex_obj *obj) { if (obj) free(obj); }
++#else
+ /* Common code for executing a program in a sub-process.
+    Copyright (C) 2005, 2010 Free Software Foundation, Inc.
+    Written by Ian Lance Taylor <ian@airs.com>.
+@@ -647,3 +703,4 @@
+ 
+   free (obj);
+ }
++#endif
