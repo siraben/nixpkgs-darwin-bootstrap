@@ -347,7 +347,7 @@
 +#endif
 --- a/libiberty/obstack.c
 +++ b/libiberty/obstack.c
-@@ -1,3 +1,64 @@
+@@ -1,3 +1,66 @@
 +#if 1
 +#include "obstack.h"
 +#include <stdlib.h>
@@ -407,6 +407,8 @@
 +  h->chunk_limit = chunk->limit;
 +}
 +void _obstack_free(struct obstack *h, void *block) { (void)h; (void)block; }
++#undef obstack_free
++void obstack_free(struct obstack *h, void *block) { _obstack_free(h, block); }
 +int _obstack_memory_used(struct obstack *h) { return h && h->chunk ? (int)(h->chunk_limit - (char *)h->chunk) : 0; }
 +#else
  /* obstack.c - subroutines used implicitly by object stack macros
@@ -6056,3 +6058,20 @@
  	  return;
  	}
      }
+--- a/gcc/ggc-none.c
++++ b/gcc/ggc-none.c
+@@ -82,6 +82,13 @@
+ 
+ struct alloc_zone rtl_zone;
+ struct alloc_zone tree_zone;
+ struct alloc_zone tree_id_zone;
++
++void *
++ggc_alloc_zone_vec_rtvec_def (size_t n, size_t s,
++			      struct alloc_zone *z ATTRIBUTE_UNUSED)
++{
++  return xmalloc (n * s);
++}
+ 
+ #if defined (GGC_ZONE) && !defined (GENERATOR_FILE)
+ 
