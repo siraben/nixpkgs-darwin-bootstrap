@@ -160,3 +160,4 @@
 - 2026-05-08: Added a minimal `simple-object-mach-o.c` bootstrap stub after the TinyCC crash; libiberty now compiles through `simple-object-mach-o.c` and stops while compiling `strsignal.c`.
 - 2026-05-08: Added a minimal `strsignal.c` bootstrap stub; libiberty now compiles through `strsignal.c` and stops while compiling `bsearch.c`.
 - 2026-05-08: Added a simple linear `bsearch.c` bootstrap implementation; libiberty now compiles through `mempcpy.c` and stops while compiling `mkstemps.c`.
+- 2026-05-08: Added a minimal `mkstemps.c` bootstrap stub; libiberty now compiles through `mkstemps.c` and stops while compiling `putenv.c`.
