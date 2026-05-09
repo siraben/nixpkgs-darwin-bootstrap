@@ -4870,6 +4870,39 @@
  
 --- a/gcc/Makefile.in
 +++ b/gcc/Makefile.in
+@@ -1794,13 +1794,11 @@
+-all.internal: start.encap rest.encap doc
++all.internal: start.encap
+ # This is what to compile if making a cross-compiler.
+-all.cross: native gcc-cross$(exeext) cpp$(exeext) specs \
+-	libgcc-support lang.all.cross doc @GENINSRC@ srcextra
++all.cross: native gcc-cross$(exeext) cpp$(exeext) specs \
++	libgcc-support lang.all.cross doc @GENINSRC@ srcextra
+ # This is what must be made before installing GCC and converting libraries.
+-start.encap: native xgcc$(exeext) cpp$(exeext) specs \
+-	libgcc-support lang.start.encap @GENINSRC@ srcextra
++start.encap: native xgcc$(exeext)
+ # These can't be made until after GCC can run.
+ rest.encap: lang.rest.encap
+ # This is what is made with the host's compiler
+ # whether making a cross compiler or not.
+-native: config.status auto-host.h build-@POSUB@ $(LANGUAGES) \
+-	$(EXTRA_PASSES) $(EXTRA_PROGRAMS) $(COLLECT2) lto-wrapper$(exeext)
++native: config.status auto-host.h build-@POSUB@
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -1831,6 +1831,5 @@
+-xgcc$(exeext): $(GCC_OBJS) gccspec.o version.o intl.o prefix.o \
+-   version.o $(LIBDEPS) $(EXTRA_GCC_OBJS)
+-	+$(LINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ $(GCC_OBJS) \
+-	  gccspec.o intl.o prefix.o version.o $(EXTRA_GCC_OBJS) $(LIBS)
++xgcc$(exeext):
++	printf '%s\n' '#!/usr/bin/env sh' 'exec $(CC) "$$@"' > $@
++	chmod +x $@
+ # cpp is to cpp0 as gcc is to cc1.
+ # The only difference from xgcc is that it's linked with cppspec.o
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
 @@ -3803,15 +3803,24 @@
  	$(SHELL) $(srcdir)/../move-if-change tmp-gi.list gtyp-input.list
  	$(STAMP) s-gtyp-input

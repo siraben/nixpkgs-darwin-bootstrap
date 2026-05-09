@@ -2365,7 +2365,7 @@ let
   phase35-gcc46-all-gcc =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase35-gcc-${gcc46Version}-all-gcc-amd64" { } ''
-        mkdir -p src build $out/share/darwin-bootstrap
+        mkdir -p src build $out/bin $out/share/darwin-bootstrap
         cp -R ${gcc46DarwinBootstrapSrc}/. src/
         chmod -R u+w src
 
@@ -2501,6 +2501,21 @@ CACHE
           2> $out/share/darwin-bootstrap/make-all-gcc.stderr
 
         test -x gcc/xgcc
+        cp gcc/xgcc $out/bin/xgcc
+        $out/bin/xgcc --version > $out/share/darwin-bootstrap/xgcc-version.stdout
+
+        cat > xgcc-smoke.c <<'C'
+        int main(void) { return 42; }
+C
+        $out/bin/xgcc xgcc-smoke.c -o xgcc-smoke \
+          > $out/share/darwin-bootstrap/xgcc-smoke.stdout \
+          2> $out/share/darwin-bootstrap/xgcc-smoke.stderr
+        set +e
+        ./xgcc-smoke
+        xgccSmokeStatus=$?
+        set -e
+        echo "$xgccSmokeStatus" > $out/share/darwin-bootstrap/xgcc-smoke.status
+        test "$xgccSmokeStatus" = 42
       ''
     else
       null;
@@ -3482,7 +3497,7 @@ CACHE
           for archive in "''${archives[@]}"; do
             archive_dir="$tmp/archive-$archive_index"
             mkdir -p "$archive_dir"
-            (cd "$archive_dir" && ar -x "$archive")
+            (cd "$archive_dir" && @AR@ -x "$archive")
             for member in "$archive_dir"/*.o; do
               test -f "$member" || continue
               objects+=("$member")
@@ -3557,6 +3572,7 @@ CACHE
 
         substituteInPlace $out/bin/tcc-darwin-cc \
           --replace-fail @TCC@ ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate \
+          --replace-fail @AR@ ${cctools}/bin/ar \
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
           --replace-fail @ELF_TO_M1@ ${./tools/elf64-to-m1.py} \
