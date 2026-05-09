@@ -1625,6 +1625,48 @@
 +
 +const char *_cpp_default_encoding (void) { return "UTF-8"; }
 +
+--- a/libdecnumber/configure
++++ b/libdecnumber/configure
+@@ -3912,6 +3912,14 @@
+ { $as_echo "$as_me:${as_lineno-$LINENO}: result: $acx_cv_header_stdint $acx_cv_header_stdint_kind" >&5
+ $as_echo "$acx_cv_header_stdint $acx_cv_header_stdint_kind" >&6; }
+ 
++if test "x$acx_cv_header_stdint" = xstddef.h; then
++  test -z "$ac_cv_sizeof_void_p" && ac_cv_sizeof_void_p=8
++  test -z "$ac_cv_sizeof_long" && ac_cv_sizeof_long=8
++  test -z "$ac_cv_sizeof_int" && ac_cv_sizeof_int=4
++  test -z "$ac_cv_sizeof_short" && ac_cv_sizeof_short=2
++  test -z "$ac_cv_sizeof_char" && ac_cv_sizeof_char=1
++fi
++
+ # ----------------- done included file, check C basic types --------
+ 
+ # Lacking an uintptr_t?  Test size of void *
+--- a/libdecnumber/Makefile.in
++++ b/libdecnumber/Makefile.in
+@@ -63,9 +63,7 @@
+ bid_OBJS = bid2dpd_dpd2bid.$(objext) host-ieee32.$(objext) \
+ 	host-ieee64.$(objext) host-ieee128.$(objext)
+ 
+-libdecnumber_a_OBJS = decNumber.$(objext) decContext.$(objext) \
+-	decimal32.$(objext) decimal64.$(objext) decimal128.$(objext) \
+-	$(ADDITIONAL_OBJS)
++libdecnumber_a_OBJS = bootstrap-libdecnumber.$(objext)
+ 
+ libdecnumber_a_SOURCES = decContext.c decContext.h decDPD.h \
+ 	decNumber.c decNumber.h decNumberLocal.h \
+@@ -126,4 +124,7 @@
+ decNumber.$(objext):  decNumber.c decNumber.h decContext.h decNumberLocal.h \
+ 	decNumberSymbols.h
++
++bootstrap-libdecnumber.$(objext): bootstrap-libdecnumber.c
++	$(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(ALL_CFLAGS) -c -o $@ `test -f 'bootstrap-libdecnumber.c' || echo '$(srcdir)/'`bootstrap-libdecnumber.c
+ decimal32.$(objext):  $(srcdir)/$(enable_decimal_float)/decimal32.c \
+    $(srcdir)/$(enable_decimal_float)/decimal32.h \
+--- /dev/null
++++ b/libdecnumber/bootstrap-libdecnumber.c
+@@ -0,0 +1 @@
++void __bootstrap_libdecnumber (void) {}
 --- a/zlib/Makefile.in
 +++ b/zlib/Makefile.in
 @@ -82,19 +82,12 @@
