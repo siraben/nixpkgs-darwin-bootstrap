@@ -106,12 +106,15 @@ def parse_elf(path, prefix):
             )
             name = cstr(strtab, st_name) if st_name else ""
             bind = st_info >> 4
-            symbol_prefix = prefix if bind == 0 and name else ""
+            symbol_label_prefix = prefix if bind == 0 and name else ""
+            symbol_label_name = label_name(name, symbol_label_prefix) if name else ""
+            if bind == 0 and symbol_label_name:
+                symbol_label_name = f"{symbol_label_name}_{index}"
             symbols.append(
                 {
                     "index": index,
                     "name": name,
-                    "label": label_name(name, symbol_prefix) if name else "",
+                    "label": symbol_label_name,
                     "info": st_info,
                     "bind": bind,
                     "shndx": st_shndx,

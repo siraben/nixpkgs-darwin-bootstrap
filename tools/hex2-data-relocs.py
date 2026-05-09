@@ -92,7 +92,10 @@ def patch_binary(source_path, binary_path):
         if target_offset < static_offset:
             continue
         target = DATA_VM + (target_offset - static_offset)
-        position = ENTRY_OFFSET + token_offset
+        if token_offset >= static_offset:
+            position = DATA_FILE_OFFSET + (token_offset - static_offset)
+        else:
+            position = ENTRY_OFFSET + token_offset
         binary[position : position + 4] = target.to_bytes(4, "little", signed=False)
 
     binary_path.write_bytes(binary)

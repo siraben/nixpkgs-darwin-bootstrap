@@ -1639,6 +1639,31 @@
  # The cast to long int works around a bug in the HP C Compiler
  # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
  # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+--- a/gcc/genmddeps.c
++++ b/gcc/genmddeps.c
+@@ -22,6 +22,17 @@
+ #include "errors.h"
+ #include "read-md.h"
+ 
++#if 1
++int
++main (int argc, char **argv)
++{
++  (void) argc;
++  (void) argv;
++  fputs ("MD_INCLUDES =\n", stdout);
++  return (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
++}
++#else
++
+ 
+ struct filedep
+ {
+@@ -60,3 +71,4 @@
+   fflush (stdout);
+   return (ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE);
+ }
++#endif
 --- a/libdecnumber/configure
 +++ b/libdecnumber/configure
 @@ -3912,6 +3912,14 @@

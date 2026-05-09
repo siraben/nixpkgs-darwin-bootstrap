@@ -3432,11 +3432,26 @@ let
         set -e
         test "$status" = 42
 
+        cat > data-reloc.c <<'C'
+        static long x;
+        static long *p = &x;
+        int main(void) { return p == &x && x == 0 ? 0 : 3; }
+        C
+        $out/bin/tcc-darwin-cc data-reloc.c -o data-reloc
+        ./data-reloc
+
+        cat > string-reloc.c <<'C'
+        #include <stdio.h>
+        int main(void) { fputs("FIRST", stdout); fputs("SECOND", stdout); return 0; }
+        C
+        $out/bin/tcc-darwin-cc string-reloc.c -o string-reloc
+        test "$(./string-reloc)" = FIRSTSECOND
+
         $out/bin/tcc-darwin-cc -c hello.c -o hello.o
         test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
 
         cp tinycc-sysv-libc.o tinycc-sysv-libc.stdout tinycc-sysv-libc.stderr \
-          hello.c hello hello.o \
+          hello.c hello data-reloc.c data-reloc string-reloc.c string-reloc hello.o \
           $out/share/darwin-bootstrap/
       ''
     else
