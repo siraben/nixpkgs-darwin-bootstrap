@@ -920,3 +920,232 @@
 +mp_limb_t __gmpn_sub(mp_limb_t *r, const mp_limb_t *a, mp_size_t an, const mp_limb_t *b, mp_size_t bn) { (void)a; (void)an; (void)b; (void)bn; if (r) r[0] = 0; return 0; }
 +mp_limb_t __gmpn_sub_1(mp_limb_t *r, const mp_limb_t *a, mp_size_t n, mp_limb_t b) { (void)a; (void)n; (void)b; if (r) r[0] = 0; return 0; }
 +mp_size_t __gmpn_set_str(mp_limb_t *r, const unsigned char *str, size_t len, int base) { (void)str; (void)len; (void)base; if (r) r[0] = 0; return 0; }
+--- a/mpfr/Makefile.in
++++ b/mpfr/Makefile.in
+@@ -82,52 +82,8 @@
+ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(infodir)" \
+ 	"$(DESTDIR)$(docdir)" "$(DESTDIR)$(includedir)"
+ LTLIBRARIES = $(lib_LTLIBRARIES)
+-libmpfr_la_DEPENDENCIES = @LIBOBJS@
+-am_libmpfr_la_OBJECTS = exceptions$U.lo extract$U.lo uceil_exp2$U.lo \
+-	uceil_log2$U.lo ufloor_log2$U.lo add$U.lo add1$U.lo \
+-	add_ui$U.lo agm$U.lo clear$U.lo cmp$U.lo cmp_abs$U.lo \
+-	cmp_si$U.lo cmp_ui$U.lo comparisons$U.lo div_2exp$U.lo \
+-	div_2si$U.lo div_2ui$U.lo div$U.lo div_ui$U.lo dump$U.lo \
+-	eq$U.lo exp10$U.lo exp2$U.lo exp3$U.lo exp$U.lo frac$U.lo \
+-	get_d$U.lo get_exp$U.lo get_str$U.lo init$U.lo inp_str$U.lo \
+-	isinteger$U.lo isinf$U.lo isnan$U.lo isnum$U.lo \
+-	const_log2$U.lo log$U.lo modf$U.lo mul_2exp$U.lo mul_2si$U.lo \
+-	mul_2ui$U.lo mul$U.lo mul_ui$U.lo neg$U.lo next$U.lo \
+-	out_str$U.lo printf$U.lo vasprintf$U.lo const_pi$U.lo pow$U.lo \
+-	pow_si$U.lo pow_ui$U.lo print_raw$U.lo print_rnd_mode$U.lo \
+-	random2$U.lo random$U.lo reldiff$U.lo round_prec$U.lo set$U.lo \
+-	setmax$U.lo setmin$U.lo set_d$U.lo set_dfl_prec$U.lo \
+-	set_exp$U.lo set_rnd$U.lo set_f$U.lo set_prc_raw$U.lo \
+-	set_prec$U.lo set_q$U.lo set_si$U.lo set_str$U.lo \
+-	set_str_raw$U.lo set_ui$U.lo set_z$U.lo sqrt$U.lo sqrt_ui$U.lo \
+-	sub$U.lo sub1$U.lo sub_ui$U.lo rint$U.lo ui_div$U.lo \
+-	ui_sub$U.lo urandomb$U.lo get_z_exp$U.lo swap$U.lo \
+-	factorial$U.lo cosh$U.lo sinh$U.lo tanh$U.lo sinh_cosh$U.lo \
+-	acosh$U.lo asinh$U.lo atanh$U.lo atan$U.lo cmp2$U.lo \
+-	exp_2$U.lo asin$U.lo const_euler$U.lo cos$U.lo sin$U.lo \
+-	tan$U.lo fma$U.lo fms$U.lo hypot$U.lo log1p$U.lo expm1$U.lo \
+-	log2$U.lo log10$U.lo ui_pow$U.lo ui_pow_ui$U.lo minmax$U.lo \
+-	dim$U.lo signbit$U.lo copysign$U.lo setsign$U.lo gmp_op$U.lo \
+-	init2$U.lo acos$U.lo sin_cos$U.lo set_nan$U.lo set_inf$U.lo \
+-	powerof2$U.lo gamma$U.lo set_ld$U.lo get_ld$U.lo cbrt$U.lo \
+-	volatile$U.lo fits_sshort$U.lo fits_sint$U.lo fits_slong$U.lo \
+-	fits_ushort$U.lo fits_uint$U.lo fits_ulong$U.lo \
+-	fits_uintmax$U.lo fits_intmax$U.lo get_si$U.lo get_ui$U.lo \
+-	zeta$U.lo cmp_d$U.lo erf$U.lo inits$U.lo inits2$U.lo \
+-	clears$U.lo sgn$U.lo check$U.lo sub1sp$U.lo version$U.lo \
+-	mpn_exp$U.lo mpfr-gmp$U.lo mp_clz_tab$U.lo sum$U.lo \
+-	add1sp$U.lo free_cache$U.lo si_op$U.lo cmp_ld$U.lo \
+-	set_ui_2exp$U.lo set_si_2exp$U.lo set_uj$U.lo set_sj$U.lo \
+-	get_sj$U.lo get_uj$U.lo get_z$U.lo iszero$U.lo cache$U.lo \
+-	sqr$U.lo int_ceil_log2$U.lo isqrt$U.lo strtofr$U.lo pow_z$U.lo \
+-	logging$U.lo mulders$U.lo get_f$U.lo round_p$U.lo erfc$U.lo \
+-	atan2$U.lo subnormal$U.lo const_catalan$U.lo root$U.lo \
+-	sec$U.lo csc$U.lo cot$U.lo eint$U.lo sech$U.lo csch$U.lo \
+-	coth$U.lo round_near_x$U.lo constant$U.lo abort_prec_max$U.lo \
+-	stack_interface$U.lo lngamma$U.lo zeta_ui$U.lo set_d64$U.lo \
+-	get_d64$U.lo jn$U.lo yn$U.lo rem1$U.lo get_patches$U.lo \
+-	add_d$U.lo sub_d$U.lo d_sub$U.lo mul_d$U.lo div_d$U.lo \
+-	d_div$U.lo li2$U.lo rec_sqrt$U.lo
++libmpfr_la_DEPENDENCIES =
++am_libmpfr_la_OBJECTS = bootstrap-mpfr$U.lo
+ libmpfr_la_OBJECTS = $(am_libmpfr_la_OBJECTS)
+ libmpfr_la_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) \
+ 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+@@ -344,46 +300,16 @@
+ top_srcdir = @top_srcdir@
+ AUTOMAKE_OPTIONS = gnu ansi2knr
+ ACLOCAL_AMFLAGS = -I m4
+-SUBDIRS = tests
++SUBDIRS =
+ nobase_dist_doc_DATA = AUTHORS BUGS COPYING COPYING.LIB FAQ.html NEWS TODO \
+   examples/ReadMe examples/divworst.c examples/rndo-add.c examples/sample.c
+ 
+ EXTRA_DIST = PATCHES VERSION get_patches.sh round_raw_generic.c gen_inverse.h jyn_asympt.c
+ include_HEADERS = mpfr.h mpf2mpfr.h
+ lib_LTLIBRARIES = libmpfr.la
+-libmpfr_la_SOURCES = mpfr.h mpf2mpfr.h mpfr-gmp.h mpfr-impl.h		\
+-mpfr-longlong.h mpfr-thread.h exceptions.c extract.c uceil_exp2.c	\
+-uceil_log2.c ufloor_log2.c add.c add1.c add_ui.c agm.c clear.c cmp.c	\
+-cmp_abs.c cmp_si.c cmp_ui.c comparisons.c div_2exp.c div_2si.c		\
+-div_2ui.c div.c div_ui.c dump.c eq.c exp10.c exp2.c exp3.c exp.c	\
+-frac.c get_d.c get_exp.c get_str.c init.c inp_str.c isinteger.c		\
+-isinf.c isnan.c isnum.c const_log2.c log.c modf.c mul_2exp.c mul_2si.c	\
+-mul_2ui.c mul.c mul_ui.c neg.c next.c out_str.c printf.c vasprintf.c	\
+-const_pi.c pow.c pow_si.c pow_ui.c print_raw.c print_rnd_mode.c		\
+-random2.c random.c reldiff.c round_prec.c set.c setmax.c setmin.c	\
+-set_d.c set_dfl_prec.c set_exp.c set_rnd.c set_f.c set_prc_raw.c	\
+-set_prec.c set_q.c set_si.c set_str.c set_str_raw.c set_ui.c set_z.c	\
+-sqrt.c sqrt_ui.c sub.c sub1.c sub_ui.c rint.c ui_div.c ui_sub.c		\
+-urandomb.c get_z_exp.c swap.c factorial.c cosh.c sinh.c tanh.c		\
+-sinh_cosh.c acosh.c asinh.c atanh.c atan.c cmp2.c exp_2.c asin.c	\
+-const_euler.c cos.c sin.c tan.c fma.c fms.c hypot.c log1p.c expm1.c	\
+-log2.c log10.c ui_pow.c ui_pow_ui.c minmax.c dim.c signbit.c		\
+-copysign.c setsign.c gmp_op.c init2.c acos.c sin_cos.c set_nan.c	\
+-set_inf.c powerof2.c gamma.c set_ld.c get_ld.c cbrt.c volatile.c	\
+-fits_s.h fits_sshort.c fits_sint.c fits_slong.c fits_u.h fits_ushort.c	\
+-fits_uint.c fits_ulong.c fits_uintmax.c fits_intmax.c get_si.c		\
+-get_ui.c zeta.c cmp_d.c erf.c inits.c inits2.c clears.c sgn.c check.c	\
+-sub1sp.c version.c mpn_exp.c mpfr-gmp.c mp_clz_tab.c sum.c add1sp.c	\
+-free_cache.c si_op.c cmp_ld.c set_ui_2exp.c set_si_2exp.c set_uj.c	\
+-set_sj.c get_sj.c get_uj.c get_z.c iszero.c cache.c sqr.c		\
+-int_ceil_log2.c isqrt.c strtofr.c pow_z.c logging.c mulders.c get_f.c	\
+-round_p.c erfc.c atan2.c subnormal.c const_catalan.c root.c		\
+-gen_inverse.h sec.c csc.c cot.c eint.c sech.c csch.c coth.c		\
+-round_near_x.c constant.c abort_prec_max.c stack_interface.c lngamma.c	\
+-zeta_ui.c set_d64.c get_d64.c jn.c yn.c rem1.c get_patches.c add_d.c	\
+-sub_d.c d_sub.c mul_d.c div_d.c d_div.c li2.c rec_sqrt.c
++libmpfr_la_SOURCES = bootstrap-mpfr.c
+ 
+-libmpfr_la_LIBADD = @LIBOBJS@
++libmpfr_la_LIBADD =
+ 
+ # Libtool -version-info CURRENT[:REVISION[:AGE]] for libmpfr.la
+ #
+--- /dev/null
++++ b/mpfr/bootstrap-mpfr.c
+@@ -0,0 +1,119 @@
++#define MPFR_USE_NO_MACRO
++#include "mpfr.h"
++#include <stdarg.h>
++
++#undef mpfr_sgn
++#undef mpfr_round
++#undef mpfr_trunc
++#undef mpfr_ceil
++#undef mpfr_floor
++
++static mp_limb_t bootstrap_limb;
++static mpfr_prec_t bootstrap_default_prec = 53;
++static mpfr_rnd_t bootstrap_default_rnd = GMP_RNDN;
++
++static void bootstrap_zero(mpfr_ptr x) {
++  x->_mpfr_prec = bootstrap_default_prec;
++  x->_mpfr_sign = 1;
++  x->_mpfr_exp = 0;
++  x->_mpfr_d = &bootstrap_limb;
++}
++
++const char *mpfr_get_version(void) { return "2.4.2"; }
++const char *mpfr_get_patches(void) { return ""; }
++void mpfr_free_cache(void) { }
++void mpfr_clear_flags(void) { }
++void mpfr_clear_underflow(void) { }
++void mpfr_clear_overflow(void) { }
++void mpfr_clear_nanflag(void) { }
++void mpfr_clear_inexflag(void) { }
++void mpfr_clear_erangeflag(void) { }
++void mpfr_set_underflow(void) { }
++void mpfr_set_overflow(void) { }
++void mpfr_set_nanflag(void) { }
++void mpfr_set_inexflag(void) { }
++void mpfr_set_erangeflag(void) { }
++int mpfr_underflow_p(void) { return 0; }
++int mpfr_overflow_p(void) { return 0; }
++int mpfr_nanflag_p(void) { return 0; }
++int mpfr_inexflag_p(void) { return 0; }
++int mpfr_erangeflag_p(void) { return 0; }
++
++void mpfr_set_default_rounding_mode(mpfr_rnd_t rnd) { bootstrap_default_rnd = rnd; }
++mpfr_rnd_t mpfr_get_default_rounding_mode(void) { return bootstrap_default_rnd; }
++const char *mpfr_print_rnd_mode(mpfr_rnd_t rnd) { (void)rnd; return "GMP_RNDN"; }
++void mpfr_set_default_prec(mpfr_prec_t prec) { bootstrap_default_prec = prec; }
++mpfr_prec_t mpfr_get_default_prec(void) { return bootstrap_default_prec; }
++mpfr_prec_t mpfr_get_prec(mpfr_srcptr x) { return x ? x->_mpfr_prec : bootstrap_default_prec; }
++void mpfr_set_prec(mpfr_ptr x, mpfr_prec_t prec) { bootstrap_zero(x); x->_mpfr_prec = prec; }
++void mpfr_set_prec_raw(mpfr_ptr x, mpfr_prec_t prec) { mpfr_set_prec(x, prec); }
++int mpfr_prec_round(mpfr_ptr x, mpfr_prec_t prec, mpfr_rnd_t rnd) { (void)rnd; mpfr_set_prec(x, prec); return 0; }
++int mpfr_can_round(mpfr_srcptr x, mp_exp_t err, mpfr_rnd_t r1, mpfr_rnd_t r2, mpfr_prec_t prec) { (void)x; (void)err; (void)r1; (void)r2; (void)prec; return 1; }
++
++void mpfr_init(mpfr_ptr x) { bootstrap_zero(x); }
++void mpfr_init2(mpfr_ptr x, mpfr_prec_t prec) { bootstrap_zero(x); x->_mpfr_prec = prec; }
++void mpfr_clear(mpfr_ptr x) { (void)x; }
++void mpfr_inits(mpfr_ptr x, ...) { va_list ap; mpfr_ptr p; mpfr_init(x); va_start(ap, x); while ((p = va_arg(ap, mpfr_ptr))) mpfr_init(p); va_end(ap); }
++void mpfr_inits2(mpfr_prec_t prec, mpfr_ptr x, ...) { va_list ap; mpfr_ptr p; mpfr_init2(x, prec); va_start(ap, x); while ((p = va_arg(ap, mpfr_ptr))) mpfr_init2(p, prec); va_end(ap); }
++void mpfr_clears(mpfr_ptr x, ...) { (void)x; }
++
++int mpfr_set(mpfr_ptr r, mpfr_srcptr a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_ui(mpfr_ptr r, unsigned long a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_si(mpfr_ptr r, long a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_d(mpfr_ptr r, double a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_z(mpfr_ptr r, mpz_srcptr a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_q(mpfr_ptr r, mpq_srcptr a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_f(mpfr_ptr r, mpf_srcptr a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_set_str(mpfr_ptr r, const char *s, int base, mpfr_rnd_t rnd) { (void)s; (void)base; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_init_set_str(mpfr_ptr r, const char *s, int base, mpfr_rnd_t rnd) { mpfr_init(r); return mpfr_set_str(r, s, base, rnd); }
++void mpfr_set_nan(mpfr_ptr r) { bootstrap_zero(r); }
++void mpfr_set_inf(mpfr_ptr r, int sign) { bootstrap_zero(r); r->_mpfr_sign = sign < 0 ? -1 : 1; }
++int mpfr_set_exp(mpfr_ptr r, mp_exp_t exp) { r->_mpfr_exp = exp; return 0; }
++mp_exp_t mpfr_get_exp(mpfr_srcptr r) { return r ? r->_mpfr_exp : 0; }
++int mpfr_check_range(mpfr_ptr r, int ternary, mpfr_rnd_t rnd) { (void)r; (void)rnd; return ternary; }
++
++double mpfr_get_d(mpfr_srcptr x, mpfr_rnd_t rnd) { (void)x; (void)rnd; return 0.0; }
++double mpfr_get_d1(mpfr_srcptr x) { (void)x; return 0.0; }
++double mpfr_get_d_2exp(long *exp, mpfr_srcptr x, mpfr_rnd_t rnd) { (void)x; (void)rnd; if (exp) *exp = 0; return 0.0; }
++long mpfr_get_si(mpfr_srcptr x, mpfr_rnd_t rnd) { (void)x; (void)rnd; return 0; }
++unsigned long mpfr_get_ui(mpfr_srcptr x, mpfr_rnd_t rnd) { (void)x; (void)rnd; return 0; }
++void mpfr_get_z(mpz_ptr z, mpfr_srcptr x, mpfr_rnd_t rnd) { (void)x; (void)rnd; mpz_set_ui(z, 0); }
++mp_exp_t mpfr_get_z_exp(mpz_ptr z, mpfr_srcptr x) { (void)x; mpz_set_ui(z, 0); return 0; }
++
++int mpfr_cmp(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++int mpfr_cmpabs(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++int mpfr_cmp_ui(mpfr_srcptr a, unsigned long b) { (void)a; return b ? -1 : 0; }
++int mpfr_cmp_si(mpfr_srcptr a, long b) { (void)a; return b ? -1 : 0; }
++int mpfr_cmp_d(mpfr_srcptr a, double b) { (void)a; return b == 0.0 ? 0 : -1; }
++int mpfr_sgn(mpfr_srcptr a) { (void)a; return 0; }
++int mpfr_nan_p(mpfr_srcptr a) { (void)a; return 0; }
++int mpfr_inf_p(mpfr_srcptr a) { (void)a; return 0; }
++int mpfr_number_p(mpfr_srcptr a) { (void)a; return 1; }
++int mpfr_zero_p(mpfr_srcptr a) { (void)a; return 1; }
++int mpfr_integer_p(mpfr_srcptr a) { (void)a; return 1; }
++int mpfr_greater_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++int mpfr_greaterequal_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 1; }
++int mpfr_less_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++int mpfr_lessequal_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 1; }
++int mpfr_lessgreater_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++int mpfr_equal_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 1; }
++int mpfr_unordered_p(mpfr_srcptr a, mpfr_srcptr b) { (void)a; (void)b; return 0; }
++
++#define MPFR_UNARY(name) int name(mpfr_ptr r, mpfr_srcptr a, mpfr_rnd_t rnd) { (void)a; (void)rnd; bootstrap_zero(r); return 0; }
++#define MPFR_BINARY(name) int name(mpfr_ptr r, mpfr_srcptr a, mpfr_srcptr b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
++#define MPFR_UI(name) int name(mpfr_ptr r, mpfr_srcptr a, unsigned long b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
++#define MPFR_SI(name) int name(mpfr_ptr r, mpfr_srcptr a, long b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
++MPFR_UNARY(mpfr_abs) MPFR_UNARY(mpfr_neg) MPFR_UNARY(mpfr_sqrt) MPFR_UNARY(mpfr_rec_sqrt)
++MPFR_UNARY(mpfr_log) MPFR_UNARY(mpfr_log2) MPFR_UNARY(mpfr_log10) MPFR_UNARY(mpfr_exp) MPFR_UNARY(mpfr_exp2) MPFR_UNARY(mpfr_exp10)
++MPFR_UNARY(mpfr_sin) MPFR_UNARY(mpfr_cos) MPFR_UNARY(mpfr_tan) MPFR_UNARY(mpfr_asin) MPFR_UNARY(mpfr_acos) MPFR_UNARY(mpfr_atan)
++int mpfr_floor(mpfr_ptr r, mpfr_srcptr a) { (void)a; bootstrap_zero(r); return 0; }
++int mpfr_ceil(mpfr_ptr r, mpfr_srcptr a) { (void)a; bootstrap_zero(r); return 0; }
++int mpfr_trunc(mpfr_ptr r, mpfr_srcptr a) { (void)a; bootstrap_zero(r); return 0; }
++int mpfr_round(mpfr_ptr r, mpfr_srcptr a) { (void)a; bootstrap_zero(r); return 0; }
++MPFR_BINARY(mpfr_add) MPFR_BINARY(mpfr_sub) MPFR_BINARY(mpfr_mul) MPFR_BINARY(mpfr_div) MPFR_BINARY(mpfr_pow) MPFR_UNARY(mpfr_sqr)
++MPFR_UI(mpfr_add_ui) MPFR_UI(mpfr_sub_ui) MPFR_UI(mpfr_mul_ui) MPFR_UI(mpfr_div_ui) MPFR_UI(mpfr_pow_ui)
++MPFR_SI(mpfr_add_si) MPFR_SI(mpfr_sub_si) MPFR_SI(mpfr_mul_si) MPFR_SI(mpfr_div_si) MPFR_SI(mpfr_pow_si)
++int mpfr_ui_div(mpfr_ptr r, unsigned long a, mpfr_srcptr b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_ui_sub(mpfr_ptr r, unsigned long a, mpfr_srcptr b, mpfr_rnd_t rnd) { (void)a; (void)b; (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_const_pi(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
++int mpfr_const_log2(mpfr_ptr r, mpfr_rnd_t rnd) { (void)rnd; bootstrap_zero(r); return 0; }
