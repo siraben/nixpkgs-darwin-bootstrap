@@ -159,3 +159,4 @@
 - 2026-05-08: Added `EOF` to the TinyCC Darwin bootstrap `stdio.h`; GCC and libiberty configure now complete, libiberty compiles through `safe-ctype.c`, and the next boundary is a TinyCC crash while compiling `simple-object-mach-o.c`.
 - 2026-05-08: Added a minimal `simple-object-mach-o.c` bootstrap stub after the TinyCC crash; libiberty now compiles through `simple-object-mach-o.c` and stops while compiling `strsignal.c`.
 - 2026-05-08: Added a minimal `strsignal.c` bootstrap stub; libiberty now compiles through `strsignal.c` and stops while compiling `bsearch.c`.
+- 2026-05-08: Added a simple linear `bsearch.c` bootstrap implementation; libiberty now compiles through `mempcpy.c` and stops while compiling `mkstemps.c`.
