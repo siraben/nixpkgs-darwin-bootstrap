@@ -484,3 +484,18 @@
    free (obj);
  }
 +#endif
+--- a/libiberty/pex-unix.c
++++ b/libiberty/pex-unix.c
+@@ -1,3 +1,7 @@
++#if 1
++#include "pex-common.h"
++struct pex_obj *pex_init(int flags, const char *pname, const char *tempbase) { return pex_init_common(flags, pname, tempbase, 0); }
++#else
+ /* Utilities to execute a program in a subprocess (possibly linked by pipes
+    with other subprocesses), and wait for it.  Generic Unix version
+    (also used for UWIN and VMS).
+@@ -786,3 +790,4 @@
+     }
+ #endif
+ }
++#endif
