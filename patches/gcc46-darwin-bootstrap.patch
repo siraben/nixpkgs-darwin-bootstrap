@@ -4486,3 +4486,39 @@
  };
  #define NUM_RTX_CODE ARRAY_SIZE(defs)
  
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -3803,16 +3803,25 @@
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-gi.list gtyp-input.list
+ 	$(STAMP) s-gtyp-input
+ 
+-s-gtype: build/gengtype$(build_exeext) $(filter-out [%], $(GTFILES)) \
+-	 gtyp-input.list
+-# First, parse all files and save a state file.
+-	$(RUN_GEN) build/gengtype$(build_exeext) $(GENGTYPE_FLAGS) \
+-                    -S $(srcdir) -I gtyp-input.list -w gtype.state
+-# Second, read the state file and generate all files.  This ensure that
+-# gtype.state is correctly read:
+-	$(RUN_GEN) build/gengtype$(build_exeext) $(GENGTYPE_FLAGS) \
+-                    -r gtype.state
++s-gtype: gtyp-input.list
++	echo '/* Bootstrap stub generated without gengtype. */' > gtype-desc.h
++	echo '#ifndef GCC_GTYPE_DESC_H' >> gtype-desc.h
++	echo '#define GCC_GTYPE_DESC_H' >> gtype-desc.h
++	echo 'enum gt_types_enum { gt_types_enum_last };' >> gtype-desc.h
++	echo '#endif' >> gtype-desc.h
++	echo '/* Bootstrap stub generated without gengtype. */' > gtype-desc.c
++	echo '#include "config.h"' >> gtype-desc.c
++	echo '#include "system.h"' >> gtype-desc.c
++	echo '#include "coretypes.h"' >> gtype-desc.c
++	echo '#include "tm.h"' >> gtype-desc.c
++	echo '#include "ggc.h"' >> gtype-desc.c
++	echo 'const struct ggc_root_tab * const gt_ggc_rtab[] = { 0 };' >> gtype-desc.c
++	echo 'const struct ggc_root_tab * const gt_ggc_deletable_rtab[] = { 0 };' >> gtype-desc.c
++	echo 'const struct ggc_root_tab * const gt_pch_cache_rtab[] = { 0 };' >> gtype-desc.c
++	echo 'const struct ggc_root_tab * const gt_pch_scalar_rtab[] = { 0 };' >> gtype-desc.c
++	echo 'const struct ggc_cache_tab * const gt_ggc_cache_rtab[] = { 0 };' >> gtype-desc.c
++	for f in $(ALL_GTFILES_H); do echo '/* Bootstrap stub generated without gengtype. */' > $$f; done
+ 	$(STAMP) s-gtype
+ 
+ generated_files = config.h tm.h $(TM_P_H) $(TM_H) multilib.h \
