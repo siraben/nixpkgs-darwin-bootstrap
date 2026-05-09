@@ -1770,6 +1770,244 @@
 +  print ""
 +  print "#endif /* GCC_INSN_CONSTANTS_H */"
 +}
+--- a/gcc/genmodes.c
++++ b/gcc/genmodes.c
+@@ -25,20 +25,22 @@
+ 
+ /* enum mode_class is normally defined by machmode.h but we can't
+    include that header here.  */
+-#include "mode-classes.def"
+-
+-#define DEF_MODE_CLASS(M) M
+-enum mode_class { MODE_CLASSES, MAX_MODE_CLASS };
+-#undef DEF_MODE_CLASS
++enum mode_class { MODE_RANDOM, MODE_CC, MODE_INT, MODE_PARTIAL_INT,
++  MODE_FRACT, MODE_UFRACT, MODE_ACCUM, MODE_UACCUM, MODE_FLOAT,
++  MODE_DECIMAL_FLOAT, MODE_COMPLEX_INT, MODE_COMPLEX_FLOAT,
++  MODE_VECTOR_INT, MODE_VECTOR_FRACT, MODE_VECTOR_UFRACT,
++  MODE_VECTOR_ACCUM, MODE_VECTOR_UACCUM, MODE_VECTOR_FLOAT,
++  MAX_MODE_CLASS };
+ 
+ /* Text names of mode classes, for output.  */
+-#define DEF_MODE_CLASS(M) #M
+ static const char *const mode_class_names[MAX_MODE_CLASS] =
+ {
+-  MODE_CLASSES
++  "MODE_RANDOM", "MODE_CC", "MODE_INT", "MODE_PARTIAL_INT",
++  "MODE_FRACT", "MODE_UFRACT", "MODE_ACCUM", "MODE_UACCUM", "MODE_FLOAT",
++  "MODE_DECIMAL_FLOAT", "MODE_COMPLEX_INT", "MODE_COMPLEX_FLOAT",
++  "MODE_VECTOR_INT", "MODE_VECTOR_FRACT", "MODE_VECTOR_UFRACT",
++  "MODE_VECTOR_ACCUM", "MODE_VECTOR_UACCUM", "MODE_VECTOR_FLOAT"
+ };
+-#undef DEF_MODE_CLASS
+-#undef MODE_CLASSES
+ 
+ #ifdef EXTRA_MODES_FILE
+ # define HAVE_EXTRA_MODES 1
+--- a/gcc/machmode.h
++++ b/gcc/machmode.h
+@@ -31,11 +31,11 @@
+ 
+ /* Mode classes.  */
+ 
+-#include "mode-classes.def"
+-#define DEF_MODE_CLASS(M) M
+-enum mode_class { MODE_CLASSES, MAX_MODE_CLASS };
+-#undef DEF_MODE_CLASS
+-#undef MODE_CLASSES
++enum mode_class { MODE_RANDOM, MODE_CC, MODE_INT, MODE_PARTIAL_INT,
++  MODE_FRACT, MODE_UFRACT, MODE_ACCUM, MODE_UACCUM, MODE_FLOAT,
++  MODE_DECIMAL_FLOAT, MODE_COMPLEX_INT, MODE_COMPLEX_FLOAT,
++  MODE_VECTOR_INT, MODE_VECTOR_FRACT, MODE_VECTOR_UFRACT,
++  MODE_VECTOR_ACCUM, MODE_VECTOR_UACCUM, MODE_VECTOR_FLOAT, MAX_MODE_CLASS };
+ 
+ /* Get the general kind of object that mode MODE represents
+    (integer, floating, complex, etc.)  */
+--- a/gcc/genmodes.c
++++ b/gcc/genmodes.c
+@@ -720,7 +720,73 @@
+ static void
+ create_modes (void)
+ {
+-#include "machmode.def"
++  RANDOM_MODE (VOID);
++  RANDOM_MODE (BLK);
++  FRACTIONAL_INT_MODE (BI, 1, 1);
++  INT_MODE (QI, 1);
++  INT_MODE (HI, 2);
++  INT_MODE (SI, 4);
++  INT_MODE (DI, 8);
++  INT_MODE (TI, 16);
++  FLOAT_MODE (SF, 4, ieee_single_format);
++  FLOAT_MODE (DF, 8, ieee_double_format);
++  CC_MODE (CC);
++  FRACT_MODE (QQ, 1, 7);
++  FRACT_MODE (HQ, 2, 15);
++  FRACT_MODE (SQ, 4, 31);
++  FRACT_MODE (DQ, 8, 63);
++  FRACT_MODE (TQ, 16, 127);
++  UFRACT_MODE (UQQ, 1, 8);
++  UFRACT_MODE (UHQ, 2, 16);
++  UFRACT_MODE (USQ, 4, 32);
++  UFRACT_MODE (UDQ, 8, 64);
++  UFRACT_MODE (UTQ, 16, 128);
++  ACCUM_MODE (HA, 2, 8, 7);
++  ACCUM_MODE (SA, 4, 16, 15);
++  ACCUM_MODE (DA, 8, 32, 31);
++  ACCUM_MODE (TA, 16, 64, 63);
++  UACCUM_MODE (UHA, 2, 8, 8);
++  UACCUM_MODE (USA, 4, 16, 16);
++  UACCUM_MODE (UDA, 8, 32, 32);
++  UACCUM_MODE (UTA, 16, 64, 64);
++  FRACTIONAL_FLOAT_MODE (XF, 80, 12, ieee_extended_intel_96_format);
++  FLOAT_MODE (TF, 16, ieee_quad_format);
++  ADJUST_FLOAT_FORMAT (XF, (TARGET_128BIT_LONG_DOUBLE
++    ? &ieee_extended_intel_128_format
++    : TARGET_96_ROUND_53_LONG_DOUBLE
++    ? &ieee_extended_intel_96_round_53_format
++    : &ieee_extended_intel_96_format));
++  ADJUST_BYTESIZE (XF, TARGET_128BIT_LONG_DOUBLE ? 16 : 12);
++  ADJUST_ALIGNMENT (XF, TARGET_128BIT_LONG_DOUBLE ? 16 : 4);
++  CC_MODE (CCGC);
++  CC_MODE (CCGOC);
++  CC_MODE (CCNO);
++  CC_MODE (CCA);
++  CC_MODE (CCC);
++  CC_MODE (CCO);
++  CC_MODE (CCS);
++  CC_MODE (CCZ);
++  CC_MODE (CCFP);
++  CC_MODE (CCFPU);
++  VECTOR_MODES (INT, 4);
++  VECTOR_MODES (INT, 8);
++  VECTOR_MODES (INT, 16);
++  VECTOR_MODES (INT, 32);
++  VECTOR_MODES (INT, 64);
++  VECTOR_MODES (FLOAT, 8);
++  VECTOR_MODES (FLOAT, 16);
++  VECTOR_MODES (FLOAT, 32);
++  VECTOR_MODES (FLOAT, 64);
++  VECTOR_MODE (INT, TI, 1);
++  VECTOR_MODE (INT, DI, 1);
++  VECTOR_MODE (INT, SI, 1);
++  VECTOR_MODE (INT, QI, 2);
++  INT_MODE (OI, 32);
++  COMPLEX_MODES (INT);
++  COMPLEX_MODES (FLOAT);
++  DECIMAL_FLOAT_MODE (SD, 4, decimal_single_format);
++  DECIMAL_FLOAT_MODE (DD, 8, decimal_double_format);
++  DECIMAL_FLOAT_MODE (TD, 16, decimal_quad_format);
+ }
+ 
+ /* Processing.  */
+--- a/gcc/genmodes.c
++++ b/gcc/genmodes.c
+@@ -89,7 +89,6 @@
+   "<unknown>", 0, 0, 0, 0
+ };
+ 
+-static htab_t modes_by_name;
+ 
+ /* Data structure for recording target-specified runtime adjustments
+    to a particular mode.  We support varying the byte size, the
+@@ -145,10 +144,25 @@
++static int
++bootstrap_streq (const char *a, const char *b)
++{
++  while (*a && *a == *b)
++    {
++      a++;
++      b++;
++    }
++  return *a == *b;
++}
++
+ static inline struct mode_data *
+ find_mode (const char *name)
+ {
+-  struct mode_data key;
++  enum mode_class cl;
++  struct mode_data *m;
+ 
+-  key.name = name;
+-  return (struct mode_data *) htab_find (modes_by_name, &key);
++  for (cl = 0; cl < MAX_MODE_CLASS; cl++)
++    for (m = modes[cl]; m; m = m->next)
++      if (bootstrap_streq (m->name, name))
++        return m;
++  return 0;
+ }
+ 
+ static struct mode_data *
+@@ -180,7 +183,6 @@
+   modes[cl] = m;
+   n_modes[cl]++;
+ 
+-  *htab_find_slot (modes_by_name, m, INSERT) = m;
+ 
+   return m;
+ }
+@@ -1458,7 +1460,6 @@
+       return FATAL_EXIT_CODE;
+     }
+ 
+-  modes_by_name = htab_create_alloc (64, hash_mode, eq_mode, 0, xcalloc, free);
+ 
+   create_modes ();
+   complete_all_modes ();
+--- a/gcc/mode-classes.def
++++ b/gcc/mode-classes.def
+@@ -18,22 +18,31 @@
+ along with GCC; see the file COPYING3.  If not see
+ <http://www.gnu.org/licenses/>.  */
+ 
+-#define MODE_CLASSES							   \
+-  DEF_MODE_CLASS (MODE_RANDOM),		/* other */			   \
+-  DEF_MODE_CLASS (MODE_CC),		/* condition code in a register */ \
+-  DEF_MODE_CLASS (MODE_INT),		/* integer */			   \
+-  DEF_MODE_CLASS (MODE_PARTIAL_INT),	/* integer with padding bits */    \
+-  DEF_MODE_CLASS (MODE_FRACT),		/* signed fractional number */	   \
+-  DEF_MODE_CLASS (MODE_UFRACT),		/* unsigned fractional number */   \
+-  DEF_MODE_CLASS (MODE_ACCUM),		/* signed accumulator */	   \
+-  DEF_MODE_CLASS (MODE_UACCUM),		/* unsigned accumulator */	   \
+-  DEF_MODE_CLASS (MODE_FLOAT),		/* floating point */		   \
+-  DEF_MODE_CLASS (MODE_DECIMAL_FLOAT),	/* decimal floating point */	   \
+-  DEF_MODE_CLASS (MODE_COMPLEX_INT), 	/* complex numbers */		   \
+-  DEF_MODE_CLASS (MODE_COMPLEX_FLOAT),					   \
+-  DEF_MODE_CLASS (MODE_VECTOR_INT),	/* SIMD vectors */		   \
+-  DEF_MODE_CLASS (MODE_VECTOR_FRACT),	/* SIMD vectors */		   \
+-  DEF_MODE_CLASS (MODE_VECTOR_UFRACT),	/* SIMD vectors */		   \
+-  DEF_MODE_CLASS (MODE_VECTOR_ACCUM),	/* SIMD vectors */		   \
+-  DEF_MODE_CLASS (MODE_VECTOR_UACCUM),	/* SIMD vectors */		   \
+-  DEF_MODE_CLASS (MODE_VECTOR_FLOAT)
++#define MC_RANDOM DEF_MODE_CLASS (MODE_RANDOM)
++#define MC_CC DEF_MODE_CLASS (MODE_CC)
++#define MC_INT DEF_MODE_CLASS (MODE_INT)
++#define MC_PARTIAL_INT DEF_MODE_CLASS (MODE_PARTIAL_INT)
++#define MC_FRACT DEF_MODE_CLASS (MODE_FRACT)
++#define MC_UFRACT DEF_MODE_CLASS (MODE_UFRACT)
++#define MC_ACCUM DEF_MODE_CLASS (MODE_ACCUM)
++#define MC_UACCUM DEF_MODE_CLASS (MODE_UACCUM)
++#define MC_FLOAT DEF_MODE_CLASS (MODE_FLOAT)
++#define MC_DECIMAL_FLOAT DEF_MODE_CLASS (MODE_DECIMAL_FLOAT)
++#define MC_COMPLEX_INT DEF_MODE_CLASS (MODE_COMPLEX_INT)
++#define MC_COMPLEX_FLOAT DEF_MODE_CLASS (MODE_COMPLEX_FLOAT)
++#define MC_VECTOR_INT DEF_MODE_CLASS (MODE_VECTOR_INT)
++#define MC_VECTOR_FRACT DEF_MODE_CLASS (MODE_VECTOR_FRACT)
++#define MC_VECTOR_UFRACT DEF_MODE_CLASS (MODE_VECTOR_UFRACT)
++#define MC_VECTOR_ACCUM DEF_MODE_CLASS (MODE_VECTOR_ACCUM)
++#define MC_VECTOR_UACCUM DEF_MODE_CLASS (MODE_VECTOR_UACCUM)
++#define MC_VECTOR_FLOAT DEF_MODE_CLASS (MODE_VECTOR_FLOAT)
++#define MODE_CLASSES_A MC_RANDOM, MC_CC, MC_INT
++#define MODE_CLASSES_B MC_PARTIAL_INT, MC_FRACT, MC_UFRACT
++#define MODE_CLASSES_C MC_ACCUM, MC_UACCUM, MC_FLOAT
++#define MODE_CLASSES_D MC_DECIMAL_FLOAT, MC_COMPLEX_INT, MC_COMPLEX_FLOAT
++#define MODE_CLASSES_E MC_VECTOR_INT, MC_VECTOR_FRACT, MC_VECTOR_UFRACT
++#define MODE_CLASSES_F MC_VECTOR_ACCUM, MC_VECTOR_UACCUM, MC_VECTOR_FLOAT
++#define MODE_CLASSES_AB MODE_CLASSES_A, MODE_CLASSES_B
++#define MODE_CLASSES_CD MODE_CLASSES_C, MODE_CLASSES_D
++#define MODE_CLASSES_EF MODE_CLASSES_E, MODE_CLASSES_F
++#define MODE_CLASSES MODE_CLASSES_AB, MODE_CLASSES_CD, MODE_CLASSES_EF
 --- a/libdecnumber/configure
 +++ b/libdecnumber/configure
 @@ -3912,6 +3912,14 @@
@@ -1936,3 +2174,1753 @@
 +int ZEXPORT gzclose(gzFile file) { (void)file; return Z_OK; }
 +const char * ZEXPORT gzerror(gzFile file, int *errnum) { (void)file; if (errnum) *errnum = Z_STREAM_ERROR; return bootstrap_zlib_error; }
 +void ZEXPORT gzclearerr(gzFile file) { (void)file; }
+--- a/gcc/Makefile.in	2026-05-09 01:57:29.454137375 -0700
++++ b/gcc/Makefile.in	2026-05-09 01:57:29.483274555 -0700
+@@ -3644,18 +3644,18 @@
+ insn-modes.h: s-modes-h; @true
+ min-insn-modes.c: s-modes-m; @true
+ 
+-s-modes: build/genmodes$(build_exeext)
+-	$(RUN_GEN) build/genmodes$(build_exeext) > tmp-modes.c
++s-modes:
++	cp $(srcdir)/bootstrap-insn-modes.c tmp-modes.c
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-modes.c insn-modes.c
+ 	$(STAMP) s-modes
+ 
+-s-modes-h: build/genmodes$(build_exeext)
+-	$(RUN_GEN) build/genmodes$(build_exeext) -h > tmp-modes.h
++s-modes-h:
++	cp $(srcdir)/bootstrap-insn-modes.h tmp-modes.h
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-modes.h insn-modes.h
+ 	$(STAMP) s-modes-h
+ 
+-s-modes-m: build/genmodes$(build_exeext)
+-	$(RUN_GEN) build/genmodes$(build_exeext) -m > tmp-min-modes.c
++s-modes-m:
++	cp $(srcdir)/bootstrap-min-insn-modes.c tmp-min-modes.c
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-min-modes.c min-insn-modes.c
+ 	$(STAMP) s-modes-m
+ 
+--- /dev/null	2026-05-09 01:57:28.352808000 -0700
++++ b/gcc/bootstrap-insn-modes.h	2026-05-09 01:57:29.489186000 -0700
+@@ -0,0 +1,160 @@
++/* Generated automatically from machmode.def
++   by genmodes.  */
++
++#ifndef GCC_INSN_MODES_H
++#define GCC_INSN_MODES_H
++
++enum machine_mode
++{
++  VOIDmode,                /* machmode.def:736 */
++  BLKmode,                 /* machmode.def:737 */
++  CCmode,                  /* machmode.def:746 */
++  CCGCmode,                /* machmode.def:774 */
++  CCGOCmode,               /* machmode.def:775 */
++  CCNOmode,                /* machmode.def:776 */
++  CCAmode,                 /* machmode.def:777 */
++  CCCmode,                 /* machmode.def:778 */
++  CCOmode,                 /* machmode.def:779 */
++  CCSmode,                 /* machmode.def:780 */
++  CCZmode,                 /* machmode.def:781 */
++  CCFPmode,                /* machmode.def:782 */
++  CCFPUmode,               /* machmode.def:783 */
++  BImode,                  /* machmode.def:738 */
++  QImode,                  /* machmode.def:739 */
++  HImode,                  /* machmode.def:740 */
++  SImode,                  /* machmode.def:741 */
++  DImode,                  /* machmode.def:742 */
++  TImode,                  /* machmode.def:743 */
++  OImode,                  /* machmode.def:797 */
++  QQmode,                  /* machmode.def:747 */
++  HQmode,                  /* machmode.def:748 */
++  SQmode,                  /* machmode.def:749 */
++  DQmode,                  /* machmode.def:750 */
++  TQmode,                  /* machmode.def:751 */
++  UQQmode,                 /* machmode.def:752 */
++  UHQmode,                 /* machmode.def:753 */
++  USQmode,                 /* machmode.def:754 */
++  UDQmode,                 /* machmode.def:755 */
++  UTQmode,                 /* machmode.def:756 */
++  HAmode,                  /* machmode.def:757 */
++  SAmode,                  /* machmode.def:758 */
++  DAmode,                  /* machmode.def:759 */
++  TAmode,                  /* machmode.def:760 */
++  UHAmode,                 /* machmode.def:761 */
++  USAmode,                 /* machmode.def:762 */
++  UDAmode,                 /* machmode.def:763 */
++  UTAmode,                 /* machmode.def:764 */
++  SFmode,                  /* machmode.def:744 */
++  DFmode,                  /* machmode.def:745 */
++  XFmode,                  /* machmode.def:765 */
++  TFmode,                  /* machmode.def:766 */
++  SDmode,                  /* machmode.def:800 */
++  DDmode,                  /* machmode.def:801 */
++  TDmode,                  /* machmode.def:802 */
++  CQImode,                 /* machmode.def:798 */
++  CHImode,                 /* machmode.def:798 */
++  CSImode,                 /* machmode.def:798 */
++  CDImode,                 /* machmode.def:798 */
++  CTImode,                 /* machmode.def:798 */
++  COImode,                 /* machmode.def:798 */
++  SCmode,                  /* machmode.def:799 */
++  DCmode,                  /* machmode.def:799 */
++  XCmode,                  /* machmode.def:799 */
++  TCmode,                  /* machmode.def:799 */
++  V2QImode,                /* machmode.def:796 */
++  V4QImode,                /* machmode.def:784 */
++  V2HImode,                /* machmode.def:784 */
++  V1SImode,                /* machmode.def:795 */
++  V8QImode,                /* machmode.def:785 */
++  V4HImode,                /* machmode.def:785 */
++  V2SImode,                /* machmode.def:785 */
++  V1DImode,                /* machmode.def:794 */
++  V16QImode,               /* machmode.def:786 */
++  V8HImode,                /* machmode.def:786 */
++  V4SImode,                /* machmode.def:786 */
++  V2DImode,                /* machmode.def:786 */
++  V1TImode,                /* machmode.def:793 */
++  V32QImode,               /* machmode.def:787 */
++  V16HImode,               /* machmode.def:787 */
++  V8SImode,                /* machmode.def:787 */
++  V4DImode,                /* machmode.def:787 */
++  V2TImode,                /* machmode.def:787 */
++  V64QImode,               /* machmode.def:788 */
++  V32HImode,               /* machmode.def:788 */
++  V16SImode,               /* machmode.def:788 */
++  V8DImode,                /* machmode.def:788 */
++  V4TImode,                /* machmode.def:788 */
++  V2SFmode,                /* machmode.def:789 */
++  V4SFmode,                /* machmode.def:790 */
++  V2DFmode,                /* machmode.def:790 */
++  V8SFmode,                /* machmode.def:791 */
++  V4DFmode,                /* machmode.def:791 */
++  V2TFmode,                /* machmode.def:791 */
++  V16SFmode,               /* machmode.def:792 */
++  V8DFmode,                /* machmode.def:792 */
++  V4TFmode,                /* machmode.def:792 */
++  MAX_MACHINE_MODE,
++
++  MIN_MODE_RANDOM = VOIDmode,
++  MAX_MODE_RANDOM = BLKmode,
++
++  MIN_MODE_CC = CCmode,
++  MAX_MODE_CC = CCFPUmode,
++
++  MIN_MODE_INT = QImode,
++  MAX_MODE_INT = OImode,
++
++  MIN_MODE_PARTIAL_INT = VOIDmode,
++  MAX_MODE_PARTIAL_INT = VOIDmode,
++
++  MIN_MODE_FRACT = QQmode,
++  MAX_MODE_FRACT = TQmode,
++
++  MIN_MODE_UFRACT = UQQmode,
++  MAX_MODE_UFRACT = UTQmode,
++
++  MIN_MODE_ACCUM = HAmode,
++  MAX_MODE_ACCUM = TAmode,
++
++  MIN_MODE_UACCUM = UHAmode,
++  MAX_MODE_UACCUM = UTAmode,
++
++  MIN_MODE_FLOAT = SFmode,
++  MAX_MODE_FLOAT = TFmode,
++
++  MIN_MODE_DECIMAL_FLOAT = SDmode,
++  MAX_MODE_DECIMAL_FLOAT = TDmode,
++
++  MIN_MODE_COMPLEX_INT = CQImode,
++  MAX_MODE_COMPLEX_INT = COImode,
++
++  MIN_MODE_COMPLEX_FLOAT = SCmode,
++  MAX_MODE_COMPLEX_FLOAT = TCmode,
++
++  MIN_MODE_VECTOR_INT = V2QImode,
++  MAX_MODE_VECTOR_INT = V4TImode,
++
++  MIN_MODE_VECTOR_FRACT = VOIDmode,
++  MAX_MODE_VECTOR_FRACT = VOIDmode,
++
++  MIN_MODE_VECTOR_UFRACT = VOIDmode,
++  MAX_MODE_VECTOR_UFRACT = VOIDmode,
++
++  MIN_MODE_VECTOR_ACCUM = VOIDmode,
++  MAX_MODE_VECTOR_ACCUM = VOIDmode,
++
++  MIN_MODE_VECTOR_UACCUM = VOIDmode,
++  MAX_MODE_VECTOR_UACCUM = VOIDmode,
++
++  MIN_MODE_VECTOR_FLOAT = V2SFmode,
++  MAX_MODE_VECTOR_FLOAT = V4TFmode,
++
++  NUM_MACHINE_MODES = MAX_MACHINE_MODE
++};
++
++#define CONST_MODE_SIZE
++#define CONST_MODE_BASE_ALIGN
++#define CONST_MODE_IBIT const
++#define CONST_MODE_FBIT const
++
++#endif /* insn-modes.h */
+--- /dev/null	2026-05-09 01:57:28.352808000 -0700
++++ b/gcc/bootstrap-insn-modes.c	2026-05-09 01:57:29.492552000 -0700
+@@ -0,0 +1,1162 @@
++/* Generated automatically from machmode.def
++   by genmodes.  */
++
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "machmode.h"
++#include "real.h"
++
++const char *const mode_name[NUM_MACHINE_MODES] =
++{
++  "VOID",
++  "BLK",
++  "CC",
++  "CCGC",
++  "CCGOC",
++  "CCNO",
++  "CCA",
++  "CCC",
++  "CCO",
++  "CCS",
++  "CCZ",
++  "CCFP",
++  "CCFPU",
++  "BI",
++  "QI",
++  "HI",
++  "SI",
++  "DI",
++  "TI",
++  "OI",
++  "QQ",
++  "HQ",
++  "SQ",
++  "DQ",
++  "TQ",
++  "UQQ",
++  "UHQ",
++  "USQ",
++  "UDQ",
++  "UTQ",
++  "HA",
++  "SA",
++  "DA",
++  "TA",
++  "UHA",
++  "USA",
++  "UDA",
++  "UTA",
++  "SF",
++  "DF",
++  "XF",
++  "TF",
++  "SD",
++  "DD",
++  "TD",
++  "CQI",
++  "CHI",
++  "CSI",
++  "CDI",
++  "CTI",
++  "COI",
++  "SC",
++  "DC",
++  "XC",
++  "TC",
++  "V2QI",
++  "V4QI",
++  "V2HI",
++  "V1SI",
++  "V8QI",
++  "V4HI",
++  "V2SI",
++  "V1DI",
++  "V16QI",
++  "V8HI",
++  "V4SI",
++  "V2DI",
++  "V1TI",
++  "V32QI",
++  "V16HI",
++  "V8SI",
++  "V4DI",
++  "V2TI",
++  "V64QI",
++  "V32HI",
++  "V16SI",
++  "V8DI",
++  "V4TI",
++  "V2SF",
++  "V4SF",
++  "V2DF",
++  "V8SF",
++  "V4DF",
++  "V2TF",
++  "V16SF",
++  "V8DF",
++  "V4TF",
++};
++
++const unsigned char mode_class[NUM_MACHINE_MODES] =
++{
++  MODE_RANDOM,             /* VOID */
++  MODE_RANDOM,             /* BLK */
++  MODE_CC,                 /* CC */
++  MODE_CC,                 /* CCGC */
++  MODE_CC,                 /* CCGOC */
++  MODE_CC,                 /* CCNO */
++  MODE_CC,                 /* CCA */
++  MODE_CC,                 /* CCC */
++  MODE_CC,                 /* CCO */
++  MODE_CC,                 /* CCS */
++  MODE_CC,                 /* CCZ */
++  MODE_CC,                 /* CCFP */
++  MODE_CC,                 /* CCFPU */
++  MODE_INT,                /* BI */
++  MODE_INT,                /* QI */
++  MODE_INT,                /* HI */
++  MODE_INT,                /* SI */
++  MODE_INT,                /* DI */
++  MODE_INT,                /* TI */
++  MODE_INT,                /* OI */
++  MODE_FRACT,              /* QQ */
++  MODE_FRACT,              /* HQ */
++  MODE_FRACT,              /* SQ */
++  MODE_FRACT,              /* DQ */
++  MODE_FRACT,              /* TQ */
++  MODE_UFRACT,             /* UQQ */
++  MODE_UFRACT,             /* UHQ */
++  MODE_UFRACT,             /* USQ */
++  MODE_UFRACT,             /* UDQ */
++  MODE_UFRACT,             /* UTQ */
++  MODE_ACCUM,              /* HA */
++  MODE_ACCUM,              /* SA */
++  MODE_ACCUM,              /* DA */
++  MODE_ACCUM,              /* TA */
++  MODE_UACCUM,             /* UHA */
++  MODE_UACCUM,             /* USA */
++  MODE_UACCUM,             /* UDA */
++  MODE_UACCUM,             /* UTA */
++  MODE_FLOAT,              /* SF */
++  MODE_FLOAT,              /* DF */
++  MODE_FLOAT,              /* XF */
++  MODE_FLOAT,              /* TF */
++  MODE_DECIMAL_FLOAT,      /* SD */
++  MODE_DECIMAL_FLOAT,      /* DD */
++  MODE_DECIMAL_FLOAT,      /* TD */
++  MODE_COMPLEX_INT,        /* CQI */
++  MODE_COMPLEX_INT,        /* CHI */
++  MODE_COMPLEX_INT,        /* CSI */
++  MODE_COMPLEX_INT,        /* CDI */
++  MODE_COMPLEX_INT,        /* CTI */
++  MODE_COMPLEX_INT,        /* COI */
++  MODE_COMPLEX_FLOAT,      /* SC */
++  MODE_COMPLEX_FLOAT,      /* DC */
++  MODE_COMPLEX_FLOAT,      /* XC */
++  MODE_COMPLEX_FLOAT,      /* TC */
++  MODE_VECTOR_INT,         /* V2QI */
++  MODE_VECTOR_INT,         /* V4QI */
++  MODE_VECTOR_INT,         /* V2HI */
++  MODE_VECTOR_INT,         /* V1SI */
++  MODE_VECTOR_INT,         /* V8QI */
++  MODE_VECTOR_INT,         /* V4HI */
++  MODE_VECTOR_INT,         /* V2SI */
++  MODE_VECTOR_INT,         /* V1DI */
++  MODE_VECTOR_INT,         /* V16QI */
++  MODE_VECTOR_INT,         /* V8HI */
++  MODE_VECTOR_INT,         /* V4SI */
++  MODE_VECTOR_INT,         /* V2DI */
++  MODE_VECTOR_INT,         /* V1TI */
++  MODE_VECTOR_INT,         /* V32QI */
++  MODE_VECTOR_INT,         /* V16HI */
++  MODE_VECTOR_INT,         /* V8SI */
++  MODE_VECTOR_INT,         /* V4DI */
++  MODE_VECTOR_INT,         /* V2TI */
++  MODE_VECTOR_INT,         /* V64QI */
++  MODE_VECTOR_INT,         /* V32HI */
++  MODE_VECTOR_INT,         /* V16SI */
++  MODE_VECTOR_INT,         /* V8DI */
++  MODE_VECTOR_INT,         /* V4TI */
++  MODE_VECTOR_FLOAT,       /* V2SF */
++  MODE_VECTOR_FLOAT,       /* V4SF */
++  MODE_VECTOR_FLOAT,       /* V2DF */
++  MODE_VECTOR_FLOAT,       /* V8SF */
++  MODE_VECTOR_FLOAT,       /* V4DF */
++  MODE_VECTOR_FLOAT,       /* V2TF */
++  MODE_VECTOR_FLOAT,       /* V16SF */
++  MODE_VECTOR_FLOAT,       /* V8DF */
++  MODE_VECTOR_FLOAT,       /* V4TF */
++};
++
++const unsigned short mode_precision[NUM_MACHINE_MODES] =
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  4*BITS_PER_UNIT,         /* CC */
++  4*BITS_PER_UNIT,         /* CCGC */
++  4*BITS_PER_UNIT,         /* CCGOC */
++  4*BITS_PER_UNIT,         /* CCNO */
++  4*BITS_PER_UNIT,         /* CCA */
++  4*BITS_PER_UNIT,         /* CCC */
++  4*BITS_PER_UNIT,         /* CCO */
++  4*BITS_PER_UNIT,         /* CCS */
++  4*BITS_PER_UNIT,         /* CCZ */
++  4*BITS_PER_UNIT,         /* CCFP */
++  4*BITS_PER_UNIT,         /* CCFPU */
++  1,                       /* BI */
++  1*BITS_PER_UNIT,         /* QI */
++  2*BITS_PER_UNIT,         /* HI */
++  4*BITS_PER_UNIT,         /* SI */
++  8*BITS_PER_UNIT,         /* DI */
++  16*BITS_PER_UNIT,        /* TI */
++  32*BITS_PER_UNIT,        /* OI */
++  1*BITS_PER_UNIT,         /* QQ */
++  2*BITS_PER_UNIT,         /* HQ */
++  4*BITS_PER_UNIT,         /* SQ */
++  8*BITS_PER_UNIT,         /* DQ */
++  16*BITS_PER_UNIT,        /* TQ */
++  1*BITS_PER_UNIT,         /* UQQ */
++  2*BITS_PER_UNIT,         /* UHQ */
++  4*BITS_PER_UNIT,         /* USQ */
++  8*BITS_PER_UNIT,         /* UDQ */
++  16*BITS_PER_UNIT,        /* UTQ */
++  2*BITS_PER_UNIT,         /* HA */
++  4*BITS_PER_UNIT,         /* SA */
++  8*BITS_PER_UNIT,         /* DA */
++  16*BITS_PER_UNIT,        /* TA */
++  2*BITS_PER_UNIT,         /* UHA */
++  4*BITS_PER_UNIT,         /* USA */
++  8*BITS_PER_UNIT,         /* UDA */
++  16*BITS_PER_UNIT,        /* UTA */
++  4*BITS_PER_UNIT,         /* SF */
++  8*BITS_PER_UNIT,         /* DF */
++  80,                      /* XF */
++  16*BITS_PER_UNIT,        /* TF */
++  4*BITS_PER_UNIT,         /* SD */
++  8*BITS_PER_UNIT,         /* DD */
++  16*BITS_PER_UNIT,        /* TD */
++  2*BITS_PER_UNIT,         /* CQI */
++  4*BITS_PER_UNIT,         /* CHI */
++  8*BITS_PER_UNIT,         /* CSI */
++  16*BITS_PER_UNIT,        /* CDI */
++  32*BITS_PER_UNIT,        /* CTI */
++  64*BITS_PER_UNIT,        /* COI */
++  8*BITS_PER_UNIT,         /* SC */
++  16*BITS_PER_UNIT,        /* DC */
++  160,                     /* XC */
++  32*BITS_PER_UNIT,        /* TC */
++  2*BITS_PER_UNIT,         /* V2QI */
++  4*BITS_PER_UNIT,         /* V4QI */
++  4*BITS_PER_UNIT,         /* V2HI */
++  4*BITS_PER_UNIT,         /* V1SI */
++  8*BITS_PER_UNIT,         /* V8QI */
++  8*BITS_PER_UNIT,         /* V4HI */
++  8*BITS_PER_UNIT,         /* V2SI */
++  8*BITS_PER_UNIT,         /* V1DI */
++  16*BITS_PER_UNIT,        /* V16QI */
++  16*BITS_PER_UNIT,        /* V8HI */
++  16*BITS_PER_UNIT,        /* V4SI */
++  16*BITS_PER_UNIT,        /* V2DI */
++  16*BITS_PER_UNIT,        /* V1TI */
++  32*BITS_PER_UNIT,        /* V32QI */
++  32*BITS_PER_UNIT,        /* V16HI */
++  32*BITS_PER_UNIT,        /* V8SI */
++  32*BITS_PER_UNIT,        /* V4DI */
++  32*BITS_PER_UNIT,        /* V2TI */
++  64*BITS_PER_UNIT,        /* V64QI */
++  64*BITS_PER_UNIT,        /* V32HI */
++  64*BITS_PER_UNIT,        /* V16SI */
++  64*BITS_PER_UNIT,        /* V8DI */
++  64*BITS_PER_UNIT,        /* V4TI */
++  8*BITS_PER_UNIT,         /* V2SF */
++  16*BITS_PER_UNIT,        /* V4SF */
++  16*BITS_PER_UNIT,        /* V2DF */
++  32*BITS_PER_UNIT,        /* V8SF */
++  32*BITS_PER_UNIT,        /* V4DF */
++  32*BITS_PER_UNIT,        /* V2TF */
++  64*BITS_PER_UNIT,        /* V16SF */
++  64*BITS_PER_UNIT,        /* V8DF */
++  64*BITS_PER_UNIT,        /* V4TF */
++};
++
++unsigned char mode_size[NUM_MACHINE_MODES] = 
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  4,                       /* CC */
++  4,                       /* CCGC */
++  4,                       /* CCGOC */
++  4,                       /* CCNO */
++  4,                       /* CCA */
++  4,                       /* CCC */
++  4,                       /* CCO */
++  4,                       /* CCS */
++  4,                       /* CCZ */
++  4,                       /* CCFP */
++  4,                       /* CCFPU */
++  1,                       /* BI */
++  1,                       /* QI */
++  2,                       /* HI */
++  4,                       /* SI */
++  8,                       /* DI */
++  16,                      /* TI */
++  32,                      /* OI */
++  1,                       /* QQ */
++  2,                       /* HQ */
++  4,                       /* SQ */
++  8,                       /* DQ */
++  16,                      /* TQ */
++  1,                       /* UQQ */
++  2,                       /* UHQ */
++  4,                       /* USQ */
++  8,                       /* UDQ */
++  16,                      /* UTQ */
++  2,                       /* HA */
++  4,                       /* SA */
++  8,                       /* DA */
++  16,                      /* TA */
++  2,                       /* UHA */
++  4,                       /* USA */
++  8,                       /* UDA */
++  16,                      /* UTA */
++  4,                       /* SF */
++  8,                       /* DF */
++  12,                      /* XF */
++  16,                      /* TF */
++  4,                       /* SD */
++  8,                       /* DD */
++  16,                      /* TD */
++  2,                       /* CQI */
++  4,                       /* CHI */
++  8,                       /* CSI */
++  16,                      /* CDI */
++  32,                      /* CTI */
++  64,                      /* COI */
++  8,                       /* SC */
++  16,                      /* DC */
++  24,                      /* XC */
++  32,                      /* TC */
++  2,                       /* V2QI */
++  4,                       /* V4QI */
++  4,                       /* V2HI */
++  4,                       /* V1SI */
++  8,                       /* V8QI */
++  8,                       /* V4HI */
++  8,                       /* V2SI */
++  8,                       /* V1DI */
++  16,                      /* V16QI */
++  16,                      /* V8HI */
++  16,                      /* V4SI */
++  16,                      /* V2DI */
++  16,                      /* V1TI */
++  32,                      /* V32QI */
++  32,                      /* V16HI */
++  32,                      /* V8SI */
++  32,                      /* V4DI */
++  32,                      /* V2TI */
++  64,                      /* V64QI */
++  64,                      /* V32HI */
++  64,                      /* V16SI */
++  64,                      /* V8DI */
++  64,                      /* V4TI */
++  8,                       /* V2SF */
++  16,                      /* V4SF */
++  16,                      /* V2DF */
++  32,                      /* V8SF */
++  32,                      /* V4DF */
++  32,                      /* V2TF */
++  64,                      /* V16SF */
++  64,                      /* V8DF */
++  64,                      /* V4TF */
++};
++
++const unsigned char mode_nunits[NUM_MACHINE_MODES] =
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  1,                       /* CC */
++  1,                       /* CCGC */
++  1,                       /* CCGOC */
++  1,                       /* CCNO */
++  1,                       /* CCA */
++  1,                       /* CCC */
++  1,                       /* CCO */
++  1,                       /* CCS */
++  1,                       /* CCZ */
++  1,                       /* CCFP */
++  1,                       /* CCFPU */
++  1,                       /* BI */
++  1,                       /* QI */
++  1,                       /* HI */
++  1,                       /* SI */
++  1,                       /* DI */
++  1,                       /* TI */
++  1,                       /* OI */
++  1,                       /* QQ */
++  1,                       /* HQ */
++  1,                       /* SQ */
++  1,                       /* DQ */
++  1,                       /* TQ */
++  1,                       /* UQQ */
++  1,                       /* UHQ */
++  1,                       /* USQ */
++  1,                       /* UDQ */
++  1,                       /* UTQ */
++  1,                       /* HA */
++  1,                       /* SA */
++  1,                       /* DA */
++  1,                       /* TA */
++  1,                       /* UHA */
++  1,                       /* USA */
++  1,                       /* UDA */
++  1,                       /* UTA */
++  1,                       /* SF */
++  1,                       /* DF */
++  1,                       /* XF */
++  1,                       /* TF */
++  1,                       /* SD */
++  1,                       /* DD */
++  1,                       /* TD */
++  2,                       /* CQI */
++  2,                       /* CHI */
++  2,                       /* CSI */
++  2,                       /* CDI */
++  2,                       /* CTI */
++  2,                       /* COI */
++  2,                       /* SC */
++  2,                       /* DC */
++  2,                       /* XC */
++  2,                       /* TC */
++  2,                       /* V2QI */
++  4,                       /* V4QI */
++  2,                       /* V2HI */
++  1,                       /* V1SI */
++  8,                       /* V8QI */
++  4,                       /* V4HI */
++  2,                       /* V2SI */
++  1,                       /* V1DI */
++  16,                      /* V16QI */
++  8,                       /* V8HI */
++  4,                       /* V4SI */
++  2,                       /* V2DI */
++  1,                       /* V1TI */
++  32,                      /* V32QI */
++  16,                      /* V16HI */
++  8,                       /* V8SI */
++  4,                       /* V4DI */
++  2,                       /* V2TI */
++  64,                      /* V64QI */
++  32,                      /* V32HI */
++  16,                      /* V16SI */
++  8,                       /* V8DI */
++  4,                       /* V4TI */
++  2,                       /* V2SF */
++  4,                       /* V4SF */
++  2,                       /* V2DF */
++  8,                       /* V8SF */
++  4,                       /* V4DF */
++  2,                       /* V2TF */
++  16,                      /* V16SF */
++  8,                       /* V8DF */
++  4,                       /* V4TF */
++};
++
++const unsigned char mode_wider[NUM_MACHINE_MODES] =
++{
++  VOIDmode,                /* VOID */
++  VOIDmode,                /* BLK */
++  VOIDmode,                /* CC */
++  VOIDmode,                /* CCGC */
++  VOIDmode,                /* CCGOC */
++  VOIDmode,                /* CCNO */
++  VOIDmode,                /* CCA */
++  VOIDmode,                /* CCC */
++  VOIDmode,                /* CCO */
++  VOIDmode,                /* CCS */
++  VOIDmode,                /* CCZ */
++  VOIDmode,                /* CCFP */
++  VOIDmode,                /* CCFPU */
++  QImode,                  /* BI */
++  HImode,                  /* QI */
++  SImode,                  /* HI */
++  DImode,                  /* SI */
++  TImode,                  /* DI */
++  OImode,                  /* TI */
++  VOIDmode,                /* OI */
++  HQmode,                  /* QQ */
++  SQmode,                  /* HQ */
++  DQmode,                  /* SQ */
++  TQmode,                  /* DQ */
++  VOIDmode,                /* TQ */
++  UHQmode,                 /* UQQ */
++  USQmode,                 /* UHQ */
++  UDQmode,                 /* USQ */
++  UTQmode,                 /* UDQ */
++  VOIDmode,                /* UTQ */
++  SAmode,                  /* HA */
++  DAmode,                  /* SA */
++  TAmode,                  /* DA */
++  VOIDmode,                /* TA */
++  USAmode,                 /* UHA */
++  UDAmode,                 /* USA */
++  UTAmode,                 /* UDA */
++  VOIDmode,                /* UTA */
++  DFmode,                  /* SF */
++  XFmode,                  /* DF */
++  TFmode,                  /* XF */
++  VOIDmode,                /* TF */
++  DDmode,                  /* SD */
++  TDmode,                  /* DD */
++  VOIDmode,                /* TD */
++  CHImode,                 /* CQI */
++  CSImode,                 /* CHI */
++  CDImode,                 /* CSI */
++  CTImode,                 /* CDI */
++  COImode,                 /* CTI */
++  VOIDmode,                /* COI */
++  DCmode,                  /* SC */
++  XCmode,                  /* DC */
++  TCmode,                  /* XC */
++  VOIDmode,                /* TC */
++  V4QImode,                /* V2QI */
++  V2HImode,                /* V4QI */
++  V1SImode,                /* V2HI */
++  V8QImode,                /* V1SI */
++  V4HImode,                /* V8QI */
++  V2SImode,                /* V4HI */
++  V1DImode,                /* V2SI */
++  V16QImode,               /* V1DI */
++  V8HImode,                /* V16QI */
++  V4SImode,                /* V8HI */
++  V2DImode,                /* V4SI */
++  V1TImode,                /* V2DI */
++  V32QImode,               /* V1TI */
++  V16HImode,               /* V32QI */
++  V8SImode,                /* V16HI */
++  V4DImode,                /* V8SI */
++  V2TImode,                /* V4DI */
++  V64QImode,               /* V2TI */
++  V32HImode,               /* V64QI */
++  V16SImode,               /* V32HI */
++  V8DImode,                /* V16SI */
++  V4TImode,                /* V8DI */
++  VOIDmode,                /* V4TI */
++  V4SFmode,                /* V2SF */
++  V2DFmode,                /* V4SF */
++  V8SFmode,                /* V2DF */
++  V4DFmode,                /* V8SF */
++  V2TFmode,                /* V4DF */
++  V16SFmode,               /* V2TF */
++  V8DFmode,                /* V16SF */
++  V4TFmode,                /* V8DF */
++  VOIDmode,                /* V4TF */
++};
++
++const unsigned char mode_2xwider[NUM_MACHINE_MODES] =
++{
++  VOIDmode,                /* VOID */
++  BLKmode,                 /* BLK */
++  VOIDmode,                /* CC */
++  VOIDmode,                /* CCGC */
++  VOIDmode,                /* CCGOC */
++  VOIDmode,                /* CCNO */
++  VOIDmode,                /* CCA */
++  VOIDmode,                /* CCC */
++  VOIDmode,                /* CCO */
++  VOIDmode,                /* CCS */
++  VOIDmode,                /* CCZ */
++  VOIDmode,                /* CCFP */
++  VOIDmode,                /* CCFPU */
++  VOIDmode,                /* BI */
++  HImode,                  /* QI */
++  SImode,                  /* HI */
++  DImode,                  /* SI */
++  TImode,                  /* DI */
++  OImode,                  /* TI */
++  VOIDmode,                /* OI */
++  HQmode,                  /* QQ */
++  SQmode,                  /* HQ */
++  DQmode,                  /* SQ */
++  TQmode,                  /* DQ */
++  VOIDmode,                /* TQ */
++  UHQmode,                 /* UQQ */
++  USQmode,                 /* UHQ */
++  UDQmode,                 /* USQ */
++  UTQmode,                 /* UDQ */
++  VOIDmode,                /* UTQ */
++  SAmode,                  /* HA */
++  DAmode,                  /* SA */
++  TAmode,                  /* DA */
++  VOIDmode,                /* TA */
++  USAmode,                 /* UHA */
++  UDAmode,                 /* USA */
++  UTAmode,                 /* UDA */
++  VOIDmode,                /* UTA */
++  DFmode,                  /* SF */
++  TFmode,                  /* DF */
++  VOIDmode,                /* XF */
++  VOIDmode,                /* TF */
++  DDmode,                  /* SD */
++  TDmode,                  /* DD */
++  VOIDmode,                /* TD */
++  CHImode,                 /* CQI */
++  CSImode,                 /* CHI */
++  CDImode,                 /* CSI */
++  CTImode,                 /* CDI */
++  COImode,                 /* CTI */
++  VOIDmode,                /* COI */
++  DCmode,                  /* SC */
++  TCmode,                  /* DC */
++  VOIDmode,                /* XC */
++  VOIDmode,                /* TC */
++  V4QImode,                /* V2QI */
++  V8QImode,                /* V4QI */
++  V8QImode,                /* V2HI */
++  V8QImode,                /* V1SI */
++  V16QImode,               /* V8QI */
++  V16QImode,               /* V4HI */
++  V16QImode,               /* V2SI */
++  V16QImode,               /* V1DI */
++  V32QImode,               /* V16QI */
++  V32QImode,               /* V8HI */
++  V32QImode,               /* V4SI */
++  V32QImode,               /* V2DI */
++  V32QImode,               /* V1TI */
++  V64QImode,               /* V32QI */
++  V64QImode,               /* V16HI */
++  V64QImode,               /* V8SI */
++  V64QImode,               /* V4DI */
++  V64QImode,               /* V2TI */
++  VOIDmode,                /* V64QI */
++  VOIDmode,                /* V32HI */
++  VOIDmode,                /* V16SI */
++  VOIDmode,                /* V8DI */
++  VOIDmode,                /* V4TI */
++  V4SFmode,                /* V2SF */
++  V8SFmode,                /* V4SF */
++  V8SFmode,                /* V2DF */
++  V16SFmode,               /* V8SF */
++  V16SFmode,               /* V4DF */
++  V16SFmode,               /* V2TF */
++  VOIDmode,                /* V16SF */
++  VOIDmode,                /* V8DF */
++  VOIDmode,                /* V4TF */
++};
++
++const unsigned HOST_WIDE_INT mode_mask_array[NUM_MACHINE_MODES] =
++{
++#define MODE_MASK(m)                          \
++  ((m) >= HOST_BITS_PER_WIDE_INT)             \
++   ? ~(unsigned HOST_WIDE_INT) 0              \
++   : ((unsigned HOST_WIDE_INT) 1 << (m)) - 1
++
++  MODE_MASK (0),           /* VOID */
++  MODE_MASK (0),           /* BLK */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CC */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCGC */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCGOC */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCNO */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCA */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCC */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCO */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCS */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCZ */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCFP */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CCFPU */
++  MODE_MASK (1),           /* BI */
++  MODE_MASK (1*BITS_PER_UNIT),   /* QI */
++  MODE_MASK (2*BITS_PER_UNIT),   /* HI */
++  MODE_MASK (4*BITS_PER_UNIT),   /* SI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* DI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* TI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* OI */
++  MODE_MASK (1*BITS_PER_UNIT),   /* QQ */
++  MODE_MASK (2*BITS_PER_UNIT),   /* HQ */
++  MODE_MASK (4*BITS_PER_UNIT),   /* SQ */
++  MODE_MASK (8*BITS_PER_UNIT),   /* DQ */
++  MODE_MASK (16*BITS_PER_UNIT),    /* TQ */
++  MODE_MASK (1*BITS_PER_UNIT),   /* UQQ */
++  MODE_MASK (2*BITS_PER_UNIT),   /* UHQ */
++  MODE_MASK (4*BITS_PER_UNIT),   /* USQ */
++  MODE_MASK (8*BITS_PER_UNIT),   /* UDQ */
++  MODE_MASK (16*BITS_PER_UNIT),    /* UTQ */
++  MODE_MASK (2*BITS_PER_UNIT),   /* HA */
++  MODE_MASK (4*BITS_PER_UNIT),   /* SA */
++  MODE_MASK (8*BITS_PER_UNIT),   /* DA */
++  MODE_MASK (16*BITS_PER_UNIT),    /* TA */
++  MODE_MASK (2*BITS_PER_UNIT),   /* UHA */
++  MODE_MASK (4*BITS_PER_UNIT),   /* USA */
++  MODE_MASK (8*BITS_PER_UNIT),   /* UDA */
++  MODE_MASK (16*BITS_PER_UNIT),    /* UTA */
++  MODE_MASK (4*BITS_PER_UNIT),   /* SF */
++  MODE_MASK (8*BITS_PER_UNIT),   /* DF */
++  MODE_MASK (80),          /* XF */
++  MODE_MASK (16*BITS_PER_UNIT),    /* TF */
++  MODE_MASK (4*BITS_PER_UNIT),   /* SD */
++  MODE_MASK (8*BITS_PER_UNIT),   /* DD */
++  MODE_MASK (16*BITS_PER_UNIT),    /* TD */
++  MODE_MASK (2*BITS_PER_UNIT),   /* CQI */
++  MODE_MASK (4*BITS_PER_UNIT),   /* CHI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* CSI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* CDI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* CTI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* COI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* SC */
++  MODE_MASK (16*BITS_PER_UNIT),    /* DC */
++  MODE_MASK (160),         /* XC */
++  MODE_MASK (32*BITS_PER_UNIT),    /* TC */
++  MODE_MASK (2*BITS_PER_UNIT),   /* V2QI */
++  MODE_MASK (4*BITS_PER_UNIT),   /* V4QI */
++  MODE_MASK (4*BITS_PER_UNIT),   /* V2HI */
++  MODE_MASK (4*BITS_PER_UNIT),   /* V1SI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* V8QI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* V4HI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* V2SI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* V1DI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V16QI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V8HI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V4SI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V2DI */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V1TI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V32QI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V16HI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V8SI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V4DI */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V2TI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V64QI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V32HI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V16SI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V8DI */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V4TI */
++  MODE_MASK (8*BITS_PER_UNIT),   /* V2SF */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V4SF */
++  MODE_MASK (16*BITS_PER_UNIT),    /* V2DF */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V8SF */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V4DF */
++  MODE_MASK (32*BITS_PER_UNIT),    /* V2TF */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V16SF */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V8DF */
++  MODE_MASK (64*BITS_PER_UNIT),    /* V4TF */
++#undef MODE_MASK
++};
++
++const unsigned char mode_inner[NUM_MACHINE_MODES] =
++{
++  VOIDmode,                /* VOID */
++  VOIDmode,                /* BLK */
++  VOIDmode,                /* CC */
++  VOIDmode,                /* CCGC */
++  VOIDmode,                /* CCGOC */
++  VOIDmode,                /* CCNO */
++  VOIDmode,                /* CCA */
++  VOIDmode,                /* CCC */
++  VOIDmode,                /* CCO */
++  VOIDmode,                /* CCS */
++  VOIDmode,                /* CCZ */
++  VOIDmode,                /* CCFP */
++  VOIDmode,                /* CCFPU */
++  VOIDmode,                /* BI */
++  VOIDmode,                /* QI */
++  VOIDmode,                /* HI */
++  VOIDmode,                /* SI */
++  VOIDmode,                /* DI */
++  VOIDmode,                /* TI */
++  VOIDmode,                /* OI */
++  VOIDmode,                /* QQ */
++  VOIDmode,                /* HQ */
++  VOIDmode,                /* SQ */
++  VOIDmode,                /* DQ */
++  VOIDmode,                /* TQ */
++  VOIDmode,                /* UQQ */
++  VOIDmode,                /* UHQ */
++  VOIDmode,                /* USQ */
++  VOIDmode,                /* UDQ */
++  VOIDmode,                /* UTQ */
++  VOIDmode,                /* HA */
++  VOIDmode,                /* SA */
++  VOIDmode,                /* DA */
++  VOIDmode,                /* TA */
++  VOIDmode,                /* UHA */
++  VOIDmode,                /* USA */
++  VOIDmode,                /* UDA */
++  VOIDmode,                /* UTA */
++  VOIDmode,                /* SF */
++  VOIDmode,                /* DF */
++  VOIDmode,                /* XF */
++  VOIDmode,                /* TF */
++  VOIDmode,                /* SD */
++  VOIDmode,                /* DD */
++  VOIDmode,                /* TD */
++  QImode,                  /* CQI */
++  HImode,                  /* CHI */
++  SImode,                  /* CSI */
++  DImode,                  /* CDI */
++  TImode,                  /* CTI */
++  OImode,                  /* COI */
++  SFmode,                  /* SC */
++  DFmode,                  /* DC */
++  XFmode,                  /* XC */
++  TFmode,                  /* TC */
++  QImode,                  /* V2QI */
++  QImode,                  /* V4QI */
++  HImode,                  /* V2HI */
++  SImode,                  /* V1SI */
++  QImode,                  /* V8QI */
++  HImode,                  /* V4HI */
++  SImode,                  /* V2SI */
++  DImode,                  /* V1DI */
++  QImode,                  /* V16QI */
++  HImode,                  /* V8HI */
++  SImode,                  /* V4SI */
++  DImode,                  /* V2DI */
++  TImode,                  /* V1TI */
++  QImode,                  /* V32QI */
++  HImode,                  /* V16HI */
++  SImode,                  /* V8SI */
++  DImode,                  /* V4DI */
++  TImode,                  /* V2TI */
++  QImode,                  /* V64QI */
++  HImode,                  /* V32HI */
++  SImode,                  /* V16SI */
++  DImode,                  /* V8DI */
++  TImode,                  /* V4TI */
++  SFmode,                  /* V2SF */
++  SFmode,                  /* V4SF */
++  DFmode,                  /* V2DF */
++  SFmode,                  /* V8SF */
++  DFmode,                  /* V4DF */
++  TFmode,                  /* V2TF */
++  SFmode,                  /* V16SF */
++  DFmode,                  /* V8DF */
++  TFmode,                  /* V4TF */
++};
++
++unsigned char mode_base_align[NUM_MACHINE_MODES] = 
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  4,                       /* CC */
++  4,                       /* CCGC */
++  4,                       /* CCGOC */
++  4,                       /* CCNO */
++  4,                       /* CCA */
++  4,                       /* CCC */
++  4,                       /* CCO */
++  4,                       /* CCS */
++  4,                       /* CCZ */
++  4,                       /* CCFP */
++  4,                       /* CCFPU */
++  1,                       /* BI */
++  1,                       /* QI */
++  2,                       /* HI */
++  4,                       /* SI */
++  8,                       /* DI */
++  16,                      /* TI */
++  32,                      /* OI */
++  1,                       /* QQ */
++  2,                       /* HQ */
++  4,                       /* SQ */
++  8,                       /* DQ */
++  16,                      /* TQ */
++  1,                       /* UQQ */
++  2,                       /* UHQ */
++  4,                       /* USQ */
++  8,                       /* UDQ */
++  16,                      /* UTQ */
++  2,                       /* HA */
++  4,                       /* SA */
++  8,                       /* DA */
++  16,                      /* TA */
++  2,                       /* UHA */
++  4,                       /* USA */
++  8,                       /* UDA */
++  16,                      /* UTA */
++  4,                       /* SF */
++  8,                       /* DF */
++  4,                       /* XF */
++  16,                      /* TF */
++  4,                       /* SD */
++  8,                       /* DD */
++  16,                      /* TD */
++  1,                       /* CQI */
++  2,                       /* CHI */
++  4,                       /* CSI */
++  8,                       /* CDI */
++  16,                      /* CTI */
++  32,                      /* COI */
++  4,                       /* SC */
++  8,                       /* DC */
++  4,                       /* XC */
++  16,                      /* TC */
++  2,                       /* V2QI */
++  4,                       /* V4QI */
++  4,                       /* V2HI */
++  4,                       /* V1SI */
++  8,                       /* V8QI */
++  8,                       /* V4HI */
++  8,                       /* V2SI */
++  8,                       /* V1DI */
++  16,                      /* V16QI */
++  16,                      /* V8HI */
++  16,                      /* V4SI */
++  16,                      /* V2DI */
++  16,                      /* V1TI */
++  32,                      /* V32QI */
++  32,                      /* V16HI */
++  32,                      /* V8SI */
++  32,                      /* V4DI */
++  32,                      /* V2TI */
++  64,                      /* V64QI */
++  64,                      /* V32HI */
++  64,                      /* V16SI */
++  64,                      /* V8DI */
++  64,                      /* V4TI */
++  8,                       /* V2SF */
++  16,                      /* V4SF */
++  16,                      /* V2DF */
++  32,                      /* V8SF */
++  32,                      /* V4DF */
++  32,                      /* V2TF */
++  64,                      /* V16SF */
++  64,                      /* V8DF */
++  64,                      /* V4TF */
++};
++
++const unsigned char class_narrowest_mode[MAX_MODE_CLASS] =
++{
++  MIN_MODE_RANDOM,         /* VOID */
++  MIN_MODE_CC,             /* CC */
++  MIN_MODE_INT,            /* QI */
++  MIN_MODE_PARTIAL_INT,    /* VOID */
++  MIN_MODE_FRACT,          /* QQ */
++  MIN_MODE_UFRACT,         /* UQQ */
++  MIN_MODE_ACCUM,          /* HA */
++  MIN_MODE_UACCUM,         /* UHA */
++  MIN_MODE_FLOAT,          /* SF */
++  MIN_MODE_DECIMAL_FLOAT,  /* SD */
++  MIN_MODE_COMPLEX_INT,    /* CQI */
++  MIN_MODE_COMPLEX_FLOAT,  /* SC */
++  MIN_MODE_VECTOR_INT,     /* V2QI */
++  MIN_MODE_VECTOR_FRACT,   /* VOID */
++  MIN_MODE_VECTOR_UFRACT,  /* VOID */
++  MIN_MODE_VECTOR_ACCUM,   /* VOID */
++  MIN_MODE_VECTOR_UACCUM,  /* VOID */
++  MIN_MODE_VECTOR_FLOAT,   /* V2SF */
++};
++
++const struct real_format *
++ real_format_for_mode[MAX_MODE_FLOAT - MIN_MODE_FLOAT + 1 + MAX_MODE_DECIMAL_FLOAT - MIN_MODE_DECIMAL_FLOAT + 1] =
++{
++  &ieee_single_format,     /* SF */
++  &ieee_double_format,     /* DF */
++  &ieee_extended_intel_96_format,      /* XF */
++  &ieee_quad_format,       /* TF */
++  &decimal_single_format,  /* SD */
++  &decimal_double_format,  /* DD */
++  &decimal_quad_format,    /* TD */
++};
++
++void
++init_adjust_machine_modes (void)
++{
++  size_t s ATTRIBUTE_UNUSED;
++
++  /* machmode.def:772 */
++  s = TARGET_128BIT_LONG_DOUBLE ? 16 : 12;
++  mode_size[XFmode] = s;
++  mode_base_align[XFmode] = s & (~s + 1);
++  mode_size[XCmode] = 2*s;
++  mode_base_align[XCmode] = s & (~s + 1);
++
++  /* machmode.def:773 */
++  s = TARGET_128BIT_LONG_DOUBLE ? 16 : 4;
++  mode_base_align[XFmode] = s;
++  mode_base_align[XCmode] = s;
++
++  /* machmode.def:771 */
++  REAL_MODE_FORMAT (XFmode) = (TARGET_128BIT_LONG_DOUBLE ? &ieee_extended_intel_128_format : TARGET_96_ROUND_53_LONG_DOUBLE ? &ieee_extended_intel_96_round_53_format : &ieee_extended_intel_96_format);
++}
++
++const unsigned char mode_ibit[NUM_MACHINE_MODES] = 
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  0,                       /* CC */
++  0,                       /* CCGC */
++  0,                       /* CCGOC */
++  0,                       /* CCNO */
++  0,                       /* CCA */
++  0,                       /* CCC */
++  0,                       /* CCO */
++  0,                       /* CCS */
++  0,                       /* CCZ */
++  0,                       /* CCFP */
++  0,                       /* CCFPU */
++  0,                       /* BI */
++  0,                       /* QI */
++  0,                       /* HI */
++  0,                       /* SI */
++  0,                       /* DI */
++  0,                       /* TI */
++  0,                       /* OI */
++  0,                       /* QQ */
++  0,                       /* HQ */
++  0,                       /* SQ */
++  0,                       /* DQ */
++  0,                       /* TQ */
++  0,                       /* UQQ */
++  0,                       /* UHQ */
++  0,                       /* USQ */
++  0,                       /* UDQ */
++  0,                       /* UTQ */
++  8,                       /* HA */
++  16,                      /* SA */
++  32,                      /* DA */
++  64,                      /* TA */
++  8,                       /* UHA */
++  16,                      /* USA */
++  32,                      /* UDA */
++  64,                      /* UTA */
++  0,                       /* SF */
++  0,                       /* DF */
++  0,                       /* XF */
++  0,                       /* TF */
++  0,                       /* SD */
++  0,                       /* DD */
++  0,                       /* TD */
++  0,                       /* CQI */
++  0,                       /* CHI */
++  0,                       /* CSI */
++  0,                       /* CDI */
++  0,                       /* CTI */
++  0,                       /* COI */
++  0,                       /* SC */
++  0,                       /* DC */
++  0,                       /* XC */
++  0,                       /* TC */
++  0,                       /* V2QI */
++  0,                       /* V4QI */
++  0,                       /* V2HI */
++  0,                       /* V1SI */
++  0,                       /* V8QI */
++  0,                       /* V4HI */
++  0,                       /* V2SI */
++  0,                       /* V1DI */
++  0,                       /* V16QI */
++  0,                       /* V8HI */
++  0,                       /* V4SI */
++  0,                       /* V2DI */
++  0,                       /* V1TI */
++  0,                       /* V32QI */
++  0,                       /* V16HI */
++  0,                       /* V8SI */
++  0,                       /* V4DI */
++  0,                       /* V2TI */
++  0,                       /* V64QI */
++  0,                       /* V32HI */
++  0,                       /* V16SI */
++  0,                       /* V8DI */
++  0,                       /* V4TI */
++  0,                       /* V2SF */
++  0,                       /* V4SF */
++  0,                       /* V2DF */
++  0,                       /* V8SF */
++  0,                       /* V4DF */
++  0,                       /* V2TF */
++  0,                       /* V16SF */
++  0,                       /* V8DF */
++  0,                       /* V4TF */
++};
++
++const unsigned char mode_fbit[NUM_MACHINE_MODES] = 
++{
++  0,                       /* VOID */
++  0,                       /* BLK */
++  0,                       /* CC */
++  0,                       /* CCGC */
++  0,                       /* CCGOC */
++  0,                       /* CCNO */
++  0,                       /* CCA */
++  0,                       /* CCC */
++  0,                       /* CCO */
++  0,                       /* CCS */
++  0,                       /* CCZ */
++  0,                       /* CCFP */
++  0,                       /* CCFPU */
++  0,                       /* BI */
++  0,                       /* QI */
++  0,                       /* HI */
++  0,                       /* SI */
++  0,                       /* DI */
++  0,                       /* TI */
++  0,                       /* OI */
++  7,                       /* QQ */
++  15,                      /* HQ */
++  31,                      /* SQ */
++  63,                      /* DQ */
++  127,                     /* TQ */
++  8,                       /* UQQ */
++  16,                      /* UHQ */
++  32,                      /* USQ */
++  64,                      /* UDQ */
++  128,                     /* UTQ */
++  7,                       /* HA */
++  15,                      /* SA */
++  31,                      /* DA */
++  63,                      /* TA */
++  8,                       /* UHA */
++  16,                      /* USA */
++  32,                      /* UDA */
++  64,                      /* UTA */
++  0,                       /* SF */
++  0,                       /* DF */
++  0,                       /* XF */
++  0,                       /* TF */
++  0,                       /* SD */
++  0,                       /* DD */
++  0,                       /* TD */
++  0,                       /* CQI */
++  0,                       /* CHI */
++  0,                       /* CSI */
++  0,                       /* CDI */
++  0,                       /* CTI */
++  0,                       /* COI */
++  0,                       /* SC */
++  0,                       /* DC */
++  0,                       /* XC */
++  0,                       /* TC */
++  0,                       /* V2QI */
++  0,                       /* V4QI */
++  0,                       /* V2HI */
++  0,                       /* V1SI */
++  0,                       /* V8QI */
++  0,                       /* V4HI */
++  0,                       /* V2SI */
++  0,                       /* V1DI */
++  0,                       /* V16QI */
++  0,                       /* V8HI */
++  0,                       /* V4SI */
++  0,                       /* V2DI */
++  0,                       /* V1TI */
++  0,                       /* V32QI */
++  0,                       /* V16HI */
++  0,                       /* V8SI */
++  0,                       /* V4DI */
++  0,                       /* V2TI */
++  0,                       /* V64QI */
++  0,                       /* V32HI */
++  0,                       /* V16SI */
++  0,                       /* V8DI */
++  0,                       /* V4TI */
++  0,                       /* V2SF */
++  0,                       /* V4SF */
++  0,                       /* V2DF */
++  0,                       /* V8SF */
++  0,                       /* V4DF */
++  0,                       /* V2TF */
++  0,                       /* V16SF */
++  0,                       /* V8DF */
++  0,                       /* V4TF */
++};
+--- /dev/null	2026-05-09 01:57:28.352808000 -0700
++++ b/gcc/bootstrap-min-insn-modes.c	2026-05-09 01:57:29.495962000 -0700
+@@ -0,0 +1,392 @@
++/* Generated automatically from machmode.def
++   by genmodes.  */
++
++#include "bconfig.h"
++#include "system.h"
++#include "machmode.h"
++
++const char *const mode_name[NUM_MACHINE_MODES] =
++{
++  "VOID",
++  "BLK",
++  "CC",
++  "CCGC",
++  "CCGOC",
++  "CCNO",
++  "CCA",
++  "CCC",
++  "CCO",
++  "CCS",
++  "CCZ",
++  "CCFP",
++  "CCFPU",
++  "BI",
++  "QI",
++  "HI",
++  "SI",
++  "DI",
++  "TI",
++  "OI",
++  "QQ",
++  "HQ",
++  "SQ",
++  "DQ",
++  "TQ",
++  "UQQ",
++  "UHQ",
++  "USQ",
++  "UDQ",
++  "UTQ",
++  "HA",
++  "SA",
++  "DA",
++  "TA",
++  "UHA",
++  "USA",
++  "UDA",
++  "UTA",
++  "SF",
++  "DF",
++  "XF",
++  "TF",
++  "SD",
++  "DD",
++  "TD",
++  "CQI",
++  "CHI",
++  "CSI",
++  "CDI",
++  "CTI",
++  "COI",
++  "SC",
++  "DC",
++  "XC",
++  "TC",
++  "V2QI",
++  "V4QI",
++  "V2HI",
++  "V1SI",
++  "V8QI",
++  "V4HI",
++  "V2SI",
++  "V1DI",
++  "V16QI",
++  "V8HI",
++  "V4SI",
++  "V2DI",
++  "V1TI",
++  "V32QI",
++  "V16HI",
++  "V8SI",
++  "V4DI",
++  "V2TI",
++  "V64QI",
++  "V32HI",
++  "V16SI",
++  "V8DI",
++  "V4TI",
++  "V2SF",
++  "V4SF",
++  "V2DF",
++  "V8SF",
++  "V4DF",
++  "V2TF",
++  "V16SF",
++  "V8DF",
++  "V4TF",
++};
++
++const unsigned char mode_class[NUM_MACHINE_MODES] =
++{
++  MODE_RANDOM,             /* VOID */
++  MODE_RANDOM,             /* BLK */
++  MODE_CC,                 /* CC */
++  MODE_CC,                 /* CCGC */
++  MODE_CC,                 /* CCGOC */
++  MODE_CC,                 /* CCNO */
++  MODE_CC,                 /* CCA */
++  MODE_CC,                 /* CCC */
++  MODE_CC,                 /* CCO */
++  MODE_CC,                 /* CCS */
++  MODE_CC,                 /* CCZ */
++  MODE_CC,                 /* CCFP */
++  MODE_CC,                 /* CCFPU */
++  MODE_INT,                /* BI */
++  MODE_INT,                /* QI */
++  MODE_INT,                /* HI */
++  MODE_INT,                /* SI */
++  MODE_INT,                /* DI */
++  MODE_INT,                /* TI */
++  MODE_INT,                /* OI */
++  MODE_FRACT,              /* QQ */
++  MODE_FRACT,              /* HQ */
++  MODE_FRACT,              /* SQ */
++  MODE_FRACT,              /* DQ */
++  MODE_FRACT,              /* TQ */
++  MODE_UFRACT,             /* UQQ */
++  MODE_UFRACT,             /* UHQ */
++  MODE_UFRACT,             /* USQ */
++  MODE_UFRACT,             /* UDQ */
++  MODE_UFRACT,             /* UTQ */
++  MODE_ACCUM,              /* HA */
++  MODE_ACCUM,              /* SA */
++  MODE_ACCUM,              /* DA */
++  MODE_ACCUM,              /* TA */
++  MODE_UACCUM,             /* UHA */
++  MODE_UACCUM,             /* USA */
++  MODE_UACCUM,             /* UDA */
++  MODE_UACCUM,             /* UTA */
++  MODE_FLOAT,              /* SF */
++  MODE_FLOAT,              /* DF */
++  MODE_FLOAT,              /* XF */
++  MODE_FLOAT,              /* TF */
++  MODE_DECIMAL_FLOAT,      /* SD */
++  MODE_DECIMAL_FLOAT,      /* DD */
++  MODE_DECIMAL_FLOAT,      /* TD */
++  MODE_COMPLEX_INT,        /* CQI */
++  MODE_COMPLEX_INT,        /* CHI */
++  MODE_COMPLEX_INT,        /* CSI */
++  MODE_COMPLEX_INT,        /* CDI */
++  MODE_COMPLEX_INT,        /* CTI */
++  MODE_COMPLEX_INT,        /* COI */
++  MODE_COMPLEX_FLOAT,      /* SC */
++  MODE_COMPLEX_FLOAT,      /* DC */
++  MODE_COMPLEX_FLOAT,      /* XC */
++  MODE_COMPLEX_FLOAT,      /* TC */
++  MODE_VECTOR_INT,         /* V2QI */
++  MODE_VECTOR_INT,         /* V4QI */
++  MODE_VECTOR_INT,         /* V2HI */
++  MODE_VECTOR_INT,         /* V1SI */
++  MODE_VECTOR_INT,         /* V8QI */
++  MODE_VECTOR_INT,         /* V4HI */
++  MODE_VECTOR_INT,         /* V2SI */
++  MODE_VECTOR_INT,         /* V1DI */
++  MODE_VECTOR_INT,         /* V16QI */
++  MODE_VECTOR_INT,         /* V8HI */
++  MODE_VECTOR_INT,         /* V4SI */
++  MODE_VECTOR_INT,         /* V2DI */
++  MODE_VECTOR_INT,         /* V1TI */
++  MODE_VECTOR_INT,         /* V32QI */
++  MODE_VECTOR_INT,         /* V16HI */
++  MODE_VECTOR_INT,         /* V8SI */
++  MODE_VECTOR_INT,         /* V4DI */
++  MODE_VECTOR_INT,         /* V2TI */
++  MODE_VECTOR_INT,         /* V64QI */
++  MODE_VECTOR_INT,         /* V32HI */
++  MODE_VECTOR_INT,         /* V16SI */
++  MODE_VECTOR_INT,         /* V8DI */
++  MODE_VECTOR_INT,         /* V4TI */
++  MODE_VECTOR_FLOAT,       /* V2SF */
++  MODE_VECTOR_FLOAT,       /* V4SF */
++  MODE_VECTOR_FLOAT,       /* V2DF */
++  MODE_VECTOR_FLOAT,       /* V8SF */
++  MODE_VECTOR_FLOAT,       /* V4DF */
++  MODE_VECTOR_FLOAT,       /* V2TF */
++  MODE_VECTOR_FLOAT,       /* V16SF */
++  MODE_VECTOR_FLOAT,       /* V8DF */
++  MODE_VECTOR_FLOAT,       /* V4TF */
++};
++
++const unsigned char mode_wider[NUM_MACHINE_MODES] =
++{
++  VOIDmode,                /* VOID */
++  VOIDmode,                /* BLK */
++  VOIDmode,                /* CC */
++  VOIDmode,                /* CCGC */
++  VOIDmode,                /* CCGOC */
++  VOIDmode,                /* CCNO */
++  VOIDmode,                /* CCA */
++  VOIDmode,                /* CCC */
++  VOIDmode,                /* CCO */
++  VOIDmode,                /* CCS */
++  VOIDmode,                /* CCZ */
++  VOIDmode,                /* CCFP */
++  VOIDmode,                /* CCFPU */
++  QImode,                  /* BI */
++  HImode,                  /* QI */
++  SImode,                  /* HI */
++  DImode,                  /* SI */
++  TImode,                  /* DI */
++  OImode,                  /* TI */
++  VOIDmode,                /* OI */
++  HQmode,                  /* QQ */
++  SQmode,                  /* HQ */
++  DQmode,                  /* SQ */
++  TQmode,                  /* DQ */
++  VOIDmode,                /* TQ */
++  UHQmode,                 /* UQQ */
++  USQmode,                 /* UHQ */
++  UDQmode,                 /* USQ */
++  UTQmode,                 /* UDQ */
++  VOIDmode,                /* UTQ */
++  SAmode,                  /* HA */
++  DAmode,                  /* SA */
++  TAmode,                  /* DA */
++  VOIDmode,                /* TA */
++  USAmode,                 /* UHA */
++  UDAmode,                 /* USA */
++  UTAmode,                 /* UDA */
++  VOIDmode,                /* UTA */
++  DFmode,                  /* SF */
++  XFmode,                  /* DF */
++  TFmode,                  /* XF */
++  VOIDmode,                /* TF */
++  DDmode,                  /* SD */
++  TDmode,                  /* DD */
++  VOIDmode,                /* TD */
++  CHImode,                 /* CQI */
++  CSImode,                 /* CHI */
++  CDImode,                 /* CSI */
++  CTImode,                 /* CDI */
++  COImode,                 /* CTI */
++  VOIDmode,                /* COI */
++  DCmode,                  /* SC */
++  XCmode,                  /* DC */
++  TCmode,                  /* XC */
++  VOIDmode,                /* TC */
++  V4QImode,                /* V2QI */
++  V2HImode,                /* V4QI */
++  V1SImode,                /* V2HI */
++  V8QImode,                /* V1SI */
++  V4HImode,                /* V8QI */
++  V2SImode,                /* V4HI */
++  V1DImode,                /* V2SI */
++  V16QImode,               /* V1DI */
++  V8HImode,                /* V16QI */
++  V4SImode,                /* V8HI */
++  V2DImode,                /* V4SI */
++  V1TImode,                /* V2DI */
++  V32QImode,               /* V1TI */
++  V16HImode,               /* V32QI */
++  V8SImode,                /* V16HI */
++  V4DImode,                /* V8SI */
++  V2TImode,                /* V4DI */
++  V64QImode,               /* V2TI */
++  V32HImode,               /* V64QI */
++  V16SImode,               /* V32HI */
++  V8DImode,                /* V16SI */
++  V4TImode,                /* V8DI */
++  VOIDmode,                /* V4TI */
++  V4SFmode,                /* V2SF */
++  V2DFmode,                /* V4SF */
++  V8SFmode,                /* V2DF */
++  V4DFmode,                /* V8SF */
++  V2TFmode,                /* V4DF */
++  V16SFmode,               /* V2TF */
++  V8DFmode,                /* V16SF */
++  V4TFmode,                /* V8DF */
++  VOIDmode,                /* V4TF */
++};
++
++const unsigned char mode_2xwider[NUM_MACHINE_MODES] =
++{
++  VOIDmode,                /* VOID */
++  BLKmode,                 /* BLK */
++  VOIDmode,                /* CC */
++  VOIDmode,                /* CCGC */
++  VOIDmode,                /* CCGOC */
++  VOIDmode,                /* CCNO */
++  VOIDmode,                /* CCA */
++  VOIDmode,                /* CCC */
++  VOIDmode,                /* CCO */
++  VOIDmode,                /* CCS */
++  VOIDmode,                /* CCZ */
++  VOIDmode,                /* CCFP */
++  VOIDmode,                /* CCFPU */
++  VOIDmode,                /* BI */
++  HImode,                  /* QI */
++  SImode,                  /* HI */
++  DImode,                  /* SI */
++  TImode,                  /* DI */
++  OImode,                  /* TI */
++  VOIDmode,                /* OI */
++  HQmode,                  /* QQ */
++  SQmode,                  /* HQ */
++  DQmode,                  /* SQ */
++  TQmode,                  /* DQ */
++  VOIDmode,                /* TQ */
++  UHQmode,                 /* UQQ */
++  USQmode,                 /* UHQ */
++  UDQmode,                 /* USQ */
++  UTQmode,                 /* UDQ */
++  VOIDmode,                /* UTQ */
++  SAmode,                  /* HA */
++  DAmode,                  /* SA */
++  TAmode,                  /* DA */
++  VOIDmode,                /* TA */
++  USAmode,                 /* UHA */
++  UDAmode,                 /* USA */
++  UTAmode,                 /* UDA */
++  VOIDmode,                /* UTA */
++  DFmode,                  /* SF */
++  TFmode,                  /* DF */
++  VOIDmode,                /* XF */
++  VOIDmode,                /* TF */
++  DDmode,                  /* SD */
++  TDmode,                  /* DD */
++  VOIDmode,                /* TD */
++  CHImode,                 /* CQI */
++  CSImode,                 /* CHI */
++  CDImode,                 /* CSI */
++  CTImode,                 /* CDI */
++  COImode,                 /* CTI */
++  VOIDmode,                /* COI */
++  DCmode,                  /* SC */
++  TCmode,                  /* DC */
++  VOIDmode,                /* XC */
++  VOIDmode,                /* TC */
++  V4QImode,                /* V2QI */
++  V8QImode,                /* V4QI */
++  V8QImode,                /* V2HI */
++  V8QImode,                /* V1SI */
++  V16QImode,               /* V8QI */
++  V16QImode,               /* V4HI */
++  V16QImode,               /* V2SI */
++  V16QImode,               /* V1DI */
++  V32QImode,               /* V16QI */
++  V32QImode,               /* V8HI */
++  V32QImode,               /* V4SI */
++  V32QImode,               /* V2DI */
++  V32QImode,               /* V1TI */
++  V64QImode,               /* V32QI */
++  V64QImode,               /* V16HI */
++  V64QImode,               /* V8SI */
++  V64QImode,               /* V4DI */
++  V64QImode,               /* V2TI */
++  VOIDmode,                /* V64QI */
++  VOIDmode,                /* V32HI */
++  VOIDmode,                /* V16SI */
++  VOIDmode,                /* V8DI */
++  VOIDmode,                /* V4TI */
++  V4SFmode,                /* V2SF */
++  V8SFmode,                /* V4SF */
++  V8SFmode,                /* V2DF */
++  V16SFmode,               /* V8SF */
++  V16SFmode,               /* V4DF */
++  V16SFmode,               /* V2TF */
++  VOIDmode,                /* V16SF */
++  VOIDmode,                /* V8DF */
++  VOIDmode,                /* V4TF */
++};
++
++const unsigned char class_narrowest_mode[MAX_MODE_CLASS] =
++{
++  MIN_MODE_RANDOM,         /* VOID */
++  MIN_MODE_CC,             /* CC */
++  MIN_MODE_INT,            /* QI */
++  MIN_MODE_PARTIAL_INT,    /* VOID */
++  MIN_MODE_FRACT,          /* QQ */
++  MIN_MODE_UFRACT,         /* UQQ */
++  MIN_MODE_ACCUM,          /* HA */
++  MIN_MODE_UACCUM,         /* UHA */
++  MIN_MODE_FLOAT,          /* SF */
++  MIN_MODE_DECIMAL_FLOAT,  /* SD */
++  MIN_MODE_COMPLEX_INT,    /* CQI */
++  MIN_MODE_COMPLEX_FLOAT,  /* SC */
++  MIN_MODE_VECTOR_INT,     /* V2QI */
++  MIN_MODE_VECTOR_FRACT,   /* VOID */
++  MIN_MODE_VECTOR_UFRACT,  /* VOID */
++  MIN_MODE_VECTOR_ACCUM,   /* VOID */
++  MIN_MODE_VECTOR_UACCUM,  /* VOID */
++  MIN_MODE_VECTOR_FLOAT,   /* V2SF */
++};
