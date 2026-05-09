@@ -1681,7 +1681,7 @@
 +#endif
 --- a/gcc/Makefile.in
 +++ b/gcc/Makefile.in
-@@ -3596,5 +3596,15 @@
+@@ -3596,5 +3596,20 @@
  
  $(simple_generated_h): insn-%.h: s-%; @true
  
@@ -1696,8 +1696,25 @@
 +	$(SHELL) $(srcdir)/../move-if-change tmp-flags.h insn-flags.h
 +	$(STAMP) s-flags
 +
-+$(filter-out s-constants s-flags,$(simple_generated_h:insn-%.h=s-%)): s-%: build/gen%$(build_exeext)
++s-attr s-codes s-config: s-%: $(MD_DEPS)
++	$(SHELL) $(srcdir)/bootstrap-md-stubs.sh header $* > tmp-$*.h
++	$(SHELL) $(srcdir)/../move-if-change tmp-$*.h insn-$*.h
++	$(STAMP) s-$*
++
++$(filter-out s-constants s-flags s-attr s-codes s-config,$(simple_generated_h:insn-%.h=s-%)): s-%: build/gen%$(build_exeext)
  	$(RUN_GEN) build/gen$*$(build_exeext) $(md_file) \
+@@ -3603,9 +3617,8 @@
+ 	$(STAMP) s-$*
+ 
+ $(simple_generated_c): insn-%.c: s-%; @true
+-$(simple_generated_c:insn-%.c=s-%): s-%: build/gen%$(build_exeext)
+-	$(RUN_GEN) build/gen$*$(build_exeext) $(md_file) \
+-	  $(filter insn-conditions.md,$^) > tmp-$*.c
++$(simple_generated_c:insn-%.c=s-%): s-%: $(MD_DEPS)
++	$(SHELL) $(srcdir)/bootstrap-md-stubs.sh source $* > tmp-$*.c
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-$*.c insn-$*.c
+ 	$(STAMP) s-$*
+ 
 @@ -3615,7 +3620,11 @@
  # doesn't use the insn-* convention.
  tree-check.h: s-check ; @true
@@ -1847,6 +1864,139 @@
 +  print ""
 +  print "#endif /* GCC_INSN_CONSTANTS_H */"
 +}
+--- /dev/null
++++ b/gcc/bootstrap-md-stubs.sh
+@@ -0,0 +1,130 @@
++set -eu
++
++kind=$1
++name=$2
++
++case "$kind:$name" in
++  header:attr)
++    cat <<'EOF'
++#ifndef GCC_INSN_ATTR_H
++#define GCC_INSN_ATTR_H
++extern int insn_default_length (rtx);
++extern int insn_variable_length_p (rtx);
++#define get_attr_alternative(insn) which_alternative
++#endif /* GCC_INSN_ATTR_H */
++EOF
++    ;;
++  header:codes)
++    cat <<'EOF'
++#ifndef GCC_INSN_CODES_H
++#define GCC_INSN_CODES_H
++enum insn_code { CODE_FOR_nothing = 0 };
++#endif /* GCC_INSN_CODES_H */
++EOF
++    ;;
++  header:config)
++    cat <<'EOF'
++#ifndef GCC_INSN_CONFIG_H
++#define GCC_INSN_CONFIG_H
++#define MAX_RECOG_OPERANDS 30
++#define MAX_DUP_OPERANDS 30
++#define MAX_INSNS_PER_SPLIT 5
++#endif /* GCC_INSN_CONFIG_H */
++EOF
++    ;;
++  source:attrtab)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++const int length_unit_log = 0;
++int insn_default_length (rtx insn ATTRIBUTE_UNUSED) { return 0; }
++int insn_variable_length_p (rtx insn ATTRIBUTE_UNUSED) { return 0; }
++EOF
++    ;;
++  source:automata)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++int max_insn_queue_index = 0;
++void init_sched_attrs (void) {}
++EOF
++    ;;
++  source:emit)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++rtx gen_move_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx gen_add2_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx gen_add3_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED, rtx c ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx gen_sub2_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx gen_sub3_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED, rtx c ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx gen_jump (rtx a ATTRIBUTE_UNUSED) { return NULL_RTX; }
++EOF
++    ;;
++  source:extract)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++void insn_extract (rtx insn ATTRIBUTE_UNUSED) {}
++EOF
++    ;;
++  source:opinit)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++void init_all_optabs (void) {}
++EOF
++    ;;
++  source:output)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++const char *get_insn_template (int code ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED) { return ""; }
++EOF
++    ;;
++  source:peep)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++rtx peephole (rtx insn ATTRIBUTE_UNUSED) { return NULL_RTX; }
++EOF
++    ;;
++  source:recog)
++    cat <<'EOF'
++#include "config.h"
++#include "system.h"
++#include "coretypes.h"
++#include "tm.h"
++#include "rtl.h"
++void init_recog (void) {}
++int recog (rtx pat ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED, int *n ATTRIBUTE_UNUSED) { return -1; }
++rtx split_insns (rtx pat ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED) { return NULL_RTX; }
++rtx peephole2_insns (rtx x ATTRIBUTE_UNUSED, rtx y ATTRIBUTE_UNUSED, int *z ATTRIBUTE_UNUSED) { return NULL_RTX; }
++EOF
++    ;;
++  source:enums|source:attr)
++    echo '/* Bootstrap empty generated source. */'
++    ;;
++  *)
++    echo "bootstrap-md-stubs.sh: unsupported stub $kind:$name" >&2
++    exit 1
++    ;;
++esac
 --- a/gcc/genmodes.c
 +++ b/gcc/genmodes.c
 @@ -25,20 +25,22 @@
