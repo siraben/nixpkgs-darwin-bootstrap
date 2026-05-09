@@ -5967,3 +5967,92 @@
 +  "REG_NON_LOCAL_GOTO",
 +  "REG_CROSSING_JUMP",
 +  "REG_SETJMP",
+--- a/gcc/vec.c
++++ b/gcc/vec.c
+@@ -31,6 +31,12 @@
+ #include "system.h"
+ #include "ggc.h"
++#ifdef GENERATOR_FILE
++#include "statistics.h"
++#else
+ #include "vec.h"
++#endif
+ #include "coretypes.h"
++#ifndef GENERATOR_FILE
+ #include "diagnostic-core.h"
+ #include "hashtab.h"
++#endif
+@@ -380,12 +380,28 @@
+    expect too many stack vectors at any one level, and searching from
+    the end should normally be efficient even if they are used in a
+    recursive function.  */
+ 
+-typedef void *void_p;
+-DEF_VEC_P(void_p);
+-DEF_VEC_ALLOC_P(void_p,heap);
+-
+-static VEC(void_p,heap) *stack_vecs;
++static void **stack_vecs;
++static unsigned int stack_vecs_num;
++static unsigned int stack_vecs_alloc;
++
++static void
++stack_vecs_push (void *space)
++{
++  if (stack_vecs_num == stack_vecs_alloc)
++    {
++      stack_vecs_alloc = stack_vecs_alloc ? stack_vecs_alloc * 2 : 16;
++      stack_vecs = XRESIZEVEC (void *, stack_vecs, stack_vecs_alloc);
++    }
++  stack_vecs[stack_vecs_num++] = space;
++}
++
++static void
++stack_vecs_unordered_remove (unsigned int ix)
++{
++  gcc_assert (ix < stack_vecs_num);
++  stack_vecs[ix] = stack_vecs[--stack_vecs_num];
++}
+ 
+ /* Allocate a vector which uses alloca for the initial allocation.
+    SPACE is space allocated using alloca, ALLOC is the number of
+@@ -396,7 +413,7 @@
+ {
+   struct vec_prefix *pfx = (struct vec_prefix *) space;
+ 
+-  VEC_safe_push (void_p, heap, stack_vecs, space);
++  stack_vecs_push (space);
+ 
+   pfx->num = 0;
+   pfx->alloc = alloc;
+@@ -416,11 +433,11 @@
+   void *newvec;
+ 
+   found = false;
+-  for (ix = VEC_length (void_p, stack_vecs); ix > 0; --ix)
++  for (ix = stack_vecs_num; ix > 0; --ix)
+     {
+-      if (VEC_index (void_p, stack_vecs, ix - 1) == vec)
++      if (stack_vecs[ix - 1] == vec)
+ 	{
+-	  VEC_unordered_remove (void_p, stack_vecs, ix - 1);
++	  stack_vecs_unordered_remove (ix - 1);
+ 	  found = true;
+ 	  break;
+ 	}
+@@ -501,12 +518,12 @@
+ vec_stack_free (void *vec)
+ {
+   unsigned int ix;
+ 
+-  for (ix = VEC_length (void_p, stack_vecs); ix > 0; --ix)
++  for (ix = stack_vecs_num; ix > 0; --ix)
+     {
+-      if (VEC_index (void_p, stack_vecs, ix - 1) == vec)
++      if (stack_vecs[ix - 1] == vec)
+ 	{
+-	  VEC_unordered_remove (void_p, stack_vecs, ix - 1);
++	  stack_vecs_unordered_remove (ix - 1);
+ 	  return;
+ 	}
+     }
