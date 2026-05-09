@@ -4749,6 +4749,19 @@
  	$(STAMP) s-gtype
  
  generated_files = config.h tm.h $(TM_P_H) $(TM_H) multilib.h \
+--- a/gcc/Makefile.in
++++ b/gcc/Makefile.in
+@@ -4047,7 +4047,7 @@
+ gcov-iov.h: s-iov
+-s-iov: build/gcov-iov$(build_exeext) $(BASEVER) $(DEVPHASE)
+-	build/gcov-iov$(build_exeext) '$(BASEVER_c)' '$(DEVPHASE_c)' \
+-	    > tmp-gcov-iov.h
++s-iov: $(BASEVER) $(DEVPHASE)
++	echo '/* Bootstrap GCOV version fallback. */' > tmp-gcov-iov.h
++	echo '#define GCOV_VERSION ((gcov_unsigned_t)0x3430362a)  /* 406* */' >> tmp-gcov-iov.h
+ 	$(SHELL) $(srcdir)/../move-if-change tmp-gcov-iov.h gcov-iov.h
+ 	$(STAMP) s-iov
+ 
 --- a/gcc/rtl.c
 +++ b/gcc/rtl.c
 @@ -42,22 +42,14 @@
