@@ -2360,6 +2360,11 @@ let
       chmod -R u+w $out
       cd $out
       patch -p1 < ${./patches/gcc46-darwin-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-attribs-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-c-errors-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-c-decl-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-c-typeck-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-c-convert-bootstrap.patch}
     '';
 
   phase35-gcc46-all-gcc =
@@ -2533,13 +2538,6 @@ C
         cp -R ${phase35-gcc46-all-gcc}/share/darwin-bootstrap/work/src work/src
         cp -R ${phase35-gcc46-all-gcc}/share/darwin-bootstrap/work/build work/build
         chmod -R u+w work
-        cd work/src
-        patch -p1 < ${./patches/gcc46-darwin-attribs-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-errors-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-decl-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-typeck-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-convert-bootstrap.patch}
-        cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
             -e "s#/nix/var/nix/builds/[^/]*/build#$PWD/work/build#g" \
