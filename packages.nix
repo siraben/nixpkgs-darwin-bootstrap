@@ -2561,6 +2561,7 @@ C
         patch -p1 < ${./patches/gcc46-darwin-darwin-c-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-genchecksum-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-alias-bootstrap.patch}
+        patch -p1 < ${./patches/gcc46-darwin-bb-reorder-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
