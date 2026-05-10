@@ -2540,7 +2540,6 @@ C
         patch -p1 < ${./patches/gcc46-darwin-c-typeck-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-convert-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-aux-info-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-objc-common-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
