@@ -1,0 +1,19 @@
+--- a/gcc/c-convert.c
++++ b/gcc/c-convert.c
+@@ -28,1 +28,11 @@
++typedef void *tree;
++
++tree
++convert (tree type, tree expr)
++{
++  (void) type;
++  return expr;
++}
++
++#if 0
+ #include "config.h"
+@@ -181,3 +191,4 @@ convert (tree type, tree expr)
+   error ("conversion to non-scalar type requested");
+   return error_mark_node;
+ }
++#endif
