@@ -2557,7 +2557,6 @@ C
         patch -p1 < ${./patches/gcc46-darwin-c-pretty-print-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-semantics-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-ada-spec-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-i386-c-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
