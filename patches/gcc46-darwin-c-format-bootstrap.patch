@@ -1,0 +1,39 @@
+--- a/gcc/c-family/c-format.c
++++ b/gcc/c-family/c-format.c
+@@ -21,1 +21,22 @@
++typedef void *tree;
++typedef int bool;
++
++void
++set_Wformat (setting)
++  int setting;
++{
++}
++
++tree
++handle_format_arg_attribute (node, name, args, flags, no_add_attrs)
++  tree *node;
++  tree name;
++  tree args;
++  int flags;
++  bool *no_add_attrs;
++{
++  return (tree) 0;
++}
++
++#if 0
+ #include "config.h"
+@@ -3017,1 +3040,13 @@
+ }
++#endif
++
++tree
++handle_format_attribute (node, name, args, flags, no_add_attrs)
++  tree *node;
++  tree name;
++  tree args;
++  int flags;
++  bool *no_add_attrs;
++{
++  return (tree) 0;
++}

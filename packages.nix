@@ -2546,6 +2546,7 @@ C
         patch -p1 < ${./patches/gcc46-darwin-c-common-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-cppbuiltin-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-dump-bootstrap.patch}
+        patch -p1 < ${./patches/gcc46-darwin-c-format-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
