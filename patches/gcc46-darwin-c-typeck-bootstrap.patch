@@ -1,0 +1,117 @@
+--- a/gcc/c-typeck.c
++++ b/gcc/c-typeck.c
+@@ -28,1 +28,109 @@
++typedef void *tree;
++typedef const void *const_tree;
++typedef int bool;
++typedef int location_t;
++typedef int addr_space_t;
++typedef unsigned long HOST_WIDE_INT;
++struct obstack { char bootstrap_dummy; };
++struct c_type_name { char bootstrap_dummy; };
++struct c_expr { tree value; tree original_code; };
++struct c_switch { char bootstrap_dummy; };
++enum tree_code { bootstrap_tree_code };
++enum lvalue_use { bootstrap_lvalue_use };
++typedef int ref_operator;
++
++#define BOOTSTRAP_PTR ((void *) 0)
++
++int in_alignof;
++int in_sizeof;
++int in_typeof;
++struct c_switch *c_switch_stack;
++
++static struct c_expr bootstrap_c_expr;
++
++#define RET_TREE(name) tree name () { return (tree) BOOTSTRAP_PTR; }
++#define RET_INT(name) int name () { return 0; }
++#define RET_BOOL(name) bool name () { return 0; }
++#define RET_VOID(name) void name () { }
++#define RET_C_EXPR(name) struct c_expr name () { return bootstrap_c_expr; }
++
++RET_TREE(require_complete_type)
++RET_VOID(c_incomplete_type_error)
++RET_TREE(c_type_promotes_to)
++RET_BOOL(c_vla_type_p)
++RET_TREE(composite_type)
++RET_TREE(common_pointer_type)
++RET_TREE(c_common_type)
++RET_TREE(common_type)
++RET_INT(comptypes)
++RET_INT(comptypes_check_different_types)
++RET_INT(comptypes_check_enum_int)
++RET_INT(same_translation_unit_p)
++RET_TREE(c_size_in_bytes)
++RET_TREE(decl_constant_value)
++RET_TREE(array_to_pointer_conversion)
++RET_TREE(function_to_pointer_conversion)
++RET_VOID(mark_exp_read)
++RET_C_EXPR(default_function_array_conversion)
++RET_C_EXPR(default_function_array_read_conversion)
++RET_TREE(perform_integral_promotions)
++RET_TREE(default_conversion)
++RET_TREE(build_component_ref)
++RET_TREE(build_indirect_ref)
++RET_TREE(build_array_ref)
++RET_TREE(build_external_ref)
++RET_VOID(pop_maybe_used)
++RET_C_EXPR(c_expr_sizeof_expr)
++RET_C_EXPR(c_expr_sizeof_type)
++RET_TREE(build_function_call)
++RET_TREE(build_function_call_vec)
++RET_C_EXPR(parser_build_unary_op)
++RET_C_EXPR(parser_build_binary_op)
++RET_BOOL(lvalue_p)
++RET_BOOL(c_mark_addressable)
++RET_TREE(build_modify_expr)
++RET_TREE(build_compound_expr)
++RET_TREE(build_conditional_expr)
++RET_TREE(build_c_cast)
++RET_TREE(c_cast_expr)
++RET_TREE(convert_to_anonymous_field)
++RET_VOID(store_init_value)
++RET_VOID(error_init)
++RET_VOID(pedwarn_init)
++RET_VOID(maybe_warn_string_init)
++RET_VOID(start_init)
++RET_VOID(finish_init)
++RET_VOID(really_start_incremental_init)
++RET_VOID(push_init_level)
++RET_C_EXPR(pop_init_level)
++RET_VOID(set_init_index)
++RET_VOID(set_init_label)
++RET_VOID(process_init_element)
++RET_TREE(c_start_case)
++RET_VOID(c_finish_case)
++RET_TREE(build_asm_expr)
++RET_TREE(build_asm_stmt)
++RET_INT(c_types_compatible_p)
++RET_TREE(c_finish_goto_label)
++RET_TREE(c_finish_goto_ptr)
++RET_TREE(c_finish_return)
++RET_TREE(c_finish_bc_stmt)
++RET_TREE(c_process_expr_stmt)
++RET_TREE(c_finish_expr_stmt)
++RET_TREE(c_begin_stmt_expr)
++RET_TREE(c_finish_stmt_expr)
++RET_TREE(c_begin_compound_stmt)
++RET_TREE(c_end_compound_stmt)
++RET_VOID(push_cleanup)
++RET_TREE(c_objc_common_truthvalue_conversion)
++RET_TREE(c_expr_to_decl)
++RET_TREE(c_begin_omp_parallel)
++RET_TREE(c_finish_omp_parallel)
++RET_TREE(c_begin_omp_task)
++RET_TREE(c_finish_omp_task)
++RET_TREE(c_finish_omp_clauses)
++RET_TREE(c_build_qualified_type)
++RET_TREE(c_build_va_arg)
++
++#if 0
+ #include "config.h"
+@@ -10724,3 +10832,4 @@ c_build_va_arg (location_t loc, tree expr, tree type)
+ 		"C++ requires promoted type, not enum type, in %<va_arg%>");
+   return build_va_arg (loc, expr, type);
+ }
++#endif
