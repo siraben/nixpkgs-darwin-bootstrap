@@ -1,0 +1,211 @@
+--- a/gcc/c-family/c-common.c
++++ b/gcc/c-family/c-common.c
+@@ -22,1 +22,205 @@
++typedef void *tree;
++typedef const void *const_tree;
++typedef void *rtx;
++typedef void *splay_tree;
++typedef unsigned long splay_tree_key;
++typedef long HOST_WIDE_INT;
++typedef unsigned long size_t;
++typedef int bool;
++typedef int location_t;
++typedef int addr_space_t;
++typedef long alias_set_type;
++typedef void diagnostic_context;
++typedef void cpp_reader;
++typedef void FILE;
++enum tree_code { bootstrap_tree_code };
++enum machine_mode { bootstrap_machine_mode };
++enum rid { bootstrap_rid };
++enum lvalue_use { bootstrap_lvalue_use };
++typedef int ref_operator;
++struct cl_option;
++struct gcc_options;
++struct cl_decoded_option;
++struct cl_option_handlers;
++struct line_map;
++struct visibility_flags { int inpragma; };
++struct attribute_spec { const char *name; };
++
++#define BOOTSTRAP_PTR ((void *) 0)
++#define RET_TREE(name) tree name () { return (tree) BOOTSTRAP_PTR; }
++#define RET_RTX(name) rtx name () { return (rtx) BOOTSTRAP_PTR; }
++#define RET_PTR(type, name) type name () { return (type) BOOTSTRAP_PTR; }
++#define RET_INT(name) int name () { return 0; }
++#define RET_UINT(name) unsigned int name () { return 0; }
++#define RET_LONG(name) HOST_WIDE_INT name () { return 0; }
++#define RET_ALIAS(name) alias_set_type name () { return 0; }
++#define RET_BOOL(name) bool name () { return 0; }
++#define RET_VOID(name) void name () { }
++
++char flag_no_line_commands;
++char flag_no_output;
++char flag_dump_macros;
++char flag_dump_includes;
++bool flag_pch_preprocess;
++const char *pch_file;
++int flag_iso;
++int warn_unknown_pragmas;
++int warn_format;
++int flag_cond_mismatch;
++int flag_isoc94;
++int flag_isoc99;
++int flag_isoc1x;
++int flag_hosted = 1;
++int print_struct_values;
++const char *constant_string_class_name;
++int flag_use_repository;
++int cxx_dialect;
++int max_tinst_depth = 1024;
++tree *ridpointers;
++tree (*make_fname_decl) (location_t, tree, int);
++int c_inhibit_evaluation_warnings;
++bool in_late_binary_op;
++bool done_lexing;
++struct visibility_flags visibility_options;
++int c_common_reswords;
++const unsigned int num_c_common_reswords;
++tree c_global_trees[256];
++const unsigned int c_family_lang_mask;
++int c_common_attribute_table;
++int c_common_format_attribute_table;
++void (*lang_post_pch_load) (void);
++int pending_lang_change;
++const unsigned char executable_checksum[16];
++
++RET_PTR(const char *, c_addr_space_name)
++RET_VOID(start_fname_decls)
++RET_VOID(finish_fname_decls)
++RET_PTR(const char *, fname_as_string)
++RET_TREE(fname_decl)
++RET_TREE(fix_string_type)
++RET_TREE(c_fully_fold)
++RET_TREE(decl_constant_value_for_optimization)
++RET_VOID(constant_expression_warning)
++RET_VOID(constant_expression_error)
++RET_VOID(overflow_warning)
++RET_BOOL(strict_aliasing_warning)
++RET_VOID(warnings_for_convert_and_check)
++RET_TREE(convert_and_check)
++RET_VOID(check_main_parameter_types)
++RET_BOOL(vector_targets_convertible_p)
++RET_BOOL(vector_types_convertible_p)
++RET_TREE(shorten_binary_op)
++RET_VOID(check_function_format)
++RET_TREE(c_common_type_for_size)
++RET_TREE(c_common_type_for_mode)
++RET_TREE(c_common_fixed_point_type_for_size)
++RET_TREE(c_common_unsigned_type)
++RET_TREE(c_common_signed_type)
++RET_TREE(c_common_signed_or_unsigned_type)
++RET_TREE(c_build_bitfield_integer_type)
++RET_VOID(c_register_builtin_type)
++RET_TREE(c_wrap_maybe_const)
++RET_TREE(c_save_expr)
++RET_BOOL(decl_with_nonnull_addr_p)
++RET_TREE(c_common_truthvalue_conversion)
++RET_VOID(c_apply_type_quals_to_decl)
++RET_ALIAS(c_common_get_alias_set)
++RET_TREE(c_alignof_expr)
++RET_VOID(c_common_nodes_and_builtins)
++RET_VOID(set_compound_literal_name)
++RET_VOID(disable_builtin_function)
++RET_BOOL(builtin_function_disabled_p)
++RET_BOOL(c_promoting_integer_type_p)
++RET_INT(self_promoting_args_p)
++RET_TREE(strip_pointer_operator)
++RET_TREE(strip_pointer_or_array_types)
++RET_INT(case_compare)
++RET_TREE(finish_label_address_expr)
++RET_TREE(boolean_increment)
++RET_VOID(c_stddef_cpp_builtins)
++RET_VOID(c_init_attributes)
++RET_BOOL(attribute_takes_identifier_p)
++RET_BOOL(c_determine_visibility)
++RET_BOOL(check_builtin_function_arguments)
++RET_VOID(check_function_arguments)
++RET_VOID(check_function_arguments_recurse)
++RET_INT(field_decl_cmp)
++RET_LONG(c_common_to_target_charset)
++RET_TREE(fold_offsetof_1)
++RET_TREE(fold_offsetof)
++RET_VOID(readonly_error)
++RET_VOID(lvalue_error)
++RET_VOID(invalid_indirection_error)
++RET_INT(complete_array_type)
++RET_VOID(c_common_mark_addressable_vec)
++RET_TREE(builtin_type_for_size)
++RET_TREE(resolve_overloaded_builtin)
++RET_BOOL(same_scalar_type_ignoring_signedness)
++RET_BOOL(check_missing_format_attribute)
++RET_VOID(warn_array_subscript_with_type_char)
++RET_VOID(warn_for_unused_label)
++RET_VOID(warn_for_div_by_zero)
++RET_VOID(set_underlying_type)
++RET_VOID(record_types_used_by_current_var_decl)
++RET_PTR(void *, make_tree_vector)
++RET_VOID(release_tree_vector)
++RET_PTR(void *, make_tree_vector_single)
++RET_PTR(void *, make_tree_vector_copy)
++RET_BOOL(keyword_begins_type_specifier)
++RET_BOOL(keyword_is_type_qualifier)
++RET_BOOL(keyword_is_storage_class_specifier)
++RET_BOOL(keyword_is_function_specifier)
++RET_BOOL(keyword_is_decl_specifier)
++RET_UINT(c_common_option_lang_mask)
++RET_VOID(c_common_initialize_diagnostics)
++RET_BOOL(c_common_complain_wrong_lang_p)
++RET_VOID(c_common_init_options_struct)
++RET_VOID(c_common_init_options)
++RET_BOOL(c_common_post_options)
++RET_BOOL(c_common_init)
++RET_VOID(c_common_finish)
++RET_VOID(c_common_parse_file)
++RET_VOID(warn_for_omitted_condop)
++RET_TREE(build_stmt)
++RET_TREE(build_case_label)
++RET_TREE(build_real_imag_expr)
++RET_TREE(do_case)
++RET_TREE(c_add_case_label)
++RET_VOID(c_do_switch_warnings)
++RET_VOID(dump_time_statistics)
++RET_BOOL(c_dump_tree)
++RET_VOID(verify_sequence_points)
++RET_RTX(c_expand_expr)
++RET_VOID(init_c_lex)
++RET_VOID(c_cpp_builtins)
++RET_VOID(c_cpp_builtins_optimize_pragma)
++RET_BOOL(parse_optimize_options)
++RET_VOID(pch_init)
++RET_INT(c_common_valid_pch)
++RET_VOID(c_common_write_pch)
++RET_VOID(c_common_no_more_pch)
++RET_VOID(c_common_pch_pragma)
++RET_VOID(c_common_print_pch_checksum)
++RET_VOID(builtin_define_std)
++RET_VOID(builtin_define_with_value)
++RET_VOID(fe_file_change)
++RET_VOID(c_parse_error)
++RET_VOID(init_pp_output)
++RET_VOID(preprocess_file)
++RET_VOID(pp_file_change)
++RET_VOID(pp_dir_change)
++RET_TREE(c_finish_omp_master)
++RET_TREE(c_finish_omp_critical)
++RET_TREE(c_finish_omp_ordered)
++RET_VOID(c_finish_omp_barrier)
++RET_TREE(c_finish_omp_atomic)
++RET_VOID(c_finish_omp_flush)
++RET_VOID(c_finish_omp_taskwait)
++RET_TREE(c_finish_omp_for)
++RET_VOID(c_split_parallel_clauses)
++RET_INT(c_omp_predetermined_sharing)
++RET_BOOL(c_omp_sharing_predetermined)
++RET_TREE(c_omp_remap_decl)
++
++#if 0
+ #include "config.h"
+@@ -9725,1 +9929,2 @@
+ #include "gt-c-family-c-common.h"
++#endif
