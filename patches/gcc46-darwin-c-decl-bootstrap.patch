@@ -1,0 +1,172 @@
+--- a/gcc/c-decl.c
++++ b/gcc/c-decl.c
+@@ -29,1 +29,166 @@
++typedef void *tree;
++typedef const void *const_tree;
++typedef int bool;
++typedef int location_t;
++typedef int addr_space_t;
++typedef int FILE;
++typedef void *stmt_tree;
++struct obstack { char bootstrap_dummy; };
++struct c_spot_bindings { char bootstrap_dummy; };
++struct c_struct_parse_info { char bootstrap_dummy; };
++struct c_declspecs { char bootstrap_dummy; };
++struct c_declarator { char bootstrap_dummy; };
++struct c_enum_contents { char bootstrap_dummy; };
++struct c_arg_info { char bootstrap_dummy; };
++struct c_parm { char bootstrap_dummy; };
++struct c_type_name { char bootstrap_dummy; };
++struct c_typespec { void *spec; };
++struct c_label_vars { char bootstrap_dummy; };
++enum tree_code { bootstrap_tree_code };
++enum rid { bootstrap_rid };
++
++#define NULL ((void *) 0)
++#define BOOTSTRAP_PTR ((void *) 0)
++
++tree pending_invalid_xref;
++location_t pending_invalid_xref_location;
++struct obstack parser_obstack;
++tree c_break_label;
++tree c_cont_label;
++int current_function_returns_value;
++int current_function_returns_null;
++int current_function_returns_abnormally;
++bool c_override_global_bindings_to_false;
++
++#define RET_TREE(name) tree name () { return (tree) BOOTSTRAP_PTR; }
++#define RET_PTR(type, name) type name () { return (type) BOOTSTRAP_PTR; }
++#define RET_INT(name) int name () { return 0; }
++#define RET_BOOL(name) bool name () { return 0; }
++#define RET_VOID(name) void name () { }
++
++RET_TREE(add_stmt)
++RET_INT(decl_jump_unsafe)
++RET_VOID(c_print_identifier)
++RET_TREE(bind_label)
++RET_VOID(c_finish_incomplete_decl)
++RET_VOID(record_inline_static)
++RET_VOID(check_inline_statics)
++RET_VOID(set_spot_bindings)
++RET_VOID(update_spot_bindings)
++RET_PTR(void *, objc_get_current_scope)
++RET_VOID(objc_mark_locals_volatile)
++RET_INT(global_bindings_p)
++RET_VOID(keep_next_level)
++RET_VOID(set_float_const_decimal64)
++RET_VOID(clear_float_const_decimal64)
++RET_INT(float_const_decimal64_p)
++RET_VOID(declare_parm_level)
++RET_VOID(push_scope)
++RET_TREE(pop_scope)
++RET_VOID(push_file_scope)
++RET_VOID(pop_file_scope)
++RET_VOID(c_bindings_start_stmt_expr)
++RET_VOID(c_bindings_end_stmt_expr)
++RET_TREE(pushtag)
++RET_INT(match_builtin_function_types)
++RET_INT(diagnose_arglist_conflict)
++RET_VOID(validate_proto_after_old_defn)
++RET_TREE(locate_old_decl)
++RET_INT(diagnose_mismatched_decls)
++RET_TREE(merge_decls)
++RET_INT(duplicate_decls)
++RET_VOID(warn_if_shadowing)
++RET_TREE(pushdecl)
++RET_TREE(pushdecl_top_level)
++RET_VOID(implicit_decl_warning)
++RET_TREE(implicitly_declare)
++RET_VOID(undeclared_variable)
++RET_TREE(make_label)
++RET_TREE(lookup_label)
++RET_VOID(warn_about_goto)
++RET_TREE(lookup_label_for_goto)
++RET_TREE(declare_label)
++RET_VOID(check_earlier_gotos)
++RET_TREE(define_label)
++RET_PTR(struct c_spot_bindings *, c_get_switch_bindings)
++RET_VOID(c_release_switch_bindings)
++RET_BOOL(c_check_switch_jump_warnings)
++RET_TREE(lookup_tag)
++RET_VOID(pending_xref_error)
++RET_TREE(lookup_name)
++RET_TREE(lookup_name_in_scope)
++RET_VOID(c_init_decl_processing)
++RET_TREE(c_make_fname_decl)
++RET_TREE(c_builtin_function)
++RET_TREE(c_builtin_function_ext_scope)
++RET_VOID(shadow_tag)
++RET_VOID(shadow_tag_warned)
++RET_INT(quals_from_declspecs)
++RET_PTR(struct c_declarator *, build_array_declarator)
++RET_PTR(struct c_declarator *, set_array_declarator_inner)
++RET_TREE(add_flexible_array_elts_to_size)
++RET_TREE(groktypename)
++RET_TREE(start_decl)
++RET_VOID(diagnose_uninitialized_cst_member)
++RET_VOID(finish_decl)
++RET_TREE(grokparm)
++RET_VOID(push_parm_decl)
++RET_VOID(mark_forward_parm_decls)
++RET_TREE(build_compound_literal)
++RET_VOID(check_compound_literal_type)
++RET_INT(flexible_array_type_p)
++RET_VOID(check_bitfield_type_and_width)
++RET_VOID(warn_variable_length_array)
++RET_TREE(c_variable_size)
++RET_TREE(grokdeclarator)
++RET_TREE(grokparms)
++RET_PTR(struct c_arg_info *, build_arg_info)
++RET_PTR(struct c_arg_info *, get_parm_info)
++RET_INT(parser_xref_tag)
++RET_TREE(xref_tag)
++RET_TREE(start_struct)
++RET_TREE(grokfield)
++RET_INT(is_duplicate_field)
++RET_INT(detect_field_duplicates_hash)
++RET_VOID(detect_field_duplicates)
++RET_VOID(warn_cxx_compat_finish_struct)
++RET_TREE(finish_struct)
++RET_VOID(layout_array_type)
++RET_TREE(start_enum)
++RET_TREE(finish_enum)
++RET_TREE(build_enumerator)
++RET_INT(start_function)
++RET_VOID(store_parm_decls_newstyle)
++RET_VOID(store_parm_decls_oldstyle)
++RET_VOID(store_parm_decls_from)
++RET_VOID(store_parm_decls)
++RET_VOID(finish_function)
++RET_TREE(check_for_loop_decls)
++RET_VOID(c_push_function_context)
++RET_VOID(c_pop_function_context)
++RET_PTR(stmt_tree, current_stmt_tree)
++RET_TREE(identifier_global_value)
++RET_VOID(record_builtin_type)
++RET_TREE(build_void_list_node)
++RET_PTR(struct c_parm *, build_c_parm)
++RET_PTR(struct c_declarator *, build_attrs_declarator)
++RET_PTR(struct c_declarator *, build_function_declarator)
++RET_PTR(struct c_declarator *, build_id_declarator)
++RET_PTR(struct c_declarator *, make_pointer_declarator)
++RET_PTR(struct c_declspecs *, build_null_declspecs)
++RET_PTR(struct c_declspecs *, declspecs_add_addrspace)
++RET_PTR(struct c_declspecs *, declspecs_add_qual)
++RET_PTR(struct c_declspecs *, declspecs_add_type)
++RET_PTR(struct c_declspecs *, declspecs_add_scspec)
++RET_PTR(struct c_declspecs *, declspecs_add_attrs)
++RET_PTR(struct c_declspecs *, finish_declspecs)
++RET_VOID(c_write_global_declarations_1)
++RET_VOID(c_write_global_declarations_2)
++RET_VOID(collect_source_ref_cb)
++RET_VOID(collect_all_refs)
++RET_VOID(for_each_global_decl)
++RET_VOID(c_write_global_declarations)
++RET_VOID(c_register_addr_space)
++
++#if 0
+ #include "config.h"
+@@ -9913,1 +10078,2 @@
+ #include "gt-c-decl.h"
++#endif
