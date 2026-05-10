@@ -1,0 +1,19 @@
+--- a/gcc/c-aux-info.c
++++ b/gcc/c-aux-info.c
+@@ -24,1 +24,11 @@
++typedef void *tree;
++
++void
++gen_aux_info_record (tree fndecl, int is_definition, int is_implicit,
++		     int is_prototyped)
++{
++  (void) fndecl; (void) is_definition; (void) is_implicit; (void) is_prototyped;
++}
++
++#if 0
+ #include "config.h"
+@@ -565,3 +575,4 @@ gen_aux_info_record (tree fndecl, int is_definition, int is_implicit,
+       fprintf (aux_info_file, "\n");
+     }
+ }
++#endif
