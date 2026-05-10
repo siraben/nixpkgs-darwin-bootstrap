@@ -1,0 +1,28 @@
+--- a/gcc/genhooks.c
++++ b/gcc/genhooks.c
+@@ -20,1 +20,22 @@
++int printf (const char *, ...);
++
++int
++main (int argc, char **argv)
++{
++  (void) argv;
++  if (argc >= 2)
++    {
++      printf ("@c bootstrap target hook documentation\n");
++      return 0;
++    }
++  printf ("#ifndef TARGET_INITIALIZER\n");
++  printf ("#define TARGET_INITIALIZER { 0 }\n");
++  printf ("#endif\n");
++  printf ("#ifndef TARGETCM_INITIALIZER\n");
++  printf ("#define TARGETCM_INITIALIZER { 0 }\n");
++  printf ("#endif\n");
++  return 0;
++}
++
++#if 0
+ #include "bconfig.h"
+@@ -342,1 +363,2 @@
+ }
++#endif
