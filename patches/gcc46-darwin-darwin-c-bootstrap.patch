@@ -1,0 +1,31 @@
+--- a/gcc/config/darwin-c.c
++++ b/gcc/config/darwin-c.c
+@@ -1,3 +1,23 @@
++typedef void *tree;
++typedef const void *const_tree;
++typedef void cpp_reader;
++typedef int bool;
++
++int darwin_additional_format_types;
++
++void darwin_pragma_ignore (pfile) cpp_reader *pfile; { }
++void darwin_pragma_options (pfile) cpp_reader *pfile; { }
++void darwin_pragma_unused (pfile) cpp_reader *pfile; { }
++void darwin_pragma_ms_struct (pfile) cpp_reader *pfile; { }
++void add_framework_path (path) char *path; { }
++void darwin_register_objc_includes (sysroot, iprefix, stdinc) const char *sysroot; const char *iprefix; int stdinc; { }
++void darwin_register_frameworks (sysroot, iprefix, stdinc) const char *sysroot; const char *iprefix; int stdinc; { }
++void darwin_cpp_builtins (pfile) cpp_reader *pfile; { }
++tree darwin_objc_construct_string (str) tree str; { return str; }
++bool darwin_cfstring_ref_p (strp) const_tree strp; { return 0; }
++void darwin_check_cfstring_format_arg (format_arg, params) tree format_arg; tree params; { }
++
++#if 0
+ /* Darwin support needed only by C/C++ frontends.
+    Copyright (C) 2001, 2003, 2004, 2005, 2007, 2008, 2010
+    Free Software Foundation, Inc.
+@@ -715,3 +735,4 @@
+     NULL, NULL
+   }
+ };
++#endif
