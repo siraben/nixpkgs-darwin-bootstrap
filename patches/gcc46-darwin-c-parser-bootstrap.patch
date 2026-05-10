@@ -1,0 +1,15 @@
+--- a/gcc/c-parser.c
++++ b/gcc/c-parser.c
+@@ -40,1 +40,9 @@
++typedef void *tree;
++enum cpp_ttype { bootstrap_cpp_ttype };
++
++void c_parse_init (void) { }
++enum cpp_ttype pragma_lex (tree *value) { if (value) *value = (tree) 0; return bootstrap_cpp_ttype; }
++void c_parse_file (void) { }
++
++#if 0
+ #include "config.h"
+@@ -9956,1 +9964,2 @@
+ #include "gt-c-parser.h"
++#endif
