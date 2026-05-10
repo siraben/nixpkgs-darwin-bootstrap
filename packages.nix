@@ -2363,7 +2363,6 @@ let
       patch -p1 < ${./patches/gcc46-darwin-attribs-bootstrap.patch}
       patch -p1 < ${./patches/gcc46-darwin-c-errors-bootstrap.patch}
       patch -p1 < ${./patches/gcc46-darwin-c-decl-bootstrap.patch}
-      patch -p1 < ${./patches/gcc46-darwin-c-typeck-bootstrap.patch}
     '';
 
   phase35-gcc46-all-gcc =
