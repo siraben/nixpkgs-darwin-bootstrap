@@ -2567,6 +2567,7 @@ C
         patch -p1 < ${./patches/gcc46-darwin-caller-save-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-calls-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-cfg-bootstrap.patch}
+        patch -p1 < ${./patches/gcc46-darwin-cfgloop-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
