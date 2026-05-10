@@ -2548,15 +2548,6 @@ C
         patch -p1 < ${./patches/gcc46-darwin-c-dump-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-format-bootstrap.patch}
         patch -p1 < ${./patches/gcc46-darwin-c-gimplify-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-lex-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-omp-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-opts-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-pch-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-ppoutput-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-pragma-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-pretty-print-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-semantics-bootstrap.patch}
-        patch -p1 < ${./patches/gcc46-darwin-c-ada-spec-bootstrap.patch}
         cd ../..
         find work/build -type f -name Makefile -print | while read makefile; do
           sed -i \
