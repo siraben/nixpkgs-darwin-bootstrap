@@ -2360,6 +2360,8 @@ let
       chmod -R u+w $out
       cd $out
       patch -p1 < ${./patches/gcc46-darwin-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-attribs-bootstrap.patch}
+      patch -p1 < ${./patches/gcc46-darwin-c-errors-bootstrap.patch}
     '';
 
   phase35-gcc46-all-gcc =

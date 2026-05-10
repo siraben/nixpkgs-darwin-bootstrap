@@ -1,0 +1,42 @@
+--- a/gcc/attribs.c
++++ b/gcc/attribs.c
+@@ -20,6 +20,34 @@
+ <http://www.gnu.org/licenses/>.  */
+ 
++typedef void *tree;
++typedef const void *const_tree;
++struct attribute_spec;
++
++void
++register_attribute (const struct attribute_spec *attr)
++{
++  (void) attr;
++}
++
++const struct attribute_spec *
++lookup_attribute_spec (const_tree name)
++{
++  (void) name;
++  return 0;
++}
++
++tree
++decl_attributes (tree *node, tree attributes, int flags)
++{
++  (void) node;
++  (void) attributes;
++  (void) flags;
++  return 0;
++}
++
++#if 0
++
+ #include "config.h"
+ #include "system.h"
+ #include "coretypes.h"
+ #include "tm.h"
+@@ -477,3 +505,4 @@ decl_attributes (tree *node, tree attributes, int flags)
+ 
+   return returned_attrs;
+ }
++#endif

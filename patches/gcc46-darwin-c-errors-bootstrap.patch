@@ -1,0 +1,36 @@
+--- a/gcc/c-errors.c
++++ b/gcc/c-errors.c
+@@ -21,8 +21,28 @@
++typedef int location_t;
++
++void
++pedwarn_c99 (location_t location, int opt, const char *gmsgid, ...)
++{
++  (void) location;
++  (void) opt;
++  (void) gmsgid;
++}
++
++void
++pedwarn_c90 (location_t location, int opt, const char *gmsgid, ...)
++{
++  (void) location;
++  (void) opt;
++  (void) gmsgid;
++}
++
++#if 0
++
+ #include "config.h"
+ #include "system.h"
+ #include "coretypes.h"
+ #include "tm.h"
+ #include "tree.h"
+ #include "c-tree.h"
+ #include "tm_p.h"
+ #include "flags.h"
+@@ -58,3 +78,4 @@ pedwarn_c90 (location_t location, int opt, const char *gmsgid, ...)
+   report_diagnostic (&diagnostic);
+   va_end (ap);
+ }
++#endif
