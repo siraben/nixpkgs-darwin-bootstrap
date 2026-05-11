@@ -7146,7 +7146,7 @@ static int decl0(int l, int is_for_loop_init, Sym *func_sym)
                     const char *filename;
                            
                     filename = file ? file->filename : "";
-                    fn = tcc_malloc(sizeof *fn + strlen(filename));
+                    fn = tcc_malloc(sizeof *fn + strlen(filename) + 1);
                     strcpy(fn->filename, filename);
                     fn->sym = sym;
 		    skip_or_save_block(&fn->func_str);

@@ -16,13 +16,51 @@ extern long lseek(int fd, long off, int whence);
 extern long unlink(const char *path);
 extern void _exit(int code);
 extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
+void *memcpy(void *d, const void *s, size_t n);
+void *memmove(void *d, const void *s, size_t n);
+void *memset(void *d, int c, size_t n);
 
 static long file_fd(FILE *f) { long v = (long)f; return v <= 2 ? v : v - 3; }
 
 void exit(int code) { _exit(code); }
 void abort(void) { _exit(1); }
 void __assert_fail(const char *a, const char *b, unsigned int c, const char *d) { write(2, "assert\n", 7); _exit(1); }
-void *__va_start(void *ap, void *last) { return ap; }
+
+enum __va_arg_type { __va_gen_reg, __va_float_reg, __va_stack };
+typedef struct {
+    unsigned int gp_offset;
+    unsigned int fp_offset;
+    union {
+        unsigned int overflow_offset;
+        char *overflow_arg_area;
+    };
+    char *reg_save_area;
+} __va_list_struct;
+
+void __va_start(__va_list_struct *ap, void *fp)
+{
+    memset(ap, 0, sizeof(__va_list_struct));
+    *ap = *(__va_list_struct *)((char *)fp - 16);
+    ap->overflow_arg_area = (char *)fp + ap->overflow_offset;
+    ap->reg_save_area = (char *)fp - 192;
+}
+
+void *__va_arg(__va_list_struct *ap, enum __va_arg_type arg_type, int size, int align)
+{
+    size = (size + 7) & ~7;
+    align = (align + 7) & ~7;
+    if (arg_type == __va_gen_reg && ap->gp_offset + size <= 48) {
+        ap->gp_offset += size;
+        return ap->reg_save_area + ap->gp_offset - size;
+    }
+    if (arg_type == __va_float_reg && ap->fp_offset < 176) {
+        ap->fp_offset += 16;
+        return ap->reg_save_area + ap->fp_offset - 16;
+    }
+    ap->overflow_arg_area = (char *)(((unsigned long)(ap->overflow_arg_area + align - 1)) & -align);
+    ap->overflow_arg_area += size;
+    return ap->overflow_arg_area - size;
+}
 
 void *malloc(size_t n) { size_t sz = (n + 4095 + 16) & ~4095; unsigned long *p = mmap(0, sz, 3, 0x1002, -1, 0); if ((long)p < 0) return 0; p[0] = sz - 16; p[1] = 0; return p + 2; }
 void free(void *p) { }
@@ -61,12 +99,14 @@ void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const voi
 static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
 static int append_str(char *b, size_t n, size_t *pos, const char *s) { int count = 0; if (!s) s = "(null)"; if ((unsigned long)s < 4096) s = "(bad)"; while (*s) { append_char(b, n, pos, *s++); count++; } return count; }
 static int append_num(char *b, size_t n, size_t *pos, long v, int base) { char tmp[32]; int i = 0, neg = 0, count = 0; unsigned long x; if (v < 0 && base == 10) { neg = 1; x = -v; } else x = v; do { int d = x % base; tmp[i++] = d < 10 ? '0' + d : 'a' + d - 10; x /= base; } while (x); if (neg) tmp[i++] = '-'; while (i--) { append_char(b, n, pos, tmp[i]); count++; } return count; }
-static int format_buffer(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static long next_va_long(__va_list_struct *ap) { return *(long *)__va_arg(ap, __va_gen_reg, 8, 8); }
+static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)next_va_long(ap)); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, next_va_long(ap), 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, next_va_long(ap), 16); else if (*fmt == 'c') append_char(b, n, &pos, next_va_long(ap)); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
 static void putnum(int fd, long v, int base) { char b[32]; size_t pos = 0; append_num(b, sizeof(b), &pos, v, base); write(fd, b, pos); }
 static int fmt_fd(int fd, const char *fmt, long a, long b, long c, long d) { long args[4]; int ai = 0; args[0] = a; args[1] = b; args[2] = c; args[3] = d; while (*fmt) { if (*fmt != '%') { write(fd, fmt, 1); fmt++; continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') { char *s = (char *)args[ai++]; if (!s) s = "(null)"; write(fd, s, strlen(s)); } else if (*fmt == 'd' || *fmt == 'i') putnum(fd, args[ai++], 10); else if (*fmt == 'x' || *fmt == 'p') putnum(fd, args[ai++], 16); else if (*fmt == 'c') { char ch = args[ai++]; write(fd, &ch, 1); } else if (*fmt == '%') write(fd, "%", 1); fmt++; } return 0; }
 int printf(const char *fmt, long a, long b, long c, long d) { return fmt_fd(1, fmt, a, b, c, d); }
 int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { return fmt_fd(file_fd(f), fmt, a, b, c, d); }
-int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer(b, sizeof(b), fmt, (long *)ap); write(file_fd(f), b, n); return n; }
+int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer_va(b, sizeof(b), fmt, (__va_list_struct *)ap); write(file_fd(f), b, n); return n; }
 void perror(const char *s) { if (s) { write(2, s, strlen(s)); write(2, ": ", 2); } write(2, "error\n", 6); }
 
 int fputs(const char *s, FILE *f) { return write(file_fd(f), s, strlen(s)); }
@@ -110,10 +150,10 @@ double __floatdidf(long x) { return (double)x; }
 unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
 long __fixdfdi(double x) { return (long)x; }
 int sscanf(const char *s, const char *f, long a, long b) { return 0; }
-int sprintf(char *b, const char *f, long a, long c, long d, long e) { long args[4]; args[0] = a; args[1] = c; args[2] = d; args[3] = e; return format_buffer(b, (size_t)-1, f, args); }
-int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { long args[3]; args[0] = a; args[1] = c; args[2] = d; return format_buffer(b, n, f, args); }
-int vsprintf(char *b, const char *f, void *ap) { return format_buffer(b, (size_t)-1, f, (long *)ap); }
-int vsnprintf(char *b, size_t n, const char *f, void *ap) { return format_buffer(b, n, f, (long *)ap); }
+int sprintf(char *b, const char *f, long a, long c, long d, long e) { long args[4]; args[0] = a; args[1] = c; args[2] = d; args[3] = e; return format_buffer_words(b, (size_t)-1, f, args); }
+int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { long args[3]; args[0] = a; args[1] = c; args[2] = d; return format_buffer_words(b, n, f, args); }
+int vsprintf(char *b, const char *f, void *ap) { return format_buffer_va(b, (size_t)-1, f, (__va_list_struct *)ap); }
+int vsnprintf(char *b, size_t n, const char *f, void *ap) { return format_buffer_va(b, n, f, (__va_list_struct *)ap); }
 int vasprintf(char **out, const char *f, void *ap) { *out = malloc(4096); return *out ? vsnprintf(*out, 4096, f, ap) : -1; }
 void unlock_std_streams(void) { }
 void longjmp(void *env, int val) { _exit(2); }
