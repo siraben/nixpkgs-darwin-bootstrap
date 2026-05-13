@@ -4903,7 +4903,7 @@
  # The only difference from xgcc is that it's linked with cppspec.o
 --- a/gcc/Makefile.in
 +++ b/gcc/Makefile.in
-@@ -3803,15 +3803,24 @@
+@@ -3803,15 +3803,30 @@
  	$(SHELL) $(srcdir)/../move-if-change tmp-gi.list gtyp-input.list
  	$(STAMP) s-gtyp-input
  
@@ -4921,6 +4921,9 @@
 +	echo '#ifndef GCC_GTYPE_DESC_H' >> gtype-desc.h
 +	echo '#define GCC_GTYPE_DESC_H' >> gtype-desc.h
 +	echo 'enum gt_types_enum { gt_types_enum_last };' >> gtype-desc.h
++	for f in ggc_alloc_align_stack ggc_alloc_c_binding ggc_alloc_c_goto_bindings ggc_alloc_c_inline_static ggc_alloc_c_label_vars ggc_alloc_c_parser ggc_alloc_cleared_alias_set_entry_d ggc_alloc_cleared_c_scope ggc_alloc_cleared_lang_type ggc_alloc_cleared_vec_tree ggc_alloc_language_function ggc_alloc_opt_stack ggc_alloc_sorted_fields_type; do echo "extern void *$$f (void);" >> gtype-desc.h; done
++	echo 'extern void *ggc_alloc_splay_tree_scalar_scalar_splay_tree_s (int, void *);' >> gtype-desc.h
++	echo 'extern void *ggc_alloc_splay_tree_scalar_scalar_splay_tree_node_s (int, void *);' >> gtype-desc.h
 +	echo '#endif' >> gtype-desc.h
 +	echo '/* Bootstrap stub generated without gengtype. */' > gtype-desc.c
 +	echo '#include "config.h"' >> gtype-desc.c
@@ -4933,6 +4936,9 @@
 +	echo 'const struct ggc_root_tab * const gt_pch_cache_rtab[] = { 0 };' >> gtype-desc.c
 +	echo 'const struct ggc_root_tab * const gt_pch_scalar_rtab[] = { 0 };' >> gtype-desc.c
 +	echo 'const struct ggc_cache_tab * const gt_ggc_cache_rtab[] = { 0 };' >> gtype-desc.c
++	for f in ggc_alloc_align_stack ggc_alloc_c_binding ggc_alloc_c_goto_bindings ggc_alloc_c_inline_static ggc_alloc_c_label_vars ggc_alloc_c_parser ggc_alloc_cleared_alias_set_entry_d ggc_alloc_cleared_c_scope ggc_alloc_cleared_lang_type ggc_alloc_cleared_vec_tree ggc_alloc_language_function ggc_alloc_opt_stack ggc_alloc_sorted_fields_type; do case $$f in ggc_alloc_cleared*) echo "void *$$f (void) { return ggc_internal_cleared_alloc (4096); }" >> gtype-desc.c ;; *) echo "void *$$f (void) { return ggc_internal_alloc (4096); }" >> gtype-desc.c ;; esac; done
++	echo 'void *ggc_alloc_splay_tree_scalar_scalar_splay_tree_s (int sz, void *nl) { return ggc_splay_alloc (gt_types_enum_last, sz, nl); }' >> gtype-desc.c
++	echo 'void *ggc_alloc_splay_tree_scalar_scalar_splay_tree_node_s (int sz, void *nl) { return ggc_splay_alloc (gt_types_enum_last, sz, nl); }' >> gtype-desc.c
 +	for f in $(ALL_GTFILES_H); do echo '/* Bootstrap stub generated without gengtype. */' > $$f; done
  	$(STAMP) s-gtype
  
