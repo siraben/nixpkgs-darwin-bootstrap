@@ -2405,7 +2405,7 @@
  {
 --- a/libdecnumber/configure
 +++ b/libdecnumber/configure
-@@ -3912,6 +3912,14 @@
+@@ -3912,6 +3912,15 @@
  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $acx_cv_header_stdint $acx_cv_header_stdint_kind" >&5
  $as_echo "$acx_cv_header_stdint $acx_cv_header_stdint_kind" >&6; }
  
@@ -2415,6 +2415,7 @@
 +  test -z "$ac_cv_sizeof_int" && ac_cv_sizeof_int=4
 +  test -z "$ac_cv_sizeof_short" && ac_cv_sizeof_short=2
 +  test -z "$ac_cv_sizeof_char" && ac_cv_sizeof_char=1
++  ac_cv_type_uintptr_t=yes
 +fi
 +
  # ----------------- done included file, check C basic types --------
