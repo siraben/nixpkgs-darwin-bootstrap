@@ -3263,6 +3263,7 @@ C
         unsigned long strlen(const char *);
         int strncmp(const char *, const char *, size_t);
         char *strncpy(char *, const char *, size_t);
+        char *strpbrk(const char *, const char *);
         char *strrchr(const char *, int);
         char *strstr(const char *, const char *);
         #endif
@@ -3362,6 +3363,7 @@ C
         int printf(const char *, ...);
         int fprintf(FILE *, const char *, ...);
         int vfprintf(FILE *, const char *, va_list);
+        int fscanf(FILE *, const char *, ...);
         int sprintf(char *, const char *, ...);
         int snprintf(char *, size_t, const char *, ...);
         int vsprintf(char *, const char *, va_list);

@@ -80,6 +80,7 @@ int strncmp(const char *a, const char *b, size_t n) { while (n && *a && *a == *b
 char *strncpy(char *d, const char *s, size_t n) { char *r = d; while (n && *s) { *d++ = *s++; n--; } while (n--) *d++ = 0; return r; }
 char *strchr(const char *s, int c) { while (*s) { if (*s == c) return (char *)s; s++; } return c ? 0 : (char *)s; }
 char *strrchr(const char *s, int c) { const char *r = 0; do { if (*s == c) r = s; } while (*s++); return (char *)r; }
+char *strpbrk(const char *s, const char *accept) { while (*s) { const char *a = accept; while (*a) { if (*s == *a++) return (char *)s; } s++; } return 0; }
 char *strstr(const char *h, const char *n) { size_t l = strlen(n); if (!l) return (char *)h; while (*h) { if (!memcmp(h, n, l)) return (char *)h; h++; } return 0; }
 char *strdup(const char *s) { size_t n = strlen(s) + 1; char *d = malloc(n); if (d) memcpy(d, s, n); return d; }
 char *strerror(int e) { return "error"; }
@@ -128,6 +129,71 @@ int feof(FILE *f) { return 0; }
 int ferror(FILE *f) { return 0; }
 int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
 long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
+
+static int scan_space(int c) { return c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f' || c == '\v'; }
+static int scan_set_has(const char *set, int set_len, int c) { int i; for (i = 0; i < set_len; i++) if (set[i] == c) return 1; return 0; }
+static int scan_fail_result(int matched, int c) { return c < 0 && matched == 0 ? -1 : matched; }
+int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
+{
+    long args[4]; int ai = 0, matched = 0, ch;
+    args[0] = a; args[1] = b; args[2] = c_arg; args[3] = d;
+    while (*fmt) {
+        if (scan_space(*fmt)) {
+            while (scan_space(*fmt)) fmt++;
+            do ch = getc(f); while (scan_space(ch));
+            if (ch >= 0) ungetc(ch, f);
+            continue;
+        }
+        if (*fmt != '%') {
+            ch = getc(f);
+            if (ch != *fmt) { if (ch >= 0) ungetc(ch, f); return scan_fail_result(matched, ch); }
+            fmt++;
+            continue;
+        }
+        fmt++;
+        int suppress = 0, width = 0, count = 0;
+        if (*fmt == '*') { suppress = 1; fmt++; }
+        while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; }
+        if (width == 0) width = 0x7fffffff;
+        if (*fmt == 's') {
+            char *out = suppress ? 0 : (char *)args[ai++];
+            do ch = getc(f); while (scan_space(ch));
+            while (ch >= 0 && !scan_space(ch) && count < width) {
+                if (!suppress) out[count] = ch;
+                count++;
+                ch = getc(f);
+            }
+            if (ch >= 0) ungetc(ch, f);
+            if (count == 0) return scan_fail_result(matched, ch);
+            if (!suppress) { out[count] = 0; matched++; }
+            fmt++;
+            continue;
+        }
+        if (*fmt == '[') {
+            char set[64]; int set_len = 0, negate = 0;
+            fmt++;
+            if (*fmt == '^') { negate = 1; fmt++; }
+            while (*fmt && *fmt != ']') {
+                if (set_len < (int)sizeof(set)) set[set_len++] = *fmt;
+                fmt++;
+            }
+            if (*fmt == ']') fmt++;
+            char *out = suppress ? 0 : (char *)args[ai++];
+            ch = getc(f);
+            while (ch >= 0 && (scan_set_has(set, set_len, ch) ? !negate : negate) && count < width) {
+                if (!suppress) out[count] = ch;
+                count++;
+                ch = getc(f);
+            }
+            if (ch >= 0) ungetc(ch, f);
+            if (count == 0) return scan_fail_result(matched, ch);
+            if (!suppress) { out[count] = 0; matched++; }
+            continue;
+        }
+        return matched;
+    }
+    return matched;
+}
 
 int remove(const char *p) { return unlink(p); }
 int fstat(int fd, void *st) { return -1; }
