@@ -1836,7 +1836,7 @@
 +#endif
 --- a/gcc/Makefile.in
 +++ b/gcc/Makefile.in
-@@ -3596,5 +3596,20 @@
+@@ -3596,5 +3596,22 @@
  
  $(simple_generated_h): insn-%.h: s-%; @true
  
@@ -1847,7 +1847,9 @@
 +	$(STAMP) s-constants
 +
 +s-flags: $(MD_DEPS)
-+	: > tmp-flags.h
++	echo '#ifndef GCC_INSN_FLAGS_H' > tmp-flags.h
++	echo '#define GCC_INSN_FLAGS_H' >> tmp-flags.h
++	echo '#endif /* GCC_INSN_FLAGS_H */' >> tmp-flags.h
 +	$(SHELL) $(srcdir)/../move-if-change tmp-flags.h insn-flags.h
 +	$(STAMP) s-flags
 +
