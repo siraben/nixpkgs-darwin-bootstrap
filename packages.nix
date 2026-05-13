@@ -3354,6 +3354,7 @@ C
         #ifndef _DARWIN_BOOTSTRAP_STDIO_H
         #define _DARWIN_BOOTSTRAP_STDIO_H
         #define EOF (-1)
+        #define BUFSIZ 1024
         typedef struct FILE FILE;
         typedef unsigned long size_t;
         #include <stdarg.h>
