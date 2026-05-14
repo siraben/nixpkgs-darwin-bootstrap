@@ -1,0 +1,93 @@
+--- lib/hash.c
++++ lib/hash.c
+@@ -494,20 +494,8 @@
+ static bool
+ check_tuning (Hash_table *table)
+ {
+-  const Hash_tuning *tuning = table->tuning;
+-
+-  if (tuning->growth_threshold > 0.0
+-      && tuning->growth_threshold < 1.0
+-      && tuning->growth_factor > 1.0
+-      && tuning->shrink_threshold >= 0.0
+-      && tuning->shrink_threshold < 1.0
+-      && tuning->shrink_factor > tuning->shrink_threshold
+-      && tuning->shrink_factor <= 1.0
+-      && tuning->shrink_threshold < tuning->growth_threshold)
+-    return true;
+-
+-  table->tuning = &default_tuning;
+-  return false;
++  table->tuning = table->tuning ? table->tuning : &default_tuning;
++  return true;
+ }
+ 
+ /* Allocate and return a new hash table, or NULL upon failure.  The initial
+@@ -570,10 +558,10 @@
+       return NULL;
+     }
+ 
++  /* Avoid bootstrap compiler float codegen: default 0.8 threshold is 5/4. */
+   table->n_buckets
+     = next_prime (tuning->is_n_buckets ? candidate
+-		  : (unsigned) (candidate / tuning->growth_threshold));
+-
++		  : candidate + candidate / 4 + 1);
+   table->bucket = (struct hash_entry *)
+     malloc (table->n_buckets * sizeof (struct hash_entry));
+   if (table->bucket == NULL)
+@@ -947,24 +935,15 @@
+      entries:  if the hashing function is ill-conditioned, rehashing is not
+      likely to improve it.  */
+ 
+-  if (table->n_buckets_used
+-      > table->tuning->growth_threshold * table->n_buckets)
++  if (table->n_buckets_used > (table->n_buckets * 4) / 5)
+     {
+       /* Check more fully, before starting real work.  If tuning arguments
+ 	 became invalid, the second check will rely on proper defaults.  */
+       check_tuning (table);
+-      if (table->n_buckets_used
+-	  > table->tuning->growth_threshold * table->n_buckets)
++      if (table->n_buckets_used > (table->n_buckets * 4) / 5)
+ 	{
+-	  const Hash_tuning *tuning = table->tuning;
+-	  unsigned candidate
+-	    = (unsigned) (tuning->is_n_buckets
+-			  ? (table->n_buckets * tuning->growth_factor)
+-			  : (table->n_buckets * tuning->growth_factor
+-			     * tuning->growth_threshold));
+-
+ 	  /* If the rehash fails, arrange to return NULL.  */
+-	  if (!hash_rehash (table, candidate))
++	  if (!hash_rehash (table, table->n_buckets * 2))
+ 	    entry = NULL;
+ 	}
+     }
+@@ -994,24 +973,9 @@
+       /* If the shrink threshold of the buckets in use has been reached,
+ 	 rehash into a smaller table.  */
+ 
+-      if (table->n_buckets_used
+-	  < table->tuning->shrink_threshold * table->n_buckets)
++      if (0)
+ 	{
+-	  /* Check more fully, before starting real work.  If tuning arguments
+-	     became invalid, the second check will rely on proper defaults.  */
+-	  check_tuning (table);
+-	  if (table->n_buckets_used
+-	      < table->tuning->shrink_threshold * table->n_buckets)
+-	    {
+-	      const Hash_tuning *tuning = table->tuning;
+-	      unsigned candidate
+-		= (unsigned) (tuning->is_n_buckets
+-			      ? table->n_buckets * tuning->shrink_factor
+-			      : (table->n_buckets * tuning->shrink_factor
+-				 * tuning->growth_threshold));
+-
+-	      hash_rehash (table, candidate);
+-	    }
++	  hash_rehash (table, table->n_buckets);
+ 	}
+     }
+ 

@@ -123,6 +123,7 @@ let
       url = "${coreutilsLiveBootstrap}/patches/uniq-fopen.patch";
       hash = "sha256-1w2zfx+Mw2cC4b9D0SR18pGc+326yLLJgEQm2j3URmM=";
     })
+    ./patches/coreutils-hash-no-float.patch
   ];
 
   nyaccVersion = "1.09.1";
@@ -3448,18 +3449,23 @@ C
         #define _DARWIN_BOOTSTRAP_SYS_STAT_H
         typedef long off_t;
         typedef int mode_t;
+        typedef unsigned long dev_t;
         struct stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; off_t st_size; long st_atime; long st_mtime; long st_ctime; };
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
+        int lstat(const char *, struct stat *);
         int chmod(const char *, mode_t);
         int chown(const char *, unsigned int, unsigned int);
         int mkdir(const char *, mode_t);
-        #define lstat stat
+        int mknod(const char *, mode_t, dev_t);
         #define S_IFMT 0170000
         #define S_IFREG 0100000
         #define S_IFDIR 0040000
         #define S_IFLNK 0120000
+        #define S_IFIFO 0010000
+        #define S_IFBLK 0060000
         #define S_IFCHR 0020000
+        #define S_IFSOCK 0140000
         #define S_IRWXU 0700
         #define S_IRWXG 0070
         #define S_IRWXO 0007
@@ -3475,7 +3481,10 @@ C
         #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
         #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
         #define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+        #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
+        #define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
         #define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
+        #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
         #endif
         H
 
@@ -3502,7 +3511,7 @@ C
         #ifndef _DARWIN_BOOTSTRAP_DIRENT_H
         #define _DARWIN_BOOTSTRAP_DIRENT_H
         typedef struct DIR DIR;
-        struct dirent { unsigned long d_ino; char d_name[256]; };
+        struct dirent { unsigned long d_ino; unsigned long d_seekoff; unsigned short d_reclen; unsigned short d_namlen; unsigned char d_type; char d_name[1024]; };
         DIR *opendir(const char *);
         struct dirent *readdir(DIR *);
         int closedir(DIR *);
@@ -3522,6 +3531,7 @@ C
         struct tm *gmtime(const time_t *);
         time_t mktime(struct tm *);
         char *ctime(const time_t *);
+        size_t strftime(char *, size_t, const char *, const struct tm *);
         int nanosleep(const struct timespec *, struct timespec *);
         #endif
         H
@@ -3533,6 +3543,16 @@ C
         struct timezone { int tz_minuteswest; int tz_dsttime; };
         int gettimeofday(struct timeval *, struct timezone *);
         int settimeofday(const struct timeval *, const struct timezone *);
+        int utimes(const char *, const struct timeval *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/utime.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_UTIME_H
+        #define _DARWIN_BOOTSTRAP_UTIME_H
+        typedef long time_t;
+        struct utimbuf { time_t actime; time_t modtime; };
+        int utime(const char *, const struct utimbuf *);
         #endif
         H
 
@@ -3709,6 +3729,7 @@ C
         unsigned long strlen(const char *);
         int strncmp(const char *, const char *, size_t);
         char *strncpy(char *, const char *, size_t);
+        size_t strspn(const char *, const char *);
         size_t strcspn(const char *, const char *);
         char *strpbrk(const char *, const char *);
         char *strrchr(const char *, int);
@@ -3805,13 +3826,39 @@ C
         #define SIG_UNBLOCK 2
         #define SIG_SETMASK 3
         #define SA_RESTART 0
-        #define SIGABRT 6
-        #define SIGALRM 14
-        #define SIGCHLD 20
         #define SIGHUP 1
         #define SIGINT 2
         #define SIGQUIT 3
+        #define SIGILL 4
+        #define SIGTRAP 5
+        #define SIGABRT 6
+        #define SIGIOT SIGABRT
+        #define SIGEMT 7
+        #define SIGFPE 8
+        #define SIGKILL 9
+        #define SIGBUS 10
+        #define SIGSEGV 11
+        #define SIGSYS 12
+        #define SIGPIPE 13
+        #define SIGALRM 14
         #define SIGTERM 15
+        #define SIGURG 16
+        #define SIGSTOP 17
+        #define SIGTSTP 18
+        #define SIGCONT 19
+        #define SIGCHLD 20
+        #define SIGTTIN 21
+        #define SIGTTOU 22
+        #define SIGIO 23
+        #define SIGXCPU 24
+        #define SIGXFSZ 25
+        #define SIGVTALRM 26
+        #define SIGPROF 27
+        #define SIGWINCH 28
+        #define SIGINFO 29
+        #define SIGUSR1 30
+        #define SIGUSR2 31
+        #define NSIG 32
         __sighandler_t signal(int, __sighandler_t);
         int sigaction(int, const struct sigaction *, struct sigaction *);
         int raise(int);
@@ -3819,6 +3866,15 @@ C
         int sigemptyset(sigset_t *);
         int sigaddset(sigset_t *, int);
         int sigprocmask(int, const sigset_t *, sigset_t *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/setjmp.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SETJMP_H
+        #define _DARWIN_BOOTSTRAP_SETJMP_H
+        typedef long jmp_buf[32];
+        int setjmp(jmp_buf);
+        void longjmp(jmp_buf, int);
         #endif
         H
 
@@ -3843,6 +3899,7 @@ C
         unsigned long strtoul(const char *, char **, int);
         long long strtoll(const char *, char **, int);
         unsigned long long strtoull(const char *, char **, int);
+        double strtod(const char *, char **);
         double atof(const char *);
         char *mktemp(char *);
         void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
@@ -3860,7 +3917,7 @@ C
         #define SEEK_SET 0
         #define SEEK_CUR 1
         #define SEEK_END 2
-        typedef struct FILE FILE;
+        typedef long FILE;
         typedef unsigned long size_t;
         #include <stdarg.h>
         extern FILE *stdin;
@@ -3885,6 +3942,7 @@ C
         int fputs(const char *, FILE *);
         int puts(const char *);
         int fputc(int, FILE *);
+        int fgetc(FILE *);
         int putchar(int);
         int getchar(void);
         void setbuf(FILE *, char *);
@@ -3894,10 +3952,26 @@ C
         int putc(int, FILE *);
         int fflush(FILE *);
         void clearerr(FILE *);
+        void clearerr_unlocked(FILE *);
+        int feof_unlocked(FILE *);
+        int ferror_unlocked(FILE *);
+        int fflush_unlocked(FILE *);
+        int fgetc_unlocked(FILE *);
+        char *fgets_unlocked(char *, int, FILE *);
+        int fileno_unlocked(FILE *);
+        int fputc_unlocked(int, FILE *);
+        int fputs_unlocked(const char *, FILE *);
+        size_t fread_unlocked(void *, size_t, size_t, FILE *);
+        size_t fwrite_unlocked(const void *, size_t, size_t, FILE *);
+        int getchar_unlocked(void);
+        int getc_unlocked(FILE *);
+        int putchar_unlocked(int);
+        int putc_unlocked(int, FILE *);
         size_t fread(void *, size_t, size_t, FILE *);
         size_t fwrite(const void *, size_t, size_t, FILE *);
         int feof(FILE *);
         int fseek(FILE *, long, int);
+        int fseeko(FILE *, long, int);
         long ftell(FILE *);
         int fileno(FILE *);
         int remove(const char *);
@@ -3912,26 +3986,38 @@ C
         #define _DARWIN_BOOTSTRAP_UNISTD_H
         typedef long ssize_t;
         typedef long off_t;
+        typedef unsigned int uid_t;
+        typedef unsigned int gid_t;
         int close(int);
         #define F_OK 0
         int access(const char *, int);
         int dup(int);
         int dup2(int, int);
+        int execv(const char *, char *const *);
+        int execl(const char *, const char *, ...);
+        int execlp(const char *, const char *, ...);
         int execvp(const char *, char *const *);
         int fork(void);
         char *getcwd(char *, unsigned long);
         char *getlogin(void);
         int chdir(const char *);
-        int geteuid(void);
-        int getuid(void);
-        int getegid(void);
-        int getgid(void);
+        uid_t geteuid(void);
+        uid_t getuid(void);
+        gid_t getegid(void);
+        gid_t getgid(void);
         int getpid(void);
+        char *getwd(char *);
         int isatty(int);
         int fchdir(int);
+        int fchown(int, unsigned int, unsigned int);
+        int fsync(int);
+        int fdatasync(int);
+        int ftruncate(int, off_t);
+        int lchown(const char *, unsigned int, unsigned int);
         int link(const char *, const char *);
         int pipe(int *);
         int sleep(unsigned int);
+        void sync(void);
         unsigned int alarm(unsigned int);
         char *ttyname(int);
         int umask(int);

@@ -89,6 +89,7 @@ char *strncpy(char *d, const char *s, size_t n) { char *r = d; while (n && *s) {
 char *strchr(const char *s, int c) { while (*s) { if (*s == c) return (char *)s; s++; } return c ? 0 : (char *)s; }
 char *strrchr(const char *s, int c) { const char *r = 0; do { if (*s == c) r = s; } while (*s++); return (char *)r; }
 char *strpbrk(const char *s, const char *accept) { while (*s) { const char *a = accept; while (*a) { if (*s == *a++) return (char *)s; } s++; } return 0; }
+size_t strspn(const char *s, const char *accept) { size_t n = 0; while (s[n]) { const char *a = accept; int ok = 0; while (*a) if (s[n] == *a++) { ok = 1; break; } if (!ok) return n; n++; } return n; }
 size_t strcspn(const char *s, const char *reject) { size_t n = 0; while (s[n]) { const char *r = reject; while (*r) if (s[n] == *r++) return n; n++; } return n; }
 char *strstr(const char *h, const char *n) { size_t l = strlen(n); if (!l) return (char *)h; while (*h) { if (!memcmp(h, n, l)) return (char *)h; h++; } return 0; }
 char *strdup(const char *s) { size_t n = strlen(s) + 1; char *d = malloc(n); if (d) memcpy(d, s, n); return d; }
@@ -141,6 +142,7 @@ int fputc(int c, FILE *f) { char ch = c; return write(file_fd(f), &ch, 1); }
 int putc(int c, FILE *f) { return fputc(c, f); }
 int putchar(int c) { return fputc(c, stdout); }
 int getc(FILE *f) { unsigned char ch; int fd = file_fd(f); if (ungot_fd == fd && ungot_ch >= 0) { ch = ungot_ch; ungot_ch = -1; return ch; } return read(fd, &ch, 1) == 1 ? ch : -1; }
+int fgetc(FILE *f) { return getc(f); }
 int getchar(void) { return getc(stdin); }
 char *fgets(char *s, int n, FILE *f) { int i = 0, c; if (n <= 0) return 0; while (i + 1 < n && (c = getc(f)) >= 0) { s[i++] = c; if (c == '\n') break; } if (i == 0) return 0; s[i] = 0; return s; }
 int ungetc(int c, FILE *f) { ungot_fd = file_fd(f); ungot_ch = c; return c; }
@@ -157,8 +159,24 @@ void setbuf(FILE *f, char *b) { }
 void clearerr(FILE *f) { }
 int feof(FILE *f) { return 0; }
 int ferror(FILE *f) { return 0; }
+void clearerr_unlocked(FILE *f) { clearerr(f); }
+int feof_unlocked(FILE *f) { return feof(f); }
+int ferror_unlocked(FILE *f) { return ferror(f); }
+int fflush_unlocked(FILE *f) { return fflush(f); }
+int fgetc_unlocked(FILE *f) { return fgetc(f); }
+char *fgets_unlocked(char *s, int n, FILE *f) { return fgets(s, n, f); }
+int fileno_unlocked(FILE *f) { return fileno(f); }
+int fputc_unlocked(int c, FILE *f) { return fputc(c, f); }
+int fputs_unlocked(const char *s, FILE *f) { return fputs(s, f); }
+size_t fread_unlocked(void *p, size_t z, size_t n, FILE *f) { return fread(p, z, n, f); }
+size_t fwrite_unlocked(const void *p, size_t z, size_t n, FILE *f) { return fwrite(p, z, n, f); }
+int getchar_unlocked(void) { return getchar(); }
+int getc_unlocked(FILE *f) { return getc(f); }
+int putchar_unlocked(int c) { return putchar(c); }
+int putc_unlocked(int c, FILE *f) { return putc(c, f); }
 int setvbuf(FILE *f, char *b, int mode, size_t size) { return 0; }
 int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
+int fseeko(FILE *f, long o, int w) { return fseek(f, o, w); }
 long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
 FILE *popen(const char *cmd, const char *mode) { return 0; }
 int pclose(FILE *f) { return -1; }
@@ -231,19 +249,33 @@ int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
 int remove(const char *p) { return unlink(p); }
 int creat(const char *p, int mode) { return open(p, 0x601, mode); }
 int rename(const char *old, const char *new) { char buf[4096]; long n; int in, out; if (sys_rename(old, new) == 0) return 0; in = open(old, 0, 0); if (in < 0) return -1; unlink(new); out = open(new, 0x601, 0666); if (out < 0) { close(in); return -1; } while ((n = read(in, buf, sizeof(buf))) > 0) if (write(out, buf, n) != n) { close(in); close(out); return -1; } close(in); close(out); if (n < 0) return -1; unlink(old); return 0; }
+int sys_stat64(const char *p, void *st);
+int sys_fstat64(int fd, void *st);
+int sys_lstat64(const char *p, void *st);
+long sys_getdirentries64(int fd, char *buf, unsigned long nbytes, long *basep);
+int sys_mkdir(const char *p, int mode);
+int sys_rmdir(const char *p);
+int sys_chdir(const char *p);
 struct boot_stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; long st_size; long st_atime; long st_mtime; long st_ctime; };
-static void fill_regular_stat(void *st, long size) { struct boot_stat *s = st; if (s) { memset(s, 0, sizeof(*s)); s->st_mode = 0100000 | 0644; s->st_nlink = 1; s->st_size = size; } }
-int fstat(int fd, void *st) { long cur, end; if (fd <= 2) { errno = 9; return -1; } cur = lseek(fd, 0, 1); end = lseek(fd, 0, 2); if (cur >= 0) lseek(fd, cur, 0); fill_regular_stat(st, end < 0 ? 0 : end); return 0; }
-int stat(const char *p, void *st) { int fd = open(p, 0, 0); int r; if (fd < 0) { errno = 2; return -1; } r = fstat(fd, st); close(fd); return r; }
+struct darwin_stat64 { int st_dev; unsigned short st_mode; unsigned short st_nlink; unsigned long st_ino; unsigned int st_uid; unsigned int st_gid; int st_rdev; int __pad0; long st_atime; long st_atimensec; long st_mtime; long st_mtimensec; long st_ctime; long st_ctimensec; long st_birthtime; long st_birthtimensec; long st_size; long st_blocks; int st_blksize; unsigned int st_flags; unsigned int st_gen; int st_lspare; long st_qspare[2]; };
+static int stat_result(int r) { if (r < 0) { errno = -r; return -1; } return 0; }
+static int copy_stat_result(int r, void *st, struct darwin_stat64 *k) { struct boot_stat *s = st; if (stat_result(r) < 0) return -1; if (s) { memset(s, 0, sizeof(*s)); s->st_dev = k->st_dev; s->st_ino = k->st_ino; s->st_mode = k->st_mode; s->st_nlink = k->st_nlink; s->st_uid = k->st_uid; s->st_gid = k->st_gid; s->st_rdev = k->st_rdev; s->st_size = k->st_size; } return 0; }
+int fstat(int fd, void *st) { struct darwin_stat64 k; return copy_stat_result(sys_fstat64(fd, &k), st, &k); }
+int stat(const char *p, void *st) { struct darwin_stat64 k; return copy_stat_result(sys_stat64(p, &k), st, &k); }
+int lstat(const char *p, void *st) { struct darwin_stat64 k; return copy_stat_result(sys_lstat64(p, &k), st, &k); }
 int access(const char *p, int mode) { struct boot_stat st; return stat(p, &st); }
 int chmod(const char *p, int mode) { return 0; }
 int chown(const char *p, unsigned int uid, unsigned int gid) { return 0; }
-int mkdir(const char *p, int mode) { return 0; }
+int lchown(const char *p, unsigned int uid, unsigned int gid) { return chown(p, uid, gid); }
+int fchown(int fd, unsigned int uid, unsigned int gid) { return 0; }
+int mkdir(const char *p, int mode) { return stat_result(sys_mkdir(p, mode)); }
 int utime(const char *p, const void *times) { return 0; }
+int utimes(const char *p, const void *times) { return 0; }
 char *mktemp(char *template) { return template; }
 char *getenv(const char *n) { return 0; }
 char *getcwd(char *b, size_t n) { if (n >= 2) { b[0] = '.'; b[1] = 0; return b; } return 0; }
-int chdir(const char *p) { return 0; }
+char *getwd(char *b) { return getcwd(b, 1024); }
+int chdir(const char *p) { return stat_result(sys_chdir(p)); }
 int fchdir(int fd) { return 0; }
 char *getlogin(void) { return 0; }
 int geteuid(void) { return 0; }
@@ -257,22 +289,30 @@ int sleep(unsigned int seconds) { return 0; }
 int nanosleep(const void *req, void *rem) { return 0; }
 unsigned int alarm(unsigned int seconds) { return 0; }
 int umask(int mask) { return 0; }
-int rmdir(const char *path) { return 0; }
+int rmdir(const char *path) { return stat_result(sys_rmdir(path)); }
 long readlink(const char *path, char *buf, unsigned long size) { return -1; }
 void *getpwnam(const char *name) { return 0; }
 void *getpwuid(unsigned int uid) { return 0; }
 void *getgrnam(const char *name) { return 0; }
 void *getgrgid(unsigned int gid) { return 0; }
-void *opendir(const char *name) { return 0; }
-void *readdir(void *dir) { return 0; }
-int closedir(void *dir) { return 0; }
+struct boot_dirent { unsigned long d_ino; unsigned long d_seekoff; unsigned short d_reclen; unsigned short d_namlen; unsigned char d_type; char d_name[1024]; };
+struct boot_DIR { int fd; long base; long size; long pos; char buf[8192]; struct boot_dirent ent; };
+void *opendir(const char *name) { struct boot_DIR *d; int fd = open(name, 0, 0); if (fd < 0) return 0; d = malloc(sizeof(*d)); if (!d) { close(fd); return 0; } d->fd = fd; d->base = 0; d->size = 0; d->pos = 0; return d; }
+void *readdir(void *dir) { struct boot_DIR *d = dir; struct boot_dirent *src; int i; long n; if (!d) return 0; if (d->pos >= d->size) { n = sys_getdirentries64(d->fd, d->buf, sizeof(d->buf), &d->base); if (n <= 0) return 0; d->size = n; d->pos = 0; } src = (struct boot_dirent *)(d->buf + d->pos); if (src->d_reclen == 0) return 0; d->pos += src->d_reclen; d->ent.d_ino = src->d_ino; d->ent.d_seekoff = src->d_seekoff; d->ent.d_reclen = src->d_reclen; d->ent.d_namlen = src->d_namlen; d->ent.d_type = src->d_type; for (i = 0; i < 1023 && i < d->ent.d_namlen; i++) d->ent.d_name[i] = src->d_name[i]; d->ent.d_name[i] = 0; return &d->ent; }
+int closedir(void *dir) { struct boot_DIR *d = dir; int r; if (!d) return -1; r = close(d->fd); free(d); return r; }
 int dirfd(void *dir) { return -1; }
 int execve(const char *path, char *const argv[], char *const envp[]) { long r = sys_execve(path, argv, envp); if (r < 0) { errno = -r; return -1; } return r; }
+int execv(const char *path, char *const argv[]) { return execve(path, argv, environ); }
+int execl(const char *path, const char *arg, ...) { char *argv[2]; argv[0] = (char *)arg; argv[1] = 0; return execv(path, argv); }
+int execlp(const char *file, const char *arg, ...) { char *argv[2]; argv[0] = (char *)arg; argv[1] = 0; return execvp(file, argv); }
 int execvp(const char *f, char *const a[]) { char path[1024]; const char *dirs[3]; int i; if (strchr(f, '/')) return execve(f, a, environ); dirs[0] = "/bin/"; dirs[1] = "/usr/bin/"; dirs[2] = 0; for (i = 0; dirs[i]; i++) { strcpy(path, dirs[i]); strcat(path, f); execve(path, a, environ); } return -1; }
 int fork(void) { long r = sys_fork(); if (r < 0) { errno = -r; return -1; } return r; }
 int pipe(int *fds) { return -1; }
 int dup(int fd) { return fd; }
 int dup2(int oldfd, int newfd) { return newfd; }
+int fsync(int fd) { return 0; }
+int fdatasync(int fd) { return 0; }
+int ftruncate(int fd, long length) { return 0; }
 int wait4(int pid, int *status, int options, void *rusage) { long r = sys_wait4(pid, status, options, rusage); if (r < 0) { errno = -r; return -1; } return r; }
 int wait(int *status) { return wait4(-1, status, 0, 0); }
 int waitpid(int pid, int *status, int options) { return wait4(pid, status, options, 0); }
@@ -281,12 +321,14 @@ int sigemptyset(long *set) { if (set) *set = 0; return 0; }
 int sigaddset(long *set, int sig) { if (set) *set |= 1L << sig; return 0; }
 int sigprocmask(int how, const long *set, long *oldset) { if (oldset) *oldset = 0; return 0; }
 int fcntl(int fd, int cmd, long arg) { return 0; }
+void sync(void) { }
 int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
 int settimeofday(const void *tv, const void *tz) { return 0; }
 struct boot_tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
 static struct boot_tm epoch_tm = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
 long time(long *t) { if (t) *t = 0; return 0; }
 char *ctime(const long *t) { return "Thu Jan  1 00:00:00 1970\n"; }
+size_t strftime(char *s, size_t max, const char *fmt, const void *tm) { if (max) s[0] = 0; return 0; }
 long clock(void) { return 0; }
 void *localtime(const long *t) { return &epoch_tm; }
 void *gmtime(const long *t) { return &epoch_tm; }
@@ -316,4 +358,5 @@ int vsprintf(char *b, const char *f, void *ap) { return format_buffer_va(b, (siz
 int vsnprintf(char *b, size_t n, const char *f, void *ap) { return format_buffer_va(b, n, f, (__va_list_struct *)ap); }
 int vasprintf(char **out, const char *f, void *ap) { *out = malloc(4096); return *out ? vsnprintf(*out, 4096, f, ap) : -1; }
 void unlock_std_streams(void) { }
+int setjmp(void *env) { return 0; }
 void longjmp(void *env, int val) { _exit(2); }
