@@ -3929,6 +3929,7 @@ C
         int getpid(void);
         int isatty(int);
         int fchdir(int);
+        int link(const char *, const char *);
         int pipe(int *);
         int sleep(unsigned int);
         unsigned int alarm(unsigned int);
