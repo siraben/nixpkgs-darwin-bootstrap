@@ -3506,7 +3506,6 @@ C
         DIR *opendir(const char *);
         struct dirent *readdir(DIR *);
         int closedir(DIR *);
-        int dirfd(DIR *);
         #endif
         H
 
