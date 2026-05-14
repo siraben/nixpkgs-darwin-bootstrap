@@ -2023,11 +2023,47 @@
 +}
 --- /dev/null
 +++ b/gcc/bootstrap-md-stubs.sh
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,188 @@
 +set -eu
 +
 +kind=$1
 +name=$2
++script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
++
++emit_code_names()
++{
++  {
++    find "$script_dir" -maxdepth 1 \( -name '*.c' -o -name '*.h' \) -print
++    find "$script_dir/config/i386" -type f -print
++    find "$script_dir/config" -maxdepth 1 \( -name 'darwin*.c' -o -name 'darwin*.h' \) -print
++  } | xargs awk '
++    {
++      line = $0
++      while (match(line, /CODE_FOR_[A-Za-z0-9_]+/)) {
++        name = substr(line, RSTART, RLENGTH)
++        if (name != "CODE_FOR_nothing" && !seen[name]++) print "  " name ","
++        line = substr(line, RSTART + RLENGTH)
++      }
++      if (match($0, /^[ \t]*[(]define_(insn|expand|split|peephole2|cond_exec)[ \t]+"[A-Za-z_][A-Za-z0-9_]*"/)) {
++        name = substr($0, RSTART, RLENGTH)
++        sub(/^[^"]*"/, "", name)
++        sub(/".*/, "", name)
++        name = "CODE_FOR_" name
++        if (name != "CODE_FOR_nothing" && !seen[name]++) print "  " name ","
++      }
++    }'
++}
++
++emit_md_names()
++{
++  awk '
++    /^[ \t]*[(]define_(insn|expand|split|peephole2|cond_exec)[ \t]+"[A-Za-z_][A-Za-z0-9_]*"/ {
++      name = $0
++      sub(/^[^"]*"/, "", name)
++      sub(/".*/, "", name)
++      if (!seen[name]++) print name
++    }' "$script_dir/config/i386/i386.md"
++}
 +
 +case "$kind:$name" in
 +  header:attr)
@@ -2053,7 +2089,13 @@
 +    cat <<'EOF'
 +#ifndef GCC_INSN_CODES_H
 +#define GCC_INSN_CODES_H
-+enum insn_code { CODE_FOR_nothing = 0 };
++enum insn_code {
++  CODE_FOR_nothing = 0,
++EOF
++    emit_code_names
++    cat <<'EOF'
++  CODE_FOR_LAST
++};
 +#endif /* GCC_INSN_CODES_H */
 +EOF
 +    ;;
@@ -2106,6 +2148,7 @@
 +rtx gen_sub3_insn (rtx a ATTRIBUTE_UNUSED, rtx b ATTRIBUTE_UNUSED, rtx c ATTRIBUTE_UNUSED) { return NULL_RTX; }
 +rtx gen_jump (rtx a ATTRIBUTE_UNUSED) { return NULL_RTX; }
 +EOF
++    emit_md_names | awk '{ print "rtx gen_" $0 " () { return NULL_RTX; }" }'
 +    ;;
 +  source:extract)
 +    cat <<'EOF'
@@ -2151,6 +2194,10 @@
 +#include "coretypes.h"
 +#include "tm.h"
 +#include "rtl.h"
++#include "insn-codes.h"
++#include "recog.h"
++const struct insn_data_d insn_data[CODE_FOR_LAST + 1] = { { 0 } };
++int peep2_current_count = 0;
 +void init_recog (void) {}
 +int recog (rtx pat ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED, int *n ATTRIBUTE_UNUSED) { return -1; }
 +rtx split_insns (rtx pat ATTRIBUTE_UNUSED, rtx insn ATTRIBUTE_UNUSED) { return NULL_RTX; }
