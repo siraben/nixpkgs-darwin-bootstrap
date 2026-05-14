@@ -3942,6 +3942,7 @@ C
         int unlink(const char *);
         int rename(const char *, const char *);
         int rmdir(const char *);
+        int symlink(const char *, const char *);
         #endif
         H
 
