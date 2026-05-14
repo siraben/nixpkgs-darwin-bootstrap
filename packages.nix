@@ -3411,6 +3411,7 @@ C
         double frexp(double, int *);
         double fabs(double);
         double atof(const char *);
+        double strtod(const char *, char **);
         #endif
         H
 
@@ -3505,6 +3506,7 @@ C
         DIR *opendir(const char *);
         struct dirent *readdir(DIR *);
         int closedir(DIR *);
+        int dirfd(DIR *);
         #endif
         H
 
@@ -3530,6 +3532,7 @@ C
         struct timeval { long tv_sec; long tv_usec; };
         struct timezone { int tz_minuteswest; int tz_dsttime; };
         int gettimeofday(struct timeval *, struct timezone *);
+        int settimeofday(const struct timeval *, const struct timezone *);
         #endif
         H
 
@@ -3538,6 +3541,7 @@ C
         #define _DARWIN_BOOTSTRAP_SYS_WAIT_H
         #define WNOHANG 1
         int wait(int *);
+        int wait4(int, int *, int, void *);
         int waitpid(int, int *, int);
         #endif
         H
@@ -3759,6 +3763,8 @@ C
         #define EXDEV 18
         #define ENOSPC 28
         #define ERANGE 34
+        #define ENAMETOOLONG 63
+        #define ENOSYS 78
         #endif
         H
 
@@ -3811,6 +3817,8 @@ C
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
         void abort(void);
+        #define EXIT_SUCCESS 0
+        #define EXIT_FAILURE 1
         int system(const char *);
         void exit(int);
         void _exit(int);
@@ -3868,6 +3876,7 @@ C
         int puts(const char *);
         int fputc(int, FILE *);
         int putchar(int);
+        int getchar(void);
         void setbuf(FILE *, char *);
         int getc(FILE *);
         char *fgets(char *, int, FILE *);
@@ -3905,6 +3914,7 @@ C
         int geteuid(void);
         int getpid(void);
         int isatty(int);
+        int fchdir(int);
         int pipe(int *);
         int sleep(unsigned int);
         unsigned int alarm(unsigned int);
@@ -3941,7 +3951,7 @@ C
         cp crt1-tcc-sysv.M1 tinycc-sysv-libc.M1 $out/share/darwin-bootstrap/
 
         cat > $out/bin/tcc-darwin-cc <<'SH'
-        #!/usr/bin/env bash
+        #!${stdenv.shell}
         set -euo pipefail
 
         out=a.out
@@ -4272,7 +4282,7 @@ C
         all:
         	echo hi
         MK
-        ./make -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
+        MAKEFLAGS= ./make -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
         grep -q 'echo hi' make-smoke.stdout
 
         install -Dm755 make $out/bin/make
@@ -4358,7 +4368,7 @@ C
         } > bootstrap-coreutils.mk
 
         export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
-        ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
+        MAKEFLAGS= ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
           CC="$CC -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1" \
           PREFIX="$out" \
           > coreutils-build.stdout \
@@ -4367,7 +4377,7 @@ C
         ./src/echo "Hello coreutils!" > coreutils-smoke.stdout 2> coreutils-smoke.stderr
         grep -q "Hello coreutils!" coreutils-smoke.stdout
 
-        ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk install \
+        MAKEFLAGS= ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk install \
           PREFIX="$out" \
           > coreutils-install.stdout \
           2> coreutils-install.stderr

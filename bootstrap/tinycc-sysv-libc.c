@@ -19,9 +19,9 @@ extern long close(int fd);
 extern long lseek(int fd, long off, int whence);
 extern long unlink(const char *path);
 extern long sys_rename(const char *old, const char *new);
-extern long execve(const char *path, char *const argv[], char *const envp[]);
-extern long fork(void);
-extern long wait4(int pid, int *status, int options, void *rusage);
+extern long sys_execve(const char *path, char *const argv[], char *const envp[]);
+extern long sys_fork(void);
+extern long sys_wait4(int pid, int *status, int options, void *rusage);
 extern void _exit(int code);
 extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
 void *memcpy(void *d, const void *s, size_t n);
@@ -140,6 +140,7 @@ int fputc(int c, FILE *f) { char ch = c; return write(file_fd(f), &ch, 1); }
 int putc(int c, FILE *f) { return fputc(c, f); }
 int putchar(int c) { return fputc(c, stdout); }
 int getc(FILE *f) { unsigned char ch; int fd = file_fd(f); if (ungot_fd == fd && ungot_ch >= 0) { ch = ungot_ch; ungot_ch = -1; return ch; } return read(fd, &ch, 1) == 1 ? ch : -1; }
+int getchar(void) { return getc(stdin); }
 char *fgets(char *s, int n, FILE *f) { int i = 0, c; if (n <= 0) return 0; while (i + 1 < n && (c = getc(f)) >= 0) { s[i++] = c; if (c == '\n') break; } if (i == 0) return 0; s[i] = 0; return s; }
 int ungetc(int c, FILE *f) { ungot_fd = file_fd(f); ungot_ch = c; return c; }
 size_t fwrite(const void *p, size_t z, size_t n, FILE *f) { long r = write(file_fd(f), p, z * n); return r < 0 ? 0 : r / z; }
@@ -241,6 +242,7 @@ char *mktemp(char *template) { return template; }
 char *getenv(const char *n) { return 0; }
 char *getcwd(char *b, size_t n) { if (n >= 2) { b[0] = '.'; b[1] = 0; return b; } return 0; }
 int chdir(const char *p) { return 0; }
+int fchdir(int fd) { return 0; }
 char *getlogin(void) { return 0; }
 int geteuid(void) { return 0; }
 int getpid(void) { return 1; }
@@ -258,10 +260,14 @@ void *getgrgid(unsigned int gid) { return 0; }
 void *opendir(const char *name) { return 0; }
 void *readdir(void *dir) { return 0; }
 int closedir(void *dir) { return 0; }
+int dirfd(void *dir) { return -1; }
+int execve(const char *path, char *const argv[], char *const envp[]) { long r = sys_execve(path, argv, envp); if (r < 0) { errno = -r; return -1; } return r; }
 int execvp(const char *f, char *const a[]) { char path[1024]; const char *dirs[3]; int i; if (strchr(f, '/')) return execve(f, a, environ); dirs[0] = "/bin/"; dirs[1] = "/usr/bin/"; dirs[2] = 0; for (i = 0; dirs[i]; i++) { strcpy(path, dirs[i]); strcat(path, f); execve(path, a, environ); } return -1; }
+int fork(void) { long r = sys_fork(); if (r < 0) { errno = -r; return -1; } return r; }
 int pipe(int *fds) { return -1; }
 int dup(int fd) { return fd; }
 int dup2(int oldfd, int newfd) { return newfd; }
+int wait4(int pid, int *status, int options, void *rusage) { long r = sys_wait4(pid, status, options, rusage); if (r < 0) { errno = -r; return -1; } return r; }
 int wait(int *status) { return wait4(-1, status, 0, 0); }
 int waitpid(int pid, int *status, int options) { return wait4(pid, status, options, 0); }
 int kill(int pid, int sig) { return -1; }
@@ -270,6 +276,7 @@ int sigaddset(long *set, int sig) { if (set) *set |= 1L << sig; return 0; }
 int sigprocmask(int how, const long *set, long *oldset) { if (oldset) *oldset = 0; return 0; }
 int fcntl(int fd, int cmd, long arg) { return 0; }
 int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
+int settimeofday(const void *tv, const void *tz) { return 0; }
 struct boot_tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
 static struct boot_tm epoch_tm = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
 long time(long *t) { if (t) *t = 0; return 0; }
@@ -287,6 +294,7 @@ int putenv(char *s) { return 0; }
 int system(const char *s) { return -1; }
 float strtof(const char *s, char **e) { if (e) *e = (char *)s; return 0; }
 double atof(const char *s) { return 0; }
+double strtod(const char *s, char **e) { if (e) *e = (char *)s; return 0; }
 double ldexp(double x, int e) { return x; }
 double frexp(double x, int *e) { if (e) *e = 0; return x; }
 double __floatundidf(unsigned long x) { return (double)x; }
