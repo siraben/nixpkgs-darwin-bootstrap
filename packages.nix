@@ -2359,7 +2359,6 @@ let
       cp -R ${phase26-gcc46-source}/. $out/
       chmod -R u+w $out
       cd $out
-      patch -p1 < ${./patches/gcc46-darwin-bootstrap.patch}
     '';
 
   phase35-gcc46-all-gcc =
