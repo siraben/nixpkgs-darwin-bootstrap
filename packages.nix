@@ -3090,7 +3090,9 @@ C
         version_status="$?"
         set -e
         printf '%s\n' "$version_status" > tcc-boot1-version.status
-        test "$version_status" != 0
+        test "$version_status" = 0
+        grep -q '0.9.28-darwin-bootstrap' tcc-boot1-version.stdout
+        test ! -s tcc-boot1-version.stderr
 
         cat > hello.c <<'C'
         int main(void) { return 42; }
@@ -3100,6 +3102,8 @@ C
         compile_status="$?"
         set -e
         printf '%s\n' "$compile_status" > hello-c.status
+        test "$compile_status" = 0
+        test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
 
         cp tcc-boot1 $out/bin/tcc-boot1-candidate
         cp tinycc-sysv-libc.o tinycc-sysv-libc.M1 \
@@ -3640,7 +3644,7 @@ C
         SH
 
         substituteInPlace $out/bin/tcc-darwin-cc \
-          --replace-fail @TCC@ ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate \
+          --replace-fail @TCC@ ${phase33-tinycc-boot1-link-candidate}/bin/tcc-boot1-candidate \
           --replace-fail @AR@ ${cctools}/bin/ar \
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
