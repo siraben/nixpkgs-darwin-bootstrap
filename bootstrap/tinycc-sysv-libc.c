@@ -4,7 +4,8 @@ typedef long FILE;
 int errno;
 int sys_nerr;
 char *sys_errlist[1];
-char **environ;
+char *empty_environ[1];
+char **environ = empty_environ;
 FILE *stdin = (FILE *)0;
 FILE *stdout = (FILE *)1;
 FILE *stderr = (FILE *)2;
@@ -17,6 +18,10 @@ extern long open(const char *path, int flags, int mode);
 extern long close(int fd);
 extern long lseek(int fd, long off, int whence);
 extern long unlink(const char *path);
+extern long sys_rename(const char *old, const char *new);
+extern long execve(const char *path, char *const argv[], char *const envp[]);
+extern long fork(void);
+extern long wait4(int pid, int *status, int options, void *rusage);
 extern void _exit(int code);
 extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
 void *memcpy(void *d, const void *s, size_t n);
@@ -105,6 +110,8 @@ int isprint(int c) { return c >= 32 && c < 127; }
 int ispunct(int c) { return isprint(c) && !isalnum(c) && c != ' '; }
 int tolower(int c) { return isupper(c) ? c - 'A' + 'a' : c; }
 int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
+int strcasecmp(const char *a, const char *b) { while (*a && tolower(*a) == tolower(*b)) { a++; b++; } return tolower(*(unsigned char *)a) - tolower(*(unsigned char *)b); }
+int strncasecmp(const char *a, const char *b, unsigned long n) { while (n && *a && tolower(*a) == tolower(*b)) { a++; b++; n--; } return n ? tolower(*(unsigned char *)a) - tolower(*(unsigned char *)b) : 0; }
 
 long strtol(const char *s, char **e, int base) { long neg = 0, v = 0; if (*s == '-') { neg = 1; s++; } if (base == 0) base = 10; while ((*s >= '0' && *s <= '9') || (*s >= 'a' && *s <= 'f') || (*s >= 'A' && *s <= 'F')) { int d = (*s <= '9') ? *s - '0' : ((*s <= 'F') ? *s - 'A' + 10 : *s - 'a' + 10); if (d >= base) break; v = v * base + d; s++; } if (e) *e = (char *)s; return neg ? -v : v; }
 unsigned long strtoul(const char *s, char **e, int b) { return (unsigned long)strtol(s, e, b); }
@@ -220,9 +227,12 @@ int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
 
 int remove(const char *p) { return unlink(p); }
 int creat(const char *p, int mode) { return open(p, 0x601, mode); }
-int rename(const char *old, const char *new) { return -1; }
-int fstat(int fd, void *st) { return -1; }
-int stat(const char *p, void *st) { return -1; }
+int rename(const char *old, const char *new) { char buf[4096]; long n; int in, out; if (sys_rename(old, new) == 0) return 0; in = open(old, 0, 0); if (in < 0) return -1; unlink(new); out = open(new, 0x601, 0666); if (out < 0) { close(in); return -1; } while ((n = read(in, buf, sizeof(buf))) > 0) if (write(out, buf, n) != n) { close(in); close(out); return -1; } close(in); close(out); if (n < 0) return -1; unlink(old); return 0; }
+struct boot_stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; long st_size; long st_atime; long st_mtime; long st_ctime; };
+static void fill_regular_stat(void *st, long size) { struct boot_stat *s = st; if (s) { memset(s, 0, sizeof(*s)); s->st_mode = 0100000 | 0644; s->st_nlink = 1; s->st_size = size; } }
+int fstat(int fd, void *st) { long cur, end; if (fd <= 2) { errno = 9; return -1; } cur = lseek(fd, 0, 1); end = lseek(fd, 0, 2); if (cur >= 0) lseek(fd, cur, 0); fill_regular_stat(st, end < 0 ? 0 : end); return 0; }
+int stat(const char *p, void *st) { int fd = open(p, 0, 0); int r; if (fd < 0) { errno = 2; return -1; } r = fstat(fd, st); close(fd); return r; }
+int access(const char *p, int mode) { struct boot_stat st; return stat(p, &st); }
 int chmod(const char *p, int mode) { return 0; }
 int mkdir(const char *p, int mode) { return 0; }
 int utime(const char *p, const void *times) { return 0; }
@@ -241,30 +251,35 @@ int umask(int mask) { return 0; }
 int rmdir(const char *path) { return 0; }
 long readlink(const char *path, char *buf, unsigned long size) { return -1; }
 void *getpwnam(const char *name) { return 0; }
+void *getpwuid(unsigned int uid) { return 0; }
+void *getgrnam(const char *name) { return 0; }
+void *getgrgid(unsigned int gid) { return 0; }
 void *opendir(const char *name) { return 0; }
 void *readdir(void *dir) { return 0; }
 int closedir(void *dir) { return 0; }
-int execvp(const char *f, char *const a[]) { return -1; }
-int fork(void) { return -1; }
+int execvp(const char *f, char *const a[]) { char path[1024]; const char *dirs[3]; int i; if (strchr(f, '/')) return execve(f, a, environ); dirs[0] = "/bin/"; dirs[1] = "/usr/bin/"; dirs[2] = 0; for (i = 0; dirs[i]; i++) { strcpy(path, dirs[i]); strcat(path, f); execve(path, a, environ); } return -1; }
 int pipe(int *fds) { return -1; }
 int dup(int fd) { return fd; }
 int dup2(int oldfd, int newfd) { return newfd; }
-int wait(int *status) { if (status) *status = -1; return -1; }
-int waitpid(int pid, int *status, int options) { if (status) *status = -1; return -1; }
+int wait(int *status) { return wait4(-1, status, 0, 0); }
+int waitpid(int pid, int *status, int options) { return wait4(pid, status, options, 0); }
 int kill(int pid, int sig) { return -1; }
 int sigemptyset(long *set) { if (set) *set = 0; return 0; }
 int sigaddset(long *set, int sig) { if (set) *set |= 1L << sig; return 0; }
 int sigprocmask(int how, const long *set, long *oldset) { if (oldset) *oldset = 0; return 0; }
 int fcntl(int fd, int cmd, long arg) { return 0; }
 int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
+struct boot_tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
+static struct boot_tm epoch_tm = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
 long time(long *t) { if (t) *t = 0; return 0; }
 char *ctime(const long *t) { return "Thu Jan  1 00:00:00 1970\n"; }
 long clock(void) { return 0; }
-void *localtime(const long *t) { return 0; }
-void *gmtime(const long *t) { return 0; }
+void *localtime(const long *t) { return &epoch_tm; }
+void *gmtime(const long *t) { return &epoch_tm; }
+long mktime(void *tm) { return 0; }
 char *setlocale(int category, const char *locale) { return "C"; }
 void *signal(int sig, void *handler) { return handler; }
-int sigaction(int sig, const void *act, void *oldact) { return 0; }
+int sigaction(int sig, const void *act, void *oldact) { if (oldact) memset(oldact, 0, sizeof(long) * 4); return 0; }
 int raise(int sig) { return 0; }
 int atexit(void (*fn)(void)) { return 0; }
 int putenv(char *s) { return 0; }

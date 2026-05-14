@@ -90,8 +90,9 @@ def patch_binary(source_path, binary_path):
         if target_offset is None:
             continue
         if target_offset < static_offset:
-            continue
-        target = DATA_VM + (target_offset - static_offset)
+            target = BASE + ENTRY_OFFSET + target_offset
+        else:
+            target = DATA_VM + (target_offset - static_offset)
         if token_offset >= static_offset:
             position = DATA_FILE_OFFSET + (token_offset - static_offset)
         else:

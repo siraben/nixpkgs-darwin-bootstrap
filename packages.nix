@@ -77,6 +77,54 @@ let
     hash = "sha256-7LXGRp1zK88B1uwa/p5k8WaMq6W/2xA8KNf1N7o824o=";
   };
 
+  coreutilsVersion = "5.0";
+  coreutilsLiveBootstrap = "https://github.com/fosslinux/live-bootstrap/raw/a8752029f60217a5c41c548b16f5cdd2a1a0e0db/sysa/coreutils-${coreutilsVersion}";
+
+  coreutilsTarball = fetchurl {
+    url = "mirror://gnu/coreutils/coreutils-${coreutilsVersion}.tar.gz";
+    hash = "sha256-wnznXj9iRV9PrPTz/VW8njh30KsdXAQmyU2haMw0mIM=";
+  };
+
+  coreutilsMakefile = fetchurl {
+    url = "${coreutilsLiveBootstrap}/mk/main.mk";
+    hash = "sha256-zdGb+WebOqRY5X1bQXqrzlJo4NEULVoz1Rm7zlgnT1o=";
+  };
+
+  coreutilsPatches = [
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/modechange.patch";
+      hash = "sha256-RddxUzLzTo/xYNDzfnu2fSv820QQYqP70NJrwYsiqhM=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/mbstate.patch";
+      hash = "sha256-fo/C2F0NzlGtuV+iQwW9sr4TB1oH6V4I2bI/6jRg42c=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/ls-strcmp.patch";
+      hash = "sha256-5pZCTaMtkAKuU76/tB3leBXrJ3DS5LWY3WvgrsnPqFM=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/touch-getdate.patch";
+      hash = "sha256-qhISPP99SWV1GaOdKC8q19PfWVoQ2KI3ykfOTU/5o/U=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/touch-dereference.patch";
+      hash = "sha256-qjnadcdkb0TSk8xWv+pjmh32O+bMm2ec5x0JMEcufnI=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/expr-strcmp.patch";
+      hash = "sha256-SaVxnAzFoHLjT/95ly8Yhzxc6UnbO3H3xzyGqh0Nw6U=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/sort-locale.patch";
+      hash = "sha256-zEShwIcwdMa6b/jHEDJ16apLFgfaYf8M9d37W1GArC0=";
+    })
+    (fetchurl {
+      url = "${coreutilsLiveBootstrap}/patches/uniq-fopen.patch";
+      hash = "sha256-1w2zfx+Mw2cC4b9D0SR18pGc+326yLLJgEQm2j3URmM=";
+    })
+  ];
+
   nyaccVersion = "1.09.1";
 
   nyaccTarball = fetchurl {
@@ -3383,6 +3431,8 @@ C
         typedef unsigned long uintptr_t;
         typedef int wchar_t;
         typedef int pid_t;
+        typedef unsigned int uid_t;
+        typedef unsigned int gid_t;
         typedef long off_t;
         typedef unsigned long ino_t;
         typedef unsigned long dev_t;
@@ -3407,10 +3457,12 @@ C
         #define S_IFREG 0100000
         #define S_IFDIR 0040000
         #define S_IFLNK 0120000
+        #define S_IFCHR 0020000
         #define S_IXUSR 0100
         #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
         #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
         #define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+        #define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
         #endif
         H
 
@@ -3449,11 +3501,13 @@ C
         #define _DARWIN_BOOTSTRAP_TIME_H
         typedef long time_t;
         typedef long clock_t;
+        struct timespec { long tv_sec; long tv_nsec; };
         struct tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
         time_t time(time_t *);
         clock_t clock(void);
         struct tm *localtime(const time_t *);
         struct tm *gmtime(const time_t *);
+        time_t mktime(struct tm *);
         char *ctime(const time_t *);
         #endif
         H
@@ -3554,6 +3608,16 @@ C
         #define _DARWIN_BOOTSTRAP_PWD_H
         struct passwd { char *pw_name; char *pw_dir; };
         struct passwd *getpwnam(const char *);
+        struct passwd *getpwuid(unsigned int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/grp.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_GRP_H
+        #define _DARWIN_BOOTSTRAP_GRP_H
+        struct group { char *gr_name; unsigned int gr_gid; char **gr_mem; };
+        struct group *getgrnam(const char *);
+        struct group *getgrgid(unsigned int);
         #endif
         H
 
@@ -3598,6 +3662,14 @@ C
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/alloca.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_ALLOCA_H
+        #define _DARWIN_BOOTSTRAP_ALLOCA_H
+        void *malloc(unsigned long);
+        #define alloca malloc
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/string.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_STRING_H
         #define _DARWIN_BOOTSTRAP_STRING_H
@@ -3631,6 +3703,8 @@ C
         void bzero(void *, unsigned long);
         char *index(const char *, int);
         char *rindex(const char *, int);
+        int strcasecmp(const char *, const char *);
+        int strncasecmp(const char *, const char *, unsigned long);
         #endif
         H
 
@@ -3671,6 +3745,7 @@ C
         #define EPIPE 32
         #define ECHILD 10
         #define EXDEV 18
+        #define ENOSPC 28
         #define ERANGE 34
         #endif
         H
@@ -3681,7 +3756,11 @@ C
         #define FNM_NOMATCH 1
         #define FNM_NOESCAPE 0x01
         #define FNM_PATHNAME 0x02
+        #define FNM_FILE_NAME FNM_PATHNAME
         #define FNM_PERIOD 0x04
+        #define FNM_LEADING_DIR 0x08
+        #define FNM_CASEFOLD 0x10
+        #define FNM_EXTMATCH 0x20
         int fnmatch(const char *, const char *, int);
         #endif
         H
@@ -3802,6 +3881,8 @@ C
         typedef long ssize_t;
         typedef long off_t;
         int close(int);
+        #define F_OK 0
+        int access(const char *, int);
         int dup(int);
         int dup2(int, int);
         int execvp(const char *, char *const *);
@@ -4103,6 +4184,16 @@ C
         $out/bin/tcc-darwin-cc data-reloc.c -o data-reloc
         ./data-reloc
 
+        cat > function-reloc.c <<'C'
+        int f(int x) { return x + 1; }
+        int (*fp)(int) = f;
+        struct entry { const char *name; int (*fn)(int); };
+        struct entry table[] = { { "f", f }, { 0, 0 } };
+        int main(void) { if (fp(41) != 42) return 1; if (table[0].fn(41) != 42) return 2; return 0; }
+        C
+        $out/bin/tcc-darwin-cc function-reloc.c -o function-reloc
+        ./function-reloc
+
         cat > string-reloc.c <<'C'
         #include <stdio.h>
         int main(void) { fputs("FIRST", stdout); fputs("SECOND", stdout); return 0; }
@@ -4114,7 +4205,8 @@ C
         test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
 
         cp tinycc-sysv-libc.o tinycc-sysv-libc.stdout tinycc-sysv-libc.stderr \
-          hello.c hello data-reloc.c data-reloc string-reloc.c string-reloc hello.o \
+          hello.c hello data-reloc.c data-reloc function-reloc.c function-reloc \
+          string-reloc.c string-reloc hello.o \
           $out/share/darwin-bootstrap/
       ''
     else
@@ -4128,8 +4220,6 @@ C
         tar -xzf ${gnumakeTarball}
         cd make-${gnumakeVersion}
 
-        substituteInPlace src/job.c \
-          --replace-fail 'const char *default_shell = "/bin/sh";' 'const char *default_shell = "sh";'
         substituteInPlace src/read.c \
           --replace-fail '    "/usr/gnu/include",' "" \
           --replace-fail '    "/usr/local/include",' "" \
@@ -4166,9 +4256,16 @@ C
         ./make --version > make-version.stdout 2> make-version.stderr
         grep -q 'GNU Make' make-version.stdout
         test ! -s make-version.stderr
+        cat > bootstrap-smoke.mk <<'MK'
+        all:
+        	echo hi
+        MK
+        ./make -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
+        grep -q 'echo hi' make-smoke.stdout
 
         install -Dm755 make $out/bin/make
-        cp make-version.stdout make-version.stderr make-link.stdout make-link.stderr \
+        cp make-version.stdout make-version.stderr make-smoke.stdout make-smoke.stderr \
+          make-link.stdout make-link.stderr \
           $out/share/darwin-bootstrap/
       ''
     else
@@ -4199,9 +4296,73 @@ C
         $CC $CFLAGS -o patch $objects > patch-link.stdout 2> patch-link.stderr
         ./patch --version > patch-version.stdout 2> patch-version.stderr
         grep -q 'patch ${gnupatchVersion}' patch-version.stdout
+        printf 'a\n' > patch-smoke-file
+        cat > patch-smoke.diff <<'P'
+        --- patch-smoke-file
+        +++ patch-smoke-file
+        @@ -1 +1 @@
+        -a
+        +b
+        P
+        ./patch -p0 -i patch-smoke.diff > patch-smoke.stdout 2> patch-smoke.stderr
+        grep -q '^b$' patch-smoke-file
 
         install -Dm755 patch $out/bin/patch
-        cp patch-version.stdout patch-version.stderr patch-link.stdout patch-link.stderr \
+        cp patch-version.stdout patch-version.stderr patch-smoke.stdout patch-smoke.stderr \
+          patch-link.stdout patch-link.stderr \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
+  phase41-coreutils =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase41-coreutils-${coreutilsVersion}-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        tar -xzf ${coreutilsTarball}
+        cd coreutils-${coreutilsVersion}
+
+        for patch_file in ${lib.escapeShellArgs coreutilsPatches}; do
+          ${phase40-gnupatch}/bin/patch -Np0 -i "$patch_file"
+        done
+
+        cat > config.h <<'H'
+        H
+        cp lib/fnmatch_.h lib/fnmatch.h
+        substituteInPlace lib/fnmatch.h \
+          --replace-fail '# if !defined _POSIX_C_SOURCE || _POSIX_C_SOURCE < 2 || defined _GNU_SOURCE' '# if 1'
+        cp lib/ftw_.h lib/ftw.h
+        cp lib/search_.h lib/search.h
+        rm src/dircolors.h
+
+        {
+          echo 'include ${coreutilsMakefile}'
+          for source in src/*.c lib/*.c; do
+            object="''${source%.c}.o"
+            printf '%s: %s\n' "$object" "$source"
+            printf '\t$(CC) $(CFLAGS) -c -o $@ $<\n\n'
+          done
+        } > bootstrap-coreutils.mk
+
+        export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
+        ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
+          CC="$CC -DNULL=0 -D_GNU_SOURCE=1" \
+          PREFIX="$out" \
+          > coreutils-build.stdout \
+          2> coreutils-build.stderr
+
+        ./src/echo "Hello coreutils!" > coreutils-smoke.stdout 2> coreutils-smoke.stderr
+        grep -q "Hello coreutils!" coreutils-smoke.stdout
+
+        ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk install \
+          PREFIX="$out" \
+          > coreutils-install.stdout \
+          2> coreutils-install.stderr
+
+        cp coreutils-build.stdout coreutils-build.stderr \
+          coreutils-smoke.stdout coreutils-smoke.stderr \
+          coreutils-install.stdout coreutils-install.stderr \
           $out/share/darwin-bootstrap/
       ''
     else
@@ -4365,6 +4526,7 @@ in
     phase38-tinycc-boot3-link-candidate
     phase39-gnumake
     phase40-gnupatch
+    phase41-coreutils
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc
