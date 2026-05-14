@@ -81,6 +81,7 @@
           phase37-tinycc-boot3-object-probe = bootstrap.phase37-tinycc-boot3-object-probe;
           phase38-tinycc-boot3-link-candidate = bootstrap.phase38-tinycc-boot3-link-candidate;
           phase39-gnumake = bootstrap.phase39-gnumake;
+          phase40-gnupatch = bootstrap.phase40-gnupatch;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;

@@ -70,6 +70,13 @@ let
     hash = "sha256-3Rb7HWe/q3mnL16DkHNcSePo5wtJRaFasfgd23hlj7M=";
   };
 
+  gnupatchVersion = "2.5.9";
+
+  gnupatchTarball = fetchurl {
+    url = "mirror://gnu/patch/patch-${gnupatchVersion}.tar.gz";
+    hash = "sha256-7LXGRp1zK88B1uwa/p5k8WaMq6W/2xA8KNf1N7o824o=";
+  };
+
   nyaccVersion = "1.09.1";
 
   nyaccTarball = fetchurl {
@@ -3374,6 +3381,7 @@ C
         typedef long ptrdiff_t;
         typedef long intptr_t;
         typedef unsigned long uintptr_t;
+        typedef int wchar_t;
         typedef int pid_t;
         typedef long off_t;
         typedef unsigned long ino_t;
@@ -3392,6 +3400,8 @@ C
         struct stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; off_t st_size; long st_atime; long st_mtime; long st_ctime; };
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
+        int chmod(const char *, mode_t);
+        int mkdir(const char *, mode_t);
         #define lstat stat
         #define S_IFMT 0170000
         #define S_IFREG 0100000
@@ -3418,6 +3428,7 @@ C
         #define F_SETFD 2
         #define FD_CLOEXEC 1
         int open(const char *, int, ...);
+        int creat(const char *, int);
         int fcntl(int, int, ...);
         #endif
         H
@@ -3442,6 +3453,7 @@ C
         time_t time(time_t *);
         clock_t clock(void);
         struct tm *localtime(const time_t *);
+        struct tm *gmtime(const time_t *);
         char *ctime(const time_t *);
         #endif
         H
@@ -3513,6 +3525,15 @@ C
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/stdbool.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDBOOL_H
+        #define _DARWIN_BOOTSTRAP_STDBOOL_H
+        #define bool int
+        #define true 1
+        #define false 0
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/inttypes.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_INTTYPES_H
         #define _DARWIN_BOOTSTRAP_INTTYPES_H
@@ -3544,6 +3565,7 @@ C
         typedef long ssize_t;
         typedef long intptr_t;
         typedef unsigned long uintptr_t;
+        typedef int wchar_t;
         #ifndef NULL
         #define NULL ((void *)0)
         #endif
@@ -3648,6 +3670,7 @@ C
         #define EISDIR 21
         #define EPIPE 32
         #define ECHILD 10
+        #define EXDEV 18
         #define ERANGE 34
         #endif
         H
@@ -3697,6 +3720,7 @@ C
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
         void abort(void);
+        int system(const char *);
         void exit(int);
         void _exit(int);
         int atexit(void (*)(void));
@@ -3736,6 +3760,7 @@ C
         int printf(const char *, ...);
         int fprintf(FILE *, const char *, ...);
         int vfprintf(FILE *, const char *, va_list);
+        void perror(const char *);
         int fscanf(FILE *, const char *, ...);
         int sscanf(const char *, const char *, ...);
         int sprintf(char *, const char *, ...);
@@ -3752,6 +3777,7 @@ C
         int puts(const char *);
         int fputc(int, FILE *);
         int putchar(int);
+        void setbuf(FILE *, char *);
         int getc(FILE *);
         char *fgets(char *, int, FILE *);
         int ungetc(int, FILE *);
@@ -3765,6 +3791,8 @@ C
         int fileno(FILE *);
         int remove(const char *);
         int setvbuf(FILE *, char *, int, size_t);
+        FILE *popen(const char *, const char *);
+        int pclose(FILE *);
         #endif
         H
 
@@ -3781,6 +3809,7 @@ C
         char *getcwd(char *, unsigned long);
         char *getlogin(void);
         int chdir(const char *);
+        int geteuid(void);
         int getpid(void);
         int isatty(int);
         int pipe(int *);
@@ -3793,6 +3822,8 @@ C
         ssize_t write(int, const void *, unsigned long);
         off_t lseek(int, off_t, int);
         int unlink(const char *);
+        int rename(const char *, const char *);
+        int rmdir(const char *);
         #endif
         H
 
@@ -4143,6 +4174,39 @@ C
     else
       null;
 
+  phase40-gnupatch =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase40-gnupatch-${gnupatchVersion}-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        tar -xzf ${gnupatchTarball}
+        cd patch-${gnupatchVersion}
+
+        cat > config.h <<'H'
+        H
+
+        export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
+        export CFLAGS="-I. -DNULL=0 -DHAVE_DECL_GETENV -DHAVE_DECL_MALLOC -DHAVE_DIRENT_H -DHAVE_LIMITS_H -DHAVE_GETEUID -DHAVE_MKTEMP -DPACKAGE_BUGREPORT= -Ded_PROGRAM=\"/nullop\" -Dmbstate_t=int -DRETSIGTYPE=int -DHAVE_MKDIR -DHAVE_RMDIR -DHAVE_FCNTL_H -DPACKAGE_NAME=\"patch\" -DPACKAGE_VERSION=\"${gnupatchVersion}\" -DHAVE_MALLOC -DHAVE_REALLOC -DSTDC_HEADERS -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VPRINTF"
+
+        sources='addext.c argmatch.c backupfile.c basename.c dirname.c getopt.c getopt1.c inp.c maketime.c partime.c patch.c pch.c quote.c quotearg.c quotesys.c util.c version.c xmalloc.c error.c'
+        objects=
+        for source in $sources; do
+          object="$(basename "$source" .c).o"
+          $CC $CFLAGS -c "$source" -o "$object" > "$object.stdout" 2> "$object.stderr"
+          objects="$objects $object"
+        done
+
+        $CC $CFLAGS -o patch $objects > patch-link.stdout 2> patch-link.stderr
+        ./patch --version > patch-version.stdout 2> patch-version.stderr
+        grep -q 'patch ${gnupatchVersion}' patch-version.stdout
+
+        install -Dm755 patch $out/bin/patch
+        cp patch-version.stdout patch-version.stderr patch-link.stdout patch-link.stderr \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -4300,6 +4364,7 @@ in
     phase37-tinycc-boot3-object-probe
     phase38-tinycc-boot3-link-candidate
     phase39-gnumake
+    phase40-gnupatch
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc
