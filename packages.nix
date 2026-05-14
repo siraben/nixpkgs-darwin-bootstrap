@@ -3807,7 +3807,9 @@ C
         #define SIGABRT 6
         #define SIGALRM 14
         #define SIGCHLD 20
+        #define SIGHUP 1
         #define SIGINT 2
+        #define SIGQUIT 3
         #define SIGTERM 15
         __sighandler_t signal(int, __sighandler_t);
         int sigaction(int, const struct sigaction *, struct sigaction *);
