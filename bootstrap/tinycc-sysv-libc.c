@@ -302,6 +302,7 @@ double ldexp(double x, int e) { return x; }
 double frexp(double x, int *e) { if (e) *e = 0; return x; }
 double __floatundidf(unsigned long x) { return (double)x; }
 double __floatdidf(long x) { return (double)x; }
+long double __floatundixf(unsigned long x) { return (long double)x; }
 unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
 long __fixdfdi(double x) { return (long)x; }
 unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
