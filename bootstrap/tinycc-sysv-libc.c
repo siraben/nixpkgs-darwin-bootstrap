@@ -245,6 +245,7 @@ int chdir(const char *p) { return 0; }
 int fchdir(int fd) { return 0; }
 char *getlogin(void) { return 0; }
 int geteuid(void) { return 0; }
+int getuid(void) { return 0; }
 int getpid(void) { return 1; }
 int isatty(int fd) { return 0; }
 char *ttyname(int fd) { return 0; }

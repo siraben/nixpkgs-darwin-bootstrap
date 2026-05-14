@@ -3911,6 +3911,7 @@ C
         char *getlogin(void);
         int chdir(const char *);
         int geteuid(void);
+        int getuid(void);
         int getpid(void);
         int isatty(int);
         int fchdir(int);
@@ -4369,6 +4370,7 @@ C
         export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
         MAKEFLAGS= ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
           CC="$CC -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1" \
+          AR=${cctools}/bin/ar \
           PREFIX="$out" \
           > coreutils-build.stdout \
           2> coreutils-build.stderr
