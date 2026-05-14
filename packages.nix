@@ -3119,6 +3119,186 @@ C
     else
       null;
 
+  tinyccSelfObjectProbe =
+    {
+      phase,
+      boot,
+      compiler,
+    }:
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-object-probe-amd64" { } ''
+        mkdir -p $out/share/darwin-bootstrap include
+
+        cp -R ${phase13-mes-source}/include/. include/
+        chmod -R u+w include
+        cp -R ${tinyccMesSrc}/include/. include/
+
+        ${compiler} -c \
+          -I$PWD/include \
+          -DBOOTSTRAP=1 \
+          -DHAVE_LONG_LONG=1 \
+          -DTCC_TARGET_X86_64=1 \
+          -Dinline= \
+          -D'CONFIG_TCCDIR=""' \
+          -D'CONFIG_SYSROOT=""' \
+          -D'CONFIG_TCC_CRTPREFIX="{B}"' \
+          -D'CONFIG_TCC_ELFINTERP="/mes/loader"' \
+          -D'CONFIG_TCC_LIBPATHS="{B}"' \
+          -D'TCC_LIBGCC="libc.a"' \
+          -D'TCC_LIBTCC1="libtcc1.a"' \
+          -DCONFIG_TCC_LIBTCC1_MES=0 \
+          -DCONFIG_TCCBOOT=1 \
+          -DCONFIG_TCC_STATIC=1 \
+          -DCONFIG_USE_LIBGCC=1 \
+          -DTCC_MES_LIBC=1 \
+          -D'TCC_VERSION="0.9.28-darwin-bootstrap"' \
+          -DONE_SOURCE=1 \
+          ${tinyccMesSrc}/tcc.c \
+          -o${boot}.o \
+          > ${boot}.stdout \
+          2> ${boot}.stderr
+
+        test "$(od -An -tx1 -N4 ${boot}.o | tr -d ' \n')" = "7f454c46"
+        test ! -s ${boot}.stdout
+
+        cp ${boot}.o ${boot}.stdout ${boot}.stderr $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
+  tinyccSelfLinkCandidate =
+    {
+      phase,
+      boot,
+      compiler,
+      objectProbe,
+    }:
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-link-candidate-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        ${compiler} -c \
+          ${./bootstrap/tinycc-sysv-libc.c} \
+          -o tinycc-sysv-libc.o \
+          > tinycc-sysv-libc.stdout \
+          2> tinycc-sysv-libc.stderr
+
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix tinycc_sysv_libc_ \
+          tinycc-sysv-libc.o \
+          tinycc-sysv-libc.M1
+
+        ${python3}/bin/python3 ${./tools/elf64-to-m1.py} --prefix ${lib.replaceStrings [ "-" ] [ "_" ] boot}_ \
+          ${objectProbe}/share/darwin-bootstrap/${boot}.o \
+          ${boot}.M1
+
+        cat > crt1-tcc-sysv.M1 <<'M1'
+        :_start
+        !0x48 !0x83 !0xe4 !0xf0
+        !0xe8 %main
+        !0x48 !0x89 !0xc7
+        !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
+        !0x0f !0x05
+        M1
+
+        emit_code() {
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data != 1 { print }
+          ' "$1"
+        }
+
+        emit_data() {
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data == 1 { print }
+          ' "$1"
+        }
+
+        {
+          cat crt1-tcc-sysv.M1
+          cat ${./bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1}
+          emit_code ${boot}.M1
+          emit_code tinycc-sysv-libc.M1
+          echo ':ELF_data'
+          echo ':HEX2_data'
+          emit_data ${boot}.M1
+          emit_data tinycc-sysv-libc.M1
+        } > ${boot}-combined.M1
+
+        ${phase9-m1}/bin/M1 \
+          --architecture amd64 \
+          --little-endian \
+          -f ${boot}-combined.M1 \
+          -o ${boot}.hex2
+
+        ${phase10-hex2}/bin/hex2 \
+          --architecture amd64 \
+          --little-endian \
+          --base-address 0x1000000 \
+          -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+          -f ${boot}.hex2 \
+          -o ${boot}
+
+        ${python3}/bin/python3 ${./tools/hex2-data-relocs.py} patch ${boot}.hex2 ${boot}
+
+        linkeditOffset="$((0x800000 + 0x2000000))"
+        dd if=/dev/zero of=${boot} bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+        chmod +x ${boot}
+
+        source ${darwin.signingUtils}
+        sign ${boot}
+
+        ./${boot} -version > ${boot}-version.stdout 2> ${boot}-version.stderr
+        printf '0\n' > ${boot}-version.status
+        grep -q '0.9.28-darwin-bootstrap' ${boot}-version.stdout
+        test ! -s ${boot}-version.stderr
+
+        cat > hello.c <<'C'
+        int main(void) { return 42; }
+        C
+        ./${boot} -c hello.c -o hello.o > hello-c.stdout 2> hello-c.stderr
+        printf '0\n' > hello-c.status
+        test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
+
+        cp ${boot} $out/bin/${boot}-candidate
+        cp tinycc-sysv-libc.o tinycc-sysv-libc.M1 \
+          tinycc-sysv-libc.stdout tinycc-sysv-libc.stderr \
+          ${boot}.M1 crt1-tcc-sysv.M1 ${boot}-combined.M1 ${boot}.hex2 \
+          ${boot}-version.stdout ${boot}-version.stderr ${boot}-version.status \
+          hello.c hello.o hello-c.stdout hello-c.stderr hello-c.status \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
+  phase35-tinycc-boot2-object-probe = tinyccSelfObjectProbe {
+    phase = "phase35";
+    boot = "tcc-boot2";
+    compiler = "${phase33-tinycc-boot1-link-candidate}/bin/tcc-boot1-candidate";
+  };
+
+  phase36-tinycc-boot2-link-candidate = tinyccSelfLinkCandidate {
+    phase = "phase36";
+    boot = "tcc-boot2";
+    compiler = "${phase33-tinycc-boot1-link-candidate}/bin/tcc-boot1-candidate";
+    objectProbe = phase35-tinycc-boot2-object-probe;
+  };
+
+  phase37-tinycc-boot3-object-probe = tinyccSelfObjectProbe {
+    phase = "phase37";
+    boot = "tcc-boot3";
+    compiler = "${phase36-tinycc-boot2-link-candidate}/bin/tcc-boot2-candidate";
+  };
+
+  phase38-tinycc-boot3-link-candidate = tinyccSelfLinkCandidate {
+    phase = "phase38";
+    boot = "tcc-boot3";
+    compiler = "${phase36-tinycc-boot2-link-candidate}/bin/tcc-boot2-candidate";
+    objectProbe = phase37-tinycc-boot3-object-probe;
+  };
+
   phase34-tinycc-darwin-cc =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64" { } ''
@@ -3644,7 +3824,7 @@ C
         SH
 
         substituteInPlace $out/bin/tcc-darwin-cc \
-          --replace-fail @TCC@ ${phase33-tinycc-boot1-link-candidate}/bin/tcc-boot1-candidate \
+          --replace-fail @TCC@ ${phase38-tinycc-boot3-link-candidate}/bin/tcc-boot3-candidate \
           --replace-fail @AR@ ${cctools}/bin/ar \
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
@@ -3846,6 +4026,10 @@ in
     phase32-tinycc-boot1-object-probe
     phase33-tinycc-boot1-link-candidate
     phase34-tinycc-darwin-cc
+    phase35-tinycc-boot2-object-probe
+    phase36-tinycc-boot2-link-candidate
+    phase37-tinycc-boot3-object-probe
+    phase38-tinycc-boot3-link-candidate
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

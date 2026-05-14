@@ -76,6 +76,10 @@
           phase32-tinycc-boot1-object-probe = bootstrap.phase32-tinycc-boot1-object-probe;
           phase33-tinycc-boot1-link-candidate = bootstrap.phase33-tinycc-boot1-link-candidate;
           phase34-tinycc-darwin-cc = bootstrap.phase34-tinycc-darwin-cc;
+          phase35-tinycc-boot2-object-probe = bootstrap.phase35-tinycc-boot2-object-probe;
+          phase36-tinycc-boot2-link-candidate = bootstrap.phase36-tinycc-boot2-link-candidate;
+          phase37-tinycc-boot3-object-probe = bootstrap.phase37-tinycc-boot3-object-probe;
+          phase38-tinycc-boot3-link-candidate = bootstrap.phase38-tinycc-boot3-link-candidate;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;
