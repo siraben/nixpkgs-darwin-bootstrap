@@ -3556,6 +3556,13 @@ C
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/sys/ioctl.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_IOCTL_H
+        #define _DARWIN_BOOTSTRAP_SYS_IOCTL_H
+        int ioctl(int, unsigned long, ...);
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/sys/param.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_SYS_PARAM_H
         #define _DARWIN_BOOTSTRAP_SYS_PARAM_H

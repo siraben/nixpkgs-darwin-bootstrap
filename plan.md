@@ -234,3 +234,4 @@
 - 2026-05-14: The path macro checkpoint moved phase41 to the next concrete link gap, TinyCC's unsigned long-double-to-integer helper `__fixunsxfdi`; added that helper to the bootstrap libc rather than changing coreutils.
 - 2026-05-14: The `__fixunsxfdi` checkpoint moved phase41 to the next concrete TinyCC runtime helper gap, `__floatundixf`; added only that unsigned-integer-to-long-double helper in bootstrap libc.
 - 2026-05-14: The `__floatundixf` checkpoint moved phase41 to the next concrete POSIX runtime gap, `nanosleep`; added the minimal prototype and no-op bootstrap libc implementation needed by coreutils' `xnanosleep` path.
+- 2026-05-14: The `nanosleep` checkpoint got phase41 past the first linked binary (`src/basename`) and into compiling `src/cat.o`; added a minimal `sys/ioctl.h` declaration header without defining optional ioctl feature macros such as `FIONREAD`, keeping the ioctl-dependent code paths disabled for now.
