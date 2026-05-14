@@ -3709,6 +3709,7 @@ C
         unsigned long strlen(const char *);
         int strncmp(const char *, const char *, size_t);
         char *strncpy(char *, const char *, size_t);
+        size_t strcspn(const char *, const char *);
         char *strpbrk(const char *, const char *);
         char *strrchr(const char *, int);
         char *strerror(int);

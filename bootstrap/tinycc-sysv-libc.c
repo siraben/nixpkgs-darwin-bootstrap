@@ -89,6 +89,7 @@ char *strncpy(char *d, const char *s, size_t n) { char *r = d; while (n && *s) {
 char *strchr(const char *s, int c) { while (*s) { if (*s == c) return (char *)s; s++; } return c ? 0 : (char *)s; }
 char *strrchr(const char *s, int c) { const char *r = 0; do { if (*s == c) r = s; } while (*s++); return (char *)r; }
 char *strpbrk(const char *s, const char *accept) { while (*s) { const char *a = accept; while (*a) { if (*s == *a++) return (char *)s; } s++; } return 0; }
+size_t strcspn(const char *s, const char *reject) { size_t n = 0; while (s[n]) { const char *r = reject; while (*r) if (s[n] == *r++) return n; n++; } return n; }
 char *strstr(const char *h, const char *n) { size_t l = strlen(n); if (!l) return (char *)h; while (*h) { if (!memcmp(h, n, l)) return (char *)h; h++; } return 0; }
 char *strdup(const char *s) { size_t n = strlen(s) + 1; char *d = malloc(n); if (d) memcpy(d, s, n); return d; }
 char *strerror(int e) { return "error"; }
