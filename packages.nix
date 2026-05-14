@@ -3912,6 +3912,7 @@ C
         int chdir(const char *);
         int geteuid(void);
         int getuid(void);
+        int getegid(void);
         int getgid(void);
         int getpid(void);
         int isatty(int);
