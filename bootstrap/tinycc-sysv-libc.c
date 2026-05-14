@@ -304,6 +304,7 @@ double __floatundidf(unsigned long x) { return (double)x; }
 double __floatdidf(long x) { return (double)x; }
 unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
 long __fixdfdi(double x) { return (long)x; }
+unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
 int sscanf(const char *s, const char *f, long a, long b) { return 0; }
 int sprintf(char *b, const char *f, long a, long c, long d, long e) { long args[4]; args[0] = a; args[1] = c; args[2] = d; args[3] = e; return format_buffer_words(b, (size_t)-1, f, args); }
 int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { long args[3]; args[0] = a; args[1] = c; args[2] = d; return format_buffer_words(b, n, f, args); }
