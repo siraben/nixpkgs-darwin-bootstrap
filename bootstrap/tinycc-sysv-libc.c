@@ -153,6 +153,7 @@ FILE *freopen(const char *p, const char *m, FILE *f) { if (f) close(file_fd(f));
 int fclose(FILE *f) { return close(file_fd(f)); }
 int fflush(FILE *f) { return 0; }
 void setbuf(FILE *f, char *b) { }
+void clearerr(FILE *f) { }
 int feof(FILE *f) { return 0; }
 int ferror(FILE *f) { return 0; }
 int setvbuf(FILE *f, char *b, int mode, size_t size) { return 0; }

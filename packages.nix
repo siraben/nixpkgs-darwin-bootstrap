@@ -3892,6 +3892,7 @@ C
         int ungetc(int, FILE *);
         int putc(int, FILE *);
         int fflush(FILE *);
+        void clearerr(FILE *);
         size_t fread(void *, size_t, size_t, FILE *);
         size_t fwrite(const void *, size_t, size_t, FILE *);
         int feof(FILE *);
