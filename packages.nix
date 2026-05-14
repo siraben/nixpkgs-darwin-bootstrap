@@ -63,6 +63,13 @@ let
     hash = "sha256-5mRgN1clH9ijUoSCdkl6THm3+LIf2K7dXMBZijj+4+Q=";
   };
 
+  gnumakeVersion = "4.4.1";
+
+  gnumakeTarball = fetchurl {
+    url = "mirror://gnu/make/make-${gnumakeVersion}.tar.gz";
+    hash = "sha256-3Rb7HWe/q3mnL16DkHNcSePo5wtJRaFasfgd23hlj7M=";
+  };
+
   nyaccVersion = "1.09.1";
 
   nyaccTarball = fetchurl {
@@ -3348,6 +3355,7 @@ C
         double ldexp(double, int);
         double frexp(double, int *);
         double fabs(double);
+        double atof(const char *);
         #endif
         H
 
@@ -3384,9 +3392,147 @@ C
         struct stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; off_t st_size; long st_atime; long st_mtime; long st_ctime; };
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
+        #define lstat stat
         #define S_IFMT 0170000
         #define S_IFREG 0100000
+        #define S_IFDIR 0040000
+        #define S_IFLNK 0120000
+        #define S_IXUSR 0100
         #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+        #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+        #define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/fcntl.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_FCNTL_H
+        #define _DARWIN_BOOTSTRAP_FCNTL_H
+        #define O_RDONLY 0
+        #define O_WRONLY 1
+        #define O_RDWR 2
+        #define O_CREAT 0x0200
+        #define O_EXCL 0x0800
+        #define O_TRUNC 0x0400
+        #define O_APPEND 0x0008
+        #define F_GETFD 1
+        #define F_SETFD 2
+        #define FD_CLOEXEC 1
+        int open(const char *, int, ...);
+        int fcntl(int, int, ...);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/dirent.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_DIRENT_H
+        #define _DARWIN_BOOTSTRAP_DIRENT_H
+        typedef struct DIR DIR;
+        struct dirent { unsigned long d_ino; char d_name[256]; };
+        DIR *opendir(const char *);
+        struct dirent *readdir(DIR *);
+        int closedir(DIR *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/time.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_TIME_H
+        #define _DARWIN_BOOTSTRAP_TIME_H
+        typedef long time_t;
+        typedef long clock_t;
+        struct tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
+        time_t time(time_t *);
+        clock_t clock(void);
+        struct tm *localtime(const time_t *);
+        char *ctime(const time_t *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/time.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_TIME_H
+        #define _DARWIN_BOOTSTRAP_SYS_TIME_H
+        struct timeval { long tv_sec; long tv_usec; };
+        struct timezone { int tz_minuteswest; int tz_dsttime; };
+        int gettimeofday(struct timeval *, struct timezone *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/wait.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_WAIT_H
+        #define _DARWIN_BOOTSTRAP_SYS_WAIT_H
+        #define WNOHANG 1
+        int wait(int *);
+        int waitpid(int, int *, int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/file.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_FILE_H
+        #define _DARWIN_BOOTSTRAP_SYS_FILE_H
+        #define F_OK 0
+        #define X_OK 1
+        #define W_OK 2
+        #define R_OK 4
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/param.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_PARAM_H
+        #define _DARWIN_BOOTSTRAP_SYS_PARAM_H
+        #define MAXPATHLEN 1024
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/resource.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_RESOURCE_H
+        #define _DARWIN_BOOTSTRAP_SYS_RESOURCE_H
+        struct rlimit { unsigned long rlim_cur; unsigned long rlim_max; };
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/select.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_SELECT_H
+        #define _DARWIN_BOOTSTRAP_SYS_SELECT_H
+        typedef long fd_set;
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/stdint.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_STDINT_H
+        #define _DARWIN_BOOTSTRAP_STDINT_H
+        typedef signed char int8_t;
+        typedef unsigned char uint8_t;
+        typedef short int16_t;
+        typedef unsigned short uint16_t;
+        typedef int int32_t;
+        typedef unsigned int uint32_t;
+        typedef long int64_t;
+        typedef unsigned long uint64_t;
+        typedef long intmax_t;
+        typedef unsigned long uintmax_t;
+        typedef long intptr_t;
+        typedef unsigned long uintptr_t;
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/inttypes.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_INTTYPES_H
+        #define _DARWIN_BOOTSTRAP_INTTYPES_H
+        #include <stdint.h>
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/locale.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_LOCALE_H
+        #define _DARWIN_BOOTSTRAP_LOCALE_H
+        #define LC_ALL 0
+        char *setlocale(int, const char *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/pwd.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_PWD_H
+        #define _DARWIN_BOOTSTRAP_PWD_H
+        struct passwd { char *pw_name; char *pw_dir; };
+        struct passwd *getpwnam(const char *);
         #endif
         H
 
@@ -3448,6 +3594,8 @@ C
         char *strncpy(char *, const char *, size_t);
         char *strpbrk(const char *, const char *);
         char *strrchr(const char *, int);
+        char *strerror(int);
+        char *strdup(const char *);
         char *strstr(const char *, const char *);
         #endif
         H
@@ -3469,8 +3617,11 @@ C
         #define _DARWIN_BOOTSTRAP_CTYPE_H
         int isalnum(int);
         int isalpha(int);
+        int iscntrl(int);
         int isdigit(int);
         int islower(int);
+        int isprint(int);
+        int ispunct(int);
         int isspace(int);
         int isupper(int);
         int isxdigit(int);
@@ -3486,6 +3637,18 @@ C
         #define EINVAL 22
         #define ENOMEM 12
         #define ENOENT 2
+        #define EINTR 4
+        #define EIO 5
+        #define EAGAIN 35
+        #define EBADF 9
+        #define EACCES 13
+        #define EEXIST 17
+        #define ENOEXEC 8
+        #define ENOTDIR 20
+        #define EISDIR 21
+        #define EPIPE 32
+        #define ECHILD 10
+        #define ERANGE 34
         #endif
         H
 
@@ -3504,15 +3667,28 @@ C
         #ifndef _DARWIN_BOOTSTRAP_SIGNAL_H
         #define _DARWIN_BOOTSTRAP_SIGNAL_H
         typedef int sig_atomic_t;
+        typedef long sigset_t;
         typedef void (*__sighandler_t)(int);
+        struct sigaction { __sighandler_t sa_handler; sigset_t sa_mask; int sa_flags; };
         #define SIG_DFL ((__sighandler_t)0)
         #define SIG_IGN ((__sighandler_t)1)
         #define SIG_ERR ((__sighandler_t)-1)
+        #define SIG_BLOCK 1
+        #define SIG_UNBLOCK 2
+        #define SIG_SETMASK 3
+        #define SA_RESTART 0
         #define SIGABRT 6
+        #define SIGALRM 14
+        #define SIGCHLD 20
         #define SIGINT 2
         #define SIGTERM 15
         __sighandler_t signal(int, __sighandler_t);
+        int sigaction(int, const struct sigaction *, struct sigaction *);
         int raise(int);
+        int kill(int, int);
+        int sigemptyset(sigset_t *);
+        int sigaddset(sigset_t *, int);
+        int sigprocmask(int, const sigset_t *, sigset_t *);
         #endif
         H
 
@@ -3521,6 +3697,8 @@ C
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
         void abort(void);
+        void exit(int);
+        void _exit(int);
         int atexit(void (*)(void));
         void free(void *);
         char *getenv(const char *);
@@ -3530,6 +3708,11 @@ C
         int abs(int);
         long strtol(const char *, char **, int);
         unsigned long strtoul(const char *, char **, int);
+        long long strtoll(const char *, char **, int);
+        unsigned long long strtoull(const char *, char **, int);
+        double atof(const char *);
+        char *mktemp(char *);
+        void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
         #endif
         H
 
@@ -3538,6 +3721,12 @@ C
         #define _DARWIN_BOOTSTRAP_STDIO_H
         #define EOF (-1)
         #define BUFSIZ 1024
+        #define _IONBF 0
+        #define _IOLBF 1
+        #define _IOFBF 2
+        #define SEEK_SET 0
+        #define SEEK_CUR 1
+        #define SEEK_END 2
         typedef struct FILE FILE;
         typedef unsigned long size_t;
         #include <stdarg.h>
@@ -3548,6 +3737,7 @@ C
         int fprintf(FILE *, const char *, ...);
         int vfprintf(FILE *, const char *, va_list);
         int fscanf(FILE *, const char *, ...);
+        int sscanf(const char *, const char *, ...);
         int sprintf(char *, const char *, ...);
         int snprintf(char *, size_t, const char *, ...);
         int vsprintf(char *, const char *, va_list);
@@ -3555,6 +3745,7 @@ C
         int vasprintf(char **, const char *, va_list);
         FILE *fopen(const char *, const char *);
         FILE *fopen_unlocked(const char *, const char *);
+        FILE *fdopen(int, const char *);
         int fclose(FILE *);
         int ferror(FILE *);
         int fputs(const char *, FILE *);
@@ -3562,9 +3753,18 @@ C
         int fputc(int, FILE *);
         int putchar(int);
         int getc(FILE *);
+        char *fgets(char *, int, FILE *);
         int ungetc(int, FILE *);
         int putc(int, FILE *);
         int fflush(FILE *);
+        size_t fread(void *, size_t, size_t, FILE *);
+        size_t fwrite(const void *, size_t, size_t, FILE *);
+        int feof(FILE *);
+        int fseek(FILE *, long, int);
+        long ftell(FILE *);
+        int fileno(FILE *);
+        int remove(const char *);
+        int setvbuf(FILE *, char *, int, size_t);
         #endif
         H
 
@@ -3574,6 +3774,21 @@ C
         typedef long ssize_t;
         typedef long off_t;
         int close(int);
+        int dup(int);
+        int dup2(int, int);
+        int execvp(const char *, char *const *);
+        int fork(void);
+        char *getcwd(char *, unsigned long);
+        char *getlogin(void);
+        int chdir(const char *);
+        int getpid(void);
+        int isatty(int);
+        int pipe(int *);
+        int sleep(unsigned int);
+        unsigned int alarm(unsigned int);
+        char *ttyname(int);
+        int umask(int);
+        ssize_t readlink(const char *, char *, unsigned long);
         ssize_t read(int, void *, unsigned long);
         ssize_t write(int, const void *, unsigned long);
         off_t lseek(int, off_t, int);
@@ -3874,6 +4089,60 @@ C
     else
       null;
 
+  phase39-gnumake =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase39-gnumake-${gnumakeVersion}-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        tar -xzf ${gnumakeTarball}
+        cd make-${gnumakeVersion}
+
+        substituteInPlace src/job.c \
+          --replace-fail 'const char *default_shell = "/bin/sh";' 'const char *default_shell = "sh";'
+        substituteInPlace src/read.c \
+          --replace-fail '    "/usr/gnu/include",' "" \
+          --replace-fail '    "/usr/local/include",' "" \
+          --replace-fail '    "/usr/include",' ""
+        substituteInPlace src/remake.c \
+          --replace-fail '      "/lib",' "" \
+          --replace-fail '      "/usr/lib",' ""
+        substituteInPlace src/job.c \
+          --replace-fail '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__)' '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__) || defined(__TINYC__)'
+        substituteInPlace src/main.c \
+          --replace-fail '              putenv (b);' '              (void) b;'
+        substituteInPlace src/misc.c \
+          --replace-fail "if (*mktemp (path) == '\\0')" 'if (!strcmp (mktemp (path), ""))'
+        substituteInPlace lib/glob.c \
+          --replace-fail 'extern char *alloca ();' '/* bootstrap: alloca macro maps to malloc */'
+
+        cat src/mkconfig.h src/mkcustom.h > src/config.h
+        cp lib/glob.in.h lib/glob.h
+        cp lib/fnmatch.in.h lib/fnmatch.h
+
+        export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
+        export CFLAGS="-I./src -I./lib -DHAVE_CONFIG_H -DMAKE_MAINTAINER_MODE -DLIBDIR=\"$out/lib\" -DLOCALEDIR=\"/fake-locale\" -DPOSIX=1 -DNO_ARCHIVES=1 -DNO_OUTPUT_SYNC=1 -DO_TMPFILE=020000000 -DFILE_TIMESTAMP_HI_RES=0 -Dalloca=malloc -DHAVE_ATEXIT -DHAVE_DECL_BSD_SIGNAL=0 -DHAVE_DECL_GETLOADAVG=0 -DHAVE_DECL_SYS_SIGLIST=0 -DHAVE_DECL__SYS_SIGLIST=0 -DHAVE_DECL___SYS_SIGLIST=0 -DHAVE_DIRENT_H -DHAVE_DUP2 -DHAVE_FCNTL_H -DHAVE_FDOPEN -DHAVE_GETCWD -DHAVE_GETTIMEOFDAY -DHAVE_INTTYPES_H -DHAVE_ISATTY -DHAVE_LIMITS_H -DHAVE_LOCALE_H -DHAVE_MEMORY_H -DHAVE_MKTEMP -DHAVE_SETVBUF -DHAVE_SIGSETMASK -DHAVE_STDINT_H -DHAVE_STDLIB_H -DHAVE_STRDUP -DHAVE_STRERROR -DHAVE_STRINGS_H -DHAVE_STRING_H -DHAVE_STRTOLL -DHAVE_SYS_FILE_H -DHAVE_SYS_PARAM_H -DHAVE_SYS_RESOURCE_H -DHAVE_SYS_SELECT_H -DHAVE_SYS_STAT_H -DHAVE_SYS_TIME_H -DHAVE_SYS_WAIT_H -DHAVE_TTYNAME -DHAVE_UMASK -DHAVE_UNISTD_H -DHAVE_WAITPID -DMAKE_JOBSERVER -DMAKE_SYMLINKS -DPATH_SEPARATOR_CHAR=0x3a"
+        export CFLAGS="$CFLAGS -DSCCS_GET=\"get\" -DSTDC_HEADERS -Dvfork=fork"
+
+        sources='src/commands.c src/default.c src/dir.c src/expand.c src/file.c src/function.c src/getopt.c src/getopt1.c src/guile.c src/hash.c src/implicit.c src/job.c src/load.c src/loadapi.c src/main.c src/misc.c src/output.c src/read.c src/remake.c src/rule.c src/shuffle.c src/signame.c src/strcache.c src/variable.c src/version.c src/vpath.c lib/fnmatch.c lib/glob.c src/remote-stub.c src/posixos.c'
+        objects=
+        for source in $sources; do
+          object="$(basename "$source" .c).o"
+          $CC $CFLAGS -c "$source" -o "$object" > "$object.stdout" 2> "$object.stderr"
+          objects="$objects $object"
+        done
+
+        $CC $CFLAGS -o make $objects > make-link.stdout 2> make-link.stderr
+        ./make --version > make-version.stdout 2> make-version.stderr
+        grep -q 'GNU Make' make-version.stdout
+        test ! -s make-version.stderr
+
+        install -Dm755 make $out/bin/make
+        cp make-version.stdout make-version.stderr make-link.stdout make-link.stderr \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null;
+
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
@@ -4030,6 +4299,7 @@ in
     phase36-tinycc-boot2-link-candidate
     phase37-tinycc-boot3-object-probe
     phase38-tinycc-boot3-link-candidate
+    phase39-gnumake
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

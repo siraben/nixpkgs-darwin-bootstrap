@@ -2,6 +2,7 @@ typedef unsigned long size_t;
 typedef long FILE;
 
 int errno;
+char **environ;
 FILE *stdin = (FILE *)0;
 FILE *stdout = (FILE *)1;
 FILE *stderr = (FILE *)2;
@@ -90,8 +91,22 @@ void bzero(void *d, unsigned long n) { memset(d, 0, n); }
 char *index(const char *s, int c) { return strchr(s, c); }
 char *rindex(const char *s, int c) { return strrchr(s, c); }
 
+int isalpha(int c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+int isdigit(int c) { return c >= '0' && c <= '9'; }
+int isalnum(int c) { return isalpha(c) || isdigit(c); }
+int islower(int c) { return c >= 'a' && c <= 'z'; }
+int isspace(int c) { return c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f' || c == '\v'; }
+int isupper(int c) { return c >= 'A' && c <= 'Z'; }
+int isxdigit(int c) { return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+int iscntrl(int c) { return (c >= 0 && c < 32) || c == 127; }
+int isprint(int c) { return c >= 32 && c < 127; }
+int ispunct(int c) { return isprint(c) && !isalnum(c) && c != ' '; }
+int tolower(int c) { return isupper(c) ? c - 'A' + 'a' : c; }
+int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
+
 long strtol(const char *s, char **e, int base) { long neg = 0, v = 0; if (*s == '-') { neg = 1; s++; } if (base == 0) base = 10; while ((*s >= '0' && *s <= '9') || (*s >= 'a' && *s <= 'f') || (*s >= 'A' && *s <= 'F')) { int d = (*s <= '9') ? *s - '0' : ((*s <= 'F') ? *s - 'A' + 10 : *s - 'a' + 10); if (d >= base) break; v = v * base + d; s++; } if (e) *e = (char *)s; return neg ? -v : v; }
 unsigned long strtoul(const char *s, char **e, int b) { return (unsigned long)strtol(s, e, b); }
+long long strtoll(const char *s, char **e, int b) { return (long long)strtol(s, e, b); }
 unsigned long long strtoull(const char *s, char **e, int b) { return (unsigned long long)strtoul(s, e, b); }
 int atoi(const char *s) { return (int)strtol(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
@@ -116,10 +131,12 @@ int fputc(int c, FILE *f) { char ch = c; return write(file_fd(f), &ch, 1); }
 int putc(int c, FILE *f) { return fputc(c, f); }
 int putchar(int c) { return fputc(c, stdout); }
 int getc(FILE *f) { unsigned char ch; int fd = file_fd(f); if (ungot_fd == fd && ungot_ch >= 0) { ch = ungot_ch; ungot_ch = -1; return ch; } return read(fd, &ch, 1) == 1 ? ch : -1; }
+char *fgets(char *s, int n, FILE *f) { int i = 0, c; if (n <= 0) return 0; while (i + 1 < n && (c = getc(f)) >= 0) { s[i++] = c; if (c == '\n') break; } if (i == 0) return 0; s[i] = 0; return s; }
 int ungetc(int c, FILE *f) { ungot_fd = file_fd(f); ungot_ch = c; return c; }
 size_t fwrite(const void *p, size_t z, size_t n, FILE *f) { long r = write(file_fd(f), p, z * n); return r < 0 ? 0 : r / z; }
 size_t fread(void *p, size_t z, size_t n, FILE *f) { long r = read(file_fd(f), p, z * n); return r < 0 ? 0 : r / z; }
 FILE *fdopen(int fd, const char *m) { return (FILE *)(long)(fd + 3); }
+int fileno(FILE *f) { return file_fd(f); }
 FILE *fopen(const char *p, const char *m) { int flags = 0; if (m && m[0] == 'w') flags = 0x601; long fd = open(p, flags, 0666); return fd < 0 ? 0 : (FILE *)(fd + 3); }
 FILE *fopen_unlocked(const char *p, const char *m) { return fopen(p, m); }
 FILE *freopen(const char *p, const char *m, FILE *f) { if (f) close(file_fd(f)); return fopen(p, m); }
@@ -127,6 +144,7 @@ int fclose(FILE *f) { return close(file_fd(f)); }
 int fflush(FILE *f) { return 0; }
 int feof(FILE *f) { return 0; }
 int ferror(FILE *f) { return 0; }
+int setvbuf(FILE *f, char *b, int mode, size_t size) { return 0; }
 int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
 long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
 
@@ -201,12 +219,42 @@ int stat(const char *p, void *st) { return -1; }
 char *mktemp(char *template) { return template; }
 char *getenv(const char *n) { return 0; }
 char *getcwd(char *b, size_t n) { if (n >= 2) { b[0] = '.'; b[1] = 0; return b; } return 0; }
+int chdir(const char *p) { return 0; }
+char *getlogin(void) { return 0; }
+int getpid(void) { return 1; }
+int isatty(int fd) { return 0; }
+char *ttyname(int fd) { return 0; }
+int sleep(unsigned int seconds) { return 0; }
+unsigned int alarm(unsigned int seconds) { return 0; }
+int umask(int mask) { return 0; }
+long readlink(const char *path, char *buf, unsigned long size) { return -1; }
+void *getpwnam(const char *name) { return 0; }
+void *opendir(const char *name) { return 0; }
+void *readdir(void *dir) { return 0; }
+int closedir(void *dir) { return 0; }
 int execvp(const char *f, char *const a[]) { return -1; }
 int fork(void) { return -1; }
+int pipe(int *fds) { return -1; }
+int dup(int fd) { return fd; }
+int dup2(int oldfd, int newfd) { return newfd; }
 int wait(int *status) { if (status) *status = -1; return -1; }
+int waitpid(int pid, int *status, int options) { if (status) *status = -1; return -1; }
+int kill(int pid, int sig) { return -1; }
+int sigemptyset(long *set) { if (set) *set = 0; return 0; }
+int sigaddset(long *set, int sig) { if (set) *set |= 1L << sig; return 0; }
+int sigprocmask(int how, const long *set, long *oldset) { if (oldset) *oldset = 0; return 0; }
+int fcntl(int fd, int cmd, long arg) { return 0; }
+int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
 long time(long *t) { if (t) *t = 0; return 0; }
+char *ctime(const long *t) { return "Thu Jan  1 00:00:00 1970\n"; }
 long clock(void) { return 0; }
 void *localtime(const long *t) { return 0; }
+char *setlocale(int category, const char *locale) { return "C"; }
+void *signal(int sig, void *handler) { return handler; }
+int sigaction(int sig, const void *act, void *oldact) { return 0; }
+int raise(int sig) { return 0; }
+int atexit(void (*fn)(void)) { return 0; }
+int putenv(char *s) { return 0; }
 float strtof(const char *s, char **e) { if (e) *e = (char *)s; return 0; }
 double atof(const char *s) { return 0; }
 double ldexp(double x, int e) { return x; }
