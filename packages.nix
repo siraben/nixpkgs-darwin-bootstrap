@@ -3522,6 +3522,7 @@ C
         struct tm *gmtime(const time_t *);
         time_t mktime(struct tm *);
         char *ctime(const time_t *);
+        int nanosleep(const struct timespec *, struct timespec *);
         #endif
         H
 

@@ -252,6 +252,7 @@ int getpid(void) { return 1; }
 int isatty(int fd) { return 0; }
 char *ttyname(int fd) { return 0; }
 int sleep(unsigned int seconds) { return 0; }
+int nanosleep(const void *req, void *rem) { return 0; }
 unsigned int alarm(unsigned int seconds) { return 0; }
 int umask(int mask) { return 0; }
 int rmdir(const char *path) { return 0; }
