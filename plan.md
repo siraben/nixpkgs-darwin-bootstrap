@@ -224,3 +224,4 @@
 - 2026-05-13: `phase39-gnumake` now validates a real recipe execution instead of a dry run, and `phase40-gnupatch` still validates a real patch application after the fork/exec changes.
 - 2026-05-13: Advanced `phase41-coreutils` to use only bootstrapped GNU Make and GNU Patch for its build driver/source patching; it now reaches `lib/gettime.o` after compiling 32 objects, with the next blocker being bootstrap header coverage for `struct timespec` and later libc/tool gaps.
 - 2026-05-13: Coreutils stress build now reaches `lib/idcache.o` after 35 objects with bootstrapped make/patch and real recipe execution; added the next minimal passwd/group header and libc stubs needed for that path.
+- 2026-05-13: Coreutils stress build advanced to `lib/makepath.o` after 41 objects; added the next required `passwd` fields, group header/stubs, `HAVE_SYS_TYPES_H`, and minimal ownership/permission definitions.

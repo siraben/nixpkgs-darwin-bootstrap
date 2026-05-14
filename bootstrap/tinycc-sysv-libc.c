@@ -234,6 +234,7 @@ int fstat(int fd, void *st) { long cur, end; if (fd <= 2) { errno = 9; return -1
 int stat(const char *p, void *st) { int fd = open(p, 0, 0); int r; if (fd < 0) { errno = 2; return -1; } r = fstat(fd, st); close(fd); return r; }
 int access(const char *p, int mode) { struct boot_stat st; return stat(p, &st); }
 int chmod(const char *p, int mode) { return 0; }
+int chown(const char *p, unsigned int uid, unsigned int gid) { return 0; }
 int mkdir(const char *p, int mode) { return 0; }
 int utime(const char *p, const void *times) { return 0; }
 char *mktemp(char *template) { return template; }

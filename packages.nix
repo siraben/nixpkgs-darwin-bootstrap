@@ -3451,6 +3451,7 @@ C
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
         int chmod(const char *, mode_t);
+        int chown(const char *, unsigned int, unsigned int);
         int mkdir(const char *, mode_t);
         #define lstat stat
         #define S_IFMT 0170000
@@ -3458,7 +3459,18 @@ C
         #define S_IFDIR 0040000
         #define S_IFLNK 0120000
         #define S_IFCHR 0020000
+        #define S_IRWXU 0700
+        #define S_IRWXG 0070
+        #define S_IRWXO 0007
+        #define S_IRUSR 0400
+        #define S_IWUSR 0200
         #define S_IXUSR 0100
+        #define S_IRGRP 0040
+        #define S_IWGRP 0020
+        #define S_IXGRP 0010
+        #define S_IROTH 0004
+        #define S_IWOTH 0002
+        #define S_IXOTH 0001
         #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
         #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
         #define S_ISLNK(m) (((m) & S_IFMT) == S_IFLNK)
@@ -3606,7 +3618,7 @@ C
         cat > $out/include/tcc-darwin-bootstrap/pwd.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_PWD_H
         #define _DARWIN_BOOTSTRAP_PWD_H
-        struct passwd { char *pw_name; char *pw_dir; };
+        struct passwd { char *pw_name; char *pw_passwd; unsigned int pw_uid; unsigned int pw_gid; char *pw_gecos; char *pw_dir; char *pw_shell; };
         struct passwd *getpwnam(const char *);
         struct passwd *getpwuid(unsigned int);
         #endif
@@ -4347,7 +4359,7 @@ C
 
         export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
         ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
-          CC="$CC -DNULL=0 -D_GNU_SOURCE=1" \
+          CC="$CC -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1" \
           PREFIX="$out" \
           > coreutils-build.stdout \
           2> coreutils-build.stderr
