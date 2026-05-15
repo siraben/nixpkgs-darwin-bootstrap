@@ -27,6 +27,12 @@ extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, lo
 void *memcpy(void *d, const void *s, size_t n);
 void *memmove(void *d, const void *s, size_t n);
 void *memset(void *d, int c, size_t n);
+double __floatundidf(unsigned long x);
+double __floatdidf(long x);
+long double __floatundixf(unsigned long x);
+unsigned long __fixunsdfdi(double x);
+long __fixdfdi(double x);
+unsigned long __fixunsxfdi(long double x);
 
 static long file_fd(FILE *f) { long v = (long)f; return v <= 2 ? v : v - 3; }
 
@@ -83,6 +89,7 @@ void *realloc(void *p, size_t n) { void *q = malloc(n); if (p && q) { size_t old
 size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
 char *strcpy(char *d, const char *s) { char *r = d; while ((*d++ = *s++)); return r; }
 char *strcat(char *d, const char *s) { char *r = d; while (*d) d++; while ((*d++ = *s++)); return r; }
+char *strncat(char *d, const char *s, size_t n) { char *r = d; while (*d) d++; while (n && *s) { *d++ = *s++; n--; } *d = 0; return r; }
 int strcmp(const char *a, const char *b) { while (*a && *a == *b) { a++; b++; } return *(unsigned char *)a - *(unsigned char *)b; }
 int strncmp(const char *a, const char *b, size_t n) { while (n && *a && *a == *b) { a++; b++; n--; } return n ? *(unsigned char *)a - *(unsigned char *)b : 0; }
 char *strncpy(char *d, const char *s, size_t n) { char *r = d; while (n && *s) { *d++ = *s++; n--; } while (n--) *d++ = 0; return r; }
@@ -110,6 +117,7 @@ int isxdigit(int c) { return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' &
 int iscntrl(int c) { return (c >= 0 && c < 32) || c == 127; }
 int isprint(int c) { return c >= 32 && c < 127; }
 int ispunct(int c) { return isprint(c) && !isalnum(c) && c != ' '; }
+int isascii(int c) { return (c & ~0x7f) == 0; }
 int tolower(int c) { return isupper(c) ? c - 'A' + 'a' : c; }
 int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
 int strcasecmp(const char *a, const char *b) { while (*a && tolower(*a) == tolower(*b)) { a++; b++; } return tolower(*(unsigned char *)a) - tolower(*(unsigned char *)b); }
@@ -126,13 +134,13 @@ void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const voi
 static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
 static int append_str(char *b, size_t n, size_t *pos, const char *s) { int count = 0; if (!s) s = "(null)"; if ((unsigned long)s < 4096) s = "(bad)"; while (*s) { append_char(b, n, pos, *s++); count++; } return count; }
 static int append_num(char *b, size_t n, size_t *pos, long v, int base) { char tmp[32]; int i = 0, neg = 0, count = 0; unsigned long x; if (v < 0 && base == 10) { neg = 1; x = -v; } else x = v; do { int d = x % base; tmp[i++] = d < 10 ? '0' + d : 'a' + d - 10; x /= base; } while (x); if (neg) tmp[i++] = '-'; while (i--) { append_char(b, n, pos, tmp[i]); count++; } return count; }
-static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static int append_double(char *b, size_t n, size_t *pos, double v, int precision) { unsigned long whole; int count = 0, i; if (precision < 0) precision = 6; if (v < 0) { append_char(b, n, pos, '-'); count++; v = -v; } whole = (unsigned long)v; count += append_num(b, n, pos, whole, 10); append_char(b, n, pos, '.'); count++; v -= (double)whole; for (i = 0; i < precision; i++) { int digit; v *= 10.0; digit = (int)v; append_char(b, n, pos, '0' + digit); count++; v -= digit; } return count; }
+static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == '.') { fmt++; while (*fmt >= '0' && *fmt <= '9') fmt++; } while (*fmt >= '0' && *fmt <= '9') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
 static long next_va_long(__va_list_struct *ap) { return *(long *)__va_arg(ap, __va_gen_reg, 8, 8); }
-static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)next_va_long(ap)); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, next_va_long(ap), 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, next_va_long(ap), 16); else if (*fmt == 'c') append_char(b, n, &pos, next_va_long(ap)); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
-static void putnum(int fd, long v, int base) { char b[32]; size_t pos = 0; append_num(b, sizeof(b), &pos, v, base); write(fd, b, pos); }
-static int fmt_fd(int fd, const char *fmt, long a, long b, long c, long d) { long args[4]; int ai = 0; args[0] = a; args[1] = b; args[2] = c; args[3] = d; while (*fmt) { if (*fmt != '%') { write(fd, fmt, 1); fmt++; continue; } fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') { char *s = (char *)args[ai++]; if (!s) s = "(null)"; write(fd, s, strlen(s)); } else if (*fmt == 'd' || *fmt == 'i') putnum(fd, args[ai++], 10); else if (*fmt == 'x' || *fmt == 'p') putnum(fd, args[ai++], 16); else if (*fmt == 'c') { char ch = args[ai++]; write(fd, &ch, 1); } else if (*fmt == '%') write(fd, "%", 1); fmt++; } return 0; }
-int printf(const char *fmt, long a, long b, long c, long d) { return fmt_fd(1, fmt, a, b, c, d); }
-int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { return fmt_fd(file_fd(f), fmt, a, b, c, d); }
+static double next_va_double(__va_list_struct *ap) { return *(double *)__va_arg(ap, __va_float_reg, 8, 8); }
+static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { int precision = -1; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == '.') { precision = 0; fmt++; while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt >= '0' && *fmt <= '9') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)next_va_long(ap)); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, next_va_long(ap), 10); else if (*fmt == 'u') append_num(b, n, &pos, (long)(unsigned long)next_va_long(ap), 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, next_va_long(ap), 16); else if (*fmt == 'c') append_char(b, n, &pos, next_va_long(ap)); else if (*fmt == 'f') append_double(b, n, &pos, next_va_double(ap), precision); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+int printf(const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(1, out, n); return n; }
+int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(file_fd(f), out, n); return n; }
 int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer_va(b, sizeof(b), fmt, (__va_list_struct *)ap); write(file_fd(f), b, n); return n; }
 void perror(const char *s) { if (s) { write(2, s, strlen(s)); write(2, ": ", 2); } write(2, "error\n", 6); }
 
@@ -325,7 +333,9 @@ void sync(void) { }
 int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
 int settimeofday(const void *tv, const void *tz) { return 0; }
 struct boot_tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
+struct boot_lconv { char *decimal_point; char *thousands_sep; char *grouping; char *int_curr_symbol; char *currency_symbol; char *mon_decimal_point; char *mon_thousands_sep; char *mon_grouping; char *positive_sign; char *negative_sign; char int_frac_digits; char frac_digits; char p_cs_precedes; char p_sep_by_space; char n_cs_precedes; char n_sep_by_space; char p_sign_posn; char n_sign_posn; };
 static struct boot_tm epoch_tm = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
+static struct boot_lconv c_lconv = { ".", "", "", "", "", "", "", "", "", "", 127, 127, 127, 127, 127, 127, 127, 127 };
 long time(long *t) { if (t) *t = 0; return 0; }
 char *ctime(const long *t) { return "Thu Jan  1 00:00:00 1970\n"; }
 size_t strftime(char *s, size_t max, const char *fmt, const void *tm) { if (max) s[0] = 0; return 0; }
@@ -334,6 +344,7 @@ void *localtime(const long *t) { return &epoch_tm; }
 void *gmtime(const long *t) { return &epoch_tm; }
 long mktime(void *tm) { return 0; }
 char *setlocale(int category, const char *locale) { return "C"; }
+struct boot_lconv *localeconv(void) { return &c_lconv; }
 void *signal(int sig, void *handler) { return handler; }
 int sigaction(int sig, const void *act, void *oldact) { if (oldact) memset(oldact, 0, sizeof(long) * 4); return 0; }
 int raise(int sig) { return 0; }
@@ -345,6 +356,8 @@ double atof(const char *s) { return 0; }
 double strtod(const char *s, char **e) { if (e) *e = (char *)s; return 0; }
 double ldexp(double x, int e) { return x; }
 double frexp(double x, int *e) { if (e) *e = 0; return x; }
+double fabs(double x) { return x < 0 ? -x : x; }
+double log(double x) { double y, y2, term, sum; int k = 0, n; if (x <= 0) return 0; while (x > 1.5) { x *= 0.5; k++; } while (x < 0.75) { x *= 2.0; k--; } y = (x - 1.0) / (x + 1.0); y2 = y * y; term = y; sum = 0.0; for (n = 1; n < 60; n += 2) { sum += term / (double)n; term *= y2; } return 2.0 * sum + (double)k * 0.69314718055994530942; }
 double __floatundidf(unsigned long x) { return (double)x; }
 double __floatdidf(long x) { return (double)x; }
 long double __floatundixf(unsigned long x) { return (long double)x; }
