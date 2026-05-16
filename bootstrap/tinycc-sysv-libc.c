@@ -86,6 +86,7 @@ void *calloc(size_t n, size_t z) { size_t bytes = n * z; void *p = malloc(bytes)
 int memcmp(const void *a, const void *b, size_t n) { const unsigned char *x = a, *y = b; while (n--) { if (*x != *y) return *x - *y; x++; y++; } return 0; }
 void *memchr(const void *s, int c, size_t n) { const unsigned char *p = s; while (n--) { if (*p == (unsigned char)c) return (void *)p; p++; } return 0; }
 void *realloc(void *p, size_t n) { void *q = malloc(n); if (p && q) { size_t old = ((unsigned long *)p)[-2]; memcpy(q, p, old < n ? old : n); } return q; }
+void *bsearch(const void *key, const void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { const char *b = base; while (n) { size_t mid = n / 2; const void *p = b + mid * size; int c = cmp(key, p); if (c == 0) return (void *)p; if (c > 0) { b = (const char *)p + size; n -= mid + 1; } else n = mid; } return 0; }
 size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
 char *strcpy(char *d, const char *s) { char *r = d; while ((*d++ = *s++)); return r; }
 char *strcat(char *d, const char *s) { char *r = d; while (*d) d++; while ((*d++ = *s++)); return r; }

@@ -3905,6 +3905,7 @@ C
         #define ENOENT 2
         #define EINTR 4
         #define EIO 5
+        #define E2BIG 7
         #define EAGAIN 35
         #define EBADF 9
         #define EACCES 13
@@ -4028,6 +4029,7 @@ C
         double atof(const char *);
         int atoi(const char *);
         char *mktemp(char *);
+        void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
         void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
         #endif
         H
