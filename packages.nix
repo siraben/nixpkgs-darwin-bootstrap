@@ -3646,6 +3646,7 @@ C
         struct tm *gmtime(const time_t *);
         time_t mktime(struct tm *);
         char *ctime(const time_t *);
+        char *asctime(const struct tm *);
         size_t strftime(char *, size_t, const char *, const struct tm *);
         int nanosleep(const struct timespec *, struct timespec *);
         #endif
@@ -4032,6 +4033,7 @@ C
         double strtod(const char *, char **);
         double atof(const char *);
         int atoi(const char *);
+        int putenv(char *);
         char *mktemp(char *);
         void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
         void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
@@ -4110,6 +4112,7 @@ C
         int fseek(FILE *, long, int);
         int fseeko(FILE *, long, int);
         long ftell(FILE *);
+        void rewind(FILE *);
         int fileno(FILE *);
         int remove(const char *);
         int setvbuf(FILE *, char *, int, size_t);

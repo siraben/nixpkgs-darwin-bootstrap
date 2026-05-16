@@ -133,13 +133,36 @@ int abs(int x) { return x < 0 ? -x : x; }
 void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { }
 
 static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
-static int append_str(char *b, size_t n, size_t *pos, const char *s) { int count = 0; if (!s) s = "(null)"; if ((unsigned long)s < 4096) s = "(bad)"; while (*s) { append_char(b, n, pos, *s++); count++; } return count; }
-static int append_num(char *b, size_t n, size_t *pos, long v, int base) { char tmp[32]; int i = 0, neg = 0, count = 0; unsigned long x; if (v < 0 && base == 10) { neg = 1; x = -v; } else x = v; do { int d = x % base; tmp[i++] = d < 10 ? '0' + d : 'a' + d - 10; x /= base; } while (x); if (neg) tmp[i++] = '-'; while (i--) { append_char(b, n, pos, tmp[i]); count++; } return count; }
+static int append_repeat(char *b, size_t n, size_t *pos, int c, int count) { int done = 0; while (done < count) { append_char(b, n, pos, c); done++; } return done; }
+static int append_strn(char *b, size_t n, size_t *pos, const char *s, int max) { int count = 0; if (!s) s = "(null)"; if ((unsigned long)s < 4096) s = "(bad)"; while (*s && (max < 0 || count < max)) { append_char(b, n, pos, *s++); count++; } return count; }
+static int append_str(char *b, size_t n, size_t *pos, const char *s) { return append_strn(b, n, pos, s, -1); }
+static int append_num_raw(char *b, size_t n, size_t *pos, unsigned long x, int base, int upper) { char tmp[32]; int i = 0, count = 0; do { int d = x % base; tmp[i++] = d < 10 ? '0' + d : (upper ? 'A' : 'a') + d - 10; x /= base; } while (x); while (i--) { append_char(b, n, pos, tmp[i]); count++; } return count; }
+static int append_num(char *b, size_t n, size_t *pos, long v, int base) { int count = 0; unsigned long x; if (v < 0 && base == 10) { append_char(b, n, pos, '-'); count++; x = -v; } else x = v; return count + append_num_raw(b, n, pos, x, base, 0); }
 static int append_double(char *b, size_t n, size_t *pos, double v, int precision) { unsigned long whole; int count = 0, i; if (precision < 0) precision = 6; if (v < 0) { append_char(b, n, pos, '-'); count++; v = -v; } whole = (unsigned long)v; count += append_num(b, n, pos, whole, 10); append_char(b, n, pos, '.'); count++; v -= (double)whole; for (i = 0; i < precision; i++) { int digit; v *= 10.0; digit = (int)v; append_char(b, n, pos, '0' + digit); count++; v -= digit; } return count; }
-static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == '.') { fmt++; while (*fmt >= '0' && *fmt <= '9') fmt++; } while (*fmt >= '0' && *fmt <= '9') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)*args++); else if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u') append_num(b, n, &pos, *args++, 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, *args++, 16); else if (*fmt == 'c') append_char(b, n, &pos, *args++); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
 static long next_va_long(__va_list_struct *ap) { return *(long *)__va_arg(ap, __va_gen_reg, 8, 8); }
 static double next_va_double(__va_list_struct *ap) { return *(double *)__va_arg(ap, __va_float_reg, 8, 8); }
-static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { int precision = -1; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; if (*fmt == '.') { precision = 0; fmt++; while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt >= '0' && *fmt <= '9') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 'l') fmt++; if (*fmt == 's') append_str(b, n, &pos, (char *)next_va_long(ap)); else if (*fmt == 'd' || *fmt == 'i') append_num(b, n, &pos, next_va_long(ap), 10); else if (*fmt == 'u') append_num(b, n, &pos, (long)(unsigned long)next_va_long(ap), 10); else if (*fmt == 'x' || *fmt == 'p') append_num(b, n, &pos, next_va_long(ap), 16); else if (*fmt == 'c') append_char(b, n, &pos, next_va_long(ap)); else if (*fmt == 'f') append_double(b, n, &pos, next_va_double(ap), precision); else if (*fmt == '%') append_char(b, n, &pos, '%'); else append_char(b, n, &pos, *fmt); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static int append_formatted(char *b, size_t n, size_t *pos, int left, int zero, int width, int precision, int spec, long value, double dbl)
+{
+    char tmp[256]; size_t tmp_pos = 0; int len, pad, sign = 0;
+    if (spec == 's') len = append_strn(tmp, sizeof(tmp), &tmp_pos, (char *)value, precision);
+    else if (spec == 'c') len = append_char(tmp, sizeof(tmp), &tmp_pos, value);
+    else if (spec == 'f') len = append_double(tmp, sizeof(tmp), &tmp_pos, dbl, precision);
+    else if (spec == 'd' || spec == 'i') { unsigned long x; if (value < 0) { sign = '-'; x = -value; } else x = value; if (sign) append_char(tmp, sizeof(tmp), &tmp_pos, sign); len = (sign ? 1 : 0) + append_num_raw(tmp, sizeof(tmp), &tmp_pos, x, 10, 0); }
+    else if (spec == 'u') len = append_num_raw(tmp, sizeof(tmp), &tmp_pos, (unsigned long)value, 10, 0);
+    else if (spec == 'o') len = append_num_raw(tmp, sizeof(tmp), &tmp_pos, (unsigned long)value, 8, 0);
+    else if (spec == 'X') len = append_num_raw(tmp, sizeof(tmp), &tmp_pos, (unsigned long)value, 16, 1);
+    else len = append_num_raw(tmp, sizeof(tmp), &tmp_pos, (unsigned long)value, 16, 0);
+    tmp[tmp_pos < sizeof(tmp) ? tmp_pos : sizeof(tmp) - 1] = 0;
+    if (width < 0) { left = 1; width = -width; }
+    pad = width > len ? width - len : 0;
+    if (!left && zero && sign) { append_char(b, n, pos, sign); append_repeat(b, n, pos, '0', pad); append_strn(b, n, pos, tmp + 1, len - 1); return len + pad; }
+    if (!left) append_repeat(b, n, pos, zero ? '0' : ' ', pad);
+    append_strn(b, n, pos, tmp, len);
+    if (left) append_repeat(b, n, pos, ' ', pad);
+    return len + pad;
+}
+static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; fmt++; } if (*fmt == '*') { width = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, width, precision, spec, 0, 0.0); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, width, precision, spec, *args++, 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; fmt++; } if (*fmt == '*') { width = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, width, precision, spec, 0, next_va_double(ap)); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, width, precision, spec, next_va_long(ap), 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
 int printf(const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(1, out, n); return n; }
 int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(file_fd(f), out, n); return n; }
 int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer_va(b, sizeof(b), fmt, (__va_list_struct *)ap); write(file_fd(f), b, n); return n; }
@@ -187,6 +210,7 @@ int setvbuf(FILE *f, char *b, int mode, size_t size) { return 0; }
 int fseek(FILE *f, long o, int w) { return lseek(file_fd(f), o, w) < 0 ? -1 : 0; }
 int fseeko(FILE *f, long o, int w) { return fseek(f, o, w); }
 long ftell(FILE *f) { return lseek(file_fd(f), 0, 1); }
+void rewind(FILE *f) { fseek(f, 0, 0); }
 FILE *popen(const char *cmd, const char *mode) { return 0; }
 int pclose(FILE *f) { return -1; }
 
@@ -339,6 +363,7 @@ static struct boot_tm epoch_tm = { 0, 0, 0, 1, 0, 70, 4, 0, 0 };
 static struct boot_lconv c_lconv = { ".", "", "", "", "", "", "", "", "", "", 127, 127, 127, 127, 127, 127, 127, 127 };
 long time(long *t) { if (t) *t = 0; return 0; }
 char *ctime(const long *t) { return "Thu Jan  1 00:00:00 1970\n"; }
+char *asctime(const void *tm) { return "Thu Jan  1 00:00:00 1970\n"; }
 size_t strftime(char *s, size_t max, const char *fmt, const void *tm) { if (max) s[0] = 0; return 0; }
 long clock(void) { return 0; }
 void *localtime(const long *t) { return &epoch_tm; }
