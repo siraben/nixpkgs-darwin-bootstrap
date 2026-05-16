@@ -1,0 +1,59 @@
+--- a/gcc/genconditions.c	2026-05-16 11:23:11.922822191 -0700
++++ b/gcc/genconditions.c	2026-05-16 11:23:11.965547137 -0700
+@@ -107,9 +107,7 @@
+    to by SLOT.  Each entry looks like this:
+ 
+    { "! optimize_size && ! TARGET_READ_MODIFY_WRITE",
+-     __builtin_constant_p (! optimize_size && ! TARGET_READ_MODIFY_WRITE)
+-     ? (int) (! optimize_size && ! TARGET_READ_MODIFY_WRITE)
+-     : -1) },  */
++     -1 },  */
+ 
+ static int
+ write_one_condition (void **slot, void * ARG_UNUSED (dummy))
+@@ -131,11 +129,7 @@
+       putchar (*p);
+     }
+ 
+-  fputs ("\",\n    __builtin_constant_p ", stdout);
+-  print_c_condition (test->expr);
+-  fputs ("\n    ? (int) ", stdout);
+-  print_c_condition (test->expr);
+-  fputs ("\n    : -1 },\n", stdout);
++  fputs ("\", -1 },\n", stdout);
+   return 1;
+ }
+ 
+@@ -159,14 +153,12 @@
+    If we don't have __builtin_constant_p, or it's not acceptable in array\n\
+    initializers, fall back to assuming that all conditions potentially\n\
+    vary at run time.  It works in 3.0.1 and later; 3.0 only when not\n\
+-   optimizing.  */\n\
+-\n\
+-#if GCC_VERSION >= 3001\n\
++   optimizing.  Bootstrap TinyCC always uses the conservative value.  */\n\
+ static const struct c_test insn_conditions[] = {\n");
+ 
+   traverse_c_tests (write_one_condition, 0);
+ 
+-  puts ("\n};\n#endif /* gcc >= 3.0.1 */\n");
++  puts ("\n};\n");
+ }
+ 
+ /* Emit code which will convert the C-format table to a
+@@ -182,7 +174,6 @@
+ 	"  unsigned int i;\n"
+         "  const char *p;\n"
+         "  puts (\"(define_conditions [\");\n"
+-	"#if GCC_VERSION >= 3001\n"
+ 	"  for (i = 0; i < ARRAY_SIZE (insn_conditions); i++)\n"
+ 	"    {\n"
+ 	"      printf (\"  (%d \\\"\", insn_conditions[i].value);\n"
+@@ -198,7 +189,6 @@
+ 	"        }\n"
+         "      puts (\"\\\")\");\n"
+         "    }\n"
+-	"#endif /* gcc >= 3.0.1 */\n"
+ 	"  puts (\"])\");\n"
+         "  fflush (stdout);\n"
+         "return ferror (stdout) != 0 ? FATAL_EXIT_CODE : SUCCESS_EXIT_CODE;\n"
