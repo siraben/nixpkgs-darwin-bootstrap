@@ -4193,6 +4193,10 @@ C
         libraries=()
         include_dirs=(@INCLUDE@)
         cleanup_files=()
+        emit_deps=0
+        dep_file=
+        dep_target=
+        dep_dummy_headers=0
 
         while (($#)); do
           case "$1" in
@@ -4224,6 +4228,42 @@ C
               if ((compile_only)); then
                 args+=("$1")
               fi
+              shift
+              ;;
+            -MD|-MMD)
+              emit_deps=1
+              shift
+              ;;
+            -MP)
+              dep_dummy_headers=1
+              shift
+              ;;
+            -MF)
+              emit_deps=1
+              dep_file="$2"
+              shift 2
+              ;;
+            -MF*)
+              emit_deps=1
+              dep_file="''${1#-MF}"
+              shift
+              ;;
+            -MT|-MQ)
+              dep_target="$2"
+              shift 2
+              ;;
+            -MT*|-MQ*)
+              dep_target="''${1#-M?}"
+              shift
+              ;;
+            -Wp,-MD,*)
+              emit_deps=1
+              dep_file="''${1#-Wp,-MD,}"
+              shift
+              ;;
+            -Wp,-MMD,*)
+              emit_deps=1
+              dep_file="''${1#-Wp,-MMD,}"
               shift
               ;;
             -I)
@@ -4340,6 +4380,77 @@ C
           done
         }
 
+        add_dependency() {
+          local dep="$1"
+          local existing
+          for existing in "''${deps[@]}"; do
+            [ "$existing" = "$dep" ] && return 0
+          done
+          deps+=("$dep")
+        }
+
+        collect_dependency_headers() {
+          local input line header resolved dir input_dir
+          deps=()
+          for input in "''${inputs[@]}"; do
+            test -f "$input" || continue
+            add_dependency "$input"
+            input_dir="$(dirname "$input")"
+            while IFS= read -r line; do
+              case "$line" in
+                *'#include "'*'"'*)
+                  header="''${line#*#include \"}"
+                  header="''${header%%\"*}"
+                  resolved=
+                  if [ -f "$input_dir/$header" ]; then
+                    resolved="$input_dir/$header"
+                  else
+                    for dir in "''${include_dirs[@]}"; do
+                      if [ -f "$dir/$header" ]; then
+                        resolved="$dir/$header"
+                        break
+                      fi
+                    done
+                  fi
+                  [ -n "$resolved" ] && add_dependency "$resolved"
+                  ;;
+              esac
+            done < "$input"
+          done
+        }
+
+        write_dependency_file() {
+          ((emit_deps)) || return 0
+          [ -n "$dep_file" ] || return 0
+          local target="$dep_target"
+          local dep
+          if [ -z "$target" ]; then
+            if [ -n "$out" ] && ((compile_only)); then
+              target="$out"
+            elif [ "''${#inputs[@]}" -eq 1 ]; then
+              target="$(basename "''${inputs[0]}")"
+              target="''${target%.c}.o"
+            else
+              target="a.out"
+            fi
+          fi
+          mkdir -p "$(dirname "$dep_file")"
+          collect_dependency_headers
+          {
+            printf '%s:' "$target"
+            for dep in "''${deps[@]}"; do
+              printf ' %s' "$dep"
+            done
+            printf '\n'
+            if ((dep_dummy_headers)); then
+              for dep in "''${deps[@]}"; do
+                [ "$dep" = "''${inputs[0]:-}" ] && continue
+                printf '%s:\n' "$dep"
+              done
+            fi
+          } > "$dep_file"
+        }
+
         cleanup() {
           for file in "''${cleanup_files[@]}"; do
             rm -f "$file"
@@ -4355,6 +4466,7 @@ C
           fi
           materialize_quote_headers
           @TCC@ "''${args[@]}" -I@INCLUDE@ "''${prepared_inputs[@]}" "''${objects[@]}"
+          write_dependency_file
           exit "$?"
         fi
 
