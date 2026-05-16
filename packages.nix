@@ -2632,7 +2632,12 @@ CACHE
           > $out/share/darwin-bootstrap/configure.stdout \
           2> $out/share/darwin-bootstrap/configure.stderr
 
-        make all-gcc -j1 \
+        buildCores="''${NIX_BUILD_CORES:-1}"
+        if test "$buildCores" = 0; then
+          buildCores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+        fi
+
+        make all-gcc -j"$buildCores" \
           MAKEINFO=true \
           CPP="$CPP" \
           AR="$AR" \
@@ -2704,7 +2709,12 @@ C
         export CXXCPP="$CC -E"
 
         cd work/build
-        make -C gcc cc1 -j1 \
+        buildCores="''${NIX_BUILD_CORES:-1}"
+        if test "$buildCores" = 0; then
+          buildCores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+        fi
+
+        make -C gcc cc1 -j"$buildCores" \
           CPP="$CPP" \
           AR="$AR" \
           NM="$NM" \
