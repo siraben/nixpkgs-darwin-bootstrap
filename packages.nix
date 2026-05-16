@@ -3532,6 +3532,7 @@ C
         double frexp(double, int *);
         double fabs(double);
         double log(double);
+        double exp(double);
         double atof(const char *);
         double strtod(const char *, char **);
         #endif
@@ -4039,6 +4040,8 @@ C
         double strtod(const char *, char **);
         double atof(const char *);
         int atoi(const char *);
+        long atol(const char *);
+        long long atoll(const char *);
         int putenv(char *);
         char *mktemp(char *);
         void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
@@ -4378,6 +4381,9 @@ C
         resolve_libraries() {
           local lib dir path found
           for lib in "''${libraries[@]}"; do
+            if [ "$lib" = m ]; then
+              continue
+            fi
             found=0
             for dir in "''${library_dirs[@]}" .; do
               path="$dir/lib$lib.a"

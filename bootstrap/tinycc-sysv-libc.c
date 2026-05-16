@@ -11,6 +11,8 @@ FILE *stdout = (FILE *)1;
 FILE *stderr = (FILE *)2;
 static int ungot_fd = -1;
 static int ungot_ch = -1;
+static char *malloc_cur = 0;
+static char *malloc_end = 0;
 
 extern long write(int fd, const void *buf, unsigned long n);
 extern long read(int fd, void *buf, unsigned long n);
@@ -76,7 +78,7 @@ void *__va_arg(__va_list_struct *ap, enum __va_arg_type arg_type, int size, int 
     return ap->overflow_arg_area - size;
 }
 
-void *malloc(size_t n) { size_t sz = (n + 4095 + 16) & ~4095; unsigned long *p = mmap(0, sz, 3, 0x1002, -1, 0); if ((long)p < 0) return 0; p[0] = sz - 16; p[1] = 0; return p + 2; }
+void *malloc(size_t n) { size_t need = (n + 31) & ~15; if (!malloc_cur || malloc_cur + need > malloc_end) { size_t chunk = need > 16777216 ? need : 16777216; char *mem = mmap(0, chunk, 3, 0x1002, -1, 0); if ((long)mem < 0) return 0; malloc_cur = mem; malloc_end = mem + chunk; } unsigned long *p = (unsigned long *)malloc_cur; malloc_cur += need; p[0] = need - 16; p[1] = 0; return p + 2; }
 void free(void *p) { }
 
 void *memcpy(void *d, const void *s, size_t n) { char *dd = d; const char *ss = s; while (n--) *dd++ = *ss++; return d; }
@@ -129,8 +131,30 @@ unsigned long strtoul(const char *s, char **e, int b) { return (unsigned long)st
 long long strtoll(const char *s, char **e, int b) { return (long long)strtol(s, e, b); }
 unsigned long long strtoull(const char *s, char **e, int b) { return (unsigned long long)strtoul(s, e, b); }
 int atoi(const char *s) { return (int)strtol(s, 0, 10); }
+long atol(const char *s) { return strtol(s, 0, 10); }
+long long atoll(const char *s) { return strtoll(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
-void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { }
+static void qsort_swap(char *a, char *b, size_t size) { while (size--) { char tmp = *a; *a++ = *b; *b++ = tmp; } }
+static void qsort_range(char *base, long left, long right, size_t size, int (*cmp)(const void *, const void *))
+{
+    long low = left, high = right, mid = left + (right - left) / 2;
+    char *pivot = malloc(size);
+    if (!pivot) return;
+    memcpy(pivot, base + mid * size, size);
+    while (low <= high) {
+        while (cmp(base + low * size, pivot) < 0) low++;
+        while (cmp(base + high * size, pivot) > 0) high--;
+        if (low <= high) {
+            if (low != high) qsort_swap(base + low * size, base + high * size, size);
+            low++;
+            high--;
+        }
+    }
+    free(pivot);
+    if (left < high) qsort_range(base, left, high, size, cmp);
+    if (low < right) qsort_range(base, low, right, size, cmp);
+}
+void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { if (base && n > 1 && size && cmp) qsort_range(base, 0, n - 1, size, cmp); }
 
 static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
 static int append_repeat(char *b, size_t n, size_t *pos, int c, int count) { int done = 0; while (done < count) { append_char(b, n, pos, c); done++; } return done; }
@@ -163,8 +187,8 @@ static int append_formatted(char *b, size_t n, size_t *pos, int left, int zero, 
 }
 static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; fmt++; } if (*fmt == '*') { width = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, width, precision, spec, 0, 0.0); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, width, precision, spec, *args++, 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
 static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; fmt++; } if (*fmt == '*') { width = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, width, precision, spec, 0, next_va_double(ap)); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, width, precision, spec, next_va_long(ap), 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
-int printf(const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(1, out, n); return n; }
-int fprintf(FILE *f, const char *fmt, long a, long b, long c, long d) { char out[4096]; long args[4]; int n; args[0] = a; args[1] = b; args[2] = c; args[3] = d; n = format_buffer_words(out, sizeof(out), fmt, args); write(file_fd(f), out, n); return n; }
+int printf(const char *fmt, ...) { char out[4096]; __va_list_struct ap; int n; __va_start(&ap, __builtin_frame_address(0)); n = format_buffer_va(out, sizeof(out), fmt, &ap); write(1, out, n); return n; }
+int fprintf(FILE *f, const char *fmt, ...) { char out[4096]; __va_list_struct ap; int n; __va_start(&ap, __builtin_frame_address(0)); n = format_buffer_va(out, sizeof(out), fmt, &ap); write(file_fd(f), out, n); return n; }
 int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer_va(b, sizeof(b), fmt, (__va_list_struct *)ap); write(file_fd(f), b, n); return n; }
 void perror(const char *s) { if (s) { write(2, s, strlen(s)); write(2, ": ", 2); } write(2, "error\n", 6); }
 
@@ -445,6 +469,7 @@ double ldexp(double x, int e) { return x; }
 double frexp(double x, int *e) { if (e) *e = 0; return x; }
 double fabs(double x) { return x < 0 ? -x : x; }
 double log(double x) { double y, y2, term, sum; int k = 0, n; if (x <= 0) return 0; while (x > 1.5) { x *= 0.5; k++; } while (x < 0.75) { x *= 2.0; k--; } y = (x - 1.0) / (x + 1.0); y2 = y * y; term = y; sum = 0.0; for (n = 1; n < 60; n += 2) { sum += term / (double)n; term *= y2; } return 2.0 * sum + (double)k * 0.69314718055994530942; }
+double exp(double x) { double term = 1.0, sum = 1.0, factor = 1.0; int halve_count = 0, iter; if (x < 0) return 1.0 / exp(-x); while (x > 1.0) { x *= 0.5; halve_count++; } for (iter = 1; iter < 40; iter++) { term *= x / (double)iter; sum += term; } while (halve_count--) { factor = sum; sum = factor * factor; } return sum; }
 double __floatundidf(unsigned long x) { return (double)x; }
 double __floatdidf(long x) { return (double)x; }
 long double __floatundixf(unsigned long x) { return (long double)x; }
@@ -452,8 +477,8 @@ unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
 long __fixdfdi(double x) { return (long)x; }
 unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
 int sscanf(const char *s, const char *f, long a, long b) { return 0; }
-int sprintf(char *b, const char *f, long a, long c, long d, long e) { long args[4]; args[0] = a; args[1] = c; args[2] = d; args[3] = e; return format_buffer_words(b, (size_t)-1, f, args); }
-int snprintf(char *b, size_t n, const char *f, long a, long c, long d) { long args[3]; args[0] = a; args[1] = c; args[2] = d; return format_buffer_words(b, n, f, args); }
+int sprintf(char *b, const char *f, ...) { __va_list_struct ap; __va_start(&ap, __builtin_frame_address(0)); return format_buffer_va(b, (size_t)-1, f, &ap); }
+int snprintf(char *b, size_t n, const char *f, ...) { __va_list_struct ap; __va_start(&ap, __builtin_frame_address(0)); return format_buffer_va(b, n, f, &ap); }
 int vsprintf(char *b, const char *f, void *ap) { return format_buffer_va(b, (size_t)-1, f, (__va_list_struct *)ap); }
 int vsnprintf(char *b, size_t n, const char *f, void *ap) { return format_buffer_va(b, n, f, (__va_list_struct *)ap); }
 int vasprintf(char **out, const char *f, void *ap) { *out = malloc(4096); return *out ? vsnprintf(*out, 4096, f, ap) : -1; }
