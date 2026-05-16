@@ -4203,6 +4203,7 @@ C
         libraries=()
         include_dirs=(@INCLUDE@)
         cleanup_files=()
+        cleanup_dirs=()
         emit_deps=0
         dep_file=
         dep_target=
@@ -4333,11 +4334,16 @@ C
         }
 
         prepare_source_inputs() {
-          local index=0
+          local index=0 work_dir
           for input in "''${inputs[@]}"; do
             case "$input" in
               */*)
-                local copy=".tcc-darwin-input-$index.c"
+                work_dir="''${tmp:-}"
+                if [ -z "$work_dir" ]; then
+                  work_dir="$(mktemp -d .tcc-darwin-inputs.XXXXXX)"
+                  cleanup_dirs+=("$work_dir")
+                fi
+                local copy="$work_dir/input-$index.c"
                 cp "$input" "$copy"
                 cleanup_files+=("$copy")
                 prepared_inputs+=("$copy")
@@ -4464,6 +4470,9 @@ C
         cleanup() {
           for file in "''${cleanup_files[@]}"; do
             rm -f "$file"
+          done
+          for dir in "''${cleanup_dirs[@]}"; do
+            rm -rf "$dir"
           done
         }
         trap cleanup EXIT
