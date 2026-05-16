@@ -2524,6 +2524,8 @@ PY
         export CFLAGS_FOR_BUILD="-g"
         export CXX="$CC"
         export CXXCPP="$CC -E"
+        export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
+        mkdir -p "$TCC_DARWIN_CACHE_DIR"
         export ac_cv_have_decl_getrlimit=no
         export ac_cv_have_decl_setrlimit=no
         export ac_cv_func_getrlimit=no
@@ -2707,6 +2709,8 @@ C
         export CFLAGS_FOR_BUILD="-g"
         export CXX="$CC"
         export CXXCPP="$CC -E"
+        export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
+        mkdir -p "$TCC_DARWIN_CACHE_DIR"
 
         cd work/build
         buildCores="''${NIX_BUILD_CORES:-1}"
@@ -4384,16 +4388,57 @@ C
           done
         }
 
-        expand_archives() {
-          local archive archive_dir member archive_index=0
+        add_archive_m1_files() {
+          local archive="$1"
+          local archive_index="$2"
+          local cache_root cache_key cache_dir checksum prefix_key member member_index m1 rel
+          cache_root="''${TCC_DARWIN_CACHE_DIR:-$PWD/.tcc-darwin-archive-cache}"
+          mkdir -p "$cache_root"
+          checksum="$(cksum "$archive" | awk '{ print $1 "-" $2 }')"
+          cache_key="$(basename "$archive" | sed 's/[^A-Za-z0-9_.-]/_/g')-$checksum"
+          cache_dir="$cache_root/$cache_key"
+
+          if [ ! -f "$cache_dir/.complete" ]; then
+            if mkdir "$cache_dir.lock" 2>/dev/null; then
+              rm -rf "$cache_dir"
+              mkdir -p "$cache_dir/extract" "$cache_dir/code" "$cache_dir/data"
+              (cd "$cache_dir/extract" && @AR@ -x "$archive")
+              : > "$cache_dir/code-files.list"
+              : > "$cache_dir/data-files.list"
+              prefix_key="$(printf '%s' "$checksum" | tr -c 'A-Za-z0-9_' '_')"
+              member_index=0
+              for member in "$cache_dir/extract"/*.o; do
+                test -f "$member" || continue
+                m1="$cache_dir/member-$member_index.M1"
+                @PYTHON@ @ELF_TO_M1@ --prefix "archive_''${prefix_key}_''${member_index}_" "$member" "$m1"
+                awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
+                awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
+                echo "code/member-$member_index.M1" >> "$cache_dir/code-files.list"
+                echo "data/member-$member_index.M1" >> "$cache_dir/data-files.list"
+                member_index=$((member_index + 1))
+              done
+              rm -rf "$cache_dir/extract"
+              touch "$cache_dir/.complete"
+              rmdir "$cache_dir.lock"
+            else
+              while [ ! -f "$cache_dir/.complete" ]; do
+                sleep 1
+              done
+            fi
+          fi
+
+          while IFS= read -r rel; do
+            [ -n "$rel" ] && code_files+=("$cache_dir/$rel")
+          done < "$cache_dir/code-files.list"
+          while IFS= read -r rel; do
+            [ -n "$rel" ] && data_files+=("$cache_dir/$rel")
+          done < "$cache_dir/data-files.list"
+        }
+
+        add_archives() {
+          local archive archive_index=0
           for archive in "''${archives[@]}"; do
-            archive_dir="$tmp/archive-$archive_index"
-            mkdir -p "$archive_dir"
-            (cd "$archive_dir" && @AR@ -x "$archive")
-            for member in "$archive_dir"/*.o; do
-              test -f "$member" || continue
-              objects+=("$member")
-            done
+            add_archive_m1_files "$archive" "$archive_index"
             archive_index=$((archive_index + 1))
           done
         }
@@ -4504,10 +4549,10 @@ C
           object_index=$((object_index + 1))
         done
         resolve_libraries
-        expand_archives
 
         code_files=()
         data_files=()
+        add_archives
         object_index=0
         for object in "''${objects[@]}"; do
           m1="$tmp/object-$object_index.M1"
