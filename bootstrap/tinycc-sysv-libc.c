@@ -217,6 +217,37 @@ int pclose(FILE *f) { return -1; }
 static int scan_space(int c) { return c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\f' || c == '\v'; }
 static int scan_set_has(const char *set, int set_len, int c) { int i; for (i = 0; i < set_len; i++) if (set[i] == c) return 1; return 0; }
 static int scan_fail_result(int matched, int c) { return c < 0 && matched == 0 ? -1 : matched; }
+static int scan_digit_value(int ch) { if (ch >= '0' && ch <= '9') return ch - '0'; if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10; if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10; return -1; }
+static int scan_int_file(FILE *f, int spec, int width, int *last_ch, long *out)
+{
+    int ch, neg = 0, digits = 0, base = 10, value_digit;
+    unsigned long value = 0;
+    do ch = getc(f); while (scan_space(ch));
+    if (width > 0 && (ch == '-' || ch == '+')) { neg = ch == '-'; width--; ch = getc(f); }
+    if (spec == 'o') base = 8;
+    if (spec == 'x' || spec == 'X') base = 16;
+    if (spec == 'i') {
+        base = 10;
+        if (width > 0 && ch == '0') {
+            digits = 1;
+            width--;
+            ch = getc(f);
+            if (width > 0 && (ch == 'x' || ch == 'X')) { base = 16; digits = 0; width--; ch = getc(f); }
+            else { base = 8; value = 0; }
+        }
+    }
+    while (width > 0 && (value_digit = scan_digit_value(ch)) >= 0 && value_digit < base) {
+        value = value * base + value_digit;
+        digits++;
+        width--;
+        ch = getc(f);
+    }
+    if (ch >= 0) ungetc(ch, f);
+    *last_ch = ch;
+    if (!digits) return 0;
+    *out = neg ? -(long)value : (long)value;
+    return 1;
+}
 int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
 {
     long args[4]; int ai = 0, matched = 0, ch;
@@ -253,6 +284,18 @@ int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
             fmt++;
             continue;
         }
+        if (*fmt == 'c') {
+            char *out = suppress ? 0 : (char *)args[ai++];
+            if (width == 0x7fffffff) width = 1;
+            while (count < width && (ch = getc(f)) >= 0) {
+                if (!suppress) out[count] = ch;
+                count++;
+            }
+            if (count == 0) return scan_fail_result(matched, ch);
+            if (!suppress) matched++;
+            fmt++;
+            continue;
+        }
         if (*fmt == '[') {
             char set[64]; int set_len = 0, negate = 0;
             fmt++;
@@ -272,6 +315,24 @@ int fscanf(FILE *f, const char *fmt, long a, long b, long c_arg, long d)
             if (ch >= 0) ungetc(ch, f);
             if (count == 0) return scan_fail_result(matched, ch);
             if (!suppress) { out[count] = 0; matched++; }
+            continue;
+        }
+        int long_mod = 0;
+        while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') { if (*fmt == 'l') long_mod = 1; fmt++; }
+        if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u' || *fmt == 'o' || *fmt == 'x' || *fmt == 'X') {
+            long value = 0;
+            if (!scan_int_file(f, *fmt, width, &ch, &value)) return scan_fail_result(matched, ch);
+            if (!suppress) {
+                if (long_mod) *(long *)args[ai++] = value;
+                else *(int *)args[ai++] = (int)value;
+                matched++;
+            }
+            fmt++;
+            continue;
+        }
+        if (*fmt == 'n') {
+            if (!suppress) *(int *)args[ai++] = 0;
+            fmt++;
             continue;
         }
         return matched;
