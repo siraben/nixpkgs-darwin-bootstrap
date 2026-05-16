@@ -2634,6 +2634,12 @@ CACHE
           > $out/share/darwin-bootstrap/configure.stdout \
           2> $out/share/darwin-bootstrap/configure.stderr
 
+        {
+          echo '#include "bconfig.h"'
+          cat ../src/gcc/gengtype-lex.c
+        } > gcc/gengtype-lex.c
+        touch gcc/gengtype-lex.c
+
         buildCores="''${NIX_BUILD_CORES:-1}"
         if test "$buildCores" = 0; then
           buildCores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
