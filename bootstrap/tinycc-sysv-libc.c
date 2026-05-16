@@ -134,27 +134,26 @@ int atoi(const char *s) { return (int)strtol(s, 0, 10); }
 long atol(const char *s) { return strtol(s, 0, 10); }
 long long atoll(const char *s) { return strtoll(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
-static void qsort_swap(char *a, char *b, size_t size) { while (size--) { char tmp = *a; *a++ = *b; *b++ = tmp; } }
-static void qsort_range(char *base, long left, long right, size_t size, int (*cmp)(const void *, const void *))
+void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *))
 {
-    long low = left, high = right, mid = left + (right - left) / 2;
-    char *pivot = malloc(size);
-    if (!pivot) return;
-    memcpy(pivot, base + mid * size, size);
-    while (low <= high) {
-        while (cmp(base + low * size, pivot) < 0) low++;
-        while (cmp(base + high * size, pivot) > 0) high--;
-        if (low <= high) {
-            if (low != high) qsort_swap(base + low * size, base + high * size, size);
-            low++;
-            high--;
+    char *b = base, *tmp;
+    size_t gap, i, j;
+    if (!base || n < 2 || !size || !cmp) return;
+    tmp = malloc(size);
+    if (!tmp) return;
+    for (gap = n / 2; gap; gap /= 2) {
+        for (i = gap; i < n; i++) {
+            memcpy(tmp, b + i * size, size);
+            j = i;
+            while (j >= gap && cmp(b + (j - gap) * size, tmp) > 0) {
+                memcpy(b + j * size, b + (j - gap) * size, size);
+                j -= gap;
+            }
+            memcpy(b + j * size, tmp, size);
         }
     }
-    free(pivot);
-    if (left < high) qsort_range(base, left, high, size, cmp);
-    if (low < right) qsort_range(base, low, right, size, cmp);
+    free(tmp);
 }
-void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { if (base && n > 1 && size && cmp) qsort_range(base, 0, n - 1, size, cmp); }
 
 static int append_char(char *b, size_t n, size_t *pos, int c) { if (*pos + 1 < n) b[*pos] = c; (*pos)++; return 1; }
 static int append_repeat(char *b, size_t n, size_t *pos, int c, int count) { int done = 0; while (done < count) { append_char(b, n, pos, c); done++; } return done; }
