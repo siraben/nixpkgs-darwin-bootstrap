@@ -167,7 +167,19 @@ static double next_va_double(__va_list_struct *ap) { return *(double *)__va_arg(
 static int append_formatted(char *b, size_t n, size_t *pos, int left, int zero, int width, int precision, int spec, long value, double dbl)
 {
     char tmp[256]; size_t tmp_pos = 0; int len, pad, sign = 0;
-    if (spec == 's') len = append_strn(tmp, sizeof(tmp), &tmp_pos, (char *)value, precision);
+    if (spec == 's') {
+        const char *s = (char *)value;
+        int count = 0;
+        if (!s) s = "(null)";
+        if ((unsigned long)s < 4096) s = "(bad)";
+        while (s[count] && (precision < 0 || count < precision)) count++;
+        if (width < 0) { left = 1; width = -width; }
+        pad = width > count ? width - count : 0;
+        if (!left) append_repeat(b, n, pos, zero ? '0' : ' ', pad);
+        append_strn(b, n, pos, s, count);
+        if (left) append_repeat(b, n, pos, ' ', pad);
+        return count + pad;
+    }
     else if (spec == 'c') len = append_char(tmp, sizeof(tmp), &tmp_pos, value);
     else if (spec == 'f') len = append_double(tmp, sizeof(tmp), &tmp_pos, dbl, precision);
     else if (spec == 'd' || spec == 'i') { unsigned long x; if (value < 0) { sign = '-'; x = -value; } else x = value; if (sign) append_char(tmp, sizeof(tmp), &tmp_pos, sign); len = (sign ? 1 : 0) + append_num_raw(tmp, sizeof(tmp), &tmp_pos, x, 10, 0); }
