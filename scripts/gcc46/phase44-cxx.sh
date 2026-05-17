@@ -56,10 +56,10 @@ cd build
   > "$bootstrap_share/configure.stdout" \
   2> "$bootstrap_share/configure.stderr"
 
-build_cores="${NIX_BUILD_CORES:-1}"
-if test "$build_cores" = 0; then
-  build_cores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
-fi
+# The phase39 GNU Make is intentionally minimal and does not yet have a
+# bootstrap-proven jobserver/pipe path.  Keep this phase serial until that is
+# fixed instead of paying for another long GCC replay just to fail in make -j.
+build_cores=1
 
 MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
   MAKEINFO=true \

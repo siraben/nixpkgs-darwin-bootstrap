@@ -56,10 +56,10 @@ export CXXFLAGS_FOR_TARGET="-g"
   > "$bootstrap_share/configure.stdout" \
   2> "$bootstrap_share/configure.stderr"
 
-build_cores="${NIX_BUILD_CORES:-1}"
-if test "$build_cores" = 0; then
-  build_cores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
-fi
+# The bootstrapped GNU Make available at this point is still serial-only for
+# this chain: its parallel jobserver needs pipe coverage that has not been made
+# part of the bootstrap ABI yet.
+build_cores=1
 
 MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
   MAKEINFO=true \
