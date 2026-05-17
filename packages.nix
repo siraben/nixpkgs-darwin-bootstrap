@@ -2802,6 +2802,7 @@ C
           /^[[:space:]]*\.section[[:space:]]+__DATA,__data/ { print "\t.data"; next }
           /^[[:space:]]*\.section[[:space:]]+__DATA,__bss/ { print "\t.bss"; next }
           /^[[:space:]]*\.subsections_via_symbols[[:space:]]*$/ { next }
+          /^[[:space:]]*\.no_dead_strip[[:space:]]/ { next }
           /^[[:space:]]*\.(const|cstring|literal[0-9]*)[[:space:]]*$/ { print "\t.section .rodata"; next }
           /^[[:space:]]*\.comm[[:space:]]/ {
             line = $0
@@ -2839,12 +2840,18 @@ C
           }
           {
             gsub(/@GOTPCREL/, "")
+            gsub(/\<movabsq\>/, "movq")
+            gsub(/\<movabsl\>/, "movl")
             gsub(/bswap[[:space:]]+%r/, "bswapq %r")
             gsub(/bswap[[:space:]]+%e/, "bswapl %e")
             gsub(/\<salb\>/, "shlb")
             gsub(/\<salw\>/, "shlw")
             gsub(/\<sall\>/, "shll")
             gsub(/\<salq\>/, "shlq")
+            if ($0 ~ /^[[:space:]]*cltq[[:space:]]*$/) {
+              print "\t.byte 72,152"
+              next
+            }
             print
           }
         ' "$input" > "$filtered"
@@ -2874,7 +2881,7 @@ C
             elif line.startswith("LIB2ADD ="):
                 line = "LIB2ADD = $(gcc_srcdir)/config/darwin-64.c"
             elif line.startswith(("LIB2ADDEH =", "LIB2ADDEHSTATIC =", "LIB2ADDEHSHARED =")):
-                line = line.split("=", 1)[0] + "= "
+                line = line.split("=", 1)[0] + "= $(gcc_srcdir)/unwind-dw2.c $(gcc_srcdir)/unwind-dw2-fde-darwin.c $(gcc_srcdir)/unwind-sjlj.c $(gcc_srcdir)/unwind-c.c $(gcc_srcdir)/emutls.c"
             line = line.replace(" -pipe", "").replace(" -g ", " ").replace(" -g0 ", " ")
             out.append(line)
         mvars.write_text("\n".join(out) + "\n")
@@ -2970,14 +2977,29 @@ C
         test -s libgcov.a
         test "$(od -An -tx1 -N4 _muldi3.o | tr -d ' \n')" = "7f454c46"
         test "$(od -An -tx1 -N4 _gcov.o | tr -d ' \n')" = "7f454c46"
+        test "$(od -An -tx1 -N4 unwind-dw2.o | tr -d ' \n')" = "7f454c46"
+        test "$(od -An -tx1 -N4 unwind-dw2-fde-darwin.o | tr -d ' \n')" = "7f454c46"
+        test "$(od -An -tx1 -N4 unwind-sjlj.o | tr -d ' \n')" = "7f454c46"
+        test "$(od -An -tx1 -N4 unwind-c.o | tr -d ' \n')" = "7f454c46"
+        test "$(od -An -tx1 -N4 emutls.o | tr -d ' \n')" = "7f454c46"
         ${cctools}/bin/ar t libgcc.a > $out/share/darwin-bootstrap/libgcc.members
         ${cctools}/bin/ar t libgcov.a > $out/share/darwin-bootstrap/libgcov.members
+        grep -q '^unwind-dw2.o$' $out/share/darwin-bootstrap/libgcc.members
+        grep -q '^unwind-dw2-fde-darwin.o$' $out/share/darwin-bootstrap/libgcc.members
+        grep -q '^unwind-sjlj.o$' $out/share/darwin-bootstrap/libgcc.members
+        grep -q '^unwind-c.o$' $out/share/darwin-bootstrap/libgcc.members
+        grep -q '^emutls.o$' $out/share/darwin-bootstrap/libgcc.members
 
         cp libgcc.a \
           libgcov.a \
           $out/lib/gcc/x86_64-apple-darwin/${gcc46Version}/
         cp _muldi3.o \
           _gcov.o \
+          unwind-dw2.o \
+          unwind-dw2-fde-darwin.o \
+          unwind-sjlj.o \
+          unwind-c.o \
+          emutls.o \
           $out/share/darwin-bootstrap/
       ''
     else
