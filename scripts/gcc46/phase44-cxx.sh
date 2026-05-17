@@ -37,6 +37,14 @@ export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
 
 cd build
+for cache_dir in gcc libiberty build-x86_64-apple-darwin/libiberty mpfr mpc; do
+  if [ -f "$phase35/share/darwin-bootstrap/work/build/$cache_dir/config.cache" ]; then
+    mkdir -p "$cache_dir"
+    cp "$phase35/share/darwin-bootstrap/work/build/$cache_dir/config.cache" "$cache_dir/config.cache"
+    chmod u+w "$cache_dir/config.cache"
+  fi
+done
+
 ../src/configure \
   --prefix="$out" \
   --build="$target" \
