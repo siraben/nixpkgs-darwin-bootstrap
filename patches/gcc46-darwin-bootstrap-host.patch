@@ -1,0 +1,179 @@
+--- a/gcc/config/host-darwin.c
++++ b/gcc/config/host-darwin.c
+@@ -24,14 +24,18 @@
+ #include "config/host-darwin.h"
+ 
+ /* Yes, this is really supposed to work.  */
+-static char pch_address_space[1024*1024*1024] __attribute__((aligned (4096)));
++/* Keep this bootstrap-reserved area small enough for the bootstrap linker.
++   The full Darwin host hook reserves 1 GiB for PCH, which expands into BSS
++   while translating TCC ELF objects to M1/hex2.  TCC also does not preserve
++   the requested page alignment, so PCH is disabled for this bootstrap host.  */
++static char pch_address_space[16*1024*1024];
+ 
+ /* Return the address of the PCH address space, if the PCH will fit in it.  */
+ 
+ void *
+ darwin_gt_pch_get_address (size_t sz, int fd ATTRIBUTE_UNUSED)
+ {
+-  if (sz <= sizeof (pch_address_space))
++  if (0 && sz <= sizeof (pch_address_space))
+     return pch_address_space;
+   else
+     return NULL;
+@@ -47,8 +51,7 @@
+   void *mmap_result;
+   int ret;
+ 
+-  gcc_assert ((size_t)pch_address_space % pagesize == 0
+-	      && sizeof (pch_address_space) % pagesize == 0);
++  return 0;
+   
+   ret = (addr == pch_address_space && sz <= sizeof (pch_address_space));
+   if (! ret)
+--- a/gcc/real.c
++++ b/gcc/real.c
+@@ -1505,6 +1505,21 @@
+ 
+ #define M_LOG10_2	0.30102999566398119521
+ 
++static int
++darwin_bootstrap_log10_2_trunc (int n)
++{
++  int sign = n < 0;
++  unsigned int value = sign ? -n : n;
++  int result = (int) (((unsigned long) value * 78913) / 262144);
++  return sign ? -result : result;
++}
++
++static int
++darwin_bootstrap_log2_10_floor (int n)
++{
++  return (int) (((unsigned long) n * 332193) / 100000);
++}
++
+ void
+ real_to_decimal_for_mode (char *str, const REAL_VALUE_TYPE *r_orig,
+ 			  size_t buf_size, size_t digits,
+@@ -1552,14 +1567,14 @@
+     }
+ 
+   /* Bound the number of digits printed by the size of the representation.  */
+-  max_digits = SIGNIFICAND_BITS * M_LOG10_2;
++  max_digits = darwin_bootstrap_log10_2_trunc (SIGNIFICAND_BITS);
+   if (digits == 0 || digits > max_digits)
+     digits = max_digits;
+ 
+   /* Estimate the decimal exponent, and compute the length of the string it
+      will print as.  Be conservative and add one to account for possible
+      overflow or rounding error.  */
+-  dec_exp = REAL_EXP (&r) * M_LOG10_2;
++  dec_exp = darwin_bootstrap_log10_2_trunc (REAL_EXP (&r));
+   for (max_digits = 1; dec_exp ; max_digits++)
+     dec_exp /= 10;
+ 
+@@ -1620,7 +1635,7 @@
+ 	 the power of 10 that we compute.  */
+       if (REAL_EXP (&r) > 0)
+ 	{
+-	  m = floor_log2 ((int)(REAL_EXP (&r) * M_LOG10_2)) + 1;
++	  m = floor_log2 (darwin_bootstrap_log10_2_trunc (REAL_EXP (&r))) + 1;
+ 	  do
+ 	    {
+ 	      const REAL_VALUE_TYPE *ptentwo = ten_to_ptwo (m);
+@@ -1667,7 +1682,7 @@
+       /* Find power of 10.  Do this by multiplying in P=10**2**M when
+ 	 the current remainder is smaller than 1/P.  Fill PTEN with the
+ 	 power of 10 that we compute.  */
+-      m = floor_log2 ((int)(-REAL_EXP (&r) * M_LOG10_2)) + 1;
++      m = floor_log2 (darwin_bootstrap_log10_2_trunc (-REAL_EXP (&r))) + 1;
+       do
+ 	{
+ 	  const REAL_VALUE_TYPE *ptentwo = ten_to_ptwo (m);
+@@ -2217,7 +2232,7 @@
+   sign = r.sign;
+   r.sign = 0;
+ 
+-  dec_exp = REAL_EXP (&r) * M_LOG10_2;
++  dec_exp = darwin_bootstrap_log10_2_trunc (REAL_EXP (&r));
+   digits = dec_exp + 1;
+   gcc_assert ((digits + 2) < (int)buf_size);
+ 
+@@ -2819,8 +2834,7 @@
+ 	 held by the decimal coefficient for this mode.  This is one more
+ 	 than the number of bits required to hold the largest coefficient
+ 	 of this mode.  */
+-      double log2_10 = 3.3219281;
+-      return fmt->p * log2_10;
++      return darwin_bootstrap_log2_10_floor (fmt->p);
+     }
+   return fmt->p;
+ }
+--- a/gcc/c-family/c-cppbuiltin.c
++++ b/gcc/c-family/c-cppbuiltin.c
+@@ -126,8 +126,6 @@
+      intermediate; perhaps someone can find a better approximation, in the
+      mean time, I suspect using doubles won't harm the bootstrap here.  */
+ 
+-  const double log10_2 = .30102999566398119521;
+-  double log10_b;
+   const struct real_format *fmt;
+   const struct real_format *ldfmt;
+ 
+@@ -144,7 +142,6 @@
+   /* The radix of the exponent representation.  */
+   if (type == float_type_node)
+     builtin_define_with_int_value ("__FLT_RADIX__", fmt->b);
+-  log10_b = log10_2;
+ 
+   /* The number of radix digits, p, in the floating-point significand.  */
+   sprintf (name, "__%s_MANT_DIG__", name_prefix);
+@@ -157,7 +154,7 @@
+ 	p log10 b			if b is a power of 10
+ 	floor((p - 1) log10 b)		otherwise
+   */
+-  dig = (fmt->p - 1) * log10_b;
++  dig = ((unsigned long) (fmt->p - 1) * 78913) / 262144;
+   sprintf (name, "__%s_DIG__", name_prefix);
+   builtin_define_with_int_value (name, dig);
+ 
+@@ -173,7 +170,7 @@
+ 
+      Recall that emin is negative, so the integer truncation calculates
+      the ceiling, not the floor, in this case.  */
+-  min_10_exp = (fmt->emin - 1) * log10_b;
++  min_10_exp = -((unsigned long) (-(fmt->emin - 1)) * 78913) / 262144;
+   sprintf (name, "__%s_MIN_10_EXP__", name_prefix);
+   sprintf (buf, "(%d)", min_10_exp);
+   builtin_define_with_value (name, buf, 0);
+@@ -208,7 +205,7 @@
+      Hand-waving aside, crunching all of the sets of constants above by hand
+      does not yield a case for which the first term is significant, which
+      in the end is all that matters.  */
+-  max_10_exp = fmt->emax * log10_b;
++  max_10_exp = ((unsigned long) fmt->emax * 78913) / 262144;
+   sprintf (name, "__%s_MAX_10_EXP__", name_prefix);
+   builtin_define_with_int_value (name, max_10_exp);
+ 
+@@ -222,18 +219,12 @@
+      The only macro we care about is this number for the widest supported
+      floating type, but we want this value for rendering constants below.  */
+   {
+-    double d_decimal_dig
+-      = 1 + (fmt->p < ldfmt->p ? ldfmt->p : fmt->p) * log10_b;
+-    decimal_dig = d_decimal_dig;
+-    if (decimal_dig < d_decimal_dig)
+-      decimal_dig++;
++    int p = fmt->p < ldfmt->p ? ldfmt->p : fmt->p;
++    decimal_dig = 1 + (((unsigned long) p * 78913 + 262143) / 262144);
+   }
+   /* Similar, for this type rather than long double.  */
+   {
+-    double type_d_decimal_dig = 1 + fmt->p * log10_b;
+-    type_decimal_dig = type_d_decimal_dig;
+-    if (type_decimal_dig < type_d_decimal_dig)
+-      type_decimal_dig++;
++    type_decimal_dig = 1 + (((unsigned long) fmt->p * 78913 + 262143) / 262144);
+   }
+   if (type == long_double_type_node)
+     builtin_define_with_int_value ("__DECIMAL_DIG__", decimal_dig);

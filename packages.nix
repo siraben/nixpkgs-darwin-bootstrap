@@ -2423,6 +2423,7 @@ let
       chmod -R u+w $out
       cd $out
       patch -p1 < ${./patches/gcc46-genconditions-tcc-safe.patch}
+      patch -p1 < ${./patches/gcc46-darwin-bootstrap-host.patch}
     '';
 
   phase35-gcc46-all-gcc =
@@ -2431,6 +2432,9 @@ let
         mkdir -p src build $out/bin $out/share/darwin-bootstrap
         cp -R ${gcc46DarwinBootstrapSrc}/. src/
         chmod -R u+w src
+        sed -i \
+          's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = ${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap|' \
+          src/gcc/Makefile.in
         ${python3}/bin/python3 - <<'PY'
 from pathlib import Path
 path = Path("src/gmp/gen-bases.c")
@@ -2525,6 +2529,7 @@ PY
         export CFLAGS_FOR_BUILD="-g"
         export CXX="$CC"
         export CXXCPP="$CC -E"
+        export MACOSX_DEPLOYMENT_TARGET=10.6
         export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
         mkdir -p "$TCC_DARWIN_CACHE_DIR"
         export ac_cv_have_decl_getrlimit=no
@@ -2626,6 +2631,8 @@ CACHE
           --build=x86_64-apple-darwin \
           --host=x86_64-apple-darwin \
           --target=x86_64-apple-darwin \
+          --with-native-system-header-dir=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
+          --with-build-sysroot=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
           --disable-bootstrap \
           --disable-shared \
           --disable-multilib \
@@ -2648,6 +2655,7 @@ CACHE
 
         make all-gcc -j"$buildCores" \
           MAKEINFO=true \
+          NATIVE_SYSTEM_HEADER_DIR=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
           CPP="$CPP" \
           AR="$AR" \
           NM="$NM" \
@@ -2659,21 +2667,17 @@ CACHE
           2> $out/share/darwin-bootstrap/make-all-gcc.stderr
 
         test -x gcc/xgcc
-        cp gcc/xgcc $out/bin/xgcc
-        $out/bin/xgcc --version > $out/share/darwin-bootstrap/xgcc-version.stdout
+        test -x gcc/cc1
+        ./gcc/xgcc -B"$PWD/gcc/" --version > $out/share/darwin-bootstrap/xgcc-version.stdout
 
         cat > xgcc-smoke.c <<'C'
         int main(void) { return 42; }
 C
-        $out/bin/xgcc xgcc-smoke.c -o xgcc-smoke \
+        ./gcc/xgcc -B"$PWD/gcc/" -S xgcc-smoke.c -o xgcc-smoke.s \
           > $out/share/darwin-bootstrap/xgcc-smoke.stdout \
           2> $out/share/darwin-bootstrap/xgcc-smoke.stderr
-        set +e
-        ./xgcc-smoke
-        xgccSmokeStatus=$?
-        set -e
-        echo "$xgccSmokeStatus" > $out/share/darwin-bootstrap/xgcc-smoke.status
-        test "$xgccSmokeStatus" = 42
+        test -s xgcc-smoke.s
+        cp gcc/xgcc $out/bin/xgcc
 
         cd ..
         mkdir -p $out/share/darwin-bootstrap/work
@@ -3708,6 +3712,26 @@ C
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/sys/mman.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_MMAN_H
+        #define _DARWIN_BOOTSTRAP_SYS_MMAN_H
+        #include <sys/types.h>
+        #define PROT_NONE 0
+        #define PROT_READ 1
+        #define PROT_WRITE 2
+        #define PROT_EXEC 4
+        #define MAP_SHARED 1
+        #define MAP_PRIVATE 2
+        #define MAP_FIXED 0x10
+        #define MAP_ANON 0x1000
+        #define MAP_ANONYMOUS MAP_ANON
+        #define MAP_FAILED ((void *)-1)
+        void *mmap(void *, size_t, int, int, int, off_t);
+        int munmap(void *, size_t);
+        int mprotect(void *, size_t, int);
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/sys/param.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_SYS_PARAM_H
         #define _DARWIN_BOOTSTRAP_SYS_PARAM_H
@@ -3730,6 +3754,16 @@ C
         #ifndef _DARWIN_BOOTSTRAP_SYS_SELECT_H
         #define _DARWIN_BOOTSTRAP_SYS_SELECT_H
         typedef long fd_set;
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/sys/sysctl.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_SYS_SYSCTL_H
+        #define _DARWIN_BOOTSTRAP_SYS_SYSCTL_H
+        #include <sys/types.h>
+        #define CTL_KERN 1
+        #define KERN_OSRELEASE 2
+        int sysctl(int *, unsigned int, void *, size_t *, void *, size_t);
         #endif
         H
 
@@ -3868,6 +3902,7 @@ C
         size_t strspn(const char *, const char *);
         size_t strcspn(const char *, const char *);
         char *strpbrk(const char *, const char *);
+        char *strtok(char *, const char *);
         char *strrchr(const char *, int);
         char *rindex(const char *, int);
         char *strerror(int);
@@ -4034,6 +4069,8 @@ C
         void *calloc(size_t, size_t);
         void *realloc(void *, size_t);
         int abs(int);
+        long labs(long);
+        long long llabs(long long);
         long strtol(const char *, char **, int);
         unsigned long strtoul(const char *, char **, int);
         long long strtoll(const char *, char **, int);
@@ -4197,6 +4234,8 @@ C
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start
         !0x48 !0x83 !0xe4 !0xf0
+        !0x48 !0x8d !0x05 %environ
+        !0x48 !0x89 !0x10
         !0xe8 %main
         !0x48 !0x89 !0xc7
         !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
@@ -4340,15 +4379,45 @@ C
           esac
         done
 
-        materialize_quote_headers() {
-          for dir in "''${include_dirs[@]}"; do
-            test -d "$dir" || continue
+        materialize_one_quote_header_dir() {
+          local dir="$1" abs_dir key stamp_dir rel rel_dir header
+          test -d "$dir" || return 0
+          abs_dir="$(cd "$dir" && pwd)" || return 0
+          [ "$abs_dir" = "$PWD" ] && return 0
+
+          mkdir -p .tcc-darwin-header-stamps
+          key="$(printf '%s\n' "$abs_dir" | cksum | awk '{ print $1 "-" $2 }')"
+          stamp_dir=".tcc-darwin-header-stamps/$key"
+          if [ -f "$stamp_dir/.complete" ]; then
+            return 0
+          fi
+
+          if mkdir "$stamp_dir.lock" 2>/dev/null; then
+            mkdir -p "$stamp_dir"
             for header in "$dir"/*.h "$dir"/*/*.h; do
               test -f "$header" || continue
               rel="''${header#$dir/}"
-              mkdir -p "$(dirname "$rel")"
+              case "$rel" in
+                */*)
+                  rel_dir="''${rel%/*}"
+                  mkdir -p "$rel_dir"
+                  ;;
+              esac
               test -e "$rel" || ln -s "$header" "$rel" 2>/dev/null || true
             done
+            touch "$stamp_dir/.complete"
+            rmdir "$stamp_dir.lock"
+          else
+            while [ ! -f "$stamp_dir/.complete" ]; do
+              sleep 1
+            done
+          fi
+        }
+
+        materialize_quote_headers() {
+          local dir
+          for dir in "''${include_dirs[@]}"; do
+            materialize_one_quote_header_dir "$dir"
           done
         }
 
@@ -4404,58 +4473,137 @@ C
           done
         }
 
-        add_archive_m1_files() {
-          local archive="$1"
-          local archive_index="$2"
-          local cache_root cache_key cache_dir checksum prefix_key member member_index m1 rel
-          cache_root="''${TCC_DARWIN_CACHE_DIR:-$PWD/.tcc-darwin-archive-cache}"
-          mkdir -p "$cache_root"
-          checksum="$(cksum "$archive" | awk '{ print $1 "-" $2 }')"
-          cache_key="$(basename "$archive" | sed 's/[^A-Za-z0-9_.-]/_/g')-$checksum"
-          cache_dir="$cache_root/$cache_key"
+        process_symbol_file() {
+          local file="$1"
+          local kind name
+          while IFS=$'\t' read -r kind name; do
+            [ -n "''${name:-}" ] || continue
+            if [ "$kind" = D ]; then
+              defined_symbols["$name"]=1
+              unset 'unresolved_symbols[$name]'
+            fi
+          done < "$file"
+          while IFS=$'\t' read -r kind name; do
+            [ -n "''${name:-}" ] || continue
+            if [ "$kind" = U ] && [ -z "''${defined_symbols[$name]+x}" ]; then
+              unresolved_symbols["$name"]=1
+            fi
+          done < "$file"
+        }
 
-          if [ ! -f "$cache_dir/.complete" ]; then
+        add_object_symbols() {
+          local object="$1"
+          local index="$2"
+          local symbols="$tmp/object-$index.symbols"
+          @PYTHON@ @ELF_TO_M1@ --symbols "$object" > "$symbols"
+          process_symbol_file "$symbols"
+        }
+
+        prepare_archive_cache() {
+          local archive="$1"
+          local cache_dir="$2"
+          local checksum="$3"
+          local prefix_key member member_index symbols
+
+          if [ ! -f "$cache_dir/.prepared" ]; then
             if mkdir "$cache_dir.lock" 2>/dev/null; then
               rm -rf "$cache_dir"
-              mkdir -p "$cache_dir/extract" "$cache_dir/code" "$cache_dir/data"
+              mkdir -p "$cache_dir/extract" "$cache_dir/code" "$cache_dir/data" "$cache_dir/symbols"
               (cd "$cache_dir/extract" && @AR@ -x "$archive")
-              : > "$cache_dir/code-files.list"
-              : > "$cache_dir/data-files.list"
-              prefix_key="$(printf '%s' "$checksum" | tr -c 'A-Za-z0-9_' '_')"
+              : > "$cache_dir/members.list"
               member_index=0
               for member in "$cache_dir/extract"/*.o; do
                 test -f "$member" || continue
-                m1="$cache_dir/member-$member_index.M1"
-                @PYTHON@ @ELF_TO_M1@ --prefix "archive_''${prefix_key}_''${member_index}_" "$member" "$m1"
-                awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
-                awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
-                echo "code/member-$member_index.M1" >> "$cache_dir/code-files.list"
-                echo "data/member-$member_index.M1" >> "$cache_dir/data-files.list"
+                symbols="$cache_dir/symbols/member-$member_index.tsv"
+                @PYTHON@ @ELF_TO_M1@ --symbols "$member" > "$symbols"
+                printf '%s\t%s\n' "$member_index" "$(basename "$member")" >> "$cache_dir/members.list"
                 member_index=$((member_index + 1))
               done
-              rm -rf "$cache_dir/extract"
-              touch "$cache_dir/.complete"
+              touch "$cache_dir/.prepared"
               rmdir "$cache_dir.lock"
             else
-              while [ ! -f "$cache_dir/.complete" ]; do
+              while [ ! -f "$cache_dir/.prepared" ]; do
+                sleep 1
+              done
+            fi
+          fi
+        }
+
+        archive_member_needed() {
+          local symbols="$1"
+          local kind name
+          while IFS=$'\t' read -r kind name; do
+            [ -n "''${name:-}" ] || continue
+            if [ "$kind" = D ] && [ -n "''${unresolved_symbols[$name]+x}" ]; then
+              return 0
+            fi
+          done < "$symbols"
+          return 1
+        }
+
+        add_selected_archive_member() {
+          local cache_dir="$1"
+          local prefix_key="$2"
+          local member_index="$3"
+          local member_name="$4"
+          local member="$cache_dir/extract/$member_name"
+          local m1="$cache_dir/member-$member_index.M1"
+          local selected_key="$cache_dir:$member_index"
+
+          [ -z "''${selected_archive_members[$selected_key]+x}" ] || return 0
+          selected_archive_members["$selected_key"]=1
+          archive_selection_changed=1
+
+          if [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; then
+            if mkdir "$cache_dir/member-$member_index.lock" 2>/dev/null; then
+              @PYTHON@ @ELF_TO_M1@ --prefix "archive_''${prefix_key}_''${member_index}_" "$member" "$m1"
+              awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
+              awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
+              rm -f "$m1"
+              rmdir "$cache_dir/member-$member_index.lock"
+            else
+              while [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; do
                 sleep 1
               done
             fi
           fi
 
-          while IFS= read -r rel; do
-            [ -n "$rel" ] && code_files+=("$cache_dir/$rel")
-          done < "$cache_dir/code-files.list"
-          while IFS= read -r rel; do
-            [ -n "$rel" ] && data_files+=("$cache_dir/$rel")
-          done < "$cache_dir/data-files.list"
+          code_files+=("$cache_dir/code/member-$member_index.M1")
+          data_files+=("$cache_dir/data/member-$member_index.M1")
+          process_symbol_file "$cache_dir/symbols/member-$member_index.tsv"
+        }
+
+        add_archive_m1_files() {
+          local archive="$1"
+          local archive_index="$2"
+          local cache_root cache_key cache_dir checksum prefix_key member_index member_name symbols
+          cache_root="''${TCC_DARWIN_CACHE_DIR:-$PWD/.tcc-darwin-archive-cache}"
+          mkdir -p "$cache_root"
+          checksum="$(cksum "$archive" | awk '{ print $1 "-" $2 }')"
+          cache_key="$(basename "$archive" | sed 's/[^A-Za-z0-9_.-]/_/g')-$checksum-resolve-v3"
+          cache_dir="$cache_root/$cache_key"
+          prefix_key="$(printf '%s' "$checksum" | tr -c 'A-Za-z0-9_' '_')"
+
+          prepare_archive_cache "$archive" "$cache_dir" "$checksum"
+          while IFS=$'\t' read -r member_index member_name; do
+            [ -n "''${member_index:-}" ] || continue
+            symbols="$cache_dir/symbols/member-$member_index.tsv"
+            if archive_member_needed "$symbols"; then
+              add_selected_archive_member "$cache_dir" "$prefix_key" "$member_index" "$member_name"
+            fi
+          done < "$cache_dir/members.list"
         }
 
         add_archives() {
-          local archive archive_index=0
-          for archive in "''${archives[@]}"; do
-            add_archive_m1_files "$archive" "$archive_index"
-            archive_index=$((archive_index + 1))
+          local archive archive_index
+          archive_selection_changed=1
+          while [ "$archive_selection_changed" = 1 ]; do
+            archive_selection_changed=0
+            archive_index=0
+            for archive in "''${archives[@]}"; do
+              add_archive_m1_files "$archive" "$archive_index"
+              archive_index=$((archive_index + 1))
+            done
           done
         }
 
@@ -4568,6 +4716,14 @@ C
 
         code_files=()
         data_files=()
+        declare -A defined_symbols=()
+        declare -A unresolved_symbols=()
+        declare -A selected_archive_members=()
+        object_index=0
+        for object in "''${objects[@]}"; do
+          add_object_symbols "$object" "$object_index"
+          object_index=$((object_index + 1))
+        done
         add_archives
         object_index=0
         for object in "''${objects[@]}"; do
@@ -4591,11 +4747,11 @@ C
           awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
         } > "$tmp/combined.M1"
 
-        @M1@ --architecture amd64 --little-endian -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
-        @HEX2@ --architecture amd64 --little-endian --base-address 0x1000000 \
+        @PYTHON@ @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
+        @HEX2@ --architecture amd64 --little-endian --base-address 0x600000 \
           -f @MACHO@ -f "$tmp/combined.hex2" -o "$out"
-        @PYTHON@ @HEX2_RELOCS@ patch "$tmp/combined.hex2" "$out"
-        linkeditOffset="$((0x800000 + 0x2000000))"
+        @PYTHON@ @MACHO_LARGE_SEGMENTS@ "$out"
+        linkeditOffset="$((0x1100000 + 0x2000000))"
         dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc 2>/dev/null
         chmod +x "$out"
         source @SIGNING@
@@ -4608,8 +4764,8 @@ C
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
           --replace-fail @ELF_TO_M1@ ${./tools/elf64-to-m1.py} \
-          --replace-fail @HEX2_RELOCS@ ${./tools/hex2-data-relocs.py} \
-          --replace-fail @M1@ ${phase9-m1}/bin/M1 \
+          --replace-fail @M1_TO_HEX2@ ${./tools/m1-to-hex2.py} \
+          --replace-fail @MACHO_LARGE_SEGMENTS@ ${./tools/patch-macho-large-segments.py} \
           --replace-fail @HEX2@ ${phase10-hex2}/bin/hex2 \
           --replace-fail @MACHO@ ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
           --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \

@@ -81,12 +81,12 @@ void *__va_arg(__va_list_struct *ap, enum __va_arg_type arg_type, int size, int 
 void *malloc(size_t n) { size_t need = (n + 31) & ~15; if (!malloc_cur || malloc_cur + need > malloc_end) { size_t chunk = need > 16777216 ? need : 16777216; char *mem = mmap(0, chunk, 3, 0x1002, -1, 0); if ((long)mem < 0) return 0; malloc_cur = mem; malloc_end = mem + chunk; } unsigned long *p = (unsigned long *)malloc_cur; malloc_cur += need; p[0] = need - 16; p[1] = 0; return p + 2; }
 void free(void *p) { }
 
-void *memcpy(void *d, const void *s, size_t n) { char *dd = d; const char *ss = s; while (n--) *dd++ = *ss++; return d; }
-void *memmove(void *d, const void *s, size_t n) { char *dd = d; const char *ss = s; if (dd < ss) while (n--) *dd++ = *ss++; else { dd += n; ss += n; while (n--) *--dd = *--ss; } return d; }
-void *memset(void *d, int c, size_t n) { unsigned char *p = d; while (n--) *p++ = (unsigned char)c; return d; }
+void *memcpy(void *, const void *, size_t);
+void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
 void *calloc(size_t n, size_t z) { size_t bytes = n * z; void *p = malloc(bytes); if (p) memset(p, 0, bytes); return p; }
-int memcmp(const void *a, const void *b, size_t n) { const unsigned char *x = a, *y = b; while (n--) { if (*x != *y) return *x - *y; x++; y++; } return 0; }
-void *memchr(const void *s, int c, size_t n) { const unsigned char *p = s; while (n--) { if (*p == (unsigned char)c) return (void *)p; p++; } return 0; }
+int memcmp(const void *, const void *, size_t);
+void *memchr(const void *, int, size_t);
 void *realloc(void *p, size_t n) { void *q = malloc(n); if (p && q) { size_t old = ((unsigned long *)p)[-2]; memcpy(q, p, old < n ? old : n); } return q; }
 void *bsearch(const void *key, const void *base, size_t n, size_t size, int (*cmp)(const void *, const void *)) { const char *b = base; while (n) { size_t mid = n / 2; const void *p = b + mid * size; int c = cmp(key, p); if (c == 0) return (void *)p; if (c > 0) { b = (const char *)p + size; n -= mid + 1; } else n = mid; } return 0; }
 size_t strlen(const char *s) { const char *p = s; while (*p) p++; return p - s; }
@@ -101,6 +101,7 @@ char *strrchr(const char *s, int c) { const char *r = 0; do { if (*s == c) r = s
 char *strpbrk(const char *s, const char *accept) { while (*s) { const char *a = accept; while (*a) { if (*s == *a++) return (char *)s; } s++; } return 0; }
 size_t strspn(const char *s, const char *accept) { size_t n = 0; while (s[n]) { const char *a = accept; int ok = 0; while (*a) if (s[n] == *a++) { ok = 1; break; } if (!ok) return n; n++; } return n; }
 size_t strcspn(const char *s, const char *reject) { size_t n = 0; while (s[n]) { const char *r = reject; while (*r) if (s[n] == *r++) return n; n++; } return n; }
+char *strtok(char *s, const char *delim) { static char *save; char *end; if (!s) s = save; if (!s) return 0; s += strspn(s, delim); if (!*s) { save = 0; return 0; } end = s + strcspn(s, delim); if (*end) { *end = 0; save = end + 1; } else save = 0; return s; }
 char *strstr(const char *h, const char *n) { size_t l = strlen(n); if (!l) return (char *)h; while (*h) { if (!memcmp(h, n, l)) return (char *)h; h++; } return 0; }
 char *strdup(const char *s) { size_t n = strlen(s) + 1; char *d = malloc(n); if (d) memcpy(d, s, n); return d; }
 char *strerror(int e) { return "error"; }
@@ -134,6 +135,8 @@ int atoi(const char *s) { return (int)strtol(s, 0, 10); }
 long atol(const char *s) { return strtol(s, 0, 10); }
 long long atoll(const char *s) { return strtoll(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
+long labs(long x) { return x < 0 ? -x : x; }
+long long llabs(long long x) { return x < 0 ? -x : x; }
 void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *))
 {
     char *b = base, *tmp;
@@ -197,7 +200,40 @@ static int append_formatted(char *b, size_t n, size_t *pos, int left, int zero, 
     return len + pad;
 }
 static int format_buffer_words(char *b, size_t n, const char *fmt, long *args) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, alt = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; if (*fmt == '#') alt = 1; fmt++; } if (*fmt == '*') { width = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = *args++; fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, 0, 0.0); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, *args++, 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
-static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap) { size_t pos = 0; while (*fmt) { int left = 0, zero = 0, alt = 0, width = 0, precision = -1, spec; if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; } fmt++; while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; if (*fmt == '#') alt = 1; fmt++; } if (*fmt == '*') { width = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; } if (*fmt == '.') { precision = 0; fmt++; if (*fmt == '*') { precision = next_va_long(ap); fmt++; } else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; } } while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') fmt++; spec = *fmt; if (spec == '%') append_char(b, n, &pos, '%'); else if (spec == 'f') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, 0, next_va_double(ap)); else if (spec == 's' || spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'X' || spec == 'p' || spec == 'o' || spec == 'c') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, next_va_long(ap), 0.0); else append_char(b, n, &pos, spec); if (*fmt) fmt++; } if (n) b[pos < n ? pos : n - 1] = 0; return pos; }
+static int format_buffer_va(char *b, size_t n, const char *fmt, __va_list_struct *ap)
+{
+    size_t pos = 0;
+    while (*fmt) {
+        int left = 0, zero = 0, alt = 0, width = 0, precision = -1, spec, longflag = 0;
+        long value;
+        if (*fmt != '%') { append_char(b, n, &pos, *fmt++); continue; }
+        fmt++;
+        while (*fmt == '-' || *fmt == '+' || *fmt == ' ' || *fmt == '#' || *fmt == '0') { if (*fmt == '-') left = 1; if (*fmt == '0') zero = 1; if (*fmt == '#') alt = 1; fmt++; }
+        if (*fmt == '*') { width = (int)next_va_long(ap); fmt++; }
+        else while (*fmt >= '0' && *fmt <= '9') { width = width * 10 + *fmt - '0'; fmt++; }
+        if (*fmt == '.') {
+            precision = 0;
+            fmt++;
+            if (*fmt == '*') { precision = (int)next_va_long(ap); fmt++; }
+            else while (*fmt >= '0' && *fmt <= '9') { precision = precision * 10 + *fmt - '0'; fmt++; }
+        }
+        while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') {
+            if (*fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') longflag = 1;
+            fmt++;
+        }
+        spec = *fmt;
+        if (spec == '%') append_char(b, n, &pos, '%');
+        else if (spec == 'f') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, 0, next_va_double(ap));
+        else if (spec == 's' || spec == 'p') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, next_va_long(ap), 0.0);
+        else if (spec == 'd' || spec == 'i') { value = next_va_long(ap); if (!longflag) value = (int)value; append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, value, 0.0); }
+        else if (spec == 'u' || spec == 'x' || spec == 'X' || spec == 'o') { value = next_va_long(ap); if (!longflag) value = (unsigned int)value; append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, value, 0.0); }
+        else if (spec == 'c') append_formatted(b, n, &pos, left, zero, alt, width, precision, spec, (int)next_va_long(ap), 0.0);
+        else append_char(b, n, &pos, spec);
+        if (*fmt) fmt++;
+    }
+    if (n) b[pos < n ? pos : n - 1] = 0;
+    return pos;
+}
 int printf(const char *fmt, ...) { char out[4096]; __va_list_struct ap; int n; __va_start(&ap, __builtin_frame_address(0)); n = format_buffer_va(out, sizeof(out), fmt, &ap); write(1, out, n); return n; }
 int fprintf(FILE *f, const char *fmt, ...) { char out[4096]; __va_list_struct ap; int n; __va_start(&ap, __builtin_frame_address(0)); n = format_buffer_va(out, sizeof(out), fmt, &ap); write(file_fd(f), out, n); return n; }
 int vfprintf(FILE *f, const char *fmt, void *ap) { char b[4096]; int n = format_buffer_va(b, sizeof(b), fmt, (__va_list_struct *)ap); write(file_fd(f), b, n); return n; }
@@ -401,7 +437,7 @@ int mkdir(const char *p, int mode) { return stat_result(sys_mkdir(p, mode)); }
 int utime(const char *p, const void *times) { return 0; }
 int utimes(const char *p, const void *times) { return 0; }
 char *mktemp(char *template) { return template; }
-char *getenv(const char *n) { return 0; }
+char *getenv(const char *n) { size_t len; char **e; if (!n || !*n) return 0; len = strlen(n); for (e = environ; e && *e; e++) if (!strncmp(*e, n, len) && (*e)[len] == '=') return *e + len + 1; return 0; }
 char *getcwd(char *b, size_t n) { if (n >= 2) { b[0] = '.'; b[1] = 0; return b; } return 0; }
 char *getwd(char *b) { return getcwd(b, 1024); }
 int chdir(const char *p) { return stat_result(sys_chdir(p)); }
@@ -487,7 +523,61 @@ long double __floatundixf(unsigned long x) { return (long double)x; }
 unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
 long __fixdfdi(double x) { return (long)x; }
 unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
-int sscanf(const char *s, const char *f, long a, long b) { return 0; }
+int sscanf(const char *s, const char *fmt, long a, long b, long c_arg, long d)
+{
+    long args[4];
+    int assigned = 0, argi = 0;
+    args[0] = a; args[1] = b; args[2] = c_arg; args[3] = d;
+    while (*fmt) {
+        if (isspace(*fmt)) {
+            while (isspace(*fmt)) fmt++;
+            while (isspace(*s)) s++;
+            continue;
+        }
+        if (*fmt != '%') {
+            if (*s != *fmt) return assigned;
+            s++; fmt++;
+            continue;
+        }
+        fmt++;
+        if (*fmt == '%') {
+            if (*s != '%') return assigned;
+            s++; fmt++;
+            continue;
+        }
+        int longflag = 0;
+        while (*fmt == 'h' || *fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') {
+            if (*fmt == 'l' || *fmt == 'L' || *fmt == 'z' || *fmt == 't' || *fmt == 'j') longflag = 1;
+            fmt++;
+        }
+        if (argi >= 4) return assigned;
+        if (*fmt == 'd' || *fmt == 'i' || *fmt == 'u' || *fmt == 'x') {
+            char *end;
+            int base = *fmt == 'x' ? 16 : 10;
+            long value;
+            while (isspace(*s)) s++;
+            if (base == 16 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
+            value = strtol(s, &end, base);
+            if (end == s) return assigned;
+            if (longflag) *(long *)args[argi++] = value;
+            else *(int *)args[argi++] = (int)value;
+            assigned++;
+            s = end;
+        } else if (*fmt == 's') {
+            char *out = (char *)args[argi++];
+            while (isspace(*s)) s++;
+            if (!*s) return assigned;
+            while (*s && !isspace(*s)) *out++ = *s++;
+            *out = 0;
+            assigned++;
+        } else if (*fmt == 'c') {
+            *(char *)args[argi++] = *s++;
+            assigned++;
+        } else return assigned;
+        if (*fmt) fmt++;
+    }
+    return assigned;
+}
 int sprintf(char *b, const char *f, ...) { __va_list_struct ap; __va_start(&ap, __builtin_frame_address(0)); return format_buffer_va(b, (size_t)-1, f, &ap); }
 int snprintf(char *b, size_t n, const char *f, ...) { __va_list_struct ap; __va_start(&ap, __builtin_frame_address(0)); return format_buffer_va(b, n, f, &ap); }
 int vsprintf(char *b, const char *f, void *ap) { return format_buffer_va(b, (size_t)-1, f, (__va_list_struct *)ap); }

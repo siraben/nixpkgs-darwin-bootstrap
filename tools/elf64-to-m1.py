@@ -148,6 +148,8 @@ def symbol_label(symbols, sections, labels, symbol_index, addend):
     symbol = symbols[symbol_index]
     if symbol["shndx"] == SHN_UNDEF:
         if addend not in (-4, 0):
+            if addend > 0:
+                return f"{symbol['label']}_plus_{addend:x}"
             raise SystemExit(
                 f"unsupported addend {addend} for external symbol {symbol['name']}"
             )
@@ -200,15 +202,17 @@ def emit_section(out, section, symbols, sections, labels, relocations):
 
     offset = 0
     section_labels = labels[section["index"]]
+    event_offsets = sorted(set(section_labels) | set(relocs) | {len(section_data)})
+    event_index = 0
     while offset < len(section_data):
         for label in section_labels.get(offset, []):
             out.append(f":{label}")
 
         relocation = relocs.get(offset)
         if relocation is None:
-            next_offsets = [candidate for candidate in section_labels if candidate > offset]
-            next_relocs = [candidate for candidate in relocs if candidate > offset]
-            next_offset = min(next_offsets + next_relocs + [len(section_data)])
+            while event_index < len(event_offsets) and event_offsets[event_index] <= offset:
+                event_index += 1
+            next_offset = event_offsets[event_index] if event_index < len(event_offsets) else len(section_data)
             emit_bytes(out, section_data, offset, next_offset)
             offset = next_offset
             continue
@@ -260,6 +264,15 @@ def convert(input_path, output_path, prefix):
         if not symbol["name"] or symbol["shndx"] in (SHN_UNDEF, SHN_COMMON):
             continue
         labels[symbol["shndx"]][symbol["value"]].append(symbol["label"])
+        if symbol["bind"] != 0:
+            addends = {1, 2}
+            addends.update(range(8, min(symbol["size"], 0x300), 8))
+            addends.update((0x40C, 0x4D0))
+            for addend in sorted(addends):
+                if addend < symbol["size"]:
+                    labels[symbol["shndx"]][symbol["value"] + addend].append(
+                        f"{symbol['label']}_plus_{addend:x}"
+                    )
 
     for section_relocations in relocations.values():
         for relocation in section_relocations:
@@ -306,12 +319,37 @@ def convert(input_path, output_path, prefix):
     output_path.write_text("\n".join(out) + "\n")
 
 
+def write_symbols(input_path):
+    sections, symbols, _ = parse_elf(input_path, "")
+    defined = []
+    undefined = []
+    for symbol in symbols:
+        name = symbol["name"]
+        if not name or symbol["bind"] == 0:
+            continue
+        if symbol["shndx"] == SHN_UNDEF:
+            undefined.append(name)
+        else:
+            defined.append(name)
+
+    for name in sorted(set(defined)):
+        print(f"D\t{name}")
+    for name in sorted(set(undefined)):
+        print(f"U\t{name}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prefix", default="")
+    parser.add_argument("--symbols", action="store_true")
     parser.add_argument("input")
-    parser.add_argument("output")
+    parser.add_argument("output", nargs="?")
     args = parser.parse_args()
+    if args.symbols:
+        write_symbols(pathlib.Path(args.input))
+        return
+    if args.output is None:
+        raise SystemExit("missing output")
     convert(pathlib.Path(args.input), pathlib.Path(args.output), args.prefix)
 
 
