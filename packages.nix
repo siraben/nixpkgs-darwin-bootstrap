@@ -63,6 +63,55 @@ let
     hash = "sha256-5mRgN1clH9ijUoSCdkl6THm3+LIf2K7dXMBZijj+4+Q=";
   };
 
+  gcc10Version = "10.4.0";
+
+  gcc10Tarball = fetchurl {
+    url = "mirror://gnu/gcc/gcc-${gcc10Version}/gcc-${gcc10Version}.tar.xz";
+    hash = "sha256-ySl9W818tD89/C/tU4npSMkxL9li72pM5FXP+WPr5PE=";
+  };
+
+  gcc10GmpVersion = "6.2.1";
+
+  gcc10GmpTarball = fetchurl {
+    url = "mirror://gnu/gmp/gmp-${gcc10GmpVersion}.tar.xz";
+    hash = "sha256-/UgpkSzd0S+EGBw0Ucx1K+IkZD6H+sSXtp7d2txJtPI=";
+  };
+
+  gccLatestVersion = "15.2.0";
+
+  gccLatestTarball = fetchurl {
+    url = "mirror://gnu/gcc/gcc-${gccLatestVersion}/gcc-${gccLatestVersion}.tar.xz";
+    hash = "sha256-Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4=";
+  };
+
+  gccLatestGmpVersion = "6.3.0";
+
+  gccLatestGmpTarball = fetchurl {
+    url = "mirror://gnu/gmp/gmp-${gccLatestGmpVersion}.tar.xz";
+    hash = "sha256-o8K4AgG4nmhhb0rTC8Zq7kknw85Q4zkpyoGdXENTiJg=";
+  };
+
+  gccModernMpfrVersion = "4.2.2";
+
+  gccModernMpfrTarball = fetchurl {
+    url = "mirror://gnu/mpfr/mpfr-${gccModernMpfrVersion}.tar.xz";
+    hash = "sha256-tnugOD736KhWNzTi6InvXsPDuJigHQD6CmhprYHGzgE=";
+  };
+
+  gccModernMpcVersion = "1.3.1";
+
+  gccModernMpcTarball = fetchurl {
+    url = "mirror://gnu/mpc/mpc-${gccModernMpcVersion}.tar.gz";
+    hash = "sha256-q2QkkvXPiCt0qgy3MM1BCoHtzb7IlRg86TDnBsHHWbg=";
+  };
+
+  gccModernIslVersion = "0.24";
+
+  gccModernIslTarball = fetchurl {
+    url = "https://gcc.gnu.org/pub/gcc/infrastructure/isl-${gccModernIslVersion}.tar.bz2";
+    hash = "sha256-/PeN2WVsEOuM+fvV9ZoLawE4YgX+GTSzsoegoYmBRcA=";
+  };
+
   gnumakeVersion = "4.4.1";
 
   gnumakeTarball = fetchurl {
@@ -2414,6 +2463,56 @@ let
       test -f $out/gmp/configure
       test -f $out/mpfr/configure
       test -f $out/mpc/configure
+    '';
+
+  phase42-gcc10-source =
+    runCommand "darwin-minimal-bootstrap-phase42-gcc-${gcc10Version}-source" { } ''
+      mkdir -p work $out
+      cd work
+
+      tar -xf ${gcc10Tarball}
+      tar -xf ${gcc10GmpTarball}
+      tar -xf ${gccModernMpfrTarball}
+      tar -xf ${gccModernMpcTarball}
+      tar -xf ${gccModernIslTarball}
+
+      mv gcc-${gcc10Version}/* $out/
+      cp -R gmp-${gcc10GmpVersion} $out/gmp
+      cp -R mpfr-${gccModernMpfrVersion} $out/mpfr
+      cp -R mpc-${gccModernMpcVersion} $out/mpc
+      cp -R isl-${gccModernIslVersion} $out/isl
+
+      test -x $out/configure
+      test -f $out/gcc/gcc.c
+      test -f $out/gmp/configure
+      test -f $out/mpfr/configure
+      test -f $out/mpc/configure
+      test -f $out/isl/configure
+    '';
+
+  phase43-gcc-latest-source =
+    runCommand "darwin-minimal-bootstrap-phase43-gcc-${gccLatestVersion}-source" { } ''
+      mkdir -p work $out
+      cd work
+
+      tar -xf ${gccLatestTarball}
+      tar -xf ${gccLatestGmpTarball}
+      tar -xf ${gccModernMpfrTarball}
+      tar -xf ${gccModernMpcTarball}
+      tar -xf ${gccModernIslTarball}
+
+      mv gcc-${gccLatestVersion}/* $out/
+      cp -R gmp-${gccLatestGmpVersion} $out/gmp
+      cp -R mpfr-${gccModernMpfrVersion} $out/mpfr
+      cp -R mpc-${gccModernMpcVersion} $out/mpc
+      cp -R isl-${gccModernIslVersion} $out/isl
+
+      test -x $out/configure
+      test -f $out/gcc/gcc.cc
+      test -f $out/gmp/configure
+      test -f $out/mpfr/configure
+      test -f $out/mpc/configure
+      test -f $out/isl/configure
     '';
 
   gcc46DarwinBootstrapSrc =
@@ -5101,6 +5200,8 @@ in
     phase24-tinycc-compile-probe
     phase25-tinycc-self-object-probe
     phase26-gcc46-source
+    phase42-gcc10-source
+    phase43-gcc-latest-source
     gcc46DarwinBootstrapSrc
     phase35-gcc46-all-gcc
     phase36-gcc46-libgcc
