@@ -21,7 +21,7 @@ skip_section { next }
 /^[[:space:]]*\.section[[:space:]]+__DATA,__bss/ { print "\t.bss"; next }
 /^[[:space:]]*\.subsections_via_symbols[[:space:]]*$/ { next }
 /^[[:space:]]*\.no_dead_strip[[:space:]]/ { next }
-/^[[:space:]]*\.(const|cstring|literal[0-9]*|static_data)[[:space:]]*$/ { print "\t.data"; next }
+/^[[:space:]]*\.(const|const_data|cstring|literal[0-9]*|static_data)[[:space:]]*$/ { print "\t.data"; next }
 /^[[:space:]]*\.comm[[:space:]]/ {
   line = $0
   sub(/^[[:space:]]*\.comm[[:space:]]+/, "", line)
