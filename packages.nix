@@ -77,11 +77,11 @@ let
     hash = "sha256-/UgpkSzd0S+EGBw0Ucx1K+IkZD6H+sSXtp7d2txJtPI=";
   };
 
-  gccLatestVersion = "15.2.0";
+  gccLatestVersion = "16.1.0";
 
   gccLatestTarball = fetchurl {
     url = "mirror://gnu/gcc/gcc-${gccLatestVersion}/gcc-${gccLatestVersion}.tar.xz";
-    hash = "sha256-Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4=";
+    hash = "sha256-UO+02Uwzl6/zsNYaWr10i03THZ0/Kre+BbFx02pRD3k=";
   };
 
   gccLatestGmpVersion = "6.3.0";
@@ -512,6 +512,9 @@ let
     phase39-gnumake = import ./phases/phase39-gnumake.nix (phaseContext // phaseDefs);
     phase40-gnupatch = import ./phases/phase40-gnupatch.nix (phaseContext // phaseDefs);
     phase41-coreutils = import ./phases/phase41-coreutils.nix (phaseContext // phaseDefs);
+    phase44-gcc46-cxx-bootstrap = import ./phases/phase44-gcc46-cxx-bootstrap.nix (phaseContext // phaseDefs);
+    phase45-gcc10-bootstrap = import ./phases/phase45-gcc10-bootstrap.nix (phaseContext // phaseDefs);
+    phase46-gcc-latest-bootstrap = import ./phases/phase46-gcc-latest-bootstrap.nix (phaseContext // phaseDefs);
   };
 
   inherit (phaseDefs)
@@ -565,6 +568,9 @@ let
     phase39-gnumake
     phase40-gnupatch
     phase41-coreutils
+    phase44-gcc46-cxx-bootstrap
+    phase45-gcc10-bootstrap
+    phase46-gcc-latest-bootstrap
     ;
   tinycc-m2-negative-probe =
     if hostPlatform.isx86_64 then
@@ -732,6 +738,9 @@ in
     phase39-gnumake
     phase40-gnupatch
     phase41-coreutils
+    phase44-gcc46-cxx-bootstrap
+    phase45-gcc10-bootstrap
+    phase46-gcc-latest-bootstrap
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc

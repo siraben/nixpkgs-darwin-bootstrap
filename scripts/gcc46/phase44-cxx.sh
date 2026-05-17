@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+phase35=$1
+phase37=$2
+phase39=$3
+phase34=$4
+cctools=$5
+out=$6
+gcc_version=$7
+
+target=x86_64-apple-darwin
+bootstrap_share="$out/share/darwin-bootstrap"
+
+mkdir -p src build "$out/bin" "$bootstrap_share"
+cp -R "$phase35/share/darwin-bootstrap/work/src/." src/
+chmod -R u+w src
+
+export CC="$phase37/bin/gcc"
+export CXX="$phase37/bin/gcc"
+export CPP="$CC -E"
+export CXXCPP="$CXX -E"
+export CC_FOR_BUILD="$CC"
+export CXX_FOR_BUILD="$CXX"
+export AR="$cctools/bin/ar"
+export NM="$cctools/bin/nm"
+export RANLIB="$cctools/bin/ranlib"
+export STRIP="$cctools/bin/strip"
+export LIPO="$cctools/bin/lipo"
+export OTOOL="$cctools/bin/otool"
+export MACOSX_DEPLOYMENT_TARGET=10.6
+export CFLAGS="-g"
+export CXXFLAGS="-g"
+export CFLAGS_FOR_BUILD="-g"
+export CXXFLAGS_FOR_BUILD="-g"
+export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
+mkdir -p "$TCC_DARWIN_CACHE_DIR"
+
+cd build
+../src/configure \
+  --prefix="$out" \
+  --build="$target" \
+  --host="$target" \
+  --target="$target" \
+  --with-native-system-header-dir="$phase34/include/tcc-darwin-bootstrap" \
+  --with-build-sysroot="$phase34/include/tcc-darwin-bootstrap" \
+  --disable-bootstrap \
+  --disable-shared \
+  --disable-multilib \
+  --disable-nls \
+  --disable-libmudflap \
+  --disable-libstdcxx-pch \
+  --disable-lto \
+  --enable-languages=c,c++ \
+  MAKEINFO=true \
+  > "$bootstrap_share/configure.stdout" \
+  2> "$bootstrap_share/configure.stderr"
+
+build_cores="${NIX_BUILD_CORES:-1}"
+if test "$build_cores" = 0; then
+  build_cores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+fi
+
+MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
+  MAKEINFO=true \
+  CC="$CC" \
+  CXX="$CXX" \
+  CPP="$CPP" \
+  CXXCPP="$CXXCPP" \
+  AR="$AR" \
+  NM="$NM" \
+  RANLIB="$RANLIB" \
+  STRIP="$STRIP" \
+  LIPO="$LIPO" \
+  OTOOL="$OTOOL" \
+  all-gcc all-target-libstdc++-v3 \
+  > "$bootstrap_share/make.stdout" \
+  2> "$bootstrap_share/make.stderr"
+
+MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
+  MAKEINFO=true \
+  install-gcc install-target-libstdc++-v3 \
+  > "$bootstrap_share/install.stdout" \
+  2> "$bootstrap_share/install.stderr"
+
+test -x "$out/bin/gcc"
+test -x "$out/bin/g++"
+"$out/bin/g++" --version > "$bootstrap_share/g++-version.stdout"
+
+cat > cxx-smoke.cc <<'CC'
+int helper(int x) { return x + 40; }
+int main() { return helper(2); }
+CC
+"$out/bin/g++" -S cxx-smoke.cc -o "$bootstrap_share/cxx-smoke.s" \
+  > "$bootstrap_share/cxx-smoke.stdout" \
+  2> "$bootstrap_share/cxx-smoke.stderr"
+test -s "$bootstrap_share/cxx-smoke.s"

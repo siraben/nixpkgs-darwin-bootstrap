@@ -91,6 +91,11 @@
           phase39-gnumake = bootstrap.phase39-gnumake;
           phase40-gnupatch = bootstrap.phase40-gnupatch;
           phase41-coreutils = bootstrap.phase41-coreutils;
+          phase44-gcc46-cxx-bootstrap = bootstrap.phase44-gcc46-cxx-bootstrap;
+          phase45-gcc10-bootstrap = bootstrap.phase45-gcc10-bootstrap;
+          phase46-gcc-latest-bootstrap = bootstrap.phase46-gcc-latest-bootstrap;
+          gcc10-bootstrap = bootstrap.phase45-gcc10-bootstrap;
+          gcc-latest-bootstrap = bootstrap.phase46-gcc-latest-bootstrap;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;
