@@ -5,8 +5,10 @@ phase35=$1
 phase36=$2
 phase34=$3
 awk_filter=$4
-out=$5
-gcc_version=$6
+python=$5
+elf_to_m1=$6
+out=$7
+gcc_version=$8
 
 target=x86_64-apple-darwin
 gcc_lib="$out/lib/gcc/$target/$gcc_version"
@@ -21,6 +23,10 @@ cp -R "$phase35/share/darwin-bootstrap/work/build/gcc/include/." "$gcc_lib/inclu
 cp "$phase36/lib/gcc/$target/$gcc_version/libgcc.a" "$gcc_lib/libgcc.a"
 cp "$phase36/lib/gcc/$target/$gcc_version/libgcov.a" "$gcc_lib/libgcov.a"
 cp -R "$phase36/lib/gcc/$target/$gcc_version/libgcc-objects" "$gcc_lib/libgcc-objects"
+mkdir -p "$gcc_lib/libgcc-symbols"
+for object in "$gcc_lib/libgcc-objects"/*.o; do
+  "$python" "$elf_to_m1" --symbols "$object" > "$gcc_lib/libgcc-symbols/$(basename "$object").tsv"
+done
 
 cat > "$out/bin/gcc46-bootstrap-as" <<EOF_AS
 #!/usr/bin/env bash
@@ -65,7 +71,10 @@ gcc_exec="$gcc_exec"
 assembler="$out/bin/gcc46-bootstrap-as"
 linker="$phase34/bin/tcc-darwin-cc"
 sysroot="$phase34/include/tcc-darwin-bootstrap"
-libgcc="$gcc_lib/libgcc.a"
+python="$python"
+elf_to_m1="$elf_to_m1"
+libgcc_objects="$gcc_lib/libgcc-objects"
+libgcc_symbols="$gcc_lib/libgcc-symbols"
 
 mode=link
 out_file=
@@ -75,6 +84,7 @@ link_args=()
 sources=()
 asm_sources=()
 objects=()
+selected_libgcc_objects=()
 
 while [ "\$#" -gt 0 ]; do
   case "\$1" in
@@ -156,6 +166,53 @@ assemble_to_object() {
   "\$assembler" "\$input" -o "\$object_out"
 }
 
+normalize_symbols() {
+  sort -u "\$tmpdir/defined.raw" > "\$tmpdir/defined.sorted"
+  sort -u "\$tmpdir/unresolved.raw" > "\$tmpdir/unresolved.all"
+  comm -23 "\$tmpdir/unresolved.all" "\$tmpdir/defined.sorted" > "\$tmpdir/unresolved.sorted"
+}
+
+add_object_symbols() {
+  local object="\$1"
+  local symbols="\$tmpdir/symbols-\$(basename "\$object").tsv"
+  "\$python" "\$elf_to_m1" --symbols "\$object" > "\$symbols"
+  awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbols" >> "\$tmpdir/defined.raw"
+  awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbols" >> "\$tmpdir/unresolved.raw"
+  normalize_symbols
+}
+
+select_libgcc_objects() {
+  : > "\$tmpdir/defined.raw"
+  : > "\$tmpdir/unresolved.raw"
+  : > "\$tmpdir/selected-libgcc.list"
+
+  local object symbol_file changed needed_defs member_name member_object
+  for object in "\${objects[@]}"; do
+    add_object_symbols "\$object"
+  done
+
+  changed=1
+  while [ "\$changed" = 1 ]; do
+    changed=0
+    for symbol_file in "\$libgcc_symbols"/*.tsv; do
+      member_name="\$(basename "\$symbol_file" .tsv)"
+      member_object="\$libgcc_objects/\$member_name"
+      grep -qxF "\$member_object" "\$tmpdir/selected-libgcc.list" 2>/dev/null && continue
+
+      awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbol_file" | sort -u > "\$tmpdir/member-defs.sorted"
+      needed_defs="\$(comm -12 "\$tmpdir/member-defs.sorted" "\$tmpdir/unresolved.sorted" | head -1 || true)"
+      if [ -n "\$needed_defs" ]; then
+        selected_libgcc_objects+=("\$member_object")
+        printf '%s\n' "\$member_object" >> "\$tmpdir/selected-libgcc.list"
+        awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbol_file" >> "\$tmpdir/defined.raw"
+        awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbol_file" >> "\$tmpdir/unresolved.raw"
+        normalize_symbols
+        changed=1
+      fi
+    done
+  done
+}
+
 if [ "\$mode" = asm ]; then
   if [ "\${#sources[@]}" -ne 1 ]; then
     echo "gcc: bootstrap -S currently expects exactly one C input" >&2
@@ -214,7 +271,9 @@ if [ -z "\$out_file" ]; then
   out_file=a.out
 fi
 
-exec "\$linker" "\${objects[@]}" "\${link_args[@]}" "\$libgcc" -o "\$out_file"
+select_libgcc_objects
+
+exec "\$linker" "\${objects[@]}" "\${link_args[@]}" "\${selected_libgcc_objects[@]}" -o "\$out_file"
 EOF_GCC
 chmod +x "$out/bin/gcc"
 ln -s gcc "$out/bin/cc"

@@ -2711,6 +2711,8 @@ C
           ${phase36-gcc46-libgcc} \
           ${phase34-tinycc-darwin-cc} \
           ${./scripts/gcc46/phase36-bootstrap-as.awk} \
+          ${python3}/bin/python3 \
+          ${./tools/elf64-to-m1.py} \
           "$out" \
           ${gcc46Version}
       ''
