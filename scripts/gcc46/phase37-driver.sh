@@ -25,6 +25,9 @@ for include_dir in "$gcc_lib/include" "$phase34/include/tcc-darwin-bootstrap"; d
   for include_entry in "$include_dir"/*; do
     [ -e "$include_entry" ] || continue
     include_name="$(basename "$include_entry")"
+    if [ "$include_dir" = "$gcc_lib/include" ] && [ "$include_name" = stdint.h ]; then
+      continue
+    fi
     [ -e "$merged_include/$include_name" ] || [ -L "$merged_include/$include_name" ] || ln -s "$include_entry" "$merged_include/$include_name"
   done
 done
