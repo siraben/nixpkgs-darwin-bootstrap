@@ -13,13 +13,21 @@ gcc_version=$8
 target=x86_64-apple-darwin
 gcc_lib="$out/lib/gcc/$target/$gcc_version"
 gcc_exec="$out/libexec/gcc/$target/$gcc_version"
+merged_include="$out/include/gcc46-bootstrap"
 bootstrap_share="$out/share/darwin-bootstrap"
 
-mkdir -p "$out/bin" "$gcc_lib/include" "$gcc_exec" "$bootstrap_share"
+mkdir -p "$out/bin" "$gcc_lib/include" "$gcc_exec" "$merged_include" "$bootstrap_share"
 cp "$phase35/share/darwin-bootstrap/work/build/gcc/xgcc" "$gcc_exec/xgcc"
 cp "$phase35/share/darwin-bootstrap/work/build/gcc/cc1" "$gcc_exec/cc1"
 cp "$phase35/share/darwin-bootstrap/work/build/gcc/cpp" "$gcc_exec/cpp"
 cp -R "$phase35/share/darwin-bootstrap/work/build/gcc/include/." "$gcc_lib/include/"
+for include_dir in "$gcc_lib/include" "$phase34/include/tcc-darwin-bootstrap"; do
+  for include_entry in "$include_dir"/*; do
+    [ -e "$include_entry" ] || continue
+    include_name="$(basename "$include_entry")"
+    [ -e "$merged_include/$include_name" ] || [ -L "$merged_include/$include_name" ] || ln -s "$include_entry" "$merged_include/$include_name"
+  done
+done
 cp "$phase36/lib/gcc/$target/$gcc_version/libgcc.a" "$gcc_lib/libgcc.a"
 cp "$phase36/lib/gcc/$target/$gcc_version/libgcov.a" "$gcc_lib/libgcov.a"
 cp -R "$phase36/lib/gcc/$target/$gcc_version/libgcc-objects" "$gcc_lib/libgcc-objects"
@@ -68,7 +76,7 @@ set -euo pipefail
 
 xgcc="$gcc_exec/xgcc"
 gcc_exec="$gcc_exec"
-gcc_include="$gcc_lib/include"
+merged_include="$merged_include"
 assembler="$out/bin/gcc46-bootstrap-as"
 linker="$phase34/bin/tcc-darwin-cc"
 sysroot="$phase34/include/tcc-darwin-bootstrap"
@@ -101,7 +109,7 @@ while [ "\$#" -gt 0 ]; do
       shift
       ;;
     -E)
-      exec env MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$gcc_include" -isystem "\$sysroot" "\$@"
+      exec env MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$merged_include" "\$@"
       ;;
     -o)
       out_file="\$2"
@@ -174,7 +182,7 @@ compile_to_asm() {
       ;;
   esac
   if [ -d . ] && [ -w . ]; then
-    for include_dir in -I"\$gcc_include" -I"\$sysroot" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
+    for include_dir in -I"\$merged_include" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
       case "\$include_dir" in
         -I*) include_dir="\${include_dir#-I}" ;;
         *) continue ;;
@@ -193,7 +201,7 @@ compile_to_asm() {
     done
   fi
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
-    --sysroot="\$sysroot" -isystem "\$gcc_include" -isystem "\$sysroot" \\
+    --sysroot="\$sysroot" -isystem "\$merged_include" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables \\
     "\${compiler_args[@]}" "\${input_dir_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
