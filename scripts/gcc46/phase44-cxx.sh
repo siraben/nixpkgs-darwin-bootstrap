@@ -33,7 +33,19 @@ export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
 
 cd build
-for cache_dir in gcc libiberty build-x86_64-apple-darwin/libiberty mpfr mpc; do
+for cache_dir in \
+  gcc \
+  libiberty \
+  build-x86_64-apple-darwin \
+  build-x86_64-apple-darwin/libiberty \
+  fixincludes \
+  gmp \
+  mpfr \
+  mpc \
+  libcpp \
+  libdecnumber \
+  zlib \
+  intl; do
   if [ -f "$phase35/share/darwin-bootstrap/work/build/$cache_dir/config.cache" ]; then
     mkdir -p "$cache_dir"
     grep -v '^ac_cv_env_' \
