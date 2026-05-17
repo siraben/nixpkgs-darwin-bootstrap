@@ -68,6 +68,7 @@ set -euo pipefail
 
 xgcc="$gcc_exec/xgcc"
 gcc_exec="$gcc_exec"
+gcc_include="$gcc_lib/include"
 assembler="$out/bin/gcc46-bootstrap-as"
 linker="$phase34/bin/tcc-darwin-cc"
 sysroot="$phase34/include/tcc-darwin-bootstrap"
@@ -100,7 +101,7 @@ while [ "\$#" -gt 0 ]; do
       shift
       ;;
     -E)
-      exec env MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$sysroot" "\$@"
+      exec env MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$gcc_include" -isystem "\$sysroot" "\$@"
       ;;
     -o)
       out_file="\$2"
@@ -173,7 +174,7 @@ compile_to_asm() {
       ;;
   esac
   if [ -d . ] && [ -w . ]; then
-    for include_dir in -I"\$sysroot" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
+    for include_dir in -I"\$gcc_include" -I"\$sysroot" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
       case "\$include_dir" in
         -I*) include_dir="\${include_dir#-I}" ;;
         *) continue ;;
@@ -192,7 +193,7 @@ compile_to_asm() {
     done
   fi
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
-    --sysroot="\$sysroot" -isystem "\$sysroot" \\
+    --sysroot="\$sysroot" -isystem "\$gcc_include" -isystem "\$sysroot" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables \\
     "\${compiler_args[@]}" "\${input_dir_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
