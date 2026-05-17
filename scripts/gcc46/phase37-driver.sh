@@ -191,6 +191,13 @@ compile_to_asm() {
         *) continue ;;
       esac
       [ -d "\$include_dir" ] || continue
+      if [ "\$include_dir" != "\$merged_include" ] && [ -w "\$include_dir" ]; then
+        for merged_entry in "\$merged_include"/*; do
+          [ -e "\$merged_entry" ] || continue
+          merged_name="\$(basename "\$merged_entry")"
+          [ -e "\$include_dir/\$merged_name" ] || [ -L "\$include_dir/\$merged_name" ] || ln -s "\$merged_entry" "\$include_dir/\$merged_name"
+        done
+      fi
       for include_entry in "\$include_dir"/*; do
         [ -e "\$include_entry" ] || continue
         include_name="\$(basename "\$include_entry")"
