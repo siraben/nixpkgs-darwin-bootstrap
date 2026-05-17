@@ -17,11 +17,8 @@ cp -R "$phase35/share/darwin-bootstrap/work/src/." src/
 chmod -R u+w src
 
 export CC="$phase37/bin/gcc"
-export CXX="$phase37/bin/gcc"
 export CPP="$CC -E"
-export CXXCPP="$CXX -E"
 export CC_FOR_BUILD="$CC"
-export CXX_FOR_BUILD="$CXX"
 export AR="$cctools/bin/ar"
 export NM="$cctools/bin/nm"
 export RANLIB="$cctools/bin/ranlib"
@@ -30,9 +27,7 @@ export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export CFLAGS="-g"
-export CXXFLAGS="-g"
 export CFLAGS_FOR_BUILD="-g"
-export CXXFLAGS_FOR_BUILD="-g"
 export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
 
@@ -82,9 +77,7 @@ build_cores=1
 MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
   MAKEINFO=true \
   CC="$CC" \
-  CXX="$CXX" \
   CPP="$CPP" \
-  CXXCPP="$CXXCPP" \
   AR="$AR" \
   NM="$NM" \
   RANLIB="$RANLIB" \
