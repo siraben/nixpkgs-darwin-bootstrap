@@ -141,6 +141,12 @@ for obj in "${eh_objects[@]}" "${soft_fp_objects[@]}"; do
 done
 
 cp libgcc.a libgcov.a "$out/lib/gcc/x86_64-apple-darwin/$gcc_version/"
+mkdir -p "$out/lib/gcc/x86_64-apple-darwin/$gcc_version/libgcc-objects"
+while IFS= read -r member; do
+  case "$member" in
+    *.o) cp "$member" "$out/lib/gcc/x86_64-apple-darwin/$gcc_version/libgcc-objects/" ;;
+  esac
+done < "$out/share/darwin-bootstrap/libgcc.members"
 cp _muldi3.o _gcov.o \
   unwind-dw2.o unwind-dw2-fde-darwin.o unwind-sjlj.o unwind-c.o emutls.o \
   addtf3.o divtf3.o multf3.o fixtfdi.o extendsftf2.o trunctfdf2.o \
