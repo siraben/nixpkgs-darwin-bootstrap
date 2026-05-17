@@ -36,7 +36,9 @@ def align(value, alignment):
 
 
 def label_name(name, prefix=""):
-    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) and not re.fullmatch(
+        r"[0-9A-Fa-f]+", name
+    ):
         safe = name
     else:
         safe = re.sub(r"[^A-Za-z0-9_]", "_", name)

@@ -27,6 +27,7 @@ skip_section { next }
   sub(/^[[:space:]]*\.comm[[:space:]]+/, "", line)
   n = split(line, parts, ",")
   if (n >= 2) {
+    parts[1] = strip_darwin_symbol_prefix(parts[1])
     print "\t.bss"
     print "\t.globl " parts[1]
     print parts[1] ":"
@@ -39,6 +40,7 @@ skip_section { next }
   sub(/^[[:space:]]*\.zerofill[[:space:]]+/, "", line)
   n = split(line, parts, ",")
   if (n >= 4) {
+    parts[3] = strip_darwin_symbol_prefix(parts[3])
     print "\t.bss"
     print "\t.globl " parts[3]
     print parts[3] ":"
@@ -59,6 +61,13 @@ skip_section { next }
 {
   if ($0 !~ /^[[:space:]]*\.(ascii|asciz|string)[[:space:]]/) {
     $0 = strip_darwin_symbol_prefix($0)
+  }
+  if ($0 ~ /^[[:space:]]*movq[[:space:]]+[A-Za-z_][A-Za-z0-9_$]*@GOTPCREL\(%rip\),[[:space:]]*%r/) {
+    line = $0
+    sub(/^[[:space:]]*movq[[:space:]]+/, "\tleaq ", line)
+    sub(/@GOTPCREL/, "", line)
+    print line
+    next
   }
   gsub(/@GOTPCREL/, "")
   sub(/^[[:space:]]*movabsq[[:space:]]+/, "\tmovq ")

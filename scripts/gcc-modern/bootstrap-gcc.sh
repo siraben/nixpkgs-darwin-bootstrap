@@ -28,9 +28,14 @@ export CXX="$compiler/bin/g++"
 export CPP="$CC -E"
 export CXXCPP="$CXX -E"
 export AR="$cctools/bin/ar"
+export AS="$cctools/bin/as"
+export LD="$cctools/bin/ld"
 export NM="$cctools/bin/nm"
 export RANLIB="$cctools/bin/ranlib"
 export STRIP="$cctools/bin/strip"
+export LIPO="$cctools/bin/lipo"
+export OTOOL="$cctools/bin/otool"
+export PATH="$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export CFLAGS="-g"
 export CXXFLAGS="-g"
@@ -46,10 +51,16 @@ export CXXFLAGS_FOR_TARGET="-g"
   --with-build-sysroot="$phase34/include/tcc-darwin-bootstrap" \
   --disable-bootstrap \
   --disable-dependency-tracking \
+  --disable-libatomic \
+  --disable-libgomp \
+  --disable-libitm \
+  --disable-libquadmath \
   --disable-libsanitizer \
+  --disable-libssp \
   --disable-lto \
   --disable-multilib \
   --disable-plugin \
+  --disable-vtable-verify \
   --disable-nls \
   --enable-languages=c,c++ \
   MAKEINFO=true \
