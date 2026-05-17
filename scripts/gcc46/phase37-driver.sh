@@ -289,6 +289,10 @@ C
 grep -q '^_main:' "$bootstrap_share/smoke.s"
 "$out/bin/gcc" -c smoke.c -o smoke.o
 test "$(od -An -tx1 -N4 smoke.o | tr -d ' \n')" = "7f454c46"
+if grep -q 'libgcc[.]a' "$out/bin/gcc"; then
+  echo "phase37 gcc wrapper still links libgcc archive" >&2
+  exit 1
+fi
 set +e
 "$out/bin/gcc" smoke.c -o smoke > "$bootstrap_share/smoke-link.stdout" 2> "$bootstrap_share/smoke-link.stderr"
 link_status=$?
@@ -316,4 +320,24 @@ int128_status=$?
 set -e
 test "$int128_status" = 42
 
-cp smoke.c smoke.o smoke int128.c int128 "$bootstrap_share/"
+cat > multi-helper.c <<'C'
+int helper(int x) { return x + 40; }
+C
+cat > multi-main.c <<'C'
+int helper(int);
+int main(void) { return helper(2); }
+C
+"$out/bin/gcc" -c multi-helper.c -o multi-helper.o
+"$out/bin/gcc" -c multi-main.c -o multi-main.o
+set +e
+"$out/bin/gcc" multi-main.o multi-helper.o -o multi > "$bootstrap_share/multi-link.stdout" 2> "$bootstrap_share/multi-link.stderr"
+multi_link_status=$?
+set -e
+test "$multi_link_status" = 0
+set +e
+./multi > "$bootstrap_share/multi-run.stdout" 2> "$bootstrap_share/multi-run.stderr"
+multi_status=$?
+set -e
+test "$multi_status" = 42
+
+cp smoke.c smoke.o smoke int128.c int128 multi-helper.c multi-main.c multi-helper.o multi-main.o multi "$bootstrap_share/"
