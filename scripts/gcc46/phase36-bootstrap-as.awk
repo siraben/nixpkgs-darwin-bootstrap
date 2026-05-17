@@ -1,13 +1,27 @@
+function strip_darwin_symbol_prefix(line, prefix, rest) {
+  rest = line
+  line = ""
+  while (match(rest, /(^|[^A-Za-z0-9_$])_([A-Za-z_][A-Za-z0-9_$]*)/)) {
+    if (RSTART == 1) {
+      line = line substr(rest, 2, RLENGTH - 1)
+    } else {
+      line = line substr(rest, 1, RSTART) substr(rest, RSTART + 2, RLENGTH - 2)
+    }
+    rest = substr(rest, RSTART + RLENGTH)
+  }
+  return line rest
+}
+
 skip_section && /^[[:space:]]*\.(text|data|bss|section)[[:space:]]/ { skip_section = 0 }
 skip_section { next }
 /^[[:space:]]*\.section[[:space:]]+(__TEXT,__eh_frame|__DWARF,)/ { skip_section = 1; next }
 /^[[:space:]]*\.section[[:space:]]+__TEXT,__text/ { print "\t.text"; next }
-/^[[:space:]]*\.section[[:space:]]+__TEXT,__(cstring|literal)/ { print "\t.section .rodata"; next }
+/^[[:space:]]*\.section[[:space:]]+__TEXT,__(cstring|literal)/ { print "\t.data"; next }
 /^[[:space:]]*\.section[[:space:]]+__DATA,__data/ { print "\t.data"; next }
 /^[[:space:]]*\.section[[:space:]]+__DATA,__bss/ { print "\t.bss"; next }
 /^[[:space:]]*\.subsections_via_symbols[[:space:]]*$/ { next }
 /^[[:space:]]*\.no_dead_strip[[:space:]]/ { next }
-/^[[:space:]]*\.(const|cstring|literal[0-9]*)[[:space:]]*$/ { print "\t.section .rodata"; next }
+/^[[:space:]]*\.(const|cstring|literal[0-9]*)[[:space:]]*$/ { print "\t.data"; next }
 /^[[:space:]]*\.comm[[:space:]]/ {
   line = $0
   sub(/^[[:space:]]*\.comm[[:space:]]+/, "", line)
@@ -43,6 +57,9 @@ skip_section { next }
   next
 }
 {
+  if ($0 !~ /^[[:space:]]*\.(ascii|asciz|string)[[:space:]]/) {
+    $0 = strip_darwin_symbol_prefix($0)
+  }
   gsub(/@GOTPCREL/, "")
   gsub(/\<movabsq\>/, "movq")
   gsub(/\<movabsl\>/, "movl")

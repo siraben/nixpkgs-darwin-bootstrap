@@ -2703,6 +2703,20 @@ C
     else
       null;
 
+  phase37-gcc46-bootstrap =
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-phase37-gcc-${gcc46Version}-bootstrap-amd64" { } ''
+        ${./scripts/gcc46/phase37-driver.sh} \
+          ${phase35-gcc46-all-gcc} \
+          ${phase36-gcc46-libgcc} \
+          ${phase34-tinycc-darwin-cc} \
+          ${./scripts/gcc46/phase36-bootstrap-as.awk} \
+          "$out" \
+          ${gcc46Version}
+      ''
+    else
+      null;
+
   phase27-tinycc-elf-to-macho-probe =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase27-tinycc-elf-to-macho-probe-amd64" { } ''
@@ -5078,6 +5092,7 @@ in
     gcc46DarwinBootstrapSrc
     phase35-gcc46-all-gcc
     phase36-gcc46-libgcc
+    phase37-gcc46-bootstrap
     phase27-tinycc-elf-to-macho-probe
     phase28-tinycc-self-m1-probe
     phase29-tinycc-sysv-libc-probe
