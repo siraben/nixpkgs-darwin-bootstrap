@@ -205,7 +205,7 @@ compile_to_asm() {
   fi
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$merged_include" \\
-    -fno-asynchronous-unwind-tables -fno-unwind-tables \\
+    -fno-asynchronous-unwind-tables -fno-unwind-tables -mno-sse2 \\
     "\${compiler_args[@]}" "\${input_dir_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
 }

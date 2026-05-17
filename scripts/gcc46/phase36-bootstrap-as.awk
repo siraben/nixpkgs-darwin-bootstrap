@@ -64,6 +64,7 @@ skip_section { next }
   gsub(/\<movabsq\>/, "movq")
   gsub(/\<movabsl\>/, "movl")
   gsub(/\<movdqa\>/, "movaps")
+  gsub(/\<movlps\>/, "movq")
   gsub(/\<movss\>/, "movd")
   gsub(/\<xorps\>/, "pxor")
   gsub(/\<xorpd\>/, "pxor")
