@@ -4242,9 +4242,12 @@ C
 
         while (($#)); do
           case "$1" in
-            --version|-version)
+            --version|-version|-V|-qversion)
               echo "tcc-darwin-cc bootstrap wrapper"
-              exit 0
+              case "$1" in
+                -V|-qversion) exit 1 ;;
+                *) exit 0 ;;
+              esac
               ;;
             -c)
               compile_only=1
@@ -4671,6 +4674,11 @@ C
           @TCC@ "''${args[@]}" -I@INCLUDE@ "''${prepared_inputs[@]}" "''${objects[@]}"
           write_dependency_file
           exit "$?"
+        fi
+
+        if [ "''${#inputs[@]}" -eq 0 ] && [ "''${#objects[@]}" -eq 0 ] && [ "''${#archives[@]}" -eq 0 ]; then
+          echo "tcc-darwin-cc: no input files" >&2
+          exit 1
         fi
 
         tmp="$(mktemp -d)"
