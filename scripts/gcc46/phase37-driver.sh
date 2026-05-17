@@ -88,7 +88,7 @@ selected_libgcc_objects=()
 
 while [ "\$#" -gt 0 ]; do
   case "\$1" in
-    --version|-dump*|-print*|-v)
+    --version|-dump*|-print*|-v|-V|-qversion)
       exec "\$xgcc" -B"\$gcc_exec/" "\$@"
       ;;
     -c)
@@ -184,6 +184,8 @@ add_object_symbols() {
 select_libgcc_objects() {
   : > "\$tmpdir/defined.raw"
   : > "\$tmpdir/unresolved.raw"
+  : > "\$tmpdir/defined.sorted"
+  : > "\$tmpdir/unresolved.sorted"
   : > "\$tmpdir/selected-libgcc.list"
 
   local object symbol_file changed needed_defs member_name member_object
@@ -269,6 +271,11 @@ done
 
 if [ -z "\$out_file" ]; then
   out_file=a.out
+fi
+
+if [ "\${#objects[@]}" -eq 0 ]; then
+  echo "gcc: no input files" >&2
+  exit 1
 fi
 
 select_libgcc_objects
