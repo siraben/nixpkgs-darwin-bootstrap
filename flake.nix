@@ -27,8 +27,13 @@
           bootstrap = bootstrapFor system;
         in
         {
-          default = bootstrap.raw-syscall-hello;
+          default =
+            if bootstrap.phase37-gcc46-bootstrap != null then
+              bootstrap.phase37-gcc46-bootstrap
+            else
+              bootstrap.raw-syscall-hello;
           hex0 = bootstrap.hex0;
+          gcc46-bootstrap = bootstrap.phase37-gcc46-bootstrap;
           m2libc-darwin = bootstrap.m2libc-darwin;
           raw-syscall-hello = bootstrap.raw-syscall-hello;
           raw-syscall-hello-unsigned = bootstrap.raw-syscall-hello-unsigned;
