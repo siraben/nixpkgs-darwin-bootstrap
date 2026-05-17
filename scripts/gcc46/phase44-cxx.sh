@@ -66,6 +66,14 @@ done
   > "$bootstrap_share/configure.stdout" \
   2> "$bootstrap_share/configure.stderr"
 
+mkdir -p intl
+cat > intl/Makefile <<'MAKE'
+all:
+install:
+install-strip:
+clean:
+MAKE
+
 # The phase39 GNU Make is intentionally minimal and does not yet have a
 # bootstrap-proven jobserver/pipe path.  Keep this phase serial until that is
 # fixed instead of paying for another long GCC replay just to fail in make -j.
