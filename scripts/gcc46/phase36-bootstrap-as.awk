@@ -84,5 +84,12 @@ skip_section { next }
     print "\t.byte 243,15,94," (192 + (regs[2] * 8) + regs[1])
     next
   }
+  if ($0 ~ /^[[:space:]]*divsd[[:space:]]+%xmm[0-7],[[:space:]]*%xmm[0-7][[:space:]]*$/) {
+    line = $0
+    sub(/^[[:space:]]*divsd[[:space:]]+%xmm/, "", line)
+    split(line, regs, /,[[:space:]]*%xmm/)
+    print "\t.byte 242,15,94," (192 + (regs[2] * 8) + regs[1])
+    next
+  }
   print
 }
