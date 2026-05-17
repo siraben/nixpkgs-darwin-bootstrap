@@ -25,6 +25,7 @@ export RANLIB="$cctools/bin/ranlib"
 export STRIP="$cctools/bin/strip"
 export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
+export PATH="$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export CFLAGS="-g"
 export CFLAGS_FOR_BUILD="-g"

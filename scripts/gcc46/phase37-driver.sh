@@ -161,8 +161,28 @@ compile_to_asm() {
       input_dir_args=(-I"\$(dirname "\$input")")
       compile_input="\$tmpdir/\$(basename "\$input")"
       cp "\$input" "\$compile_input"
+      for source_entry in "\$(dirname "\$input")"/*; do
+        [ -e "\$source_entry" ] || continue
+        source_name="\$(basename "\$source_entry")"
+        [ -e "\$tmpdir/\$source_name" ] || ln -s "\$source_entry" "\$tmpdir/\$source_name"
+      done
       ;;
   esac
+  if [ -d . ] && [ -w . ]; then
+    for include_dir in -I"\$sysroot" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
+      case "\$include_dir" in
+        -I*) include_dir="\${include_dir#-I}" ;;
+        *) continue ;;
+      esac
+      [ -d "\$include_dir" ] || continue
+      for include_entry in "\$include_dir"/*; do
+        [ -e "\$include_entry" ] || continue
+        include_name="\$(basename "\$include_entry")"
+        [ -e "./\$include_name" ] || ln -s "\$include_entry" "./\$include_name"
+        [ -e "\$tmpdir/\$include_name" ] || ln -s "\$include_entry" "\$tmpdir/\$include_name"
+      done
+    done
+  fi
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$sysroot" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables \\
