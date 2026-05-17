@@ -83,12 +83,13 @@ install-strip:
 clean:
 MAKE
 
+make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # The phase39 GNU Make is intentionally minimal and does not yet have a
-# bootstrap-proven jobserver/pipe path.  Keep this phase serial until that is
-# fixed instead of paying for another long GCC replay just to fail in make -j.
-build_cores=1
+# bootstrap-proven jobserver/pipe path.  Keep Nix builds serial by default, but
+# allow impure debug runs to override both the make executable and job count.
+build_cores=${BOOTSTRAP_JOBS:-1}
 
-MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
+MAKEFLAGS= "$make_tool" -j"$build_cores" \
   MAKEINFO=true \
   CC="$CC" \
   CPP="$CPP" \
@@ -102,7 +103,7 @@ MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
   > "$bootstrap_share/make.stdout" \
   2> "$bootstrap_share/make.stderr"
 
-MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
+MAKEFLAGS= "$make_tool" -j"$build_cores" \
   MAKEINFO=true \
   install-gcc install-target-libstdc++-v3 \
   > "$bootstrap_share/install.stdout" \

@@ -10,6 +10,8 @@ be reproduced and fixed without replaying a full Nix derivation each time.
 
 Environment overrides:
   IMPURE_ROOT     Local work root, default: $PWD/work/impure
+  BOOTSTRAP_MAKE  Make executable, default: host make for impure speed
+  BOOTSTRAP_JOBS  Parallel jobs, default: min(host CPUs, 8)
   PHASE34         phase34 tinycc Darwin cc store path
   PHASE35         phase35 GCC 4.6 all-gcc store path
   PHASE37         phase37 GCC 4.6 bootstrap store path
@@ -51,6 +53,18 @@ phase43=${PHASE43:-}
 cctools=${CCTOOLS:-}
 
 mkdir -p "$impure_root"
+
+if [ -z "${BOOTSTRAP_MAKE:-}" ]; then
+  export BOOTSTRAP_MAKE=$(command -v gmake || command -v make)
+fi
+if [ -z "${BOOTSTRAP_JOBS:-}" ]; then
+  host_cpus=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)
+  if [ "$host_cpus" -gt 8 ]; then
+    export BOOTSTRAP_JOBS=8
+  else
+    export BOOTSTRAP_JOBS=$host_cpus
+  fi
+fi
 
 if [ -z "$phase34" ]; then phase34=$(attr_path phase34-tinycc-darwin-cc); fi
 if [ -z "$phase39" ]; then phase39=$(attr_path phase39-gnumake); fi

@@ -67,17 +67,18 @@ export CXXFLAGS_FOR_TARGET="-g"
   > "$bootstrap_share/configure.stdout" \
   2> "$bootstrap_share/configure.stderr"
 
+make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # The bootstrapped GNU Make available at this point is still serial-only for
 # this chain: its parallel jobserver needs pipe coverage that has not been made
-# part of the bootstrap ABI yet.
-build_cores=1
+# part of the bootstrap ABI yet.  Impure debug runs may override this.
+build_cores=${BOOTSTRAP_JOBS:-1}
 
-MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" \
+MAKEFLAGS= "$make_tool" -j"$build_cores" \
   MAKEINFO=true \
   > "$bootstrap_share/make.stdout" \
   2> "$bootstrap_share/make.stderr"
 
-MAKEFLAGS= "$phase39/bin/make" -j"$build_cores" install \
+MAKEFLAGS= "$make_tool" -j"$build_cores" install \
   MAKEINFO=true \
   > "$bootstrap_share/install.stdout" \
   2> "$bootstrap_share/install.stderr"
