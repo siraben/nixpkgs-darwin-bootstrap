@@ -12,7 +12,7 @@ let
       builder = "trusted Mach-O seed";
       inputs = [ "stage0-posix/<arch>/hex0_<arch>.hex0" ];
       output = "hex0";
-      darwinStatus = "implemented as a C-built seed until hand-written Mach-O hex0 bytes exist";
+      darwinStatus = "implemented for amd64 Darwin as a hand-assembled Mach-O hex0 seed with a self-hosting check";
     }
     {
       number = 1;

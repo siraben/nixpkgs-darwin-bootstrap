@@ -1,0 +1,417 @@
+# x86_64 Darwin hex0 seed.
+#
+# This file is the trusted seed, in the same spirit as oriansj/stage0:
+# every emitted byte is visible, and each line explains the corresponding
+# Mach-O field or machine instruction.  The build first materializes this
+# file with the small C hex0 materializer, then proves the materialized
+# program is self-hosting by assembling this file again byte-for-byte.
+#
+# Interface: hex0 INPUT OUTPUT
+# Syntax: pairs of hexadecimal nybbles; whitespace is ignored; # and ; start
+# comments.  The output file is created with mode 0700.
+
+## mach_header_64
+cf fa ed fe                                     ## 0x0000: MH_MAGIC_64
+07 00 00 01                                     ## 0x0004: CPU_TYPE_X86_64
+03 00 00 00                                     ## 0x0008: CPU_SUBTYPE_X86_64_ALL
+02 00 00 00                                     ## 0x000c: MH_EXECUTE
+07 00 00 00                                     ## 0x0010: seven load commands
+80 01 00 00                                     ## 0x0014: sizeofcmds = 0x180
+85 00 00 00                                     ## 0x0018: MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL
+00 00 00 00                                     ## 0x001c: reserved
+
+## LC_SEGMENT_64 __PAGEZERO
+19 00 00 00                                     ## 0x0020: LC_SEGMENT_64
+48 00 00 00                                     ## 0x0024: cmdsize = 72
+5f 5f 50 41 47 45 5a 45 52 4f 00 00 00 00 00 00 ## 0x0028: segname __PAGEZERO
+00 00 00 00 00 00 00 00                         ## 0x0038: vmaddr = 0
+00 00 00 00 01 00 00 00                         ## 0x0040: vmsize = 0x100000000
+00 00 00 00 00 00 00 00                         ## 0x0048: fileoff = 0
+00 00 00 00 00 00 00 00                         ## 0x0050: filesize = 0
+00 00 00 00                                     ## 0x0058: maxprot = VM_PROT_NONE
+00 00 00 00                                     ## 0x005c: initprot = VM_PROT_NONE
+00 00 00 00                                     ## 0x0060: nsects = 0
+00 00 00 00                                     ## 0x0064: flags = 0
+
+## LC_SEGMENT_64 __TEXT
+19 00 00 00                                     ## 0x0068: LC_SEGMENT_64
+98 00 00 00                                     ## 0x006c: cmdsize = 152
+5f 5f 54 45 58 54 00 00 00 00 00 00 00 00 00 00 ## 0x0070: segname __TEXT
+00 00 00 00 01 00 00 00                         ## 0x0080: vmaddr = 0x100000000
+00 10 00 00 00 00 00 00                         ## 0x0088: vmsize = one page
+00 00 00 00 00 00 00 00                         ## 0x0090: fileoff = 0
+00 10 00 00 00 00 00 00                         ## 0x0098: filesize = one page
+05 00 00 00                                     ## 0x00a0: maxprot = read | execute
+05 00 00 00                                     ## 0x00a4: initprot = read | execute
+01 00 00 00                                     ## 0x00a8: nsects = 1
+00 00 00 00                                     ## 0x00ac: flags = 0
+
+## section_64 __TEXT,__text
+5f 5f 74 65 78 74 00 00 00 00 00 00 00 00 00 00 ## 0x00b0: sectname __text
+5f 5f 54 45 58 54 00 00 00 00 00 00 00 00 00 00 ## 0x00c0: segname __TEXT
+00 04 00 00 01 00 00 00                         ## 0x00d0: addr = 0x100000400
+7d 01 00 00 00 00 00 00                         ## 0x00d8: size = 0x17d bytes
+00 04 00 00                                     ## 0x00e0: offset = 0x400
+00 00 00 00                                     ## 0x00e4: align = 1
+00 00 00 00                                     ## 0x00e8: reloff = 0
+00 00 00 00                                     ## 0x00ec: nreloc = 0
+00 04 00 80                                     ## 0x00f0: flags = S_REGULAR | S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS
+00 00 00 00                                     ## 0x00f4: reserved1 = 0
+00 00 00 00                                     ## 0x00f8: reserved2 = 0
+00 00 00 00                                     ## 0x00fc: reserved3 = 0
+
+## LC_LOAD_DYLINKER
+0e 00 00 00                                     ## 0x0100: LC_LOAD_DYLINKER
+20 00 00 00                                     ## 0x0104: cmdsize = 32
+0c 00 00 00                                     ## 0x0108: name offset = 12
+2f 75 73 72 2f 6c 69 62 2f 64 79 6c 64 00 00 00 00 00 00 00 ## 0x010c: '/usr/lib/dyld' plus padding
+
+## LC_UUID
+1b 00 00 00                                     ## 0x0120: LC_UUID
+18 00 00 00                                     ## 0x0124: cmdsize = 24
+00 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff ## 0x0128: fixed audit-friendly UUID
+
+## LC_BUILD_VERSION
+32 00 00 00                                     ## 0x0138: LC_BUILD_VERSION
+18 00 00 00                                     ## 0x013c: cmdsize = 24, no tool records
+01 00 00 00                                     ## 0x0140: platform = macOS
+00 06 0a 00                                     ## 0x0144: minos = 10.6.0
+00 00 00 00                                     ## 0x0148: sdk = unspecified
+00 00 00 00                                     ## 0x014c: ntools = 0
+
+## LC_MAIN
+28 00 00 80                                     ## 0x0150: LC_MAIN
+18 00 00 00                                     ## 0x0154: cmdsize = 24
+00 04 00 00 00 00 00 00                         ## 0x0158: entryoff = 0x400
+00 00 00 00 00 00 00 00                         ## 0x0160: stacksize = default
+
+## LC_LOAD_DYLIB /usr/lib/libSystem.B.dylib
+0c 00 00 00                                     ## 0x0168: LC_LOAD_DYLIB
+38 00 00 00                                     ## 0x016c: cmdsize = 56
+18 00 00 00                                     ## 0x0170: name offset = 24
+02 00 00 00                                     ## 0x0174: timestamp = 2
+00 00 4c 05                                     ## 0x0178: current_version = 1356.0.0
+00 00 01 00                                     ## 0x017c: compatibility_version = 1.0.0
+2f 75 73 72 2f 6c 69 62 2f 6c 69 62 53 79 73 74 65 6d 2e 42 2e 64 79 6c 69 62 00 00 00 00 00 00 ## 0x0180: '/usr/lib/libSystem.B.dylib' plus padding
+
+## zero padding from load commands to entryoff 0x400
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01a0: padding byte; not executed
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01b0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01c0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01d0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01e0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01f0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0200: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0210: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0220: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0230: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0240: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0250: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0260: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0270: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0280: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0290: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02a0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02b0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02c0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02d0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02e0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x02f0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0300: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0310: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0320: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0330: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0340: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0350: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0360: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0370: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0380: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0390: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03a0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03b0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03c0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03d0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03e0: padding byte; not executed (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x03f0: padding byte; not executed (continued)
+
+## _start
+48 83 ec 10                                     ## 0x0400: sub rsp,16; reserve scratch bytes for read/write
+48 83 ff 03                                     ## 0x0404: cmp rdi,3; dyld passes argc in rdi
+0f 8c 63 01 00 00                               ## 0x0408: jl fail; require program name plus input and output
+49 89 f7                                        ## 0x040e: mov r15,rsi; keep argv base
+49 8b 7f 08                                     ## 0x0411: mov rdi,[r15+8]; argv[1] input path
+31 f6                                           ## 0x0415: xor esi,esi; O_RDONLY
+b8 05 00 00 02                                  ## 0x0417: mov eax,0x02000005; Darwin open syscall
+0f 05                                           ## 0x041c: syscall
+48 85 c0                                        ## 0x041e: test rax,rax; negative indicates errno
+0f 88 4a 01 00 00                               ## 0x0421: js fail
+49 89 c5                                        ## 0x0427: mov r13,rax; save input fd
+49 8b 7f 10                                     ## 0x042a: mov rdi,[r15+16]; argv[2] output path
+be 01 06 00 00                                  ## 0x042e: mov esi,0x601; O_WRONLY|O_CREAT|O_TRUNC
+ba c0 01 00 00                                  ## 0x0433: mov edx,0700; owner rwx
+b8 05 00 00 02                                  ## 0x0438: mov eax,0x02000005; Darwin open syscall
+0f 05                                           ## 0x043d: syscall
+48 85 c0                                        ## 0x043f: test rax,rax
+0f 88 29 01 00 00                               ## 0x0442: js fail
+49 89 c6                                        ## 0x0448: mov r14,rax; save output fd
+41 bc ff ff ff ff                               ## 0x044b: mov r12d,-1; no pending high nybble
+
+## read_loop
+4c 89 ef                                        ## 0x0451: mov rdi,r13; input fd
+48 8d 34 24                                     ## 0x0454: lea rsi,[rsp]; one-byte input buffer
+ba 01 00 00 00                                  ## 0x0458: mov edx,1; read one byte
+b8 03 00 00 02                                  ## 0x045d: mov eax,0x02000003; Darwin read syscall
+0f 05                                           ## 0x0462: syscall
+48 85 c0                                        ## 0x0464: test rax,rax
+0f 88 04 01 00 00                               ## 0x0467: js fail
+0f 84 eb 00 00 00                               ## 0x046d: je eof; zero-byte read
+0f b6 04 24                                     ## 0x0473: movzx eax,byte [rsp]
+3c 23                                           ## 0x0477: cmp al,'#'
+0f 84 a7 00 00 00                               ## 0x0479: je comment_loop
+3c 3b                                           ## 0x047f: cmp al,';'
+0f 84 9f 00 00 00                               ## 0x0481: je comment_loop
+3c 20                                           ## 0x0487: cmp al,' '
+74 c6                                           ## 0x0489: je read_loop
+3c 0a                                           ## 0x048b: cmp al,LF
+74 c2                                           ## 0x048d: je read_loop
+3c 0d                                           ## 0x048f: cmp al,CR
+74 be                                           ## 0x0491: je read_loop
+3c 09                                           ## 0x0493: cmp al,TAB
+74 ba                                           ## 0x0495: je read_loop
+3c 30                                           ## 0x0497: cmp al,'0'
+0f 82 d2 00 00 00                               ## 0x0499: jb fail
+3c 39                                           ## 0x049f: cmp al,'9'
+0f 86 25 00 00 00                               ## 0x04a1: jbe digit
+3c 41                                           ## 0x04a7: cmp al,'A'
+0f 82 c2 00 00 00                               ## 0x04a9: jb fail
+3c 46                                           ## 0x04af: cmp al,'F'
+0f 86 1d 00 00 00                               ## 0x04b1: jbe upper
+3c 61                                           ## 0x04b7: cmp al,'a'
+0f 82 b2 00 00 00                               ## 0x04b9: jb fail
+3c 66                                           ## 0x04bf: cmp al,'f'
+0f 86 15 00 00 00                               ## 0x04c1: jbe lower
+e9 a5 00 00 00                                  ## 0x04c7: jmp fail
+
+## digit / upper / lower
+83 e8 30                                        ## 0x04cc: digit: sub eax,'0'
+e9 0b 00 00 00                                  ## 0x04cf: jmp have_nybble
+83 e8 37                                        ## 0x04d4: upper: sub eax,'A'-10
+e9 03 00 00 00                                  ## 0x04d7: jmp have_nybble
+83 e8 57                                        ## 0x04dc: lower: sub eax,'a'-10
+
+## have_nybble
+41 83 fc 00                                     ## 0x04df: cmp r12d,0; pending high nybble?
+0f 8c 35 00 00 00                               ## 0x04e3: jl save_high; -1 means no high nybble yet
+41 c1 e4 04                                     ## 0x04e9: shl r12d,4; move high nybble into high half-byte
+41 09 c4                                        ## 0x04ed: or r12d,eax; combine low nybble
+44 88 64 24 01                                  ## 0x04f0: mov [rsp+1],r12b; byte output buffer
+4c 89 f7                                        ## 0x04f5: mov rdi,r14; output fd
+48 8d 74 24 01                                  ## 0x04f8: lea rsi,[rsp+1]; output buffer
+ba 01 00 00 00                                  ## 0x04fd: mov edx,1; write one byte
+b8 04 00 00 02                                  ## 0x0502: mov eax,0x02000004; Darwin write syscall
+0f 05                                           ## 0x0507: syscall
+48 83 f8 01                                     ## 0x0509: cmp rax,1; require full one-byte write
+0f 85 5e 00 00 00                               ## 0x050d: jne fail
+41 bc ff ff ff ff                               ## 0x0513: mov r12d,-1; clear pending nybble
+e9 33 ff ff ff                                  ## 0x0519: jmp read_loop
+
+## save_high
+41 89 c4                                        ## 0x051e: mov r12d,eax; remember high nybble
+e9 2b ff ff ff                                  ## 0x0521: jmp read_loop
+
+## comment_loop
+4c 89 ef                                        ## 0x0526: mov rdi,r13; input fd
+48 8d 34 24                                     ## 0x0529: lea rsi,[rsp]; input buffer
+ba 01 00 00 00                                  ## 0x052d: mov edx,1; read one byte
+b8 03 00 00 02                                  ## 0x0532: mov eax,0x02000003; Darwin read syscall
+0f 05                                           ## 0x0537: syscall
+48 85 c0                                        ## 0x0539: test rax,rax
+0f 88 2f 00 00 00                               ## 0x053c: js fail
+0f 84 16 00 00 00                               ## 0x0542: je eof
+0f b6 04 24                                     ## 0x0548: movzx eax,byte [rsp]
+3c 0a                                           ## 0x054c: cmp al,LF
+0f 84 fd fe ff ff                               ## 0x054e: je read_loop
+3c 0d                                           ## 0x0554: cmp al,CR
+0f 84 f5 fe ff ff                               ## 0x0556: je read_loop
+eb c8                                           ## 0x055c: jmp comment_loop
+
+## eof / fail
+41 83 fc 00                                     ## 0x055e: eof: cmp r12d,0; pending high nybble means odd digit count
+0f 8d 09 00 00 00                               ## 0x0562: jge fail
+31 ff                                           ## 0x0568: xor edi,edi; exit status 0
+b8 01 00 00 02                                  ## 0x056a: mov eax,0x02000001; Darwin exit syscall
+0f 05                                           ## 0x056f: syscall
+bf 01 00 00 00                                  ## 0x0571: fail: mov edi,1; exit status 1
+b8 01 00 00 02                                  ## 0x0576: mov eax,0x02000001; Darwin exit syscall
+0f 05                                           ## 0x057b: syscall
+
+## zero padding to one 4096-byte Mach-O page
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x057d: padding byte; keeps __TEXT filesize one page
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x058d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x059d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05ad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05bd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05cd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05dd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05ed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x05fd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x060d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x061d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x062d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x063d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x064d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x065d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x066d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x067d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x068d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x069d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06ad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06bd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06cd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06dd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06ed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x06fd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x070d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x071d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x072d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x073d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x074d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x075d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x076d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x077d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x078d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x079d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07ad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07bd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07cd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07dd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07ed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x07fd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x080d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x081d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x082d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x083d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x084d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x085d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x086d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x087d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x088d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x089d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08ad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08bd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08cd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08dd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08ed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x08fd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x090d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x091d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x092d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x093d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x094d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x095d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x096d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x097d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x098d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x099d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09ad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09bd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09cd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09dd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09ed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x09fd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0a9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0aad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0abd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0acd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0add: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0aed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0afd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0b9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bbd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bcd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bdd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0bfd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0c9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0cad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0cbd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ccd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0cdd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ced: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0cfd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0d9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0dad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0dbd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0dcd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ddd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ded: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0dfd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0e9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ead: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ebd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0ecd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0edd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0eed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0efd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f0d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f1d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f2d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f3d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f4d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f5d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f6d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f7d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f8d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0f9d: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0fad: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0fbd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0fcd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0fdd: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x0fed: padding byte; keeps __TEXT filesize one page (continued)
+00 00 00                                        ## 0x0ffd: padding byte; keeps __TEXT filesize one page (continued)

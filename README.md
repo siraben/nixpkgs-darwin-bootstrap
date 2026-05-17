@@ -6,7 +6,7 @@ Standalone Darwin minimal-bootstrap experiments for reproducing the Linux
 The current implementation has:
 
 - Darwin raw-syscall smoke binaries for `aarch64-darwin` and `x86_64-darwin`.
-- A C-built `hex0` seed for local experimentation while handwritten Mach-O seed bytes are being ported.
+- A hand-assembled x86_64 Darwin `hex0` seed with a self-hosting byte-for-byte check.
 - Darwin M2libc syscall/startup snippets for aarch64 and amd64.
 - Dynamic Mach-O `hex2` executable templates with `LC_MAIN`, `/usr/lib/dyld`, and `/usr/lib/libSystem.B.dylib`.
 - An explicit signing bridge that uses nixpkgs `darwin.signingUtils` (`sigtool` plus `codesign_allocate`) to ad-hoc sign generated executables.

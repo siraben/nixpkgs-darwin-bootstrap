@@ -1,0 +1,107 @@
+args:
+with args;
+    {
+      phase,
+      boot,
+      compiler,
+      objectProbe,
+    }:
+    if hostPlatform.isx86_64 then
+      runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-link-candidate-amd64" { } ''
+        mkdir -p $out/bin $out/share/darwin-bootstrap
+
+        ${compiler} -c \
+          ${root + "/bootstrap/tinycc-sysv-libc.c"} \
+          -o tinycc-sysv-libc.o \
+          > tinycc-sysv-libc.stdout \
+          2> tinycc-sysv-libc.stderr
+
+        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix tinycc_sysv_libc_ \
+          tinycc-sysv-libc.o \
+          tinycc-sysv-libc.M1
+
+        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix ${lib.replaceStrings [ "-" ] [ "_" ] boot}_ \
+          ${objectProbe}/share/darwin-bootstrap/${boot}.o \
+          ${boot}.M1
+
+        cat > crt1-tcc-sysv.M1 <<'M1'
+        :_start
+        !0x48 !0x83 !0xe4 !0xf0
+        !0xe8 %main
+        !0x48 !0x89 !0xc7
+        !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
+        !0x0f !0x05
+        M1
+
+        emit_code() {
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data != 1 { print }
+          ' "$1"
+        }
+
+        emit_data() {
+          awk '
+            /^:ELF_data$/ { data = 1; next }
+            /^:HEX2_data$/ { next }
+            data == 1 { print }
+          ' "$1"
+        }
+
+        {
+          cat crt1-tcc-sysv.M1
+          cat ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"}
+          emit_code ${boot}.M1
+          emit_code tinycc-sysv-libc.M1
+          echo ':ELF_data'
+          echo ':HEX2_data'
+          emit_data ${boot}.M1
+          emit_data tinycc-sysv-libc.M1
+        } > ${boot}-combined.M1
+
+        ${phase9-m1}/bin/M1 \
+          --architecture amd64 \
+          --little-endian \
+          -f ${boot}-combined.M1 \
+          -o ${boot}.hex2
+
+        ${phase10-hex2}/bin/hex2 \
+          --architecture amd64 \
+          --little-endian \
+          --base-address 0x1000000 \
+          -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+          -f ${boot}.hex2 \
+          -o ${boot}
+
+        ${python3}/bin/python3 ${root + "/tools/hex2-data-relocs.py"} patch ${boot}.hex2 ${boot}
+
+        linkeditOffset="$((0x800000 + 0x2000000))"
+        dd if=/dev/zero of=${boot} bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+        chmod +x ${boot}
+
+        source ${darwin.signingUtils}
+        sign ${boot}
+
+        ./${boot} -version > ${boot}-version.stdout 2> ${boot}-version.stderr
+        printf '0\n' > ${boot}-version.status
+        grep -q '0.9.28-darwin-bootstrap' ${boot}-version.stdout
+        test ! -s ${boot}-version.stderr
+
+        cat > hello.c <<'C'
+        int main(void) { return 42; }
+        C
+        ./${boot} -c hello.c -o hello.o > hello-c.stdout 2> hello-c.stderr
+        printf '0\n' > hello-c.status
+        test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
+
+        cp ${boot} $out/bin/${boot}-candidate
+        cp tinycc-sysv-libc.o tinycc-sysv-libc.M1 \
+          tinycc-sysv-libc.stdout tinycc-sysv-libc.stderr \
+          ${boot}.M1 crt1-tcc-sysv.M1 ${boot}-combined.M1 ${boot}.hex2 \
+          ${boot}-version.stdout ${boot}-version.stderr ${boot}-version.status \
+          hello.c hello.o hello-c.stdout hello-c.stderr hello-c.status \
+          $out/share/darwin-bootstrap/
+      ''
+    else
+      null
