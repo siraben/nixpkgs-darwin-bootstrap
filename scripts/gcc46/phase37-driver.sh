@@ -163,6 +163,15 @@ done
 tmpdir="\$(mktemp -d "\${TMPDIR:-/tmp}/gcc46-bootstrap.XXXXXX")"
 trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
 
+ensure_symlink() {
+  local target="\$1"
+  local link="\$2"
+  if [ -e "\$link" ] || [ -L "\$link" ]; then
+    return 0
+  fi
+  ln -s "\$target" "\$link" 2>/dev/null || [ -e "\$link" ] || [ -L "\$link" ]
+}
+
 compile_to_asm() {
   local input="\$1"
   local asm_out="\$2"
@@ -180,7 +189,7 @@ compile_to_asm() {
           /*) source_target="\$source_entry" ;;
           *) source_target="\$PWD/\$source_entry" ;;
         esac
-        [ -e "\$tmpdir/\$source_name" ] || [ -L "\$tmpdir/\$source_name" ] || ln -s "\$source_target" "\$tmpdir/\$source_name"
+        ensure_symlink "\$source_target" "\$tmpdir/\$source_name"
       done
       ;;
   esac
@@ -195,7 +204,7 @@ compile_to_asm() {
         for merged_entry in "\$merged_include"/*; do
           [ -e "\$merged_entry" ] || continue
           merged_name="\$(basename "\$merged_entry")"
-          [ -e "\$include_dir/\$merged_name" ] || [ -L "\$include_dir/\$merged_name" ] || ln -s "\$merged_entry" "\$include_dir/\$merged_name"
+          ensure_symlink "\$merged_entry" "\$include_dir/\$merged_name"
         done
       fi
       for include_entry in "\$include_dir"/*; do
@@ -205,8 +214,8 @@ compile_to_asm() {
           /*) include_target="\$include_entry" ;;
           *) include_target="\$PWD/\$include_entry" ;;
         esac
-        [ -e "./\$include_name" ] || [ -L "./\$include_name" ] || ln -s "\$include_entry" "./\$include_name"
-        [ -e "\$tmpdir/\$include_name" ] || [ -L "\$tmpdir/\$include_name" ] || ln -s "\$include_target" "\$tmpdir/\$include_name"
+        ensure_symlink "\$include_entry" "./\$include_name"
+        ensure_symlink "\$include_target" "\$tmpdir/\$include_name"
       done
     done
   fi
