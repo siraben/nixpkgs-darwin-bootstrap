@@ -164,7 +164,11 @@ compile_to_asm() {
       for source_entry in "\$(dirname "\$input")"/*; do
         [ -e "\$source_entry" ] || continue
         source_name="\$(basename "\$source_entry")"
-        [ -e "\$tmpdir/\$source_name" ] || ln -s "\$source_entry" "\$tmpdir/\$source_name"
+        case "\$source_entry" in
+          /*) source_target="\$source_entry" ;;
+          *) source_target="\$PWD/\$source_entry" ;;
+        esac
+        [ -e "\$tmpdir/\$source_name" ] || [ -L "\$tmpdir/\$source_name" ] || ln -s "\$source_target" "\$tmpdir/\$source_name"
       done
       ;;
   esac
@@ -178,8 +182,12 @@ compile_to_asm() {
       for include_entry in "\$include_dir"/*; do
         [ -e "\$include_entry" ] || continue
         include_name="\$(basename "\$include_entry")"
-        [ -e "./\$include_name" ] || ln -s "\$include_entry" "./\$include_name"
-        [ -e "\$tmpdir/\$include_name" ] || ln -s "\$include_entry" "\$tmpdir/\$include_name"
+        case "\$include_entry" in
+          /*) include_target="\$include_entry" ;;
+          *) include_target="\$PWD/\$include_entry" ;;
+        esac
+        [ -e "./\$include_name" ] || [ -L "./\$include_name" ] || ln -s "\$include_entry" "./\$include_name"
+        [ -e "\$tmpdir/\$include_name" ] || [ -L "\$tmpdir/\$include_name" ] || ln -s "\$include_target" "\$tmpdir/\$include_name"
       done
     done
   fi
