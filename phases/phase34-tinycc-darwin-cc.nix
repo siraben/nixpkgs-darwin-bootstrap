@@ -635,9 +635,9 @@ with args;
         #define NULL ((void *)0)
         #endif
         #include <stdarg.h>
-        extern FILE *stdin;
-        extern FILE *stdout;
-        extern FILE *stderr;
+        #define stdin ((FILE *)0)
+        #define stdout ((FILE *)1)
+        #define stderr ((FILE *)2)
         int printf(const char *, ...);
         int fprintf(FILE *, const char *, ...);
         int vfprintf(FILE *, const char *, va_list);

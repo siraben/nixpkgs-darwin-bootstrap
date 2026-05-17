@@ -40,7 +40,7 @@ for object in "$gcc_lib/libgcc-objects"/*.o; do
 done
 
 cat > "$out/bin/gcc46-bootstrap-as" <<EOF_AS
-#!/usr/bin/env bash
+#!$BASH
 set -euo pipefail
 
 out=
@@ -74,7 +74,7 @@ EOF_AS
 chmod +x "$out/bin/gcc46-bootstrap-as"
 
 cat > "$out/bin/gcc" <<EOF_GCC
-#!/usr/bin/env bash
+#!$BASH
 set -euo pipefail
 
 xgcc="$gcc_exec/xgcc"

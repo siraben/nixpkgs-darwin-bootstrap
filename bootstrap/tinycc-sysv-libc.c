@@ -11,8 +11,8 @@ FILE *stdout = (FILE *)1;
 FILE *stderr = (FILE *)2;
 static int ungot_fd = -1;
 static int ungot_ch = -1;
-static char *malloc_cur = 0;
-static char *malloc_end = 0;
+static char *malloc_cur = (char *)-1;
+static char *malloc_end = (char *)-1;
 
 extern long write(int fd, const void *buf, unsigned long n);
 extern long read(int fd, void *buf, unsigned long n);
@@ -78,7 +78,7 @@ void *__va_arg(__va_list_struct *ap, enum __va_arg_type arg_type, int size, int 
     return ap->overflow_arg_area - size;
 }
 
-void *malloc(size_t n) { size_t need = (n + 31) & ~15; if (!malloc_cur || malloc_cur + need > malloc_end) { size_t chunk = need > 16777216 ? need : 16777216; char *mem = mmap(0, chunk, 3, 0x1002, -1, 0); if ((long)mem < 0) return 0; malloc_cur = mem; malloc_end = mem + chunk; } unsigned long *p = (unsigned long *)malloc_cur; malloc_cur += need; p[0] = need - 16; p[1] = 0; return p + 2; }
+void *malloc(size_t n) { size_t need = (n + 31) & ~15; if (malloc_cur == (char *)-1 || malloc_cur + need > malloc_end) { size_t chunk = need > 16777216 ? need : 16777216; char *mem = mmap(0, chunk, 3, 0x1002, -1, 0); if ((long)mem < 0) return 0; malloc_cur = mem; malloc_end = mem + chunk; } unsigned long *p = (unsigned long *)malloc_cur; malloc_cur += need; p[0] = need - 16; p[1] = 0; return p + 2; }
 void free(void *p) { }
 
 void *memcpy(void *, const void *, size_t);
