@@ -5054,6 +5054,8 @@ C
       fi
       mkdir $out
     '';
+  } // lib.optionalAttrs (phase37-gcc46-bootstrap != null) {
+    gcc46-bootstrap-smoke = phase37-gcc46-bootstrap;
   };
 in
 {
