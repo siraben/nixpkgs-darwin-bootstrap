@@ -100,7 +100,7 @@ while [ "\$#" -gt 0 ]; do
       shift
       ;;
     -E)
-      exec "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$sysroot" "\$@"
+      exec env MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" --sysroot="\$sysroot" -isystem "\$sysroot" "\$@"
       ;;
     -o)
       out_file="\$2"
@@ -192,6 +192,10 @@ select_libgcc_objects() {
   for object in "\${objects[@]}"; do
     add_object_symbols "\$object"
   done
+
+  if [ ! -s "\$tmpdir/unresolved.sorted" ]; then
+    return 0
+  fi
 
   changed=1
   while [ "\$changed" = 1 ]; do
