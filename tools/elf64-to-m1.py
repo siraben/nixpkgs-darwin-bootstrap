@@ -163,6 +163,9 @@ def symbol_label(symbols, sections, labels, symbol_index, addend):
     target_offset = symbol["value"] + addend
     if addend == 0 and symbol["label"]:
         return symbol["label"]
+    existing_labels = labels[target_section["index"]].get(target_offset, [])
+    if existing_labels:
+        return existing_labels[0]
     synthetic = f"{symbol['label']}_plus_{target_offset:x}"
     if synthetic not in labels[target_section["index"]][target_offset]:
         labels[target_section["index"]][target_offset].append(synthetic)
@@ -189,6 +192,13 @@ def emit_bytes(out, data, start, end):
             line = []
     if line:
         out.append(" ".join(line))
+
+
+def emit_i32(out, value):
+    value &= 0xFFFFFFFF
+    out.append(
+        " ".join(f"!0x{byte:02x}" for byte in struct.pack("<I", value))
+    )
 
 
 def emit_section(out, section, symbols, sections, labels, relocations):
@@ -221,9 +231,13 @@ def emit_section(out, section, symbols, sections, labels, relocations):
 
         relocation_type = relocation["type"]
         if relocation_type in (R_X86_64_PC32, R_X86_64_PLT32):
-            out.append(
-                f"%{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'] + 4)}"
-            )
+            symbol = symbols[relocation["sym"]]
+            if symbol["shndx"] == section["index"]:
+                emit_i32(out, symbol["value"] + relocation["addend"] - relocation["offset"])
+            else:
+                out.append(
+                    f"%{symbol_label(symbols, sections, labels, relocation['sym'], relocation['addend'] + 4)}"
+                )
             offset += 4
         elif relocation_type in (
             R_X86_64_GOTPCREL,

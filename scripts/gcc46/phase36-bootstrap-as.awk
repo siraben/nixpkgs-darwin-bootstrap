@@ -87,6 +87,13 @@ skip_section { next }
     print "\t.byte 72,152"
     next
   }
+  if ($0 ~ /^[[:space:]]*movaps[[:space:]]+%xmm[0-7],[[:space:]]*%xmm[0-7][[:space:]]*$/) {
+    line = $0
+    sub(/^[[:space:]]*movaps[[:space:]]+%xmm/, "", line)
+    split(line, regs, /,[[:space:]]*%xmm/)
+    print "\t.byte 15,40," (192 + (regs[2] * 8) + regs[1])
+    next
+  }
   if ($0 ~ /^[[:space:]]*divss[[:space:]]+%xmm[0-7],[[:space:]]*%xmm[0-7][[:space:]]*$/) {
     line = $0
     sub(/^[[:space:]]*divss[[:space:]]+%xmm/, "", line)

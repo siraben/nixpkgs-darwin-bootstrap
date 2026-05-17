@@ -586,6 +586,9 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_STDLIB_H
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
+        #ifndef NULL
+        #define NULL ((void *)0)
+        #endif
         void abort(void);
         #define EXIT_SUCCESS 0
         #define EXIT_FAILURE 1

@@ -172,6 +172,31 @@ ensure_symlink() {
   ln -s "\$target" "\$link" 2>/dev/null || [ -e "\$link" ] || [ -L "\$link" ]
 }
 
+is_overlay_include() {
+  local path="\$1"
+  local name="\$(basename "\$path")"
+  if [ -d "\$path" ]; then
+    case "\$name" in
+      sys|bits|machine|arch) return 0 ;;
+      *) return 1 ;;
+    esac
+  fi
+  case "\$name" in
+    *.h|*.hh|*.hpp|*.hxx|*.inc|*.def|*.md|*.opt) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_source_neighbor() {
+  local path="\$1"
+  local name="\$(basename "\$path")"
+  is_overlay_include "\$path" && return 0
+  case "\$name" in
+    *.c|*.cc|*.cpp|*.cxx|*.S|*.s) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 compile_to_asm() {
   local input="\$1"
   local asm_out="\$2"
@@ -184,6 +209,7 @@ compile_to_asm() {
       cp "\$input" "\$compile_input"
       for source_entry in "\$(dirname "\$input")"/*; do
         [ -e "\$source_entry" ] || continue
+        is_source_neighbor "\$source_entry" || continue
         source_name="\$(basename "\$source_entry")"
         case "\$source_entry" in
           /*) source_target="\$source_entry" ;;
@@ -203,12 +229,14 @@ compile_to_asm() {
       if [ "\$include_dir" != "\$merged_include" ] && [ -w "\$include_dir" ]; then
         for merged_entry in "\$merged_include"/*; do
           [ -e "\$merged_entry" ] || continue
+          is_overlay_include "\$merged_entry" || continue
           merged_name="\$(basename "\$merged_entry")"
           ensure_symlink "\$merged_entry" "\$include_dir/\$merged_name"
         done
       fi
       for include_entry in "\$include_dir"/*; do
         [ -e "\$include_entry" ] || continue
+        is_overlay_include "\$include_entry" || continue
         include_name="\$(basename "\$include_entry")"
         case "\$include_entry" in
           /*) include_target="\$include_entry" ;;

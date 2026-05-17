@@ -1,6 +1,8 @@
---- a/gcc/config/host-darwin.c
-+++ b/gcc/config/host-darwin.c
-@@ -24,14 +24,18 @@
+--- a/gcc/config/host-darwin.c	2026-05-17 13:23:38.630153941 -0700
++++ b/gcc/config/host-darwin.c	2026-05-17 13:23:56.561655874 -0700
+@@ -22,18 +22,22 @@
+ #include "coretypes.h"
+ #include "diagnostic-core.h"
  #include "config/host-darwin.h"
  
  /* Yes, this is really supposed to work.  */
@@ -21,7 +23,11 @@
      return pch_address_space;
    else
      return NULL;
-@@ -47,8 +51,7 @@
+ }
+ 
+@@ -45,12 +49,11 @@
+ {
+   const size_t pagesize = getpagesize();
    void *mmap_result;
    int ret;
  
@@ -31,9 +37,13 @@
    
    ret = (addr == pch_address_space && sz <= sizeof (pch_address_space));
    if (! ret)
---- a/gcc/real.c
-+++ b/gcc/real.c
-@@ -1505,6 +1505,21 @@
+     sz = 0;
+ 
+--- a/gcc/real.c	2026-05-17 13:23:39.025955242 -0700
++++ b/gcc/real.c	2026-05-17 13:23:56.561999955 -0700
+@@ -1503,10 +1503,25 @@
+    zeros.  If MODE is VOIDmode, round to nearest value.  Otherwise, round
+    to a string that, when parsed back in mode MODE, yields the same value.  */
  
  #define M_LOG10_2	0.30102999566398119521
  
@@ -55,7 +65,11 @@
  void
  real_to_decimal_for_mode (char *str, const REAL_VALUE_TYPE *r_orig,
  			  size_t buf_size, size_t digits,
-@@ -1552,14 +1567,14 @@
+ 			  int crop_trailing_zeros, enum machine_mode mode)
+ {
+@@ -1550,18 +1565,18 @@
+       decimal_real_to_decimal (str, &r, buf_size, digits, crop_trailing_zeros);
+       return;
      }
  
    /* Bound the number of digits printed by the size of the representation.  */
@@ -72,7 +86,11 @@
    for (max_digits = 1; dec_exp ; max_digits++)
      dec_exp /= 10;
  
-@@ -1620,7 +1635,7 @@
+   /* Bound the number of digits printed by the size of the output buffer.  */
+   max_digits = buf_size - 1 - 1 - 2 - max_digits - 1;
+@@ -1618,11 +1633,11 @@
+       /* Find power of 10.  Do this by dividing out 10**2**M when
+ 	 this is larger than the current remainder.  Fill PTEN with
  	 the power of 10 that we compute.  */
        if (REAL_EXP (&r) > 0)
  	{
@@ -81,7 +99,11 @@
  	  do
  	    {
  	      const REAL_VALUE_TYPE *ptentwo = ten_to_ptwo (m);
-@@ -1667,7 +1682,7 @@
+ 	      if (do_compare (&u, ptentwo, 0) >= 0)
+ 	        {
+@@ -1665,11 +1680,11 @@
+       r = v;
+ 
        /* Find power of 10.  Do this by multiplying in P=10**2**M when
  	 the current remainder is smaller than 1/P.  Fill PTEN with the
  	 power of 10 that we compute.  */
@@ -90,16 +112,11 @@
        do
  	{
  	  const REAL_VALUE_TYPE *ptentwo = ten_to_ptwo (m);
-@@ -2217,7 +2232,7 @@
-   sign = r.sign;
-   r.sign = 0;
+ 	  const REAL_VALUE_TYPE *ptenmtwo = ten_to_mptwo (m);
  
--  dec_exp = REAL_EXP (&r) * M_LOG10_2;
-+  dec_exp = darwin_bootstrap_log10_2_trunc (REAL_EXP (&r));
-   digits = dec_exp + 1;
-   gcc_assert ((digits + 2) < (int)buf_size);
- 
-@@ -2819,8 +2834,7 @@
+@@ -2817,12 +2832,11 @@
+     {
+       /* Return the size in bits of the largest binary value that can be
  	 held by the decimal coefficient for this mode.  This is one more
  	 than the number of bits required to hold the largest coefficient
  	 of this mode.  */
@@ -109,9 +126,13 @@
      }
    return fmt->p;
  }
---- a/gcc/c-family/c-cppbuiltin.c
-+++ b/gcc/c-family/c-cppbuiltin.c
-@@ -126,8 +126,6 @@
+ 
+ /* Return a hash value for the given real value.  */
+--- a/gcc/c-family/c-cppbuiltin.c	2026-05-17 13:23:42.430132184 -0700
++++ b/gcc/c-family/c-cppbuiltin.c	2026-05-17 13:23:56.562217328 -0700
+@@ -124,12 +124,10 @@
+      least 6 significant digits for correct results.  Using the fraction
+      formed by (log(2)*1e6)/(log(10)*1e6) overflows a 32-bit integer as an
       intermediate; perhaps someone can find a better approximation, in the
       mean time, I suspect using doubles won't harm the bootstrap here.  */
  
@@ -120,15 +141,24 @@
    const struct real_format *fmt;
    const struct real_format *ldfmt;
  
-@@ -144,7 +142,6 @@
+   char name[64], buf[128];
+   int dig, min_10_exp, max_10_exp;
+@@ -142,12 +140,10 @@
+   gcc_assert (ldfmt->b != 10);
+ 
    /* The radix of the exponent representation.  */
    if (type == float_type_node)
      builtin_define_with_int_value ("__FLT_RADIX__", fmt->b);
 -  log10_b = log10_2;
- 
+-
    /* The number of radix digits, p, in the floating-point significand.  */
    sprintf (name, "__%s_MANT_DIG__", name_prefix);
-@@ -157,7 +154,7 @@
+   builtin_define_with_int_value (name, fmt->p);
+ 
+   /* The number of decimal digits, q, such that any floating-point number
+@@ -155,11 +151,11 @@
+      p radix b digits and back again without change to the q decimal digits,
+ 
  	p log10 b			if b is a power of 10
  	floor((p - 1) log10 b)		otherwise
    */
@@ -137,7 +167,11 @@
    sprintf (name, "__%s_DIG__", name_prefix);
    builtin_define_with_int_value (name, dig);
  
-@@ -173,7 +170,7 @@
+   /* The minimum negative int x such that b**(x-1) is a normalized float.  */
+   sprintf (name, "__%s_MIN_EXP__", name_prefix);
+@@ -171,11 +167,11 @@
+ 	  ceil (log10 (b ** (emin - 1)))
+ 	= ceil (log10 (b) * (emin - 1))
  
       Recall that emin is negative, so the integer truncation calculates
       the ceiling, not the floor, in this case.  */
@@ -146,7 +180,11 @@
    sprintf (name, "__%s_MIN_10_EXP__", name_prefix);
    sprintf (buf, "(%d)", min_10_exp);
    builtin_define_with_value (name, buf, 0);
-@@ -208,7 +205,7 @@
+ 
+   /* The maximum int x such that b**(x-1) is a representable float.  */
+@@ -206,11 +202,11 @@
+      first 20 digits or so of log10(b).
+ 
       Hand-waving aside, crunching all of the sets of constants above by hand
       does not yield a case for which the first term is significant, which
       in the end is all that matters.  */
@@ -155,7 +193,11 @@
    sprintf (name, "__%s_MAX_10_EXP__", name_prefix);
    builtin_define_with_int_value (name, max_10_exp);
  
-@@ -222,18 +219,12 @@
+   /* The number of decimal digits, n, such that any floating-point number
+      can be rounded to n decimal digits and back again without change to
+@@ -220,22 +216,16 @@
+ 	ceil(1 + p * log10(b))		otherwise
+ 
       The only macro we care about is this number for the widest supported
       floating type, but we want this value for rendering constants below.  */
    {
@@ -177,3 +219,20 @@
    }
    if (type == long_double_type_node)
      builtin_define_with_int_value ("__DECIMAL_DIG__", decimal_dig);
+   else
+     {
+--- a/libcpp/lex.c	2026-05-17 13:23:38.520387469 -0700
++++ b/libcpp/lex.c	2026-05-17 13:23:56.562396077 -0700
+@@ -272,11 +272,11 @@
+    Before Solaris 9 Update 6, SSE insns cannot be executed.
+    The Solaris 10+ assembler tags objects with the instruction set
+    extensions used, so SSE4.2 executables cannot run on machines that
+    don't support that extension.  */
+ 
+-#if (GCC_VERSION >= 4005) && (defined(__i386__) || defined(__x86_64__)) && !(defined(__sun__) && defined(__svr4__))
++#if 0 && (GCC_VERSION >= 4005) && (defined(__i386__) || defined(__x86_64__)) && !(defined(__sun__) && defined(__svr4__))
+ 
+ /* Replicated character data to be shared between implementations.
+    Recall that outside of a context with vector support we can't
+    define compatible vector types, therefore these are all defined
+    in terms of raw characters.  */

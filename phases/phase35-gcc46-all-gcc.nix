@@ -30,6 +30,16 @@ text = text.replace(
 )
 path.write_text(text)
 Path("src/gmp/doc/gmp.info").write_text("Bootstrap placeholder for GMP info docs.\n")
+gmp_impl = Path("src/gmp/gmp-impl.h")
+gmp_impl.write_text(gmp_impl.read_text() + """
+
+#ifndef DARWIN_BOOTSTRAP_NULL
+#define DARWIN_BOOTSTRAP_NULL 1
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+#endif
+""")
 Path("src/gmp/gen-psqr.c").write_text(r"""
 #include <stdio.h>
 

@@ -15,6 +15,22 @@ bootstrap_share="$out/share/darwin-bootstrap"
 mkdir -p src build "$out/bin" "$bootstrap_share"
 cp -R "$phase35/share/darwin-bootstrap/work/src/." src/
 chmod -R u+w src
+if grep -q '^#if (GCC_VERSION >= 4005).*defined(__x86_64__)' src/libcpp/lex.c; then
+  sed 's/^#if (GCC_VERSION >= 4005)/#if 0 \&\& (GCC_VERSION >= 4005)/' \
+    src/libcpp/lex.c > src/libcpp/lex.c.bootstrap
+  mv src/libcpp/lex.c.bootstrap src/libcpp/lex.c
+fi
+if ! grep -q DARWIN_BOOTSTRAP_NULL src/gmp/gmp-impl.h; then
+  cat >> src/gmp/gmp-impl.h <<'GMP_NULL'
+
+#ifndef DARWIN_BOOTSTRAP_NULL
+#define DARWIN_BOOTSTRAP_NULL 1
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+#endif
+GMP_NULL
+fi
 
 export CC="$phase37/bin/gcc"
 export CPP="$CC -E"
@@ -31,6 +47,38 @@ export CFLAGS="-g"
 export CFLAGS_FOR_BUILD="-g"
 export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
+unset CXX CXXCPP CXX_FOR_BUILD
+no_host_cxx="$PWD/.no-host-cxx"
+mkdir -p "$no_host_cxx"
+for cxx_name in c++ g++ clang++ "$target-c++" "$target-g++"; do
+  cat > "$no_host_cxx/$cxx_name" <<'NO_CXX'
+#!/usr/bin/env sh
+exit 1
+NO_CXX
+  chmod +x "$no_host_cxx/$cxx_name"
+done
+cat > "$no_host_cxx/cxx-cpp" <<NO_CXXCPP
+#!$(command -v bash)
+set -euo pipefail
+tmpdir=\$(mktemp -d "\${TMPDIR:-/tmp}/gcc46-cxx-cpp.XXXXXX")
+trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
+args=()
+for arg in "\$@"; do
+  case "\$arg" in
+    *.cc|*.cpp|*.cxx|*.C)
+      cp "\$arg" "\$tmpdir/input.c"
+      args+=("\$tmpdir/input.c")
+      ;;
+    *)
+      args+=("\$arg")
+      ;;
+  esac
+done
+exec "$CC" -E "\${args[@]}"
+NO_CXXCPP
+chmod +x "$no_host_cxx/cxx-cpp"
+export CXXCPP="$no_host_cxx/cxx-cpp"
+export PATH="$no_host_cxx:$PATH"
 
 cd build
 for cache_dir in \
