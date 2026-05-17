@@ -154,9 +154,14 @@ trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
 compile_to_asm() {
   local input="\$1"
   local asm_out="\$2"
+  local input_dir_args=()
+  case "\$input" in
+    */*) input_dir_args=(-I"\$(dirname "\$input")") ;;
+  esac
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$sysroot" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables \\
+    "\${input_dir_args[@]}" \\
     "\${compiler_args[@]}" -S "\$input" -o "\$asm_out"
 }
 
