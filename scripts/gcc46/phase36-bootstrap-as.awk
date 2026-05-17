@@ -66,6 +66,7 @@ skip_section { next }
   gsub(/\<movdqa\>/, "movaps")
   gsub(/\<movss\>/, "movd")
   gsub(/\<xorps\>/, "pxor")
+  gsub(/\<xorpd\>/, "pxor")
   gsub(/bswap[[:space:]]+%r/, "bswapq %r")
   gsub(/bswap[[:space:]]+%e/, "bswapl %e")
   gsub(/\<salb\>/, "shlb")
