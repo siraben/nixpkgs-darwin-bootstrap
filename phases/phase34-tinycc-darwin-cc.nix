@@ -157,6 +157,7 @@ with args;
           struct timespec st_atimespec;
           struct timespec st_mtimespec;
           struct timespec st_ctimespec;
+          struct timespec st_birthtimespec;
           off_t st_size;
           blkcnt_t st_blocks;
           blksize_t st_blksize;
@@ -816,6 +817,12 @@ with args;
         void abort(void);
         #define EXIT_SUCCESS 0
         #define EXIT_FAILURE 1
+        #ifndef MB_CUR_MAX
+        #define MB_CUR_MAX 1
+        #endif
+        #ifndef MB_CUR_MAX_L
+        #define MB_CUR_MAX_L(x) (1)
+        #endif
         int system(const char *);
         void exit(int);
         void _exit(int);
@@ -851,6 +858,19 @@ with args;
         #endif
         H
 
+        cat > $out/include/tcc-darwin-bootstrap/xlocale.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_XLOCALE_H
+        #define _DARWIN_BOOTSTRAP_XLOCALE_H
+        typedef void *locale_t;
+        #define LC_GLOBAL_LOCALE ((locale_t)-1)
+        #define LC_C_LOCALE ((locale_t)0)
+        #ifndef MB_CUR_MAX_L
+        #define MB_CUR_MAX_L(x) (1)
+        #endif
+        locale_t uselocale(locale_t);
+        #endif
+        H
+
         cat > $out/include/tcc-darwin-bootstrap/stdio.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_STDIO_H
         #define _DARWIN_BOOTSTRAP_STDIO_H
@@ -863,7 +883,10 @@ with args;
         #define SEEK_SET 0
         #define SEEK_CUR 1
         #define SEEK_END 2
-        typedef long FILE;
+        struct __sbuf { unsigned char *_base; int _size; };
+        struct __sFILE { unsigned char *_p; int _r; int _w; short _flags; short _file; struct __sbuf _bf; int _lbfsize; void *_cookie; int (*_close)(void *); int (*_read)(void *, char *, int); long (*_seek)(void *, long, int); int (*_write)(void *, const char *, int); struct __sbuf _ub; void *_extra; int _ur; unsigned char _ubuf[3]; unsigned char _nbuf[1]; struct __sbuf _lb; int _blksize; long _offset; };
+        typedef struct __sFILE FILE;
+        #define __sferror(p) (((p)->_flags & 0x0040) != 0)
         typedef long fpos_t;
         typedef unsigned long size_t;
         #ifndef NULL

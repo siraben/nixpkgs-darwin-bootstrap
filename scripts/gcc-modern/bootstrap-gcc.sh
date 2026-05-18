@@ -133,6 +133,9 @@ fi
 if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'extern "C"' "$sysroot/include/fcntl.h"; then
   perl -0pi -e 's@(#define FD_CLOEXEC 1\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#endif\n)\z@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/fcntl.h"
 fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'F_GETFL' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#define F_SETFD 2\n)@$1#define F_GETFL 3\n@' "$sysroot/include/fcntl.h"
+fi
 if [ -f "$sysroot/include/dirent.h" ] && ! grep -q 'extern "C"' "$sysroot/include/dirent.h"; then
   perl -0pi -e 's@(struct dirent \{[^\n]*\};\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#endif\n)\z@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/dirent.h"
 fi
@@ -154,8 +157,26 @@ fi
 if ! grep -q 'getpagesize' "$sysroot/include/unistd.h"; then
   perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@int getpagesize(void);\nint vfork(void);\n$1@' "$sysroot/include/unistd.h"
 fi
+if [ -f "$sysroot/include/string.h" ] && ! grep -q 'strerror_r' "$sysroot/include/string.h"; then
+  perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@int strerror_r(int, char *, unsigned long);\n$1@' "$sysroot/include/string.h"
+fi
+if [ -f "$sysroot/include/string.h" ] && ! grep -q 'strnlen' "$sysroot/include/string.h"; then
+  perl -0pi -e 's@(unsigned long strlen\([^\n]+\);\n)@$1size_t strnlen(const char *, size_t);\n@' "$sysroot/include/string.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'getprogname' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@const char *getprogname(void);\n$1@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'MB_CUR_MAX ' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(#define EXIT_FAILURE 1\n)@$1#ifndef MB_CUR_MAX\n#define MB_CUR_MAX 1\n#endif\n#ifndef MB_CUR_MAX_L\n#define MB_CUR_MAX_L(x) (1)\n#endif\n@' "$sysroot/include/stdlib.h"
+fi
 if ! grep -q 'INTMAX_MAX' "$sysroot/include/stdint.h"; then
   perl -0pi -e 's@(#endif\n)\z@#define INTMAX_MAX 9223372036854775807L\n#define INTMAX_MIN (-INTMAX_MAX - 1L)\n#define UINTMAX_MAX 18446744073709551615UL\n$1@' "$sysroot/include/stdint.h"
+fi
+if ! grep -q 'SIZE_MAX' "$sysroot/include/stdint.h"; then
+  perl -0pi -e 's@(#define UINTMAX_MAX 18446744073709551615UL\n)@$1#define SIZE_MAX 18446744073709551615UL\n@' "$sysroot/include/stdint.h"
+fi
+if ! grep -q 'PTRDIFF_MAX' "$sysroot/include/stdint.h"; then
+  perl -0pi -e 's@(#define SIZE_MAX 18446744073709551615UL\n)@$1#define PTRDIFF_MAX 9223372036854775807L\n#define PTRDIFF_MIN (-PTRDIFF_MAX - 1L)\n@' "$sysroot/include/stdint.h"
 fi
 if [ -f "$sysroot/include/inttypes.h" ] && ! grep -q 'PRIi64' "$sysroot/include/inttypes.h"; then
   perl -0pi -e 's@(#endif\n)\z@#define PRId64 "ld"\n#define PRIi64 "li"\n#define PRIu64 "lu"\n#define PRIx64 "lx"\n#define PRIX64 "lX"\n$1@' "$sysroot/include/inttypes.h"
@@ -164,10 +185,90 @@ if [ ! -f "$sysroot/include/wchar.h" ]; then
   cat > "$sysroot/include/wchar.h" <<'WCHAR_H'
 #ifndef _DARWIN_BOOTSTRAP_WCHAR_H
 #define _DARWIN_BOOTSTRAP_WCHAR_H
+#include <stddef.h>
 typedef int wchar_t;
 typedef int wint_t;
+typedef struct { unsigned char __opaque[16]; } mbstate_t;
+#ifndef WEOF
+#define WEOF ((wint_t)-1)
+#endif
+size_t mbsrtowcs(wchar_t *, const char **, size_t, mbstate_t *);
+int wprintf(const wchar_t *, ...);
+int wcwidth(wchar_t);
 #endif
 WCHAR_H
+fi
+if ! grep -q 'typedef struct .*mbstate_t' "$sysroot/include/wchar.h"; then
+  perl -0pi -e 's@(#define _DARWIN_BOOTSTRAP_WCHAR_H\n)@$1#include <stddef.h>\n@ unless /#include <stddef.h>/; s@(typedef int wint_t;\n)@$1typedef struct { unsigned char __opaque[16]; } mbstate_t;\n#ifndef WEOF\n#define WEOF ((wint_t)-1)\n#endif\nsize_t mbsrtowcs(wchar_t *, const char **, size_t, mbstate_t *);\nint wprintf(const wchar_t *, ...);\n@' "$sysroot/include/wchar.h"
+fi
+if ! grep -q 'mbsrtowcs' "$sysroot/include/wchar.h"; then
+  perl -0pi -e 's@(#endif\n)\z@size_t mbsrtowcs(wchar_t *, const char **, size_t, mbstate_t *);\nint wprintf(const wchar_t *, ...);\n$1@' "$sysroot/include/wchar.h"
+fi
+if ! grep -q 'mbrtowc' "$sysroot/include/wchar.h"; then
+  perl -0pi -e 's@(int mbsrtowcs\([^\n]+\);\n)@$1size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);\nint mbsinit(const mbstate_t *);\n@' "$sysroot/include/wchar.h"
+fi
+if ! grep -q 'int wcwidth' "$sysroot/include/wchar.h"; then
+  perl -0pi -e 's@(int wprintf\([^\n]+\);\n)@$1int wcwidth(wchar_t);\n@' "$sysroot/include/wchar.h"
+fi
+if ! grep -q '__opaque\[16\]' "$sysroot/include/wchar.h"; then
+  perl -0pi -e 's@typedef struct \{ unsigned int __state; unsigned int __opaque; \} mbstate_t;@typedef struct { unsigned char __opaque[16]; } mbstate_t;@' "$sysroot/include/wchar.h"
+fi
+if [ ! -f "$sysroot/include/wctype.h" ]; then
+  cat > "$sysroot/include/wctype.h" <<'WCTYPE_H'
+#ifndef _DARWIN_BOOTSTRAP_WCTYPE_H
+#define _DARWIN_BOOTSTRAP_WCTYPE_H
+#include <ctype.h>
+#include <wchar.h>
+typedef unsigned long wctype_t;
+typedef int wctrans_t;
+static inline int __darwin_bootstrap_wchar_byte(wint_t wc) { return wc >= 0 && wc <= 255; }
+static inline int iswalnum(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isalnum((int)wc) : 0; }
+static inline int iswalpha(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isalpha((int)wc) : 0; }
+static inline int iswblank(wint_t wc) { return wc == ' ' || wc == '\t'; }
+static inline int iswcntrl(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? iscntrl((int)wc) : 0; }
+static inline int iswdigit(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isdigit((int)wc) : 0; }
+static inline int iswgraph(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isgraph((int)wc) : 0; }
+static inline int iswlower(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? islower((int)wc) : 0; }
+static inline int iswprint(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isprint((int)wc) : 0; }
+static inline int iswpunct(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? ispunct((int)wc) : 0; }
+static inline int iswspace(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isspace((int)wc) : 0; }
+static inline int iswupper(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isupper((int)wc) : 0; }
+static inline int iswxdigit(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? isxdigit((int)wc) : 0; }
+static inline wint_t towlower(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? tolower((int)wc) : wc; }
+static inline wint_t towupper(wint_t wc) { return __darwin_bootstrap_wchar_byte(wc) ? toupper((int)wc) : wc; }
+static inline wctype_t wctype(const char *name) { (void)name; return 0; }
+static inline int iswctype(wint_t wc, wctype_t desc) { (void)wc; (void)desc; return 0; }
+static inline wctrans_t wctrans(const char *name) { (void)name; return 0; }
+static inline wint_t towctrans(wint_t wc, wctrans_t desc) { (void)desc; return wc; }
+#endif
+WCTYPE_H
+fi
+if [ ! -f "$sysroot/include/AvailabilityMacros.h" ]; then
+  cat > "$sysroot/include/AvailabilityMacros.h" <<'AVAILABILITY_MACROS_H'
+#ifndef _DARWIN_BOOTSTRAP_AVAILABILITY_MACROS_H
+#define _DARWIN_BOOTSTRAP_AVAILABILITY_MACROS_H
+#ifndef MAC_OS_X_VERSION_MIN_REQUIRED
+#define MAC_OS_X_VERSION_MIN_REQUIRED 140400
+#endif
+#ifndef MAC_OS_X_VERSION_MAX_ALLOWED
+#define MAC_OS_X_VERSION_MAX_ALLOWED 140400
+#endif
+#endif
+AVAILABILITY_MACROS_H
+fi
+if [ ! -f "$sysroot/include/xlocale.h" ]; then
+  cat > "$sysroot/include/xlocale.h" <<'XLOCALE_H'
+#ifndef _DARWIN_BOOTSTRAP_XLOCALE_H
+#define _DARWIN_BOOTSTRAP_XLOCALE_H
+typedef void *locale_t;
+#define LC_GLOBAL_LOCALE ((locale_t)-1)
+#define LC_C_LOCALE ((locale_t)0)
+#ifndef MB_CUR_MAX_L
+#define MB_CUR_MAX_L(x) (1)
+#endif
+locale_t uselocale(locale_t);
+#endif
+XLOCALE_H
 fi
 if [ -f "$sysroot/include/sys/resource.h" ] && ! grep -q 'getrusage' "$sysroot/include/sys/resource.h"; then
   perl -0pi -e 's@(#endif\n)\z@#ifdef __cplusplus\nextern "C" {\n#endif\nint getrusage(int, struct rusage *);\n#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/sys/resource.h"
@@ -219,11 +320,11 @@ export STRIP="$cctools/bin/strip"
 export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
 export PATH="$compiler/bin:$cctools/bin:$PATH"
-export MACOSX_DEPLOYMENT_TARGET=10.8
-export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0 -Dwint_t=int}"
-export CXXFLAGS="${GCC_MODERN_CXXFLAGS:--O2 -g0}"
-export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
-export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
+  export MACOSX_DEPLOYMENT_TARGET=10.8
+  export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0 -Dwint_t=int}"
+  export CXXFLAGS="${GCC_MODERN_CXXFLAGS:--O2 -g0 -std=c++14}"
+  export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
+  export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -std=c++14 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
 export CFLAGS_FOR_TARGET="${GCC_MODERN_CFLAGS_FOR_TARGET:--O2 -g0}"
 export CXXFLAGS_FOR_TARGET="${GCC_MODERN_CXXFLAGS_FOR_TARGET:--O2 -g0}"
 export LDFLAGS="${GCC_MODERN_LDFLAGS:-$bootstrap_link_flags}"
@@ -348,8 +449,9 @@ package_modern_compiler() {
 #!/usr/bin/env bash
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
+default_sdk="$sdk"
 driver="\$root/libexec/gcc/$target/$version/xgcc"
-driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/")
+driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/" --sysroot="\$root/$target" -isystem "\$root/$target/include" -isystem "\$default_sdk/usr/include")
 is_conftest_args() {
   local arg
   for arg in "\$@"; do
@@ -390,23 +492,55 @@ run_driver() {
   fi
 }
 append_wl_args() {
-  local rest part
+  local rest part need_arg=
   rest=\${1#-Wl,}
   while [ "\$rest" != "\${rest#*,}" ]; do
     part=\${rest%%,*}
-    case "\$part" in
-      -syslibroot)
-        ld_args+=(-Wl,-syslibroot)
-        ;;
-      *)
-        [ -n "\$part" ] && ld_args+=("\$part")
-        ;;
-    esac
+    if [ "\$need_arg" = -syslibroot ]; then
+      ld_args+=(-syslibroot "\$part")
+      need_arg=
+    else
+      case "\$part" in
+        -syslibroot)
+          need_arg=-syslibroot
+          ;;
+        *)
+          [ -n "\$part" ] && ld_args+=("\$part")
+          ;;
+      esac
+    fi
     rest=\${rest#*,}
   done
-  [ -n "\$rest" ] && ld_args+=("\$rest")
+  if [ "\$need_arg" = -syslibroot ]; then
+    ld_args+=(-syslibroot "\$rest")
+  elif [ -n "\$rest" ]; then
+    ld_args+=("\$rest")
+  fi
+}
+add_default_link_args() {
+  local arg have_syslibroot=0 have_lsystem=0
+  for arg in "\${ld_args[@]}"; do
+    [ "\$arg" = -syslibroot ] && have_syslibroot=1
+    [ "\$arg" = -lSystem ] && have_lsystem=1
+  done
+  [ "\$have_syslibroot" = 1 ] || ld_args+=(-syslibroot "\$default_sdk")
+  [ "\$have_lsystem" = 1 ] || ld_args+=(-lSystem)
+}
+cxx_link_args() {
+  local i=0
+  cxx_args=()
+  while [ "\$i" -lt "\${#ld_args[@]}" ]; do
+    if [ "\${ld_args[\$i]}" = -syslibroot ] && [ "\$((i + 1))" -lt "\${#ld_args[@]}" ]; then
+      i=\$((i + 1))
+      cxx_args+=("-Wl,-syslibroot,\${ld_args[\$i]}")
+    else
+      cxx_args+=("\${ld_args[\$i]}")
+    fi
+    i=\$((i + 1))
+  done
 }
 host_conftest_compile() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out=conftest.o prev= arg source=
   local host_args=()
   for arg in "\$@"; do
@@ -436,8 +570,10 @@ host_conftest_compile() {
   /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out= source= prev= arg
   local host_args=()
+  local saw_std=0
   for arg in "\$@"; do
     if [ "\$prev" = -o ]; then
       out="\$arg"
@@ -467,12 +603,21 @@ host_source_compile() {
         ;;
       -Werror*)
         ;;
+      -std=*)
+        saw_std=1
+        host_args+=("\$arg")
+        ;;
       *)
         host_args+=("\$arg")
         ;;
     esac
   done
   [ -n "\$source" ] || return 1
+  case "\$source" in
+    *.cc|*.cxx|*.cpp|*.C)
+      [ "\$saw_std" = 1 ] || host_args+=(-std=c++14)
+      ;;
+  esac
   case "\$PWD:\$source" in
     */phase46-gcc-latest/build/gcc*:*|*/phase46-gcc-latest/build/libiberty*:*|*/phase46-gcc-latest/build/libcpp*:*|*/phase46-gcc-latest/build/libdecnumber*:*|*/phase46-gcc-latest/build/zlib*:*|*/phase46-gcc-latest/build/gmp*:*|*/phase46-gcc-latest/build/mpfr*:*|*/phase46-gcc-latest/build/mpc*:*|*/phase46-gcc-latest/build/libbacktrace*:*|*/phase46-gcc-latest/build/libcody*:*|*/phase46-gcc-latest/build/fixincludes*:*|*/phase46-gcc-latest/build/build-*/fixincludes*:*)
       /usr/bin/cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
@@ -488,6 +633,7 @@ host_source_compile() {
   esac
 }
 host_conftest_link() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out=a.out prev= arg source
   local host_args=()
   for arg in "\$@"; do
@@ -535,7 +681,7 @@ for arg in "\$@"; do
   esac
 done
 if [ "\$preprocess_only" = 1 ]; then
-  if is_conftest_args "\$@"; then
+  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
     /usr/bin/cc -arch x86_64 -E "\$@"
     exit "\$?"
   fi
@@ -574,15 +720,17 @@ if [ "\$compile_only" = 1 ]; then
     exit 0
   fi
   if is_conftest_args "\$@"; then
-    host_conftest_compile "\$@"
-    exit "\$?"
+    if host_conftest_compile "\$@"; then
+      exit 0
+    fi
   fi
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
 
 if is_conftest_args "\$@"; then
-  host_conftest_link "\$@"
-  exit "\$?"
+  if host_conftest_link "\$@"; then
+    exit 0
+  fi
 fi
 
 tmpdir=\$(mktemp -d "\${TMPDIR:-/tmp}/gcc-modern-link.XXXXXX")
@@ -626,9 +774,11 @@ done
 if [ "\${#objects[@]}" = 0 ]; then
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
+add_default_link_args
 case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
-    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+    cxx_link_args
+    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     ;;
 esac
 exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
@@ -638,9 +788,10 @@ WRAPPER
 #!/usr/bin/env bash
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
+default_sdk="$sdk"
 cxx_inc=\$(ls -d "\$root"/include/c++/* 2>/dev/null | sort | tail -1 || true)
 driver="\$root/libexec/gcc/$target/$version/xg++"
-driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/")
+driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/" --sysroot="\$root/$target" -isystem "\$root/$target/include" -isystem "\$default_sdk/usr/include")
 if [ -n "\$cxx_inc" ] && [ -d "\$cxx_inc" ]; then
   driver_args+=(-nostdinc++ -isystem "\$cxx_inc" -isystem "\$cxx_inc/$target")
 fi
@@ -684,23 +835,55 @@ run_driver() {
   fi
 }
 append_wl_args() {
-  local rest part
+  local rest part need_arg=
   rest=\${1#-Wl,}
   while [ "\$rest" != "\${rest#*,}" ]; do
     part=\${rest%%,*}
-    case "\$part" in
-      -syslibroot)
-        ld_args+=(-Wl,-syslibroot)
-        ;;
-      *)
-        [ -n "\$part" ] && ld_args+=("\$part")
-        ;;
-    esac
+    if [ "\$need_arg" = -syslibroot ]; then
+      ld_args+=(-syslibroot "\$part")
+      need_arg=
+    else
+      case "\$part" in
+        -syslibroot)
+          need_arg=-syslibroot
+          ;;
+        *)
+          [ -n "\$part" ] && ld_args+=("\$part")
+          ;;
+      esac
+    fi
     rest=\${rest#*,}
   done
-  [ -n "\$rest" ] && ld_args+=("\$rest")
+  if [ "\$need_arg" = -syslibroot ]; then
+    ld_args+=(-syslibroot "\$rest")
+  elif [ -n "\$rest" ]; then
+    ld_args+=("\$rest")
+  fi
+}
+add_default_link_args() {
+  local arg have_syslibroot=0 have_lsystem=0
+  for arg in "\${ld_args[@]}"; do
+    [ "\$arg" = -syslibroot ] && have_syslibroot=1
+    [ "\$arg" = -lSystem ] && have_lsystem=1
+  done
+  [ "\$have_syslibroot" = 1 ] || ld_args+=(-syslibroot "\$default_sdk")
+  [ "\$have_lsystem" = 1 ] || ld_args+=(-lSystem)
+}
+cxx_link_args() {
+  local i=0
+  cxx_args=()
+  while [ "\$i" -lt "\${#ld_args[@]}" ]; do
+    if [ "\${ld_args[\$i]}" = -syslibroot ] && [ "\$((i + 1))" -lt "\${#ld_args[@]}" ]; then
+      i=\$((i + 1))
+      cxx_args+=("-Wl,-syslibroot,\${ld_args[\$i]}")
+    else
+      cxx_args+=("\${ld_args[\$i]}")
+    fi
+    i=\$((i + 1))
+  done
 }
 host_conftest_compile() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out=conftest.o prev= arg source=
   local host_args=()
   for arg in "\$@"; do
@@ -730,8 +913,10 @@ host_conftest_compile() {
   /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out= source= prev= arg
   local host_args=()
+  local saw_std=0
   for arg in "\$@"; do
     if [ "\$prev" = -o ]; then
       out="\$arg"
@@ -769,12 +954,21 @@ host_source_compile() {
         ;;
       -Werror*)
         ;;
+      -std=*)
+        saw_std=1
+        host_args+=("\$arg")
+        ;;
       *)
         host_args+=("\$arg")
         ;;
     esac
   done
   [ -n "\$source" ] || return 1
+  case "\$source" in
+    *.cc|*.cxx|*.cpp|*.C)
+      [ "\$saw_std" = 1 ] || host_args+=(-std=c++14)
+      ;;
+  esac
   case "\$PWD:\$source" in
     */phase46-gcc-latest/build/gcc*:*|*/phase46-gcc-latest/build/libiberty*:*|*/phase46-gcc-latest/build/libcpp*:*|*/phase46-gcc-latest/build/libdecnumber*:*|*/phase46-gcc-latest/build/zlib*:*|*/phase46-gcc-latest/build/gmp*:*|*/phase46-gcc-latest/build/mpfr*:*|*/phase46-gcc-latest/build/mpc*:*|*/phase46-gcc-latest/build/libbacktrace*:*|*/phase46-gcc-latest/build/libcody*:*|*/phase46-gcc-latest/build/fixincludes*:*|*/phase46-gcc-latest/build/build-*/fixincludes*:*)
       /usr/bin/c++ -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
@@ -790,6 +984,7 @@ host_source_compile() {
   esac
 }
 host_conftest_link() {
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
   local out=a.out prev= arg source
   local host_args=()
   for arg in "\$@"; do
@@ -837,7 +1032,7 @@ for arg in "\$@"; do
   esac
 done
 if [ "\$preprocess_only" = 1 ]; then
-  if is_conftest_args "\$@"; then
+  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
     /usr/bin/c++ -arch x86_64 -E "\$@"
     exit "\$?"
   fi
@@ -876,15 +1071,17 @@ if [ "\$compile_only" = 1 ]; then
     exit 0
   fi
   if is_conftest_args "\$@"; then
-    host_conftest_compile "\$@"
-    exit "\$?"
+    if host_conftest_compile "\$@"; then
+      exit 0
+    fi
   fi
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
 
 if is_conftest_args "\$@"; then
-  host_conftest_link "\$@"
-  exit "\$?"
+  if host_conftest_link "\$@"; then
+    exit 0
+  fi
 fi
 
 tmpdir=\$(mktemp -d "\${TMPDIR:-/tmp}/gxx-modern-link.XXXXXX")
@@ -928,9 +1125,11 @@ done
 if [ "\${#objects[@]}" = 0 ]; then
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
+add_default_link_args
 case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
-    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+    cxx_link_args
+    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     ;;
 esac
 exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
@@ -1137,6 +1336,11 @@ BACKTRACE_STUB_C
     -e 's@^maybe-all-isl: all-isl$@maybe-all-isl:@m;' \
     -e 's@^maybe-configure-isl: configure-isl$@maybe-configure-isl:@m;' \
     -e 's@^maybe-install-isl: install-isl$@maybe-install-isl:@m;' \
+    -e 's@^maybe-all-libcody: all-libcody$@maybe-all-libcody:@m;' \
+    -e 's@^maybe-configure-libcody: configure-libcody$@maybe-configure-libcody:@m;' \
+    -e 's@^maybe-install-libcody: install-libcody$@maybe-install-libcody:@m;' \
+    -e 's@^maybe-install-strip-libcody: install-strip-libcody$@maybe-install-strip-libcody:@m;' \
+    -e 's@^all-gcc: all-libcody$@all-gcc:@m;' \
     -e 's@^maybe-all-build-fixincludes: all-build-fixincludes$@maybe-all-build-fixincludes:@m;' \
     -e 's@^maybe-configure-build-fixincludes: configure-build-fixincludes$@maybe-configure-build-fixincludes:@m;' \
     -e 's@^maybe-all-fixincludes: all-fixincludes$@maybe-all-fixincludes:@m;' \

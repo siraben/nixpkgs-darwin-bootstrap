@@ -129,7 +129,7 @@ case "$phase" in
       "$phase34" \
       "$cctools" \
       "$out" \
-      latest \
+      "${GCC_LATEST_VERSION:-16.1.0}" \
       gcc-latest
     ;;
   -h|--help)
