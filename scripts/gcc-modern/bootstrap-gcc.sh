@@ -35,7 +35,7 @@ if [ -f src/gcc/gcc.c ] && grep -q 'not configured with sysroot headers suffix' 
   perl -0pi -e 's@if \(print_sysroot_headers_suffix\)\s*\{\s*if \(\*sysroot_hdrs_suffix_spec\)\s*\{\s*printf\("%s\\n", \(target_sysroot_hdrs_suffix\s*\? target_sysroot_hdrs_suffix\s*: ""\)\);\s*return \(0\);\s*\}\s*else\s*/\* The error status indicates that only one set of fixed\s*headers should be built\.  \*/\s*fatal_error \(input_location,\s*"not configured with sysroot headers suffix"\);\s*\}@if (print_sysroot_headers_suffix)\n    {\n      printf("%s\\n", (*sysroot_hdrs_suffix_spec && target_sysroot_hdrs_suffix\n                      ? target_sysroot_hdrs_suffix\n                      : ""));\n      return (0);\n    }@s' src/gcc/gcc.c
 fi
 if [ -f src/libgcc/configure ] && grep -q 'grep host_address=' src/libgcc/configure; then
-  perl -0pi -e 's@cat > conftest\.c <<EOF\s*#if defined\(__x86_64__\) \|\| \(!defined\(__i386__\) && defined\(__LP64__\)\) \\\\\s*\|\| defined\(__mips64\)\s*host_address=64\s*#else\s*host_address=32\s*#endif\s*EOF\s*eval `\$\{CC-cc\} -E conftest\.c \| grep host_address=`\s*rm -f conftest\.c@host_address=64@s' src/libgcc/configure
+  perl -0pi -e 's@cat > conftest\.c <<EOF\n#if defined\(__x86_64__\).*?eval `\$\{CC-cc\} -E conftest\.c \| grep host_address=`\nrm -f conftest\.c@host_address=64@s' src/libgcc/configure
 fi
 if [ -f src/gcc/c/Make-lang.in ]; then
   perl -0pi -e 's@^selftest-c: s-selftest-c$@selftest-c:@m' src/gcc/c/Make-lang.in
