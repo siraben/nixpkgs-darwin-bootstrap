@@ -136,7 +136,7 @@ while [ "\$#" -gt 0 ]; do
       compiler_args+=("\$1")
       shift
       ;;
-    -L|-l*|*.a)
+    -L|-L*|-l*|*.a)
       link_args+=("\$1")
       if [ "\$1" = -L ]; then
         link_args+=("\$2")
@@ -441,10 +441,10 @@ host_compile_source() {
   done
   MACOSX_DEPLOYMENT_TARGET=10.8 "\$host_generated_cc" -arch x86_64 \
     -mmacosx-version-min=10.8 \
-    -fno-asynchronous-unwind-tables -fno-unwind-tables \
+    -fno-asynchronous-unwind-tables -fno-unwind-tables -fno-stack-protector \
     -Wno-error -Wno-format-security \
     "\${host_args[@]}" \
-    -c "\$input" -o "\$object_out"
+    -c "\$input" -o "\$object_out" || return 1
   return 0
 }
 
@@ -622,15 +622,44 @@ if [ "\$object_format" = macho ]; then
   if [ -n "\$macho_as" ]; then
     cat > "\$tmpdir/darwin-stdio.s" <<'ASM'
 	.data
+	.p2align 3
 	.globl _stdin
 _stdin:
-	.quad ___stdinp
+	.quad 0
 	.globl _stdout
 _stdout:
-	.quad ___stdoutp
+	.quad 0
 	.globl _stderr
 _stderr:
-	.quad ___stderrp
+	.quad 0
+	.text
+	.p2align 4
+_darwin_bootstrap_stdio_init:
+	movq ___stdinp@GOTPCREL(%rip), %rax
+	movq (%rax), %rax
+	movq %rax, _stdin(%rip)
+	movq ___stdoutp@GOTPCREL(%rip), %rax
+	movq (%rax), %rax
+	movq %rax, _stdout(%rip)
+	movq ___stderrp@GOTPCREL(%rip), %rax
+	movq (%rax), %rax
+	movq %rax, _stderr(%rip)
+	ret
+	.globl _fputc_unlocked
+_fputc_unlocked:
+	jmp _fputc
+	.globl _fputs_unlocked
+_fputs_unlocked:
+	jmp _fputs
+	.globl _fread_unlocked
+_fread_unlocked:
+	jmp _fread
+	.globl _fwrite_unlocked
+_fwrite_unlocked:
+	jmp _fwrite
+	.section __DATA,__mod_init_func,mod_init_funcs
+	.p2align 3
+	.quad _darwin_bootstrap_stdio_init
 ASM
     "\$macho_as" -arch x86_64 "\$tmpdir/darwin-stdio.s" -o "\$tmpdir/darwin-stdio.o"
     objects+=("\$tmpdir/darwin-stdio.o")

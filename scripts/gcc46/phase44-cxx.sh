@@ -86,14 +86,16 @@ export STRIP="$cctools/bin/strip"
 export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
 export PATH="$cctools/bin:$PATH"
-export MACOSX_DEPLOYMENT_TARGET=10.6
+export MACOSX_DEPLOYMENT_TARGET=10.8
 phase44_cflags="${PHASE44_CFLAGS:--g0}"
 phase44_cflags_for_build="${PHASE44_CFLAGS_FOR_BUILD:-$phase44_cflags}"
 export CFLAGS="$phase44_cflags"
 export CFLAGS_FOR_BUILD="$phase44_cflags_for_build"
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
+  export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
   export GCC46_BOOTSTRAP_MACHO_CC="${GCC46_BOOTSTRAP_MACHO_CC:-/usr/bin/cc}"
+  export GCC46_BOOTSTRAP_HOST_CC="${GCC46_BOOTSTRAP_HOST_CC:-/usr/bin/cc}"
 fi
 export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
@@ -200,6 +202,23 @@ s-extract:
 s-peep:
 	@test -f insn-peep.c
 	$(STAMP) s-peep
+
+# DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP
+stmp-fixinc:
+	@mkdir -p include-fixed
+	@cp gsyslimits.h include-fixed/syslimits.h
+	$(STAMP) stmp-fixinc
+MAKE
+fi
+
+if ! grep -q DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP src/gcc/Makefile.in; then
+  cat >> src/gcc/Makefile.in <<'MAKE'
+
+# DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP
+stmp-fixinc:
+	@mkdir -p include-fixed
+	@cp gsyslimits.h include-fixed/syslimits.h
+	$(STAMP) stmp-fixinc
 MAKE
 fi
 
@@ -396,6 +415,67 @@ else
   printf 'Reusing existing phase44 configure state in %s\n' "$PWD" > "$bootstrap_share/configure.resume"
 fi
 
+remove_phase34_header_symlinks() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+  find "$dir" -type l | while read -r link; do
+    target="$(readlink "$link")"
+    case "$target" in
+      "$phase34"/include/tcc-darwin-bootstrap/*)
+        rm -f "$link"
+        ;;
+    esac
+  done
+}
+
+rewrite_phase34_store_refs() {
+  find . -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.log \) \
+    -exec perl -0pi -e "s#/nix/store/[A-Za-z0-9]+-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64#$phase34#g" {} +
+}
+
+rebuild_macho_archive() {
+  local dir="$1"
+  shift
+  remove_phase34_header_symlinks "$dir"
+  MAKEFLAGS= "$make_tool" -C "$dir" -j1 clean >/dev/null 2>&1 || true
+  env \
+    GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
+    GCC46_BOOTSTRAP_HOST_CC_SOURCES="${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-1}" \
+    GCC46_BOOTSTRAP_AS="$GCC46_BOOTSTRAP_AS" \
+    GCC46_BOOTSTRAP_MACHO_CC="$GCC46_BOOTSTRAP_MACHO_CC" \
+    GCC46_BOOTSTRAP_HOST_CC="$GCC46_BOOTSTRAP_HOST_CC" \
+    MAKEFLAGS= \
+    "$make_tool" -C "$dir" -j1 \
+      CC="$CC" \
+      CFLAGS="$CFLAGS" \
+      AR="$AR" \
+      RANLIB="$RANLIB" \
+      "$@"
+}
+
+install_macho_tool_wrappers() {
+  [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
+  [ -d gcc ] || return 0
+  cat > gcc/as <<EOF
+#!/bin/sh
+exec "$GCC46_BOOTSTRAP_AS" "\$@"
+EOF
+  cat > gcc/collect-ld <<EOF
+#!/bin/sh
+exec "$GCC46_BOOTSTRAP_LD" "\$@"
+EOF
+  chmod +x gcc/as gcc/collect-ld
+}
+
+postprocess_macho_specs() {
+  [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
+  [ -f gcc/specs ] || return 0
+  GCC46_BOOTSTRAP_LD_FOR_PERL="$GCC46_BOOTSTRAP_LD" perl -0 -p -i \
+    -e 's/%\{!c:%\{!S:-auxbase %b\}\}/%{!c:%{!S:-auxbase-strip %|.s}}/g;' \
+    -e 's@\*linker:\x0acollect2@(qq{*linker:}.chr(10).$ENV{GCC46_BOOTSTRAP_LD_FOR_PERL})@eg' \
+    gcc/specs
+}
+
 make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # The phase39 GNU Make is intentionally minimal and does not yet have a
 # bootstrap-proven jobserver/pipe path.  Keep Nix builds serial by default, but
@@ -403,6 +483,27 @@ make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 build_cores=${BOOTSTRAP_JOBS:-1}
 make_dir=${PHASE44_MAKE_DIR:-.}
 make_targets=${PHASE44_TARGETS:-"all-gcc all-target-libstdc++-v3"}
+
+rewrite_phase34_store_refs
+install_macho_tool_wrappers
+postprocess_macho_specs
+
+if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${PHASE44_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
+  rebuild_macho_archive libiberty all
+  rebuild_macho_archive zlib all
+  rebuild_macho_archive gmp all
+  rebuild_macho_archive mpfr \
+    CPPFLAGS="-I$PWD/gmp" \
+    LDFLAGS="-L$PWD/gmp/.libs" \
+    all
+  rebuild_macho_archive mpc \
+    CPPFLAGS="-DNULL=0 -I$PWD/gmp -I$PWD/mpfr" \
+    LDFLAGS="-L$PWD/gmp/.libs -L$PWD/mpfr/.libs" \
+    all
+  rebuild_macho_archive libcpp all
+  rebuild_macho_archive libdecnumber all
+  find gcc -name '*.o' -type f -delete
+fi
 
 if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
   MAKEFLAGS= "$make_tool" -j1 \
@@ -437,6 +538,9 @@ MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
   $make_targets \
   > "$bootstrap_share/make.stdout" \
   2> "$bootstrap_share/make.stderr"
+
+install_macho_tool_wrappers
+postprocess_macho_specs
 
 if [ "${PHASE44_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc all-target-libstdc++-v3" ]; then
   exit 0

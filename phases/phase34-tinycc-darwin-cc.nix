@@ -93,8 +93,11 @@ with args;
         typedef unsigned int uid_t;
         typedef unsigned int gid_t;
         typedef long off_t;
-        typedef unsigned long ino_t;
-        typedef unsigned long dev_t;
+        typedef unsigned int ino_t;
+        typedef int dev_t;
+        typedef unsigned short nlink_t;
+        typedef long blkcnt_t;
+        typedef int blksize_t;
         typedef long time_t;
         typedef long clock_t;
         typedef char *caddr_t;
@@ -105,9 +108,40 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_SYS_STAT_H
         #define _DARWIN_BOOTSTRAP_SYS_STAT_H
         typedef long off_t;
-        typedef int mode_t;
-        typedef unsigned long dev_t;
-        struct stat { unsigned long st_dev; unsigned long st_ino; unsigned int st_mode; unsigned int st_nlink; unsigned int st_uid; unsigned int st_gid; unsigned long st_rdev; off_t st_size; long st_atime; long st_mtime; long st_ctime; };
+        typedef unsigned short mode_t;
+        typedef int dev_t;
+        typedef unsigned short nlink_t;
+        typedef unsigned int uid_t;
+        typedef unsigned int gid_t;
+        typedef unsigned int ino_t;
+        typedef long blkcnt_t;
+        typedef int blksize_t;
+        #ifndef _STRUCT_TIMESPEC
+        #define _STRUCT_TIMESPEC struct timespec
+        struct timespec { long tv_sec; long tv_nsec; };
+        #endif
+        struct stat {
+          dev_t st_dev;
+          ino_t st_ino;
+          mode_t st_mode;
+          nlink_t st_nlink;
+          uid_t st_uid;
+          gid_t st_gid;
+          dev_t st_rdev;
+          struct timespec st_atimespec;
+          struct timespec st_mtimespec;
+          struct timespec st_ctimespec;
+          off_t st_size;
+          blkcnt_t st_blocks;
+          blksize_t st_blksize;
+          unsigned int st_flags;
+          unsigned int st_gen;
+          int st_lspare;
+          long st_qspare[2];
+        };
+        #define st_atime st_atimespec.tv_sec
+        #define st_mtime st_mtimespec.tv_sec
+        #define st_ctime st_ctimespec.tv_sec
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
         int lstat(const char *, struct stat *);
@@ -180,7 +214,10 @@ with args;
         #define _DARWIN_BOOTSTRAP_TIME_H
         typedef long time_t;
         typedef long clock_t;
+        #ifndef _STRUCT_TIMESPEC
+        #define _STRUCT_TIMESPEC struct timespec
         struct timespec { long tv_sec; long tv_nsec; };
+        #endif
         struct tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
         time_t time(time_t *);
         clock_t clock(void);

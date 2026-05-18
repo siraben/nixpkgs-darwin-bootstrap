@@ -7,4 +7,5 @@ with args;
       cd $out
       patch -p1 < ${root + "/patches/gcc46-genconditions-tcc-safe.patch"}
       patch -p1 < ${root + "/patches/gcc46-darwin-bootstrap-host.patch"}
+      patch -p1 < ${root + "/patches/gcc46-darwin-macho-driver.patch"}
     ''

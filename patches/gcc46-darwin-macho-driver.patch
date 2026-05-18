@@ -1,0 +1,47 @@
+diff -urN a/gcc/config/darwin-driver.c b/gcc/config/darwin-driver.c
+--- a/gcc/config/darwin-driver.c
++++ b/gcc/config/darwin-driver.c
+@@ -68,7 +68,8 @@
+ 	/* Apparently, an empty string for MACOSX_DEPLOYMENT_TARGET means
+ 	   "use the default".  Or, possibly "use 10.1".  We choose
+ 	   to ignore the environment variable, as if it was never set.  */
+-	&& macosx_deployment_target[0])
++	&& macosx_deployment_target[0]
++	&& strncmp (macosx_deployment_target, "10.", 3) == 0)
+       {
+ 	++*decoded_options_count;
+ 	*decoded_options = XNEWVEC (struct cl_decoded_option,
+@@ -80,6 +81,21 @@
+ 		(argc - 1) * sizeof (struct cl_decoded_option));
+ 	return;
+       }
++
++    /* The bootstrap compiler is built on modern Darwin hosts but targets the
++       old x86_64 Darwin ABI used by the bootstrap chain.  GCC 4.6 cannot parse
++       host releases such as macOS 14+ as -mmacosx-version-min values, so keep
++       the native driver deterministic unless the caller set MACOSX_DEPLOYMENT_TARGET
++       to an old 10.x deployment explicitly.  */
++    ++*decoded_options_count;
++    *decoded_options = XNEWVEC (struct cl_decoded_option,
++				*decoded_options_count);
++    (*decoded_options)[0] = argv[0];
++    generate_option (OPT_mmacosx_version_min_, "10.8",
++		     1, CL_DRIVER, &(*decoded_options)[1]);
++    memcpy (*decoded_options + 2, argv + 1,
++	    (argc - 1) * sizeof (struct cl_decoded_option));
++    return;
+   }
+ 
+   /* Determine the version of the running OS.  If we can't, warn user,
+diff -urN a/gcc/gcc.c b/gcc/gcc.c
+--- a/gcc/gcc.c
++++ b/gcc/gcc.c
+@@ -763,7 +763,7 @@
+  %{!iplugindir*:%{fplugin*:%:find-plugindir()}}\
+  %1 %{!Q:-quiet} %{!dumpbase:-dumpbase %B} %{d*} %{m*} %{aux-info*}\
+  %{fcompare-debug-second:%:compare-debug-auxbase-opt(%b)} \
+- %{!fcompare-debug-second:%{c|S:%{o*:-auxbase-strip %*}%{!o*:-auxbase %b}}}%{!c:%{!S:-auxbase %b}} \
++ %{!fcompare-debug-second:%{c|S:%{o*:-auxbase-strip %*}%{!o*:-auxbase %b}}}%{!c:%{!S:-auxbase-strip %|.s}} \
+  %{g*} %{O*} %{W*&pedantic*} %{w} %{std*&ansi&trigraphs}\
+  %{v:-version} %{pg:-p} %{p} %{f*} %{undef}\
+  %{Qn:-fno-ident} %{Qy:} %{-help:--help}\

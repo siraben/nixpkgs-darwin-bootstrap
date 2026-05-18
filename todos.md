@@ -23,7 +23,10 @@
 - [x] Added a broader `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` impure discovery mode after full bootstrapped `all-gcc` iteration proved too slow.
 - [x] Validated `caller-save.o` as a Mach-O x86_64 object through the broader impure host-CC source shortcut.
 - [x] Fixed host-CC discovery mode to suppress Apple clang warning-errors that left `dwarf2asm.o`, `dwarf2out.o`, `opts.o`, `tree-sra.o`, and `tree-ssa-uninit.o` missing.
-- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` with the fixed host-CC discovery mode to discover the next link or source-layout failure, then backfill the bootstrap-owned path.
+- [x] Fixed GCC 4.6 Mach-O runtime blockers found after `all-gcc`: Darwin stdio globals now initialize from libSystem at load time, phase34 `struct stat` matches Darwin's legacy x86_64 ABI, and `xgcc` emits Mach-O objects.
+- [x] Patched the GCC 4.6 driver path for Mach-O bootstrap iteration: default bad host deployment targets are forced back to `10.8`, compile-and-link cc1 invocations use temp-path `-auxbase-strip`, and specs can bypass crashing `collect2` in favor of the Mach-O linker.
+- [x] Validated current impure GCC 4.6 smoke path: `xgcc -c` produces a Mach-O x86_64 object, and `xgcc -isysroot … -nostartfiles -nodefaultlibs … -lSystem` links a Mach-O executable returning 42.
+- [ ] Current phase44 blocker: rebuild the full phase44 install path with the Mach-O driver/spec patches, then decide whether to build a Mach-O `libgcc` or keep the current `-nostartfiles -nodefaultlibs` bootstrap link boundary for the next phase.
 - [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
 
 ## Running Log
@@ -36,6 +39,7 @@
 - 2026-05-18: Made phase44 pass overridable `PHASE44_CFLAGS`/`PHASE44_CFLAGS_FOR_BUILD`, defaulting to `-g0`; validated `ggc-page.o` through the bootstrapped GCC 4.6 wrapper as Mach-O.
 - 2026-05-18: Added `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` as an impure-only discovery mode after normal GCC frontend files compiled correctly but slowly through the bootstrapped wrapper; `caller-save.o` validates as Mach-O.
 - 2026-05-18: The first host-CC discovery run reached `libbackend.a`; added `-Wno-error -Wno-format-security` to the host shortcut and validated the five previously missing backend objects as Mach-O.
+- 2026-05-18: Rebuilt phase44 `libcpp`, `cc1`, and `xgcc` after fixing Darwin stdio/stat ABI issues; `xgcc` now emits Mach-O x86_64 objects, and a smoke executable links/runs through the impure Mach-O linker with explicit `-isysroot`, `-nostartfiles`, and `-nodefaultlibs`.
 
 ## Current runnable chain
 
