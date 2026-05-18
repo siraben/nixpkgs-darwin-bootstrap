@@ -264,6 +264,9 @@ s-gtype:
 	@test -f gtype-desc.h
 	@test -f gtype.state
 	$(STAMP) s-gtype
+s-iov:
+	@test -f gcov-iov.h
+	$(STAMP) s-iov
 MAKE
 fi
 
@@ -273,10 +276,26 @@ if ! grep -q DARWIN_BOOTSTRAP_GCC_GENERATOR_BINARIES src/gcc/Makefile.in; then
 # DARWIN_BOOTSTRAP_GCC_GENERATOR_BINARIES
 $(genprog:%=build/gen%$(build_exeext)):
 	@test -f $@
+build/gcov-iov$(build_exeext):
+	@test -x $@
+gcov$(exeext) gcov-dump$(exeext):
+	@test -x $@
+build/%.o:
+	@test -f $@
 MAKE
 fi
 
 cd build
+target_include="$PWD/bootstrap-target-include"
+mkdir -p "$target_include"
+cp -R "$phase34/include/tcc-darwin-bootstrap/." "$target_include/"
+chmod -R u+w "$target_include"
+if [ -f "$target_include/sys/types.h" ]; then
+  perl -0pi -e 's/^typedef struct \{ int quot; int rem; \} div_t;\n//m; s/^typedef struct \{ long quot; long rem; \} ldiv_t;\n//m' "$target_include/sys/types.h"
+fi
+if [ -f "$target_include/time.h" ] && ! grep -q '^typedef unsigned long size_t;$' "$target_include/time.h"; then
+  perl -0pi -e 's/^(#define _DARWIN_BOOTSTRAP_TIME_H\n)/$1typedef unsigned long size_t;\n/m' "$target_include/time.h"
+fi
 if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
   for cache_dir in \
     gcc \
@@ -306,8 +325,8 @@ if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
     --build="$target" \
     --host="$target" \
     --target="$target" \
-    --with-native-system-header-dir="$phase34/include/tcc-darwin-bootstrap" \
-    --with-build-sysroot="$phase34/include/tcc-darwin-bootstrap" \
+    --with-native-system-header-dir="$target_include" \
+    --with-build-sysroot="$target_include" \
     --disable-bootstrap \
     --disable-shared \
     --disable-multilib \
@@ -345,15 +364,37 @@ MAKE
     cp -R "$phase35/share/darwin-bootstrap/work/build/$prereq_dir" "$prereq_dir"
     chmod -R u+w "$prereq_dir"
   done
+  find \
+    gmp \
+    mpfr \
+    mpc \
+    libiberty \
+    build-x86_64-apple-darwin/libiberty \
+    fixincludes \
+    build-x86_64-apple-darwin/fixincludes \
+    zlib \
+    libcpp \
+    libdecnumber \
+    -type l | while read -r header_link; do
+    header_target="$(readlink "$header_link")"
+    case "$header_target" in
+      /nix/store/*-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64/include/tcc-darwin-bootstrap/*)
+        rm -f "$header_link"
+        ;;
+    esac
+  done
 
   mkdir -p gcc
   phase35_gcc="$phase35/share/darwin-bootstrap/work/build/gcc"
   for generated_name in \
+    bversion.h \
     build/gencondmd.c \
     genrtl.h \
+    gcov-iov.h \
     gtype.state \
     gtype-desc.c \
     gtype-desc.h \
+    i386-builtin-types.inc \
     insn-addr.h \
     insn-attr.h \
     insn-attrtab.c \
@@ -375,6 +416,7 @@ MAKE
     insn-recog.c \
     mddeps.mk \
     min-insn-modes.c \
+    plugin-version.h \
     target-hooks-def.h \
     tm-constrs.h \
     tm-preds.h \
@@ -394,6 +436,29 @@ MAKE
     chmod -R u+w "gcc/$base_name" 2>/dev/null || true
   done
   for generated_name in "$phase35_gcc"/build/gen*; do
+    [ -f "$generated_name" ] || continue
+    base_name="$(basename "$generated_name")"
+    rm -f "gcc/build/$base_name"
+    mkdir -p gcc/build
+    cp "$generated_name" "gcc/build/$base_name"
+    chmod u+w "gcc/build/$base_name" 2>/dev/null || true
+    touch "gcc/build/$base_name"
+  done
+  if [ -f "$phase35_gcc/build/gcov-iov" ]; then
+    rm -f gcc/build/gcov-iov
+    mkdir -p gcc/build
+    cp "$phase35_gcc/build/gcov-iov" gcc/build/gcov-iov
+    chmod u+wx gcc/build/gcov-iov 2>/dev/null || true
+    touch gcc/build/gcov-iov
+  fi
+  for generated_name in gcov gcov-dump; do
+    [ -f "$phase35_gcc/$generated_name" ] || continue
+    rm -f "gcc/$generated_name"
+    cp "$phase35_gcc/$generated_name" "gcc/$generated_name"
+    chmod u+wx "gcc/$generated_name" 2>/dev/null || true
+    touch "gcc/$generated_name"
+  done
+  for generated_name in "$phase35_gcc"/build/*.o; do
     [ -f "$generated_name" ] || continue
     base_name="$(basename "$generated_name")"
     rm -f "gcc/build/$base_name"
@@ -467,11 +532,27 @@ rewrite_phase34_store_refs() {
     -exec perl -0pi -e "s#/nix/store/[A-Za-z0-9]+-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64#$phase34#g" {} +
 }
 
+fix_darwin_prereq_configs() {
+  if [ -f gmp/config.h ]; then
+    perl -0pi -e 's@/\*\s*#\s*undef\s+HAVE_STRNLEN\s*\*/@#define HAVE_STRNLEN 1@g' gmp/config.h
+  fi
+  if [ -f gmp/config.cache ]; then
+    perl -0pi -e 's@^ac_cv_func_strnlen=.*$@ac_cv_func_strnlen=\${ac_cv_func_strnlen=yes}@m' gmp/config.cache
+  fi
+  for prereq_src in ../src/gmp ../src/mpfr ../src/mpc; do
+    [ -d "$prereq_src" ] || continue
+    [ -f "$prereq_src/aclocal.m4" ] && touch "$prereq_src/aclocal.m4"
+    [ -f "$prereq_src/Makefile.in" ] && touch "$prereq_src/Makefile.in"
+    [ -f "$prereq_src/configure" ] && touch "$prereq_src/configure"
+  done
+}
+
 rebuild_macho_archive() {
   local dir="$1"
   shift
   remove_phase34_header_symlinks "$dir"
   MAKEFLAGS= "$make_tool" -C "$dir" -j1 clean >/dev/null 2>&1 || true
+  fix_darwin_prereq_configs
   env \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
     GCC46_BOOTSTRAP_HOST_CC_SOURCES="${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-1}" \
@@ -479,7 +560,7 @@ rebuild_macho_archive() {
     GCC46_BOOTSTRAP_MACHO_CC="$GCC46_BOOTSTRAP_MACHO_CC" \
     GCC46_BOOTSTRAP_HOST_CC="$GCC46_BOOTSTRAP_HOST_CC" \
     MAKEFLAGS= \
-    "$make_tool" -C "$dir" -j1 \
+    "$make_tool" -C "$dir" -j1 -o Makefile -o config.status \
       CC="$CC" \
       CFLAGS="$CFLAGS" \
       AR="$AR" \
@@ -538,11 +619,32 @@ postprocess_macho_specs() {
       gcc/libgcc.mvars
   fi
   if [ -f x86_64-apple-darwin/libgcc/Makefile ]; then
+    local phase34_include_escaped
+    phase34_include_escaped="$(printf '%s\n' "$target_include" | sed 's/[\/&]/\\&/g')"
     perl -0 -p -i \
       -e 's/^LIBGCOV = .*?\\n\\s*_gcov_merge_ior$/LIBGCOV =/ms;' \
       -e 's/^GCC_EXTRA_PARTS = .*$/GCC_EXTRA_PARTS =/m;' \
+      -e "s@^(INCLUDES = .*?)(\\n\\s*-I\\\$\\(srcdir\\)/\\.\\./include \\$\\(DECNUMINC\\))@\$1\$2 -isystem $phase34_include_escaped@ms;" \
       x86_64-apple-darwin/libgcc/Makefile
   fi
+}
+
+ensure_gcc_internal_headers() {
+  [ -d gcc ] || return 0
+  mkdir -p gcc/include gcc/include-fixed
+  for header in float.h iso646.h stdarg.h stdbool.h stddef.h varargs.h stdfix.h tgmath.h; do
+    [ -f "../src/gcc/ginclude/$header" ] && cp "../src/gcc/ginclude/$header" "gcc/include/$header"
+  done
+  [ -f ../src/gcc/unwind-generic.h ] && cp ../src/gcc/unwind-generic.h gcc/include/unwind.h
+  for header in \
+    cpuid.h mmintrin.h mm3dnow.h xmmintrin.h emmintrin.h pmmintrin.h \
+    tmmintrin.h ammintrin.h smmintrin.h nmmintrin.h bmmintrin.h \
+    fma4intrin.h wmmintrin.h immintrin.h x86intrin.h avxintrin.h \
+    xopintrin.h ia32intrin.h cross-stdarg.h lwpintrin.h popcntintrin.h \
+    abmintrin.h bmiintrin.h tbmintrin.h; do
+    [ -f "../src/gcc/config/i386/$header" ] && cp "../src/gcc/config/i386/$header" "gcc/include/$header"
+  done
+  [ -f gcc/include-fixed/syslimits.h ] || printf '#include <limits.h>\n' > gcc/include-fixed/syslimits.h
 }
 
 append_top_prereq_stubs() {
@@ -600,6 +702,7 @@ make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 build_cores=${BOOTSTRAP_JOBS:-1}
 make_dir=${PHASE44_MAKE_DIR:-.}
 make_targets=${PHASE44_TARGETS:-"all-gcc"}
+gcc_make_targets=${PHASE44_GCC_TARGETS:-"xgcc cc1 c++ g++"}
 
 sdk_path() {
   if [ -n "${PHASE44_SDK_PATH:-}" ]; then
@@ -614,7 +717,7 @@ ensure_target_libgcc_macho() {
   [ "$make_dir" = . ] || return 0
   [ -f gcc/xgcc ] || return 0
   if [ ! -f "$target/libgcc/Makefile" ]; then
-    MAKEFLAGS= "$make_tool" -j1 \
+    MAKEFLAGS= "$make_tool" -j1 -o Makefile -o config.status -o maybe-all-gcc -o all-gcc \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
@@ -622,6 +725,8 @@ ensure_target_libgcc_macho() {
       CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
       CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
       CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+      CRTSTUFF_T_CFLAGS="-isystem $target_include" \
+      LIBGCC2_INCLUDES="-isystem $target_include" \
       AR="$AR" \
       NM="$NM" \
       RANLIB="$RANLIB" \
@@ -635,6 +740,8 @@ ensure_target_libgcc_macho() {
   fi
   MAKEFLAGS= "$make_tool" -C "$target/libgcc" -j1 \
     MAKEINFO=true \
+    CRTSTUFF_T_CFLAGS="-isystem $target_include" \
+    LIBGCC2_INCLUDES="-isystem $target_include" \
     AR="$AR" \
     NM="$NM" \
     RANLIB="$RANLIB" \
@@ -652,6 +759,22 @@ ensure_target_libgcc_macho() {
   fi
 }
 
+write_deployment_target_wrapper() {
+  local tool="$1"
+  [ -x "$out/bin/$tool" ] || return 0
+  mv "$out/bin/$tool" "$out/bin/$tool.real"
+  cat > "$out/bin/$tool" <<EOF
+#!/bin/sh
+case "\${MACOSX_DEPLOYMENT_TARGET:-}" in
+  10.*) ;;
+  *) export MACOSX_DEPLOYMENT_TARGET=10.8 ;;
+esac
+self_dir=\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)
+exec "\$self_dir/$tool.real" -B"\$self_dir/../lib/gcc/$target/$gcc_version/" "\$@"
+EOF
+  chmod +x "$out/bin/$tool"
+}
+
 configure_direct_libstdcxx() {
   [ -f "$target/libstdc++-v3/Makefile" ] && return 0
   mkdir -p "$target/libstdc++-v3"
@@ -660,10 +783,10 @@ configure_direct_libstdcxx() {
   (
     cd "$target/libstdc++-v3"
     env \
-      CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include" \
-      CXX="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include" \
-      CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
-      CXXCPP="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CXX="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CXXCPP="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
       CFLAGS="$phase44_cflags_for_target" \
       CXXFLAGS="$phase44_cflags_for_target" \
       LDFLAGS="-nostartfiles -nodefaultlibs -L$PWD/../../gcc -lgcc -Wl,-syslibroot,$sdk -lSystem" \
@@ -705,25 +828,42 @@ build_direct_libstdcxx() {
 }
 
 rewrite_phase34_store_refs
+fix_darwin_prereq_configs
 append_top_prereq_stubs
 install_macho_tool_wrappers
 postprocess_macho_specs
 
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${PHASE44_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
-  rebuild_macho_archive libiberty all
-  rebuild_macho_archive zlib all
-  rebuild_macho_archive gmp all
-  rebuild_macho_archive mpfr \
-    CPPFLAGS="-I$PWD/gmp" \
-    LDFLAGS="-L$PWD/gmp/.libs" \
-    all
-  rebuild_macho_archive mpc \
-    CPPFLAGS="-DNULL=0 -I$PWD/gmp -I$PWD/mpfr" \
-    LDFLAGS="-L$PWD/gmp/.libs -L$PWD/mpfr/.libs" \
-    all
-  rebuild_macho_archive libcpp all
-  rebuild_macho_archive libdecnumber all
-  find gcc -name '*.o' -type f -delete
+  for prereq_name in ${PHASE44_REBUILD_MACHO_PREREQS_LIST:-libiberty zlib gmp mpfr mpc libcpp libdecnumber}; do
+    case "$prereq_name" in
+      libiberty|zlib|libdecnumber)
+        rebuild_macho_archive "$prereq_name" all
+        ;;
+      libcpp)
+        rebuild_macho_archive libcpp CFLAGS="$CFLAGS -Wno-implicit-function-declaration" all
+        ;;
+      gmp)
+        rebuild_macho_archive gmp CFLAGS="$CFLAGS -DHAVE_STRNLEN=1" all
+        ;;
+      mpfr)
+        rebuild_macho_archive mpfr \
+          CPPFLAGS="-I$PWD/gmp -DUINTMAX_MAX=18446744073709551615ULL -DINTMAX_MAX=9223372036854775807LL -DINTMAX_MIN='(-9223372036854775807LL - 1)'" \
+          LDFLAGS="-L$PWD/gmp/.libs" \
+          libmpfr.la
+        ;;
+      mpc)
+        rebuild_macho_archive mpc/src \
+          CPPFLAGS="-DNULL=0 -I$PWD/gmp -I$PWD/mpfr" \
+          LDFLAGS="-L$PWD/gmp/.libs -L$PWD/mpfr/.libs" \
+          libmpc.la
+        ;;
+      *)
+        echo "unknown phase44 Mach-O prerequisite: $prereq_name" >&2
+        exit 1
+        ;;
+    esac
+  done
+  find gcc -name '*.o' -type f ! -path 'gcc/build/*' -delete
 fi
 
 if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
@@ -747,41 +887,86 @@ if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
 fi
 
 if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
-  MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
-    MAKEINFO=true \
-    CC="$CC" \
-    CPP="$CPP" \
-    CFLAGS="$CFLAGS" \
-    CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
-    CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
-    CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
-    AR="$AR" \
-    NM="$NM" \
-    RANLIB="$RANLIB" \
-    STRIP="$STRIP" \
-    LIPO="$LIPO" \
-    OTOOL="$OTOOL" \
-    $make_targets \
-    > "$bootstrap_share/make.stdout" \
-    2> "$bootstrap_share/make.stderr"
+  if [ "$make_dir" = . ] && [ "$make_targets" = "all-gcc" ] && [ "${PHASE44_DIRECT_GCC_MAKE:-1}" = 1 ]; then
+    if [ ! -f gcc/Makefile ]; then
+      MAKEFLAGS= "$make_tool" -j1 \
+        MAKEINFO=true \
+        CC="$CC" \
+        CPP="$CPP" \
+        CFLAGS="$CFLAGS" \
+        CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+        CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+        CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+        AR="$AR" \
+        NM="$NM" \
+        RANLIB="$RANLIB" \
+        STRIP="$STRIP" \
+        LIPO="$LIPO" \
+        OTOOL="$OTOOL" \
+        configure-gcc \
+        > "$bootstrap_share/configure-gcc.stdout" \
+        2> "$bootstrap_share/configure-gcc.stderr"
+    fi
+    MAKEFLAGS= "$make_tool" -C gcc -j"$build_cores" \
+      MAKEINFO=true \
+      CC="$CC" \
+      CPP="$CPP" \
+      CFLAGS="$CFLAGS" \
+      CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+      CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+      CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+      AR="$AR" \
+      NM="$NM" \
+      RANLIB="$RANLIB" \
+      STRIP="$STRIP" \
+      LIPO="$LIPO" \
+      OTOOL="$OTOOL" \
+      $gcc_make_targets \
+      > "$bootstrap_share/make.stdout" \
+      2> "$bootstrap_share/make.stderr"
+  else
+    MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+      MAKEINFO=true \
+      CC="$CC" \
+      CPP="$CPP" \
+      CFLAGS="$CFLAGS" \
+      CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+      CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+      CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+      AR="$AR" \
+      NM="$NM" \
+      RANLIB="$RANLIB" \
+      STRIP="$STRIP" \
+      LIPO="$LIPO" \
+      OTOOL="$OTOOL" \
+      $make_targets \
+      > "$bootstrap_share/make.stdout" \
+      2> "$bootstrap_share/make.stderr"
+  fi
 else
   printf 'Skipped main make in resumed phase44 tree\n' > "$bootstrap_share/make.skipped"
 fi
 
 install_macho_tool_wrappers
 postprocess_macho_specs
+ensure_gcc_internal_headers
 build_direct_libstdcxx
 
 if [ "${PHASE44_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then
   exit 0
 fi
 
-mkdir -p "$out/bin" "$out/lib/gcc/$target/$gcc_version"
+mkdir -p "$out/bin" "$out/lib/gcc/$target/$gcc_version" "$out/$target/include" "$out/$target/sys-include"
+cp -R "$target_include/." "$out/$target/include/"
 cp gcc/xgcc "$out/bin/gcc"
 cp gcc/g++ "$out/bin/g++"
+write_deployment_target_wrapper gcc
+write_deployment_target_wrapper g++
 cp gcc/cc1 "$out/lib/gcc/$target/$gcc_version/cc1"
 cp gcc/cc1plus "$out/lib/gcc/$target/$gcc_version/cc1plus"
 cp gcc/specs "$out/lib/gcc/$target/$gcc_version/specs"
+cp -R gcc/include "$out/lib/gcc/$target/$gcc_version/include"
+cp -R gcc/include-fixed "$out/lib/gcc/$target/$gcc_version/include-fixed"
 cp gcc/libgcc.a "$out/lib/gcc/$target/$gcc_version/libgcc.a"
 cp gcc/libgcov.a "$out/lib/gcc/$target/$gcc_version/libgcov.a"
 chmod +x "$out/bin/gcc" "$out/bin/g++" "$out/lib/gcc/$target/$gcc_version/cc1" "$out/lib/gcc/$target/$gcc_version/cc1plus"

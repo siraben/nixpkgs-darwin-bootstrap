@@ -133,7 +133,10 @@ while [ "\$#" -gt 0 ]; do
       shift 2
       ;;
     -I*|-D*|-U*|-O*|-g*|-f*|-m*|-W*|-std=*|-ansi|-pedantic|-nostdinc)
-      compiler_args+=("\$1")
+      case "\$1" in
+        -Werror|-Werror=implicit-function-declaration|-Werror=implicit-int) ;;
+        *) compiler_args+=("\$1") ;;
+      esac
       shift
       ;;
     -L|-L*|-l*|*.a)
@@ -420,6 +423,7 @@ host_compile_source() {
   local object_out="\$2"
   local filtered_arg
   local host_args=()
+  local host_overlay="\$tmpdir/host-cc-overlay"
   [ "\$object_format" = macho ] || return 1
   case "\${input##*/}" in
     insn-*.c)
@@ -436,13 +440,58 @@ host_compile_source() {
   for filtered_arg in "\${compiler_args[@]}"; do
     case "\$filtered_arg" in
       -g|-g[0-9]*|-ggdb*) continue ;;
+      -D_FORTIFY_SOURCE|-D_FORTIFY_SOURCE=*|-U_FORTIFY_SOURCE) continue ;;
     esac
     host_args+=("\$filtered_arg")
   done
+  mkdir -p "\$host_overlay/sys"
+  cat > "\$host_overlay/stdio.h" <<'HOST_STDIO'
+#pragma once
+#include_next <stdio.h>
+#undef snprintf
+#undef vsnprintf
+#undef sprintf
+#undef vsprintf
+HOST_STDIO
+  cat > "\$host_overlay/sys/resource.h" <<'HOST_RESOURCE'
+#pragma once
+#undef rlim_t
+#include_next <sys/resource.h>
+HOST_RESOURCE
+  cat > "\$host_overlay/signal.h" <<'HOST_SIGNAL'
+#pragma once
+#include_next <signal.h>
+#define HAVE_PSIGNAL 1
+HOST_SIGNAL
+  cat > "\$host_overlay/string.h" <<'HOST_STRING'
+#pragma once
+#include_next <string.h>
+#define HAVE_STRSIGNAL 1
+#define HAVE_DECL_STRSIGNAL 1
+HOST_STRING
+  cat > "\$host_overlay/stdint.h" <<'HOST_STDINT'
+#pragma once
+#include <sys/_types/_int8_t.h>
+#include <sys/_types/_int16_t.h>
+#include <sys/_types/_int32_t.h>
+#include <sys/_types/_int64_t.h>
+#include <_types/_uint8_t.h>
+#include <_types/_uint16_t.h>
+#include <_types/_uint32_t.h>
+#include <_types/_uint64_t.h>
+#include <sys/_types/_intptr_t.h>
+#include <sys/_types/_uintptr_t.h>
+#include <_types/_intmax_t.h>
+#include <_types/_uintmax_t.h>
+#ifndef _STDINT_H_
+#define _STDINT_H_
+#endif
+HOST_STDINT
   MACOSX_DEPLOYMENT_TARGET=10.8 "\$host_generated_cc" -arch x86_64 \
     -mmacosx-version-min=10.8 \
     -fno-asynchronous-unwind-tables -fno-unwind-tables -fno-stack-protector \
     -Wno-error -Wno-format-security \
+    -I"\$host_overlay" \
     "\${host_args[@]}" \
     -c "\$input" -o "\$object_out" || return 1
   return 0
