@@ -164,7 +164,12 @@ while [ "\$#" -gt 0 ]; do
 done
 
 tmpdir="\$(mktemp -d "\${TMPDIR:-/tmp}/gcc46-bootstrap.XXXXXX")"
-trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
+if [ "\${GCC46_BOOTSTRAP_KEEP_TEMPS:-0}" = 1 ]; then
+  echo "gcc: keeping temporary directory \$tmpdir" >&2
+  trap 'echo "gcc: kept temporary directory '\$tmpdir'" >&2' EXIT HUP INT TERM
+else
+  trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
+fi
 
 ensure_symlink() {
   local target="\$1"
@@ -200,9 +205,34 @@ expand_config_overlay() {
   done
 }
 
+overlay_dir_contents() {
+  local source_dir="\$1"
+  local overlay_dir="\$2"
+  local entry entry_name sub_entry sub_name overlay_name
+  overlay_name="\${overlay_dir##*/}"
+  mkdir -p "\$overlay_dir"
+  for entry in "\$source_dir"/*; do
+    [ -e "\$entry" ] || continue
+    entry_name="\${entry##*/}"
+    if [ -d "\$entry" ]; then
+      mkdir -p "\$overlay_dir/\$entry_name"
+      if [ "\$overlay_name" = config ]; then
+        ensure_symlink .. "\$overlay_dir/\$entry_name/config"
+      fi
+      for sub_entry in "\$entry"/*; do
+        [ -e "\$sub_entry" ] || continue
+        sub_name="\${sub_entry##*/}"
+        ensure_symlink "\$sub_entry" "\$overlay_dir/\$entry_name/\$sub_name"
+      done
+    else
+      ensure_symlink "\$entry" "\$overlay_dir/\$entry_name"
+    fi
+  done
+}
+
 is_known_source_dir() {
   case "\$1" in
-    config|c-family|cp|ada|java|objc|go|fortran|lto) return 0 ;;
+    config|c-family|cp|ada|java|objc|go|fortran|lto|libcpp) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -239,6 +269,7 @@ compile_to_asm() {
   local compile_input="\$input"
   local input_dir source_dir source_dir_name source_dir_target gcc_source_root source_entry source_name source_target include_dir include_entry include_name include_target
   local input_dir_args=()
+  local source_overlay related_source_subdir root_overlay_entry root_overlay_name
   local staged_source=0
   case "\$input" in
     */*)
@@ -254,12 +285,22 @@ compile_to_asm() {
         *) source_dir_target="\$PWD/\$source_dir" ;;
       esac
       if [ -d "\$source_dir_target" ] && is_known_source_dir "\$source_dir_name"; then
-        ensure_symlink "\$source_dir_target" "\$tmpdir/\$source_dir_name"
+        overlay_dir_contents "\$source_dir_target" "\$tmpdir/\$source_dir_name"
         gcc_source_root="\${source_dir_target%/*}"
-        for gcc_source_subdir in config c-family cp ada java objc go fortran lto; do
+        for gcc_source_subdir in config c-family cp ada java objc go fortran lto libcpp; do
           [ -d "\$gcc_source_root/\$gcc_source_subdir" ] || continue
-          ensure_symlink "\$gcc_source_root/\$gcc_source_subdir" "\$tmpdir/\$gcc_source_subdir"
+          overlay_dir_contents "\$gcc_source_root/\$gcc_source_subdir" "\$tmpdir/\$gcc_source_subdir"
         done
+        for gcc_source_subdir in libcpp include libdecnumber; do
+          [ -d "\$gcc_source_root/../\$gcc_source_subdir" ] || continue
+          if [ "\$gcc_source_subdir" = libcpp ]; then
+            overlay_dir_contents "\$gcc_source_root/../\$gcc_source_subdir" "\$tmpdir/\$gcc_source_subdir"
+            [ -d "\$gcc_source_root/../\$gcc_source_subdir/include" ] && overlay_dir_contents "\$gcc_source_root/../\$gcc_source_subdir/include" "\$tmpdir/\$gcc_source_subdir"
+          else
+            ensure_symlink "\$gcc_source_root/../\$gcc_source_subdir" "\$tmpdir/\$gcc_source_subdir"
+          fi
+        done
+        compile_input="\$tmpdir/\$source_dir_name/\${input##*/}"
       fi
       for source_entry in "\$source_dir"/*; do
         [ -e "\$source_entry" ] || continue
@@ -290,7 +331,55 @@ compile_to_asm() {
           /*) include_target="\$include_entry" ;;
           *) include_target="\$PWD/\$include_entry" ;;
         esac
+        if [ -d "\$include_entry" ] && is_known_source_dir "\$include_name"; then
+          if [ "\$include_target" != "\$tmpdir/\$include_name" ]; then
+            overlay_dir_contents "\$include_target" "\$tmpdir/\$include_name"
+          fi
+          if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
+            [ -L "\$tmpdir/\$source_dir_name/\$include_name" ] && rm -f "\$tmpdir/\$source_dir_name/\$include_name"
+            if [ "\$include_name" = "\$source_dir_name" ]; then
+              ensure_symlink . "\$tmpdir/\$source_dir_name/\$include_name"
+            else
+              ensure_symlink "../\$include_name" "\$tmpdir/\$source_dir_name/\$include_name"
+            fi
+          fi
+          continue
+        fi
         ensure_symlink "\$include_target" "\$tmpdir/\$include_name"
+        if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
+          ensure_symlink "\$include_target" "\$tmpdir/\$source_dir_name/\$include_name"
+        fi
+      done
+    done
+    if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
+      source_overlay="\$tmpdir/\$source_dir_name"
+      for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
+        [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
+        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir"
+        if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
+          ensure_symlink . "\$source_overlay/\$related_source_subdir"
+        else
+          ensure_symlink "../\$related_source_subdir" "\$source_overlay/\$related_source_subdir"
+        fi
+      done
+    fi
+    for source_overlay in "\$tmpdir"/config "\$tmpdir"/c-family "\$tmpdir"/cp "\$tmpdir"/ada "\$tmpdir"/java "\$tmpdir"/objc "\$tmpdir"/go "\$tmpdir"/fortran "\$tmpdir"/lto "\$tmpdir"/libcpp; do
+      [ -d "\$source_overlay" ] || continue
+      source_dir_name="\${source_overlay##*/}"
+      for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
+        [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
+        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir"
+        if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
+          ensure_symlink . "\$source_overlay/\$related_source_subdir"
+        else
+          ensure_symlink "../\$related_source_subdir" "\$source_overlay/\$related_source_subdir"
+        fi
+      done
+      for root_overlay_entry in "\$tmpdir"/*; do
+        [ -f "\$root_overlay_entry" ] || [ -L "\$root_overlay_entry" ] || continue
+        is_overlay_include "\$root_overlay_entry" || continue
+        root_overlay_name="\${root_overlay_entry##*/}"
+        ensure_symlink "../\$root_overlay_name" "\$source_overlay/\$root_overlay_name"
       done
     done
     expand_config_overlay

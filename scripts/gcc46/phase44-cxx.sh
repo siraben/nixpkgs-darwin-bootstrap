@@ -33,34 +33,27 @@ if ! grep -q DARWIN_BOOTSTRAP_NULL src/gmp/gmp-impl.h; then
 #endif
 GMP_NULL
 fi
-gcc_root_headers_stamp=src/gcc/.darwin-bootstrap-root-header-overlays
-if [ ! -e "$gcc_root_headers_stamp" ]; then
-  for gcc_subdir in \
-    src/gcc/c-family \
-    src/gcc/cp \
-    src/gcc/ada/gcc-interface \
-    src/gcc/java \
-    src/gcc/objc \
-    src/gcc/go \
-    src/gcc/fortran \
-    src/gcc/lto; do
-    [ -d "$gcc_subdir" ] || continue
-    for overlay_root in src/gcc src/include src/libcpp/include; do
-      [ -d "$overlay_root" ] || continue
-      for root_header in "$overlay_root"/*; do
-        [ -f "$root_header" ] || [ -L "$root_header" ] || continue
-        root_header_name="${root_header##*/}"
-        case "$root_header_name" in
-          *.h|*.hh|*.hpp|*.hxx|*.inc|*.def|*.md|*.opt)
-            [ -e "$gcc_subdir/$root_header_name" ] || [ -L "$gcc_subdir/$root_header_name" ] || \
-              ln -s "$PWD/$root_header" "$gcc_subdir/$root_header_name" 2>/dev/null || true
-            ;;
-        esac
-      done
-    done
+for gcc_subdir in \
+  src/gcc/c-family \
+  src/gcc/cp \
+  src/gcc/ada/gcc-interface \
+  src/gcc/java \
+  src/gcc/objc \
+  src/gcc/go \
+  src/gcc/fortran \
+  src/gcc/lto; do
+  [ -d "$gcc_subdir" ] || continue
+  for overlay_link in "$gcc_subdir"/*; do
+    [ -L "$overlay_link" ] || continue
+    overlay_target="$(readlink "$overlay_link")"
+    case "$overlay_target" in
+      "$PWD/src/gcc/"*|"$PWD/src/include/"*|"$PWD/src/libcpp/include/"*|"$PWD/build/gcc/"*)
+        rm -f "$overlay_link"
+        ;;
+    esac
   done
-  touch "$gcc_root_headers_stamp"
-fi
+done
+rm -f src/gcc/.darwin-bootstrap-root-header-overlays
 if ! grep -q DARWIN_BOOTSTRAP_ASSUME_MPFR src/mpc/configure; then
   awk '
     !skip && /checking for MPFR/ {
@@ -400,24 +393,6 @@ MAKE
 else
   printf 'Reusing existing phase44 configure state in %s\n' "$PWD" > "$bootstrap_share/configure.resume"
 fi
-
-for gcc_subdir in \
-  ../src/gcc/c-family \
-  ../src/gcc/cp \
-  ../src/gcc/ada/gcc-interface \
-  ../src/gcc/java \
-  ../src/gcc/objc \
-  ../src/gcc/go \
-  ../src/gcc/fortran \
-  ../src/gcc/lto; do
-  [ -d "$gcc_subdir" ] || continue
-  for build_header in gcc/*.h gcc/*.def gcc/*.inc gcc/*.opt; do
-    [ -f "$build_header" ] || [ -L "$build_header" ] || continue
-    header_name="${build_header##*/}"
-    [ -e "$gcc_subdir/$header_name" ] || [ -L "$gcc_subdir/$header_name" ] || \
-      ln -s "$PWD/$build_header" "$gcc_subdir/$header_name" 2>/dev/null || true
-  done
-done
 
 make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # The phase39 GNU Make is intentionally minimal and does not yet have a

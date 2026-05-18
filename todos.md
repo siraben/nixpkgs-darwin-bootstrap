@@ -13,8 +13,17 @@
 - [x] Directly validated the current phase37 wrapper/source-overlay fix by compiling `c-family/stub-objc.c` through the TinyCC-derived GCC wrapper.
 - [x] Added fast impure iteration controls: phase44 resume, phase44 per-target make, and phase37 self-test skipping for wrapper-only rebuilds.
 - [x] Added an impure Mach-O object mode to the phase37 GCC wrapper and validated `c-lang.o` plus `c-family/stub-objc.o` as Mach-O x86_64 objects.
-- [ ] Current phase44 blocker: run resumed Mach-O `all-gcc` and fix the next real failure beyond the C frontend object smoke targets.
+- [x] Removed the broad phase44 source-tree header symlink overlays; include repair now happens inside the phase37 wrapper temp tree.
+- [x] Fixed wrapper temp-tree layout for GCC source-relative includes, including `../libcpp/internal.h`, `all-tree.def` references into `c-family/`, and nested `config/.../config/vxworks-dummy.h`.
+- [x] Validated the next Mach-O targets: `c-family/c-ppoutput.o`, `i386-c.o`, and `darwin-c.o`.
+- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` after the `darwin-c.o` fix and address the next concrete failure.
 - [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
+
+## Running Log
+
+- 2026-05-17: Resumed impure Mach-O phase44 `all-gcc`; fixed `c-family/c-ppoutput.o` by preserving source subdirectory layout and overlaying sibling `libcpp` headers inside the wrapper temp tree.
+- 2026-05-17: Removed phase44's broad source-tree header symlink overlays after they caused `tree.h`/`all-tree.def` to resolve relative to polluted language subdirectories.
+- 2026-05-17: Fixed `i386-c.o` and `darwin-c.o` by building real one-level temp overlays for GCC `config` and language directories, including `c-family` and nested `config/.../config` include compatibility.
 
 ## Current runnable chain
 
