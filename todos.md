@@ -2,6 +2,17 @@
 
 ## Current Status Update
 
+- [x] Phase45 GCC 10 now packages a compiler-only handoff from the repaired `all-gcc` tree for phase46 iteration.
+- [x] Phase45 GCC 10 wrapper handles normal Mach-O compile/link smoke tests, configure `conftest` probes, and impure phase46 support-library source compiles without falling back into the slow/hanging transitional `cc1` path.
+- [x] Phase46 source patching now normalizes `libiberty/physmem.c` Darwin header guards idempotently, including `machine/hal_sysinfo.h`, `sys/table.h`, and `sys/systemcfg.h`.
+- [x] Phase46 configure now correctly marks missing Darwin `process.h` as absent; the prior false positive came from the wrapper's fake preprocessor path.
+- [x] Phase46 no longer spends GCC10 `cc1` time on bootstrap-unneeded `fixincludes`; top-level fixincludes recursion is no-opped and the wrapper has an impure host shortcut if it is still reached during iteration.
+- [x] Phase46 now reaches GCC's own `Makefile`; the next blocker was a stale `LIBBACKTRACE` prerequisite despite `--disable-libbacktrace`, so the compiler-only handoff strips that dependency from `gcc/Makefile`.
+- [x] Phase46 GCC frontend now skips `stmp-fixinc` directly by clearing `STMP_FIXINC`; no compiler-only handoff should depend on generated fixed system headers.
+- [ ] Phase46 impure discovery currently compiles GCC frontend sources and final host C++ links with host clang through the wrapper to avoid multi-minute GCC10 `cc1plus` iterations; this must be narrowed or removed before freezing a bootstrap-pure phase.
+- [x] Phase46 impure `all-gcc` for GCC latest/16 completed from the GCC 10 handoff and packages a smoke-tested compiler-only handoff.
+- [ ] Reuse nixpkgs GCC infrastructure at the recipe boundary first: minimal-bootstrap source/dependency/configure shape plus gcc-ng compiler-only archive seeding, not full `stdenv.mkDerivation` until the phase46 compiler is promoted to a complete runtime/wrapper closure.
+- [ ] Promote the phase46 compiler-only handoff into a bootstrap-appropriate Darwin `stdenv.cc` boundary with complete `nix-support`, bintools, SDK/sysroot, `libgcc`, and `libstdc++` metadata before switching to full nixpkgs GCC machinery.
 - [x] `plan.md` has moved to `todos.md`; keep this file as both the task list and running bootstrap log.
 - [x] Phase44 no longer reruns seeded GMP/MPFR/MPC/libiberty/fixincludes/zlib/libcpp/libdecnumber work during impure iteration.
 - [x] Phase37 wrapper now stages GCC source-neighbor directories, rewrites temp dependency paths, and handles nested GCC `config/...` includes.
@@ -44,11 +55,23 @@
 - [x] Phase45 GCC 10 host-helper regeneration now preserves the Darwin SDK fixes in `auto-host.h`/`config.status`/`config.cache` so `rlim_t` and `strsignal` do not regress during resumed `all-gcc`.
 - [x] Phase45 `libgcc` target configure now pre-seeds AVX/LSE/init-priority feature results to avoid final target compile probes that can spin under transitional `xgcc`.
 - [x] Phase45 Darwin `libgcc` now drops bootstrap-unneeded `libemutls_w.a` and caches `gcc_cv_use_emutls=no` so disabled-shared builds do not ask for missing `emutls_s.o`.
-- [ ] Current phase45 blocker: finish the resumed full GCC 10 `all`/install pass from the repaired `xgcc`, then use that output as the phase46 compiler.
+- [x] Previous phase45 blocker resolved for the modern handoff path: full install is bypassed for now, and the compiler-only package is used as the phase46 input.
 - [ ] Current phase44 blocker: validate the full scripted phase44 path from a clean work root, including seeded build helpers such as `gcov-iov`, then freeze it with the Nix derivation.
 
 ## Running Log
 
+- 2026-05-18: Repackaged phase45 GCC 10 as a compiler-only handoff with wrapper shortcuts for `conftest` and phase46 support-library compiles; this keeps impure phase46 iteration out of the slow/hanging transitional `cc1` paths.
+- 2026-05-18: Reset phase46 after accumulated exploratory `physmem.c` edits, then made the source patch idempotent so Darwin skips non-Darwin libiberty memory headers including `machine/hal_sysinfo.h`.
+- 2026-05-18: Fixed the phase45 wrapper's `conftest -E` behavior so phase46 configure detects missing headers such as `process.h` instead of copying raw source and producing false-positive header results.
+- 2026-05-18: Killed the slow phase46 `fixincludes` path after it launched long-running GCC10 `cc1` jobs; codified a top-level no-op for fixincludes because the compiler-only modern handoff does not need fixed host headers.
+- 2026-05-18: Phase46 completed host support archives through GMP/MPFR/MPC and configured `gcc/`; patched the stale `LIBBACKTRACE` dependency that remained in `gcc/Makefile` even with libbacktrace disabled.
+- 2026-05-18: The resumed phase46 frontend then failed on `stmp-fixinc` needing `build-x86_64-apple-darwin/fixincludes/fixinc.sh`; patched `STMP_FIXINC` empty so GCC's internal header staging proceeds without the skipped fixincludes tool.
+- 2026-05-18: Stopped another slow phase46 run after GCC10 `cc1plus` spent over a minute each on ordinary frontend sources (`c-lang.cc`, `stub-objc.cc`, `attribs.cc`, `c-errors.cc`); extended the impure wrapper shortcut to phase46 `gcc/` sources so the run can expose structural blockers faster.
+- 2026-05-18: Added a disabled-libbacktrace stub archive and stripped remaining stale `LIBBACKTRACE` prerequisites from the compiler-only phase46 GCC makefile path.
+- 2026-05-18: Added a phase46 host clang shortcut for GCC frontend sources through the GCC 10 wrapper, including warning-error suppression needed by modern Darwin SDK headers.
+- 2026-05-18: Added a phase46 final host C++ link shortcut for GCC build tools while preserving Darwin `-Wl,-syslibroot` flags, avoiding the slow transitional GCC 10 C++ link path during impure discovery.
+- 2026-05-18: Completed impure phase46 `all-gcc` and packaged `work/impure/phase46-gcc-latest/out` as a compiler-only handoff with executable `gcc`/`g++` wrappers and a successful smoke compile.
+- 2026-05-18: Compared nixpkgs GCC paths: the minimal-bootstrap GCC recipe is reusable as a runCommand-style source/dependency/configure model, and gcc-ng's compiler-only seeding is reusable as a technique; full nixpkgs `stdenv` GCC infrastructure is not usable yet because the phase45/46 compilers are still compiler-only handoffs without complete runtime, wrapper, bintools, and `nix-support` closure.
 - 2026-05-17: Resumed impure Mach-O phase44 `all-gcc`; fixed `c-family/c-ppoutput.o` by preserving source subdirectory layout and overlaying sibling `libcpp` headers inside the wrapper temp tree.
 - 2026-05-17: Removed phase44's broad source-tree header symlink overlays after they caused `tree.h`/`all-tree.def` to resolve relative to polluted language subdirectories.
 - 2026-05-17: Fixed `i386-c.o` and `darwin-c.o` by building real one-level temp overlays for GCC `config` and language directories, including `c-family` and nested `config/.../config` include compatibility.

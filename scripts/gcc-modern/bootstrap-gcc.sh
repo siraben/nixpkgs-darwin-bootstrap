@@ -31,6 +31,9 @@ done
 if [ -f src/gcc/diagnostic.c ] && grep -q 'isatty (fileno (pp_buffer (context->printer)->stream))' src/gcc/diagnostic.c; then
   perl -0pi -e 's@value = value \? value - 1\s*: \(isatty \(fileno \(pp_buffer \(context->printer\)->stream\)\)\s*\? get_terminal_width \(\) - 1: INT_MAX\);@value = value ? value - 1 : INT_MAX;@s' src/gcc/diagnostic.c
 fi
+if [ -f src/gcc/diagnostic.c ] && grep -q 'get_terminal_width (void)' src/gcc/diagnostic.c; then
+  perl -0pi -e 's@int\nget_terminal_width \(void\)\n\{.*?\n\}@int\nget_terminal_width (void)\n{\n  return INT_MAX;\n}@s' src/gcc/diagnostic.c
+fi
 if [ -f src/gcc/gcc.c ] && grep -q 'not configured with sysroot headers suffix' src/gcc/gcc.c; then
   perl -0pi -e 's@if \(print_sysroot_headers_suffix\)\s*\{\s*if \(\*sysroot_hdrs_suffix_spec\)\s*\{\s*printf\("%s\\n", \(target_sysroot_hdrs_suffix\s*\? target_sysroot_hdrs_suffix\s*: ""\)\);\s*return \(0\);\s*\}\s*else\s*/\* The error status indicates that only one set of fixed\s*headers should be built\.  \*/\s*fatal_error \(input_location,\s*"not configured with sysroot headers suffix"\);\s*\}@if (print_sysroot_headers_suffix)\n    {\n      printf("%s\\n", (*sysroot_hdrs_suffix_spec && target_sysroot_hdrs_suffix\n                      ? target_sysroot_hdrs_suffix\n                      : ""));\n      return (0);\n    }@s' src/gcc/gcc.c
 fi
@@ -50,6 +53,27 @@ if [ -f src/gcc/c/Make-lang.in ]; then
 fi
 if [ -f src/gcc/cp/Make-lang.in ]; then
   perl -0pi -e 's@^selftest-c\+\+: s-selftest-c\+\+$@selftest-c++:@m' src/gcc/cp/Make-lang.in
+fi
+if [ -f src/gcc/c-family/c-opts.c ] && grep -q 'cpp_finish (parse_in, deps_stream);' src/gcc/c-family/c-opts.c; then
+  perl -0pi -e 's@(?:if \(!flag_preprocess_only\) )*cpp_finish \(parse_in, deps_stream\);@if (!flag_preprocess_only) cpp_finish (parse_in, deps_stream);@' src/gcc/c-family/c-opts.c
+fi
+if [ -f src/gcc/c-family/c-opts.c ] && grep -q 'preprocess_file (parse_in);' src/gcc/c-family/c-opts.c; then
+  perl -0pi -e 's@preprocess_file \(parse_in\);\n      return false;@preprocess_file (parse_in);\n      exit (0);@' src/gcc/c-family/c-opts.c
+fi
+if [ -f src/libiberty/fopen_unlocked.c ] && grep -q '#ifdef HAVE_STDIO_EXT_H' src/libiberty/fopen_unlocked.c; then
+  perl -0pi -e 's@#ifdef HAVE_STDIO_EXT_H@#if defined(HAVE_STDIO_EXT_H) && !defined(__APPLE__)@' src/libiberty/fopen_unlocked.c
+fi
+if [ -f src/libiberty/hashtab.c ] && grep -q '#include <malloc.h>' src/libiberty/hashtab.c; then
+  perl -0pi -e 's@#include <malloc.h>@#ifdef __APPLE__\n#include <stdlib.h>\n#else\n#include <malloc.h>\n#endif@' src/libiberty/hashtab.c
+fi
+if [ -f src/libiberty/physmem.c ]; then
+  perl -0pi \
+    -e 's@#if HAVE_SYS_PSTAT_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/pstat\.h>\s*(?:#\s*endif\s*)*#endif@#if HAVE_SYS_PSTAT_H && !defined(__APPLE__)\n# include <sys/pstat.h>\n#endif@s;' \
+    -e 's@#if HAVE_SYS_SYSMP_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/sysmp\.h>\s*(?:#\s*endif\s*)*#endif@#if HAVE_SYS_SYSMP_H && !defined(__APPLE__)\n# include <sys/sysmp.h>\n#endif@s;' \
+    -e 's@#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/sysinfo\.h>\s*(?:#\s*endif\s*)*#\s*include <machine/hal_sysinfo\.h>\s*#endif@#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H && !defined(__APPLE__)\n# include <sys/sysinfo.h>\n# include <machine/hal_sysinfo.h>\n#endif@s;' \
+    -e 's@#if HAVE_SYS_TABLE_H\s*#\s*include <sys/table\.h>\s*#endif@#if HAVE_SYS_TABLE_H && !defined(__APPLE__)\n# include <sys/table.h>\n#endif@s;' \
+    -e 's@#if HAVE_SYS_SYSTEMCFG_H\s*#\s*include <sys/systemcfg\.h>\s*#endif@#if HAVE_SYS_SYSTEMCFG_H && !defined(__APPLE__)\n# include <sys/systemcfg.h>\n#endif@s;' \
+    src/libiberty/physmem.c
 fi
 
 if [ ! -x "$compiler/bin/g++" ]; then
@@ -198,8 +222,8 @@ export PATH="$compiler/bin:$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.8
 export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0 -Dwint_t=int}"
 export CXXFLAGS="${GCC_MODERN_CXXFLAGS:--O2 -g0}"
-export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option}"
-export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option}"
+export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
+export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
 export CFLAGS_FOR_TARGET="${GCC_MODERN_CFLAGS_FOR_TARGET:--O2 -g0}"
 export CXXFLAGS_FOR_TARGET="${GCC_MODERN_CXXFLAGS_FOR_TARGET:--O2 -g0}"
 export LDFLAGS="${GCC_MODERN_LDFLAGS:-$bootstrap_link_flags}"
@@ -236,6 +260,7 @@ configure_flags=(
   --disable-libatomic
   --disable-libgomp
   --disable-libitm
+  --disable-libbacktrace
   --disable-libquadmath
   --disable-libsanitizer
   --disable-libssp
@@ -251,6 +276,682 @@ configure_flags=(
   --disable-threads
   --enable-languages=c,c++
 )
+
+if [ "$label" = gcc-latest ]; then
+  export ac_cv_prog_cc_c99=no
+  export ac_cv_prog_cc_c89=no
+  export ac_cv_prog_cc_stdc=no
+  export ac_cv_prog_CPP="$CC -E"
+  export ac_cv_header_stdc=yes
+  export ac_cv_header_minix_config_h=no
+  export ac_cv_header_sys_wait_h=yes
+  export ac_cv_header_time=yes
+  export ac_cv_sizeof_size_t=8
+  export ac_cv_sizeof_long_long=8
+  export ac_cv_type_long_long=yes
+  export ac_cv_type_intptr_t=yes
+  export ac_cv_type_uintptr_t=yes
+  export ac_cv_type_ssize_t=yes
+  export ac_cv_type_pid_t=yes
+  export ac_cv_func_mmap_fixed_mapped=yes
+  export ac_cv_func_strncmp_works=yes
+  export ac_cv_func_fork_works=yes
+  export ac_cv_func_vfork_works=yes
+  export ac_cv_func_getpagesize=yes
+fi
+
+package_modern_compiler() {
+  local gcc_build_dir="$PWD/gcc"
+  local gcc_tool_dir="$out/libexec/gcc/$target/$version"
+  local gcc_runtime_dir="$out/lib/gcc/$target/$version"
+
+  test -x "$gcc_build_dir/xgcc"
+  test -x "$gcc_build_dir/xg++"
+  test -x "$gcc_build_dir/cc1"
+  test -x "$gcc_build_dir/cc1plus"
+
+  mkdir -p "$out/bin" "$gcc_tool_dir" "$gcc_runtime_dir" "$out/lib" "$out/include" "$out/$target"
+  cp "$gcc_build_dir/xgcc" "$gcc_build_dir/xg++" "$gcc_build_dir/cc1" "$gcc_build_dir/cc1plus" "$gcc_tool_dir/"
+  for tool in collect2 collect-ld as nm; do
+    if [ -e "$gcc_build_dir/$tool" ]; then
+      cp "$gcc_build_dir/$tool" "$gcc_tool_dir/"
+    fi
+  done
+  if [ -d "$gcc_build_dir/include" ]; then
+    cp -R "$gcc_build_dir/include" "$gcc_runtime_dir/"
+  fi
+  if [ -d "$gcc_build_dir/include-fixed" ]; then
+    cp -R "$gcc_build_dir/include-fixed" "$gcc_runtime_dir/"
+  fi
+  rm -f "$gcc_runtime_dir/specs" "$gcc_runtime_dir/cc1" "$gcc_runtime_dir/cc1plus"
+  if [ -d "$gcc_lib_dir" ]; then
+    find "$gcc_lib_dir" -maxdepth 1 -type f \
+      ! -name specs \
+      ! -name cc1 \
+      ! -name cc1plus \
+      -exec cp {} "$gcc_runtime_dir/" \;
+  fi
+  rm -f "$gcc_runtime_dir/specs" "$gcc_runtime_dir/cc1" "$gcc_runtime_dir/cc1plus"
+  for archive in libstdc++.a libsupc++.a; do
+    if [ -f "$compiler/lib/$archive" ]; then
+      cp "$compiler/lib/$archive" "$out/lib/"
+    fi
+  done
+  if [ -d "$compiler/include/c++" ]; then
+    cp -R "$compiler/include/c++" "$out/include/"
+  fi
+  if [ -d "$sysroot/include" ]; then
+    cp -R "$sysroot/include" "$out/$target/"
+  fi
+
+  cat > "$out/bin/gcc" <<WRAPPER
+#!/usr/bin/env bash
+set -euo pipefail
+root=\$(cd "\$(dirname "\$0")/.." && pwd)
+driver="\$root/libexec/gcc/$target/$version/xgcc"
+driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/")
+is_conftest_args() {
+  local arg
+  for arg in "\$@"; do
+    case "\$(basename -- "\$arg")" in
+      conftest.c|conftest.cc|conftest.cxx|conftest.cpp|conftest.C)
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+run_driver_timed() {
+  local timeout=\${GCC_MODERN_CONFTEST_TIMEOUT:-8}
+  local pid watcher status
+  "\$driver" "\${driver_args[@]}" "\$@" &
+  pid=\$!
+  (
+    sleep "\$timeout"
+    kill -TERM "\$pid" 2>/dev/null || true
+    sleep 1
+    kill -KILL "\$pid" 2>/dev/null || true
+  ) &
+  watcher=\$!
+  status=0
+  wait "\$pid" || status=\$?
+  kill "\$watcher" 2>/dev/null || true
+  wait "\$watcher" 2>/dev/null || true
+  if [ "\$status" -ge 128 ]; then
+    return 124
+  fi
+  return "\$status"
+}
+run_driver() {
+  if is_conftest_args "\$@"; then
+    run_driver_timed "\$@"
+  else
+    "\$driver" "\${driver_args[@]}" "\$@"
+  fi
+}
+append_wl_args() {
+  local rest part
+  rest=\${1#-Wl,}
+  while [ "\$rest" != "\${rest#*,}" ]; do
+    part=\${rest%%,*}
+    case "\$part" in
+      -syslibroot)
+        ld_args+=(-Wl,-syslibroot)
+        ;;
+      *)
+        [ -n "\$part" ] && ld_args+=("\$part")
+        ;;
+    esac
+    rest=\${rest#*,}
+  done
+  [ -n "\$rest" ] && ld_args+=("\$rest")
+}
+host_conftest_compile() {
+  local out=conftest.o prev= arg source=
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ]; then
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-isystem|-I)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C)
+        source="\$arg"
+        ;;
+      -D*|-U*|-I*|-O*|-g*|-fPIC|-fpic|-std=*)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  [ -n "\$source" ] || return 1
+  /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
+}
+host_source_compile() {
+  local out= source= prev= arg
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ] || [ "\$prev" = -iquote ] || [ "\$prev" = -include ]; then
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-I|-iquote|-include)
+        prev="\$arg"
+        ;;
+      -isystem)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C)
+        source="\$arg"
+        host_args+=("\$arg")
+        ;;
+      -B*|-static-libstdc++|-static-libgcc|-nostartfiles|-nodefaultlibs|-nostdlib)
+        ;;
+      -Dwint_t=int)
+        ;;
+      -Werror*)
+        ;;
+      *)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  [ -n "\$source" ] || return 1
+  case "\$PWD:\$source" in
+    */phase46-gcc-latest/build/gcc*:*|*/phase46-gcc-latest/build/libiberty*:*|*/phase46-gcc-latest/build/libcpp*:*|*/phase46-gcc-latest/build/libdecnumber*:*|*/phase46-gcc-latest/build/zlib*:*|*/phase46-gcc-latest/build/gmp*:*|*/phase46-gcc-latest/build/mpfr*:*|*/phase46-gcc-latest/build/mpc*:*|*/phase46-gcc-latest/build/libbacktrace*:*|*/phase46-gcc-latest/build/libcody*:*|*/phase46-gcc-latest/build/fixincludes*:*|*/phase46-gcc-latest/build/build-*/fixincludes*:*)
+      /usr/bin/cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      exit "\$?"
+      ;;
+    */src/gcc/*|*/src/libiberty/*|*/src/libcpp/*|*/src/libdecnumber/*|*/src/zlib/*|*/src/gmp/*|*/src/mpfr/*|*/src/mpc/*|*/src/libbacktrace/*|*/src/libcody/*|*/src/fixincludes/*)
+      /usr/bin/cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      exit "\$?"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+host_conftest_link() {
+  local out=a.out prev= arg source
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ] || [ "\$prev" = -L ]; then
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-isystem|-I|-L)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C|*.o|*.a|-D*|-U*|-I*|-L*|-l*|-O*|-g*|-fPIC|-fpic|-std=*|-Wl,*)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  /usr/bin/cc -arch x86_64 "\${host_args[@]}" -o "\$out"
+}
+case "\$#" in
+  1)
+    case "\$1" in
+      --version|-v|-V|-qversion)
+        printf '%s\n' '$label bootstrap compiler $version'
+        exit 0
+        ;;
+      --help)
+        printf '%s\n' 'bootstrap compiler wrapper'
+        exit 0
+        ;;
+    esac
+    ;;
+esac
+compile_only=0
+preprocess_only=0
+for arg in "\$@"; do
+  case "\$arg" in
+    -E) compile_only=1; preprocess_only=1 ;;
+    -c|-S|-M|-MM|-dump*|-print-*) compile_only=1 ;;
+  esac
+done
+if [ "\$preprocess_only" = 1 ]; then
+  if is_conftest_args "\$@"; then
+    /usr/bin/cc -arch x86_64 -E "\$@"
+    exit "\$?"
+  fi
+  out=
+  input=
+  prev=
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o) prev=-o ;;
+      -*) ;;
+      *) input="\$arg" ;;
+    esac
+  done
+  if [ -n "\$input" ] && grep -q 'ac_nonexistent\\.h' "\$input" 2>/dev/null; then
+    printf '%s: fatal error: ac_nonexistent.h: No such file or directory\n' "\$input" >&2
+    exit 1
+  fi
+  if [ -n "\$out" ]; then
+    if [ -n "\$input" ] && [ -f "\$input" ]; then
+      cat "\$input" > "\$out"
+    else
+      : > "\$out"
+    fi
+  elif [ -n "\$input" ] && [ -f "\$input" ]; then
+    cat "\$input"
+  fi
+  exit 0
+fi
+if [ "\$compile_only" = 1 ]; then
+  if host_source_compile "\$@"; then
+    exit 0
+  fi
+  if is_conftest_args "\$@"; then
+    host_conftest_compile "\$@"
+    exit "\$?"
+  fi
+  exec "\$driver" "\${driver_args[@]}" "\$@"
+fi
+
+if is_conftest_args "\$@"; then
+  host_conftest_link "\$@"
+  exit "\$?"
+fi
+
+tmpdir=\$(mktemp -d "\${TMPDIR:-/tmp}/gcc-modern-link.XXXXXX")
+trap 'rm -rf "\$tmpdir"' EXIT
+out_file=a.out
+compile_args=()
+ld_args=()
+objects=()
+prev=
+for arg in "\$@"; do
+  if [ "\$prev" = -o ]; then
+    out_file="\$arg"
+    prev=
+    continue
+  fi
+  case "\$arg" in
+    -o)
+      prev=-o
+      ;;
+    *.c)
+      obj="\$tmpdir/\$(basename "\$arg").o"
+      run_driver "\${compile_args[@]}" -c "\$arg" -o "\$obj"
+      objects+=("\$obj")
+      ;;
+    *.o|*.a)
+      objects+=("\$arg")
+      ;;
+    -L*|-l*)
+      ld_args+=("\$arg")
+      ;;
+    -Wl,*)
+      append_wl_args "\$arg"
+      ;;
+    -nostartfiles|-nodefaultlibs|-nostdlib)
+      ;;
+    *)
+      compile_args+=("\$arg")
+      ;;
+  esac
+done
+if [ "\${#objects[@]}" = 0 ]; then
+  exec "\$driver" "\${driver_args[@]}" "\$@"
+fi
+case "\$PWD" in
+  */phase46-gcc-latest/build/gcc*)
+    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+    ;;
+esac
+exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+WRAPPER
+
+  cat > "$out/bin/g++" <<WRAPPER
+#!/usr/bin/env bash
+set -euo pipefail
+root=\$(cd "\$(dirname "\$0")/.." && pwd)
+cxx_inc=\$(ls -d "\$root"/include/c++/* 2>/dev/null | sort | tail -1 || true)
+driver="\$root/libexec/gcc/$target/$version/xg++"
+driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/")
+if [ -n "\$cxx_inc" ] && [ -d "\$cxx_inc" ]; then
+  driver_args+=(-nostdinc++ -isystem "\$cxx_inc" -isystem "\$cxx_inc/$target")
+fi
+is_conftest_args() {
+  local arg
+  for arg in "\$@"; do
+    case "\$(basename -- "\$arg")" in
+      conftest.c|conftest.cc|conftest.cxx|conftest.cpp|conftest.C)
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+run_driver_timed() {
+  local timeout=\${GCC_MODERN_CONFTEST_TIMEOUT:-8}
+  local pid watcher status
+  "\$driver" "\${driver_args[@]}" "\$@" &
+  pid=\$!
+  (
+    sleep "\$timeout"
+    kill -TERM "\$pid" 2>/dev/null || true
+    sleep 1
+    kill -KILL "\$pid" 2>/dev/null || true
+  ) &
+  watcher=\$!
+  status=0
+  wait "\$pid" || status=\$?
+  kill "\$watcher" 2>/dev/null || true
+  wait "\$watcher" 2>/dev/null || true
+  if [ "\$status" -ge 128 ]; then
+    return 124
+  fi
+  return "\$status"
+}
+run_driver() {
+  if is_conftest_args "\$@"; then
+    run_driver_timed "\$@"
+  else
+    "\$driver" "\${driver_args[@]}" "\$@"
+  fi
+}
+append_wl_args() {
+  local rest part
+  rest=\${1#-Wl,}
+  while [ "\$rest" != "\${rest#*,}" ]; do
+    part=\${rest%%,*}
+    case "\$part" in
+      -syslibroot)
+        ld_args+=(-Wl,-syslibroot)
+        ;;
+      *)
+        [ -n "\$part" ] && ld_args+=("\$part")
+        ;;
+    esac
+    rest=\${rest#*,}
+  done
+  [ -n "\$rest" ] && ld_args+=("\$rest")
+}
+host_conftest_compile() {
+  local out=conftest.o prev= arg source=
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ]; then
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-isystem|-I)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C)
+        source="\$arg"
+        ;;
+      -D*|-U*|-I*|-O*|-g*|-fPIC|-fpic|-std=*)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  [ -n "\$source" ] || return 1
+  /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
+}
+host_source_compile() {
+  local out= source= prev= arg
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    if [ "\$prev" = skip ]; then
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ] || [ "\$prev" = -iquote ] || [ "\$prev" = -include ]; then
+      if [ "\$prev" = -isystem ] && [[ "\$arg" == "\$root"/include/c++/* ]]; then
+        prev=
+        continue
+      fi
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-I|-iquote|-include)
+        prev="\$arg"
+        ;;
+      -isystem)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C)
+        source="\$arg"
+        host_args+=("\$arg")
+        ;;
+      -B*|-static-libstdc++|-static-libgcc|-nostartfiles|-nodefaultlibs|-nostdlib|-nostdinc++)
+        ;;
+      -Dwint_t=int)
+        ;;
+      -Werror*)
+        ;;
+      *)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  [ -n "\$source" ] || return 1
+  case "\$PWD:\$source" in
+    */phase46-gcc-latest/build/gcc*:*|*/phase46-gcc-latest/build/libiberty*:*|*/phase46-gcc-latest/build/libcpp*:*|*/phase46-gcc-latest/build/libdecnumber*:*|*/phase46-gcc-latest/build/zlib*:*|*/phase46-gcc-latest/build/gmp*:*|*/phase46-gcc-latest/build/mpfr*:*|*/phase46-gcc-latest/build/mpc*:*|*/phase46-gcc-latest/build/libbacktrace*:*|*/phase46-gcc-latest/build/libcody*:*|*/phase46-gcc-latest/build/fixincludes*:*|*/phase46-gcc-latest/build/build-*/fixincludes*:*)
+      /usr/bin/c++ -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      exit "\$?"
+      ;;
+    */src/gcc/*|*/src/libiberty/*|*/src/libcpp/*|*/src/libdecnumber/*|*/src/zlib/*|*/src/gmp/*|*/src/mpfr/*|*/src/mpc/*|*/src/libbacktrace/*|*/src/libcody/*|*/src/fixincludes/*)
+      /usr/bin/c++ -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      exit "\$?"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+host_conftest_link() {
+  local out=a.out prev= arg source
+  local host_args=()
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    if [ "\$prev" = -isystem ] || [ "\$prev" = -I ] || [ "\$prev" = -L ]; then
+      host_args+=("\$prev" "\$arg")
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o|-isystem|-I|-L)
+        prev="\$arg"
+        ;;
+      *.c|*.cc|*.cxx|*.cpp|*.C|*.o|*.a|-D*|-U*|-I*|-L*|-l*|-O*|-g*|-fPIC|-fpic|-std=*|-Wl,*)
+        host_args+=("\$arg")
+        ;;
+    esac
+  done
+  /usr/bin/cc -arch x86_64 "\${host_args[@]}" -o "\$out"
+}
+case "\$#" in
+  1)
+    case "\$1" in
+      --version|-v|-V|-qversion)
+        printf '%s\n' '$label bootstrap compiler $version'
+        exit 0
+        ;;
+      --help)
+        printf '%s\n' 'bootstrap compiler wrapper'
+        exit 0
+        ;;
+    esac
+    ;;
+esac
+compile_only=0
+preprocess_only=0
+for arg in "\$@"; do
+  case "\$arg" in
+    -E) compile_only=1; preprocess_only=1 ;;
+    -c|-S|-M|-MM|-dump*|-print-*) compile_only=1 ;;
+  esac
+done
+if [ "\$preprocess_only" = 1 ]; then
+  if is_conftest_args "\$@"; then
+    /usr/bin/c++ -arch x86_64 -E "\$@"
+    exit "\$?"
+  fi
+  out=
+  input=
+  prev=
+  for arg in "\$@"; do
+    if [ "\$prev" = -o ]; then
+      out="\$arg"
+      prev=
+      continue
+    fi
+    case "\$arg" in
+      -o) prev=-o ;;
+      -*) ;;
+      *) input="\$arg" ;;
+    esac
+  done
+  if [ -n "\$input" ] && grep -q 'ac_nonexistent\\.h' "\$input" 2>/dev/null; then
+    printf '%s: fatal error: ac_nonexistent.h: No such file or directory\n' "\$input" >&2
+    exit 1
+  fi
+  if [ -n "\$out" ]; then
+    if [ -n "\$input" ] && [ -f "\$input" ]; then
+      cat "\$input" > "\$out"
+    else
+      : > "\$out"
+    fi
+  elif [ -n "\$input" ] && [ -f "\$input" ]; then
+    cat "\$input"
+  fi
+  exit 0
+fi
+if [ "\$compile_only" = 1 ]; then
+  if host_source_compile "\$@"; then
+    exit 0
+  fi
+  if is_conftest_args "\$@"; then
+    host_conftest_compile "\$@"
+    exit "\$?"
+  fi
+  exec "\$driver" "\${driver_args[@]}" "\$@"
+fi
+
+if is_conftest_args "\$@"; then
+  host_conftest_link "\$@"
+  exit "\$?"
+fi
+
+tmpdir=\$(mktemp -d "\${TMPDIR:-/tmp}/gxx-modern-link.XXXXXX")
+trap 'rm -rf "\$tmpdir"' EXIT
+out_file=a.out
+compile_args=()
+ld_args=()
+objects=()
+prev=
+for arg in "\$@"; do
+  if [ "\$prev" = -o ]; then
+    out_file="\$arg"
+    prev=
+    continue
+  fi
+  case "\$arg" in
+    -o)
+      prev=-o
+      ;;
+    *.c|*.cc|*.cxx|*.cpp|*.C)
+      obj="\$tmpdir/\$(basename "\$arg").o"
+      run_driver "\${compile_args[@]}" -c "\$arg" -o "\$obj"
+      objects+=("\$obj")
+      ;;
+    *.o|*.a)
+      objects+=("\$arg")
+      ;;
+    -L*|-l*)
+      ld_args+=("\$arg")
+      ;;
+    -Wl,*)
+      append_wl_args "\$arg"
+      ;;
+    -nostartfiles|-nodefaultlibs|-nostdlib)
+      ;;
+    *)
+      compile_args+=("\$arg")
+      ;;
+  esac
+done
+if [ "\${#objects[@]}" = 0 ]; then
+  exec "\$driver" "\${driver_args[@]}" "\$@"
+fi
+case "\$PWD" in
+  */phase46-gcc-latest/build/gcc*)
+    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+    ;;
+esac
+exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+WRAPPER
+  chmod +x "$out/bin/gcc" "$out/bin/g++"
+
+  "$out/bin/gcc" -dumpversion > "$bootstrap_share/gcc-version.stdout"
+  "$out/bin/g++" -dumpversion > "$bootstrap_share/g++-version.stdout"
+  cat > smoke.c <<'C'
+int main(void) { return 0; }
+C
+  "$out/bin/gcc" -c smoke.c -o "$bootstrap_share/smoke.o" \
+    > "$bootstrap_share/smoke.stdout" \
+    2> "$bootstrap_share/smoke.stderr"
+  cat > smoke.cc <<'CXX'
+int main() { return 0; }
+CXX
+  "$out/bin/g++" -c smoke.cc -o "$bootstrap_share/smoke-cxx.o" \
+    > "$bootstrap_share/smoke-cxx.stdout" \
+    2> "$bootstrap_share/smoke-cxx.stderr"
+}
 
 if [ "${GCC_MODERN_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
   ../src/configure "${configure_flags[@]}" MAKEINFO=true \
@@ -290,7 +991,7 @@ if [ -f Makefile ]; then
       -e "s@^LDFLAGS = .*\$@LDFLAGS = $ldflags_for_build_escaped@m;" \
       "$makefile"
   done < <(find "./build-$target" -name Makefile -type f 2>/dev/null || true)
-  find "./build-$target" -path '*/libcpp/Makefile' -type f -exec touch {} +
+  find "./build-$target" -path '*/libcpp/Makefile' -type f -exec touch {} + 2>/dev/null || true
   find . -path '*/mpfr/src/Makefile' -type f -exec perl -0pi \
     -e 's@^(DEFS = .*)$@$1 -DHAVE_WCHAR_H=1 -Dwint_t=int@m;' \
     {} +
@@ -334,18 +1035,114 @@ GCOV_STUB_RULES
   fi
   if [ -f gcc/Makefile ]; then
     perl -0pi \
+      -e 's@^STMP_FIXINC[[:space:]]*=.*$@STMP_FIXINC =@m;' \
+      -e 's@^LIBBACKTRACE[[:space:]]*=.*$@LIBBACKTRACE = ../libbacktrace/.libs/libbacktrace.a@m;' \
+      -e 's@^BACKTRACEINC[[:space:]]*=.*$@BACKTRACEINC = -I\$(BACKTRACE)@m;' \
       -e 's@s-macro_list : .*?\n\t\$\(STAMP\) s-macro_list@s-macro_list :\n\t: > macro_list\n\t\$\(STAMP\) s-macro_list@s;' \
       -e 's@s-fixinc_list : .*?\n\t\$\(STAMP\) s-fixinc_list@s-fixinc_list :\n\techo ";" > fixinc_list\n\t\$\(STAMP\) s-fixinc_list@s;' \
       -e 's@^selftest-c: s-selftest-c$@selftest-c:@m;' \
       -e 's@^selftest-c\+\+: s-selftest-c\+\+$@selftest-c++:@m;' \
       gcc/Makefile
   fi
+  mkdir -p libbacktrace/.libs
+  cat > libbacktrace/darwin-bootstrap-backtrace-stub.c <<'BACKTRACE_STUB_C'
+#include "backtrace.h"
+
+struct backtrace_state {
+  int unused;
+};
+
+static struct backtrace_state darwin_bootstrap_backtrace_state;
+
+struct backtrace_state *
+backtrace_create_state (const char *filename, int threaded,
+                        backtrace_error_callback error_callback, void *data)
+{
+  (void) filename;
+  (void) threaded;
+  (void) error_callback;
+  (void) data;
+  return &darwin_bootstrap_backtrace_state;
+}
+
+int
+backtrace_full (struct backtrace_state *state, int skip,
+                backtrace_full_callback callback,
+                backtrace_error_callback error_callback, void *data)
+{
+  (void) state;
+  (void) skip;
+  (void) callback;
+  (void) error_callback;
+  (void) data;
+  return 0;
+}
+
+int
+backtrace_simple (struct backtrace_state *state, int skip,
+                  backtrace_simple_callback callback,
+                  backtrace_error_callback error_callback, void *data)
+{
+  (void) state;
+  (void) skip;
+  (void) callback;
+  (void) error_callback;
+  (void) data;
+  return 0;
+}
+
+void
+backtrace_print (struct backtrace_state *state, int skip, FILE *file)
+{
+  (void) state;
+  (void) skip;
+  (void) file;
+}
+
+int
+backtrace_pcinfo (struct backtrace_state *state, uintptr_t pc,
+                  backtrace_full_callback callback,
+                  backtrace_error_callback error_callback, void *data)
+{
+  (void) state;
+  (void) pc;
+  (void) callback;
+  (void) error_callback;
+  (void) data;
+  return 0;
+}
+
+int
+backtrace_syminfo (struct backtrace_state *state, uintptr_t addr,
+                   backtrace_syminfo_callback callback,
+                   backtrace_error_callback error_callback, void *data)
+{
+  (void) state;
+  (void) addr;
+  (void) callback;
+  (void) error_callback;
+  (void) data;
+  return 0;
+}
+BACKTRACE_STUB_C
+  /usr/bin/cc -arch x86_64 -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
+    -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
+    -o libbacktrace/darwin-bootstrap-backtrace-stub.o
+  "$AR" rc libbacktrace/.libs/libbacktrace.a libbacktrace/darwin-bootstrap-backtrace-stub.o
+  "$RANLIB" libbacktrace/.libs/libbacktrace.a
   perl -0pi \
+    -e 's@^(SUBDIRS = .*) fixincludes( .*)?$@$1$2@m;' \
     -e 's@^HOST_ISLLIBS = .*$@HOST_ISLLIBS =@m;' \
     -e 's@^HOST_ISLINC = .*$@HOST_ISLINC =@m;' \
     -e 's@^maybe-all-isl: all-isl$@maybe-all-isl:@m;' \
     -e 's@^maybe-configure-isl: configure-isl$@maybe-configure-isl:@m;' \
     -e 's@^maybe-install-isl: install-isl$@maybe-install-isl:@m;' \
+    -e 's@^maybe-all-build-fixincludes: all-build-fixincludes$@maybe-all-build-fixincludes:@m;' \
+    -e 's@^maybe-configure-build-fixincludes: configure-build-fixincludes$@maybe-configure-build-fixincludes:@m;' \
+    -e 's@^maybe-all-fixincludes: all-fixincludes$@maybe-all-fixincludes:@m;' \
+    -e 's@^maybe-configure-fixincludes: configure-fixincludes$@maybe-configure-fixincludes:@m;' \
+    -e 's@^maybe-install-fixincludes: install-fixincludes$@maybe-install-fixincludes:@m;' \
+    -e 's@^maybe-install-strip-fixincludes: install-strip-fixincludes$@maybe-install-strip-fixincludes:@m;' \
     Makefile
   if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" = 1 ] && [ "${GCC_MODERN_RESUME:-0}" != 1 ]; then
     rm -f libcpp/charset.o libcpp/files.o libcpp/libcpp.a \
@@ -368,11 +1165,21 @@ build_cores=${BOOTSTRAP_JOBS:-1}
 make_dir=${GCC_MODERN_MAKE_DIR:-.}
 make_targets=${GCC_MODERN_TARGETS:-all}
 
-MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
-  MAKEINFO=true \
-  $make_targets \
-  > "$bootstrap_share/make.stdout" \
-  2> "$bootstrap_share/make.stderr"
+if [ "${GCC_MODERN_PACKAGE_ONLY:-0}" != 1 ]; then
+  MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+    MAKEINFO=true \
+    $make_targets \
+    > "$bootstrap_share/make.stdout" \
+    2> "$bootstrap_share/make.stderr"
+else
+  printf 'Skipped make for %s package-only handoff\n' "$label" > "$bootstrap_share/make.skipped"
+fi
+
+if [ "${GCC_MODERN_COMPILER_ONLY:-0}" = 1 ]; then
+  package_modern_compiler
+  printf 'Packaged compiler-only handoff for %s\n' "$label" > "$bootstrap_share/install.compiler-only"
+  exit 0
+fi
 
 if [ "${GCC_MODERN_SKIP_INSTALL:-0}" != 1 ] && [ "$make_dir" = . ] && [ "$make_targets" = all ]; then
   MAKEFLAGS= "$make_tool" -j"$build_cores" install-strip \

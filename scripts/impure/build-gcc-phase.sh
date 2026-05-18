@@ -100,6 +100,8 @@ case "$phase" in
     out=${PHASE45_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
+    export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}
+    export GCC_MODERN_COMPILER_ONLY=${GCC_MODERN_COMPILER_ONLY:-1}
     "$repo_root/scripts/gcc-modern/bootstrap-gcc.sh" \
       "$phase42" \
       "$phase44_out" \
@@ -118,6 +120,8 @@ case "$phase" in
     out=${PHASE46_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
+    export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}
+    export GCC_MODERN_COMPILER_ONLY=${GCC_MODERN_COMPILER_ONLY:-1}
     "$repo_root/scripts/gcc-modern/bootstrap-gcc.sh" \
       "$phase43" \
       "$phase45_out" \
