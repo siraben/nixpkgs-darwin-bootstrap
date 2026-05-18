@@ -29,8 +29,10 @@
 - [x] Finished the direct phase44 target `libgcc` build with `xgcc` emitting Mach-O objects; `libgcc.a` and an intentionally empty bootstrap `libgcov.a` copy back into `build/gcc`.
 - [x] Minimized the current GCC 4.6 Mach-O patch set: keep temp `%g` auxbase paths, disable crashing target debug info, disable bootstrap-unneeded `libgcov`, and skip Darwin/i386 CRT extra-parts while the compiler/runtime boundary is still forming.
 - [x] Direct target `libstdc++-v3` now builds to a Mach-O static `libstdc++.a` with the GCC 4.6 `xgcc`/`g++` pair.
-- [ ] Current phase44 blocker: install the direct `all-gcc`/`libgcc`/`libstdc++` outputs into `phase44` out, then smoke-test `g++ -S` and a minimal C++ link.
-- [ ] Stabilized checkpoint: fold the direct libstdc++ recipe into `scripts/gcc46/phase44-cxx.sh`, clean scratch symlinks, then validate the Nix phase.
+- [x] Rebuilt target `libstdc++` against C++-safe phase34 headers and removed stale phase37 C header overlays from the GCC source include path.
+- [x] Installed the direct `libstdc++`/`libsupc++` outputs into the phase44 impure prefix and smoke-tested `g++` compiling/linking a `std::string` Mach-O executable.
+- [x] Folded the direct target `libgcc`/`libstdc++` recipe and manual GCC output packaging into `scripts/gcc46/phase44-cxx.sh`.
+- [ ] Current phase44 blocker: validate the scripted phase44 path from a clean/resumed work root, then freeze it with the Nix derivation.
 
 ## Running Log
 
@@ -50,6 +52,10 @@
 - 2026-05-18: Confirmed appended top-level no-op stubs do not remove GNU make prerequisites; current fast loop is direct target iteration until the resumed top-level recipe is made dependency-clean.
 - 2026-05-18: Directly configured target `libstdc++-v3` with `build/gcc/g++`, bootstrap headers via `-isystem` rather than `--sysroot`, and link probes using `-nostartfiles -nodefaultlibs -Lbuild/gcc -lgcc -Wl,-syslibroot,$SDK -lSystem`; `libsupc++` and `src/.libs/libstdc++.a` now build as Mach-O archives.
 - 2026-05-18: Extended the phase34 bootstrap header surface only where proven by the libstdc++ build: C++-safe `NULL`, Darwin/BSD `errno` constants, ctype masks/`__istype`, locale categories, C math declarations, C99 stdint least/fast typedefs, and the missing stdio/string/time/stdlib declarations.
+- 2026-05-18: The first C++ link smoke exposed mangled references to C runtime functions (`free`, `malloc`, `abort`, `write`, `memset`, and `fputs`). Fixed the phase34 C headers to wrap their C declarations in `extern "C"` under C++, aligned bootstrap `stdint.h` fast typedefs with GCC 4.6's generated `gstdint.h`, and marked the bootstrap ctype masks as already provided.
+- 2026-05-18: Rebuilt phase34 as `/nix/store/sn06mc2kg7wgfpm28gx7kcsjs6kf3mab-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64`, rebuilt target `libsupc++`/`libstdc++` after removing stale phase37 C header symlinks from `src/gcc`, and verified the installed `libstdc++.a` no longer exports the mangled C runtime references.
+- 2026-05-18: Smoke-tested the current phase44 `g++` path end-to-end: `<string>` compiles to a Mach-O x86_64 object, links with the rebuilt static `libstdc++`/`libsupc++`/`libgcc` plus `libSystem`, produces a Mach-O executable, and runs successfully. The remaining link noise is deployment-target warnings, not a correctness blocker.
+- 2026-05-18: Folded the discovered direct runtime path into `scripts/gcc46/phase44-cxx.sh`: phase44 now prunes stale phase37 C/POSIX header overlays, defaults top-level work to `all-gcc`, builds target `libgcc` directly, configures/builds/installs target `libstdc++-v3` directly with the phase34 sysroot headers, and manually packages the GCC driver/frontend artifacts instead of invoking GCC's fixincludes-heavy stock install.
 
 ## Current runnable chain
 

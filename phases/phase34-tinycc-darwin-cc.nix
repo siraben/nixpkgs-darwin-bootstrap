@@ -63,6 +63,9 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/math.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_MATH_H
         #define _DARWIN_BOOTSTRAP_MATH_H
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         double acos(double);
         double asin(double);
         double atan(double);
@@ -87,6 +90,9 @@ with args;
         double exp(double);
         double atof(const char *);
         double strtod(const char *, char **);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -239,6 +245,9 @@ with args;
         struct timespec { long tv_sec; long tv_nsec; };
         #endif
         struct tm { int tm_sec; int tm_min; int tm_hour; int tm_mday; int tm_mon; int tm_year; int tm_wday; int tm_yday; int tm_isdst; };
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         time_t time(time_t *);
         clock_t clock(void);
         struct tm *localtime(const time_t *);
@@ -249,6 +258,9 @@ with args;
         char *asctime(const struct tm *);
         size_t strftime(char *, size_t, const char *, const struct tm *);
         int nanosleep(const struct timespec *, struct timespec *);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -376,10 +388,10 @@ with args;
         typedef uint64_t uint_least64_t;
         typedef int8_t int_fast8_t;
         typedef uint8_t uint_fast8_t;
-        typedef int64_t int_fast16_t;
-        typedef uint64_t uint_fast16_t;
-        typedef int64_t int_fast32_t;
-        typedef uint64_t uint_fast32_t;
+        typedef int int_fast16_t;
+        typedef unsigned int uint_fast16_t;
+        typedef int32_t int_fast32_t;
+        typedef uint32_t uint_fast32_t;
         typedef int64_t int_fast64_t;
         typedef uint64_t uint_fast64_t;
         typedef long intmax_t;
@@ -418,8 +430,14 @@ with args;
         #define CHAR_MAX 127
         #endif
         struct lconv { char *decimal_point; char *thousands_sep; char *grouping; char *int_curr_symbol; char *currency_symbol; char *mon_decimal_point; char *mon_thousands_sep; char *mon_grouping; char *positive_sign; char *negative_sign; char int_frac_digits; char frac_digits; char p_cs_precedes; char p_sep_by_space; char n_cs_precedes; char n_sep_by_space; char p_sign_posn; char n_sign_posn; };
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         char *setlocale(int, const char *);
         struct lconv *localeconv(void);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -498,6 +516,9 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_STRING_H
         #define _DARWIN_BOOTSTRAP_STRING_H
         typedef unsigned long size_t;
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         void *memchr(const void *, int, size_t);
         int memcmp(const void *, const void *, size_t);
         void *memcpy(void *, const void *, size_t);
@@ -523,6 +544,9 @@ with args;
         char *strdup(const char *);
         char *strstr(const char *, const char *);
         size_t strxfrm(char *, const char *, size_t);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -543,6 +567,7 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/ctype.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_CTYPE_H
         #define _DARWIN_BOOTSTRAP_CTYPE_H
+        #define DARWIN_BOOTSTRAP_CTYPE_BITS 1
         #define _CTYPE_A 0x00000100L
         #define _CTYPE_C 0x00000200L
         #define _CTYPE_D 0x00000400L
@@ -580,6 +605,9 @@ with args;
         static inline unsigned long __darwin_bootstrap_maskrune(int c, unsigned long f) { return __darwin_bootstrap_ctype_mask(c) & f; }
         #define __maskrune(c, f) __darwin_bootstrap_maskrune((c), (f))
         #define __istype(c, f) (__darwin_bootstrap_maskrune((c), (f)) != 0)
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         int isalnum(int);
         int isalpha(int);
         int iscntrl(int);
@@ -594,13 +622,22 @@ with args;
         int isascii(int);
         int tolower(int);
         int toupper(int);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
         cat > $out/include/tcc-darwin-bootstrap/errno.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_ERRNO_H
         #define _DARWIN_BOOTSTRAP_ERRNO_H
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         extern int errno;
+        #ifdef __cplusplus
+        }
+        #endif
         #define EINVAL 22
         #define ENOMEM 12
         #define ENOENT 2
@@ -773,6 +810,9 @@ with args;
         #endif
         typedef struct { int quot; int rem; } div_t;
         typedef struct { long quot; long rem; } ldiv_t;
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         void abort(void);
         #define EXIT_SUCCESS 0
         #define EXIT_FAILURE 1
@@ -805,6 +845,9 @@ with args;
         char *mktemp(char *);
         void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
         void qsort(void *, size_t, size_t, int (*)(const void *, const void *));
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -834,6 +877,9 @@ with args;
         #define stdin ((FILE *)0)
         #define stdout ((FILE *)1)
         #define stderr ((FILE *)2)
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         int printf(const char *, ...);
         int fprintf(FILE *, const char *, ...);
         int vfprintf(FILE *, const char *, va_list);
@@ -899,6 +945,9 @@ with args;
         char *tmpnam(char *);
         FILE *popen(const char *, const char *);
         int pclose(FILE *);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 
@@ -909,6 +958,9 @@ with args;
         typedef long off_t;
         typedef unsigned int uid_t;
         typedef unsigned int gid_t;
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
         int close(int);
         #define F_OK 0
         #define X_OK 1
@@ -953,6 +1005,9 @@ with args;
         int rename(const char *, const char *);
         int rmdir(const char *);
         int symlink(const char *, const char *);
+        #ifdef __cplusplus
+        }
+        #endif
         #endif
         H
 

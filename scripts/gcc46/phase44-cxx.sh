@@ -53,6 +53,36 @@ for gcc_subdir in \
     esac
   done
 done
+
+# The phase37 wrapper may install temporary bootstrap C/POSIX header overlays
+# into src/gcc while repairing GCC 4.6's include search.  Those headers are
+# good enough for building the C driver, but they are not C++-safe: libsupc++
+# needs the current phase34 sysroot headers with extern "C" declarations.
+for stale_c_header in \
+  assert.h \
+  ctype.h \
+  dirent.h \
+  errno.h \
+  fcntl.h \
+  fnmatch.h \
+  grp.h \
+  inttypes.h \
+  locale.h \
+  math.h \
+  pwd.h \
+  setjmp.h \
+  signal.h \
+  stdbool.h \
+  stdint.h \
+  stdio.h \
+  stdlib.h \
+  string.h \
+  strings.h \
+  time.h \
+  unistd.h \
+  utime.h; do
+  [ -L "src/gcc/$stale_c_header" ] && rm -f "src/gcc/$stale_c_header"
+done
 rm -f src/gcc/.darwin-bootstrap-root-header-overlays
 if ! grep -q DARWIN_BOOTSTRAP_ASSUME_MPFR src/mpc/configure; then
   awk '
@@ -569,7 +599,110 @@ make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # allow impure debug runs to override both the make executable and job count.
 build_cores=${BOOTSTRAP_JOBS:-1}
 make_dir=${PHASE44_MAKE_DIR:-.}
-make_targets=${PHASE44_TARGETS:-"all-gcc all-target-libstdc++-v3"}
+make_targets=${PHASE44_TARGETS:-"all-gcc"}
+
+sdk_path() {
+  if [ -n "${PHASE44_SDK_PATH:-}" ]; then
+    printf '%s\n' "$PHASE44_SDK_PATH"
+  else
+    xcrun --sdk macosx --show-sdk-path
+  fi
+}
+
+ensure_target_libgcc_macho() {
+  [ "${PHASE44_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
+  [ "$make_dir" = . ] || return 0
+  [ -f gcc/xgcc ] || return 0
+  if [ ! -f "$target/libgcc/Makefile" ]; then
+    MAKEFLAGS= "$make_tool" -j1 \
+      MAKEINFO=true \
+      CC="$CC" \
+      CPP="$CPP" \
+      CFLAGS="$CFLAGS" \
+      CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+      CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+      CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+      AR="$AR" \
+      NM="$NM" \
+      RANLIB="$RANLIB" \
+      STRIP="$STRIP" \
+      LIPO="$LIPO" \
+      OTOOL="$OTOOL" \
+      configure-target-libgcc \
+      > "$bootstrap_share/configure-target-libgcc.stdout" \
+      2> "$bootstrap_share/configure-target-libgcc.stderr"
+    postprocess_macho_specs
+  fi
+  MAKEFLAGS= "$make_tool" -C "$target/libgcc" -j1 \
+    MAKEINFO=true \
+    AR="$AR" \
+    NM="$NM" \
+    RANLIB="$RANLIB" \
+    STRIP="$STRIP" \
+    all \
+    > "$bootstrap_share/make-target-libgcc.stdout" \
+    2> "$bootstrap_share/make-target-libgcc.stderr"
+  if [ -f "$target/libgcc/libgcc.a" ]; then
+    cp "$target/libgcc/libgcc.a" gcc/libgcc.a
+    "$RANLIB" gcc/libgcc.a >/dev/null 2>&1 || true
+  fi
+  if [ ! -f gcc/libgcov.a ]; then
+    "$AR" cr gcc/libgcov.a
+    "$RANLIB" gcc/libgcov.a >/dev/null 2>&1 || true
+  fi
+}
+
+configure_direct_libstdcxx() {
+  [ -f "$target/libstdc++-v3/Makefile" ] && return 0
+  mkdir -p "$target/libstdc++-v3"
+  local sdk
+  sdk="$(sdk_path)"
+  (
+    cd "$target/libstdc++-v3"
+    env \
+      CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CXX="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CXXCPP="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $phase34/include/tcc-darwin-bootstrap -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CFLAGS="$phase44_cflags_for_target" \
+      CXXFLAGS="$phase44_cflags_for_target" \
+      LDFLAGS="-nostartfiles -nodefaultlibs -L$PWD/../../gcc -lgcc -Wl,-syslibroot,$sdk -lSystem" \
+      AR="$AR" \
+      RANLIB="$RANLIB" \
+      NM="$NM" \
+      STRIP="$STRIP" \
+      MAKEINFO=true \
+      ../../../src/libstdc++-v3/configure \
+        --prefix="$out" \
+        --build="$target" \
+        --host="$target" \
+        --target="$target" \
+        --disable-shared \
+        --disable-multilib \
+        --disable-nls \
+        --disable-libstdcxx-pch \
+        > "$bootstrap_share/configure-direct-libstdcxx.stdout" \
+        2> "$bootstrap_share/configure-direct-libstdcxx.stderr"
+  )
+}
+
+build_direct_libstdcxx() {
+  [ "${PHASE44_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
+  [ "$make_dir" = . ] || return 0
+  [ -f gcc/g++ ] || return 0
+  ensure_target_libgcc_macho
+  configure_direct_libstdcxx
+  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j1 \
+    MAKEINFO=true \
+    all \
+    > "$bootstrap_share/make-direct-libstdcxx.stdout" \
+    2> "$bootstrap_share/make-direct-libstdcxx.stderr"
+  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j1 \
+    MAKEINFO=true \
+    install \
+    > "$bootstrap_share/install-direct-libstdcxx.stdout" \
+    2> "$bootstrap_share/install-direct-libstdcxx.stderr"
+}
 
 rewrite_phase34_store_refs
 append_top_prereq_stubs
@@ -633,16 +766,21 @@ MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
 
 install_macho_tool_wrappers
 postprocess_macho_specs
+build_direct_libstdcxx
 
-if [ "${PHASE44_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc all-target-libstdc++-v3" ]; then
+if [ "${PHASE44_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then
   exit 0
 fi
 
-MAKEFLAGS= "$make_tool" -j"$build_cores" \
-  MAKEINFO=true \
-  install-gcc install-target-libstdc++-v3 \
-  > "$bootstrap_share/install.stdout" \
-  2> "$bootstrap_share/install.stderr"
+mkdir -p "$out/bin" "$out/lib/gcc/$target/$gcc_version"
+cp gcc/xgcc "$out/bin/gcc"
+cp gcc/g++ "$out/bin/g++"
+cp gcc/cc1 "$out/lib/gcc/$target/$gcc_version/cc1"
+cp gcc/cc1plus "$out/lib/gcc/$target/$gcc_version/cc1plus"
+cp gcc/specs "$out/lib/gcc/$target/$gcc_version/specs"
+cp gcc/libgcc.a "$out/lib/gcc/$target/$gcc_version/libgcc.a"
+cp gcc/libgcov.a "$out/lib/gcc/$target/$gcc_version/libgcov.a"
+chmod +x "$out/bin/gcc" "$out/bin/g++" "$out/lib/gcc/$target/$gcc_version/cc1" "$out/lib/gcc/$target/$gcc_version/cc1plus"
 
 test -x "$out/bin/gcc"
 test -x "$out/bin/g++"
