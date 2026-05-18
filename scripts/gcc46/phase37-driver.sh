@@ -90,6 +90,7 @@ libgcc_symbols="$gcc_lib/libgcc-symbols"
 object_format="\${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}"
 macho_as="\${GCC46_BOOTSTRAP_AS:-$(command -v as || true)}"
 macho_linker="\${GCC46_BOOTSTRAP_MACHO_CC:-$(command -v cc || true)}"
+host_generated_cc="\${GCC46_BOOTSTRAP_HOST_CC:-$(command -v cc || true)}"
 
 mode=link
 out_file=
@@ -269,7 +270,8 @@ compile_to_asm() {
   local compile_input="\$input"
   local input_dir source_dir source_dir_name source_dir_target gcc_source_root source_entry source_name source_target include_dir include_entry include_name include_target
   local input_dir_args=()
-  local source_overlay related_source_subdir root_overlay_entry root_overlay_name
+  local source_overlay related_source_subdir root_overlay_entry root_overlay_name filtered_arg
+  local effective_compiler_args=()
   local staged_source=0
   source_dir_name=
   case "\$input" in
@@ -393,12 +395,53 @@ compile_to_asm() {
     done
     expand_config_overlay
   fi
+  effective_compiler_args=("\${compiler_args[@]}")
+  case "\${input##*/}" in
+    insn-*.c)
+      effective_compiler_args=()
+      for filtered_arg in "\${compiler_args[@]}"; do
+        case "\$filtered_arg" in
+          -g|-g[0-9]*|-ggdb*) continue ;;
+        esac
+        effective_compiler_args+=("\$filtered_arg")
+      done
+      ;;
+  esac
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$merged_include" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables -mno-sse2 \\
-    "\${compiler_args[@]}" "\${input_dir_args[@]}" \\
+    "\${effective_compiler_args[@]}" "\${input_dir_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
   rewrite_dependency_files "\$compile_input" "\$input"
+}
+
+host_compile_generated_source() {
+  local input="\$1"
+  local object_out="\$2"
+  local filtered_arg
+  local host_args=()
+  case "\${input##*/}" in
+    insn-*.c) ;;
+    *) return 1 ;;
+  esac
+  [ "\$object_format" = macho ] || return 1
+  [ "\${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-0}" = 1 ] || return 1
+  if [ -z "\$host_generated_cc" ]; then
+    echo "gcc: GCC46_BOOTSTRAP_HOST_CC_GENERATED=1 requires GCC46_BOOTSTRAP_HOST_CC or host cc" >&2
+    exit 1
+  fi
+  for filtered_arg in "\${compiler_args[@]}"; do
+    case "\$filtered_arg" in
+      -g|-g[0-9]*|-ggdb*) continue ;;
+    esac
+    host_args+=("\$filtered_arg")
+  done
+  MACOSX_DEPLOYMENT_TARGET=10.8 "\$host_generated_cc" -arch x86_64 \
+    -mmacosx-version-min=10.8 \
+    -fno-asynchronous-unwind-tables -fno-unwind-tables \
+    "\${host_args[@]}" \
+    -c "\$input" -o "\$object_out"
+  return 0
 }
 
 assemble_to_object() {
@@ -531,8 +574,10 @@ if [ "\$mode" = object ]; then
     fi
   fi
   if [ "\${#sources[@]}" -eq 1 ]; then
-    compile_to_asm "\${sources[0]}" "\$tmpdir/input.s"
-    assemble_to_object "\$tmpdir/input.s" "\$out_file"
+    if ! host_compile_generated_source "\${sources[0]}" "\$out_file"; then
+      compile_to_asm "\${sources[0]}" "\$tmpdir/input.s"
+      assemble_to_object "\$tmpdir/input.s" "\$out_file"
+    fi
   else
     assemble_to_object "\${asm_sources[0]}" "\$out_file"
   fi
