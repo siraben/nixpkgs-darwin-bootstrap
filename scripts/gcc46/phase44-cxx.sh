@@ -746,23 +746,27 @@ if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
     2> "$bootstrap_share/configure-$make_dir.stderr"
 fi
 
-MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
-  MAKEINFO=true \
-  CC="$CC" \
-  CPP="$CPP" \
-  CFLAGS="$CFLAGS" \
-  CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
-  CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
-  CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
-  AR="$AR" \
-  NM="$NM" \
-  RANLIB="$RANLIB" \
-  STRIP="$STRIP" \
-  LIPO="$LIPO" \
-  OTOOL="$OTOOL" \
-  $make_targets \
-  > "$bootstrap_share/make.stdout" \
-  2> "$bootstrap_share/make.stderr"
+if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
+  MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+    MAKEINFO=true \
+    CC="$CC" \
+    CPP="$CPP" \
+    CFLAGS="$CFLAGS" \
+    CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+    CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+    CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+    AR="$AR" \
+    NM="$NM" \
+    RANLIB="$RANLIB" \
+    STRIP="$STRIP" \
+    LIPO="$LIPO" \
+    OTOOL="$OTOOL" \
+    $make_targets \
+    > "$bootstrap_share/make.stdout" \
+    2> "$bootstrap_share/make.stderr"
+else
+  printf 'Skipped main make in resumed phase44 tree\n' > "$bootstrap_share/make.skipped"
+fi
 
 install_macho_tool_wrappers
 postprocess_macho_specs

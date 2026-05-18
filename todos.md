@@ -32,7 +32,8 @@
 - [x] Rebuilt target `libstdc++` against C++-safe phase34 headers and removed stale phase37 C header overlays from the GCC source include path.
 - [x] Installed the direct `libstdc++`/`libsupc++` outputs into the phase44 impure prefix and smoke-tested `g++` compiling/linking a `std::string` Mach-O executable.
 - [x] Folded the direct target `libgcc`/`libstdc++` recipe and manual GCC output packaging into `scripts/gcc46/phase44-cxx.sh`.
-- [ ] Current phase44 blocker: validate the scripted phase44 path from a clean/resumed work root, then freeze it with the Nix derivation.
+- [x] Added and validated `PHASE44_SKIP_MAIN_MAKE=1` so the direct runtime/package path can be rerun against a resumed phase44 tree without replaying `all-gcc`.
+- [ ] Current phase44 blocker: validate the full scripted phase44 path from a clean work root, then freeze it with the Nix derivation.
 
 ## Running Log
 
@@ -56,6 +57,7 @@
 - 2026-05-18: Rebuilt phase34 as `/nix/store/sn06mc2kg7wgfpm28gx7kcsjs6kf3mab-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64`, rebuilt target `libsupc++`/`libstdc++` after removing stale phase37 C header symlinks from `src/gcc`, and verified the installed `libstdc++.a` no longer exports the mangled C runtime references.
 - 2026-05-18: Smoke-tested the current phase44 `g++` path end-to-end: `<string>` compiles to a Mach-O x86_64 object, links with the rebuilt static `libstdc++`/`libsupc++`/`libgcc` plus `libSystem`, produces a Mach-O executable, and runs successfully. The remaining link noise is deployment-target warnings, not a correctness blocker.
 - 2026-05-18: Folded the discovered direct runtime path into `scripts/gcc46/phase44-cxx.sh`: phase44 now prunes stale phase37 C/POSIX header overlays, defaults top-level work to `all-gcc`, builds target `libgcc` directly, configures/builds/installs target `libstdc++-v3` directly with the phase34 sysroot headers, and manually packages the GCC driver/frontend artifacts instead of invoking GCC's fixincludes-heavy stock install.
+- 2026-05-18: Added `PHASE44_SKIP_MAIN_MAKE=1` for fast resumed validation of the codified runtime path. From `work/impure/phase44-gcc46-cxx`, the script now reruns direct target `libgcc`/`libstdc++` packaging without replaying top-level `all-gcc`; validated that installed `out/lib/libstdc++.a` and `out/lib/libsupc++.a` are Mach-O archives and do not contain the previous mangled C runtime references.
 
 ## Current runnable chain
 
