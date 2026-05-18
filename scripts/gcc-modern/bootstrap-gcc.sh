@@ -210,6 +210,8 @@ export ac_cv_sizeof_long=8
 export ac_cv_sizeof_void_p=8
 export ac_cv_sizeof_double=8
 export ac_cv_sizeof_long_double=16
+export ac_cv_type_rlim_t=yes
+export gcc_cv_have_decl_strsignal=yes
 export libgcc_cv_dfp=no
 export libgcc_cv_fixed_point=no
 export glibc_version_major=0
@@ -290,6 +292,21 @@ if [ -f Makefile ]; then
       -e 's@^#define HAVE_DECL_STRSIGNAL 0$@#define HAVE_DECL_STRSIGNAL 1@m;' \
       -e 's@^#define rlim_t long$@/* #undef rlim_t */@m;' \
       gcc/auto-host.h
+    if [ -f gcc/config.status ]; then
+      perl -0pi \
+        -e 's@D\["HAVE_DECL_STRSIGNAL"\]=" 0"@D["HAVE_DECL_STRSIGNAL"]=" 1"@m;' \
+        -e 's@D\["rlim_t"\]=" long"@D["rlim_t"]=" /* undef */"@m;' \
+        gcc/config.status
+    fi
+    if [ -f gcc/config.cache ]; then
+      perl -0pi \
+        -e 's@^gcc_cv_have_decl_strsignal=.*$@gcc_cv_have_decl_strsignal=yes@m;' \
+        -e 's@^ac_cv_type_rlim_t=.*$@ac_cv_type_rlim_t=yes@m;' \
+        gcc/config.cache
+      grep -q '^gcc_cv_have_decl_strsignal=' gcc/config.cache || printf '%s\n' 'gcc_cv_have_decl_strsignal=yes' >> gcc/config.cache
+      grep -q '^ac_cv_type_rlim_t=' gcc/config.cache || printf '%s\n' 'ac_cv_type_rlim_t=yes' >> gcc/config.cache
+    fi
+    echo timestamp > gcc/cstamp-h
     rm -f gcc/toplev.o gcc/opts.o gcc/gcc.o gcc/darwin-driver.o \
       gcc/.deps/toplev.TPo gcc/.deps/toplev.Po \
       gcc/.deps/opts.TPo gcc/.deps/opts.Po \
