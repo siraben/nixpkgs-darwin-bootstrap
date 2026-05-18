@@ -26,7 +26,9 @@
 - [x] Fixed GCC 4.6 Mach-O runtime blockers found after `all-gcc`: Darwin stdio globals now initialize from libSystem at load time, phase34 `struct stat` matches Darwin's legacy x86_64 ABI, and `xgcc` emits Mach-O objects.
 - [x] Patched the GCC 4.6 driver path for Mach-O bootstrap iteration: default bad host deployment targets are forced back to `10.8`, compile-and-link cc1 invocations use temp-path `-auxbase-strip`, and specs can bypass crashing `collect2` in favor of the Mach-O linker.
 - [x] Validated current impure GCC 4.6 smoke path: `xgcc -c` produces a Mach-O x86_64 object, and `xgcc -isysroot … -nostartfiles -nodefaultlibs … -lSystem` links a Mach-O executable returning 42.
-- [ ] Current phase44 blocker: rebuild the full phase44 install path with the Mach-O driver/spec patches, then decide whether to build a Mach-O `libgcc` or keep the current `-nostartfiles -nodefaultlibs` bootstrap link boundary for the next phase.
+- [x] Finished the direct phase44 target `libgcc` build with `xgcc` emitting Mach-O objects; `libgcc.a` and an intentionally empty bootstrap `libgcov.a` copy back into `build/gcc`.
+- [x] Minimized the current GCC 4.6 Mach-O patch set: keep temp `%g` auxbase paths, disable crashing target debug info, disable bootstrap-unneeded `libgcov`, and skip Darwin/i386 CRT extra-parts while the compiler/runtime boundary is still forming.
+- [ ] Current phase44 blocker: turn the direct target-`libgcc` recipe into a stable resumed phase44 path, then continue into `all-target-libstdc++-v3` with the same Mach-O compiler.
 - [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
 
 ## Running Log
@@ -40,6 +42,11 @@
 - 2026-05-18: Added `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` as an impure-only discovery mode after normal GCC frontend files compiled correctly but slowly through the bootstrapped wrapper; `caller-save.o` validates as Mach-O.
 - 2026-05-18: The first host-CC discovery run reached `libbackend.a`; added `-Wno-error -Wno-format-security` to the host shortcut and validated the five previously missing backend objects as Mach-O.
 - 2026-05-18: Rebuilt phase44 `libcpp`, `cc1`, and `xgcc` after fixing Darwin stdio/stat ABI issues; `xgcc` now emits Mach-O x86_64 objects, and a smoke executable links/runs through the impure Mach-O linker with explicit `-isysroot`, `-nostartfiles`, and `-nodefaultlibs`.
+- 2026-05-18: Switched GCC 4.6 cc1 auxbase handling to `%g.o`/`%g.s` because `%|` becomes `-` under `-pipe`; relative auxbase paths were the real Mach-O cc1 crash trigger.
+- 2026-05-18: Fixed the Mach-O assembler wrapper to append stdin `-` when `xgcc -pipe` invokes `as` with only options like `-arch x86_64 -o file`.
+- 2026-05-18: Forced phase44 target compilation to `-O2 -g0`, disabled libgcc debug info, configured `--disable-threads`, and confirmed the `gthr-single.h` path avoids the missing Darwin `pthread.h` blocker.
+- 2026-05-18: Completed direct `make -C build/x86_64-apple-darwin/libgcc all`; disabled bootstrap-unneeded `libgcov` and Darwin/i386 CRT extra-parts to avoid premature runtime/header dependencies.
+- 2026-05-18: Confirmed appended top-level no-op stubs do not remove GNU make prerequisites; current fast loop is direct target iteration until the resumed top-level recipe is made dependency-clean.
 
 ## Current runnable chain
 

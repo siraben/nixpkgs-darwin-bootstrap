@@ -89,8 +89,11 @@ export PATH="$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.8
 phase44_cflags="${PHASE44_CFLAGS:--g0}"
 phase44_cflags_for_build="${PHASE44_CFLAGS_FOR_BUILD:-$phase44_cflags}"
+phase44_cflags_for_target="${PHASE44_CFLAGS_FOR_TARGET:--O2 -g0}"
 export CFLAGS="$phase44_cflags"
 export CFLAGS_FOR_BUILD="$phase44_cflags_for_build"
+export CFLAGS_FOR_TARGET="$phase44_cflags_for_target"
+export CXXFLAGS_FOR_TARGET="$phase44_cflags_for_target"
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
@@ -279,6 +282,7 @@ if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
     --disable-shared \
     --disable-multilib \
     --disable-nls \
+    --disable-threads \
     --disable-libmudflap \
     --disable-libstdcxx-pch \
     --disable-lto \
@@ -458,6 +462,22 @@ install_macho_tool_wrappers() {
   [ -d gcc ] || return 0
   cat > gcc/as <<EOF
 #!/bin/sh
+has_input=0
+skip_next=0
+for arg do
+  if [ "\$skip_next" = 1 ]; then
+    skip_next=0
+    continue
+  fi
+  case "\$arg" in
+    -arch|-o) skip_next=1 ;;
+    -*) ;;
+    *) has_input=1 ;;
+  esac
+done
+if [ "\$has_input" = 0 ]; then
+  exec "$GCC46_BOOTSTRAP_AS" "\$@" -
+fi
 exec "$GCC46_BOOTSTRAP_AS" "\$@"
 EOF
   cat > gcc/collect-ld <<EOF
@@ -471,9 +491,76 @@ postprocess_macho_specs() {
   [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
   [ -f gcc/specs ] || return 0
   GCC46_BOOTSTRAP_LD_FOR_PERL="$GCC46_BOOTSTRAP_LD" perl -0 -p -i \
-    -e 's/%\{!c:%\{!S:-auxbase %b\}\}/%{!c:%{!S:-auxbase-strip %|.s}}/g;' \
+    -e 's/%\{c\|S:%\{o\*:-auxbase-strip %\*}%\{!o\*:-auxbase %b}}/%{c|S:-auxbase-strip %g.o}/g;' \
+    -e 's/%\{c\|S:-auxbase-strip %\|\.o}/%{c|S:-auxbase-strip %g.o}/g;' \
+    -e 's/%\{!c:%\{!S:-auxbase %b\}\}/%{!c:%{!S:-auxbase-strip %g.s}}/g;' \
+    -e 's/%\{!c:%\{!S:-auxbase-strip %\|\.s\}\}/%{!c:%{!S:-auxbase-strip %g.s}}/g;' \
     -e 's@\*linker:\x0acollect2@(qq{*linker:}.chr(10).$ENV{GCC46_BOOTSTRAP_LD_FOR_PERL})@eg' \
     gcc/specs
+  if [ -f gcc/Makefile ]; then
+    perl -0 -p -i -e 's/^LIBGCC2_DEBUG_CFLAGS = -g$/LIBGCC2_DEBUG_CFLAGS = -g0/m' gcc/Makefile
+    perl -0 -p -i -e 's/^LIBGCOV = .*?\\n\\s*_gcov_merge_ior$/LIBGCOV =/ms' gcc/Makefile
+  fi
+  if [ -f gcc/libgcc.mvars ]; then
+    perl -0 -p -i \
+      -e 's/^LIBGCOV = .*$/LIBGCOV =/m;' \
+      -e 's/^GCC_EXTRA_PARTS = .*$/GCC_EXTRA_PARTS =/m;' \
+      gcc/libgcc.mvars
+  fi
+  if [ -f x86_64-apple-darwin/libgcc/Makefile ]; then
+    perl -0 -p -i \
+      -e 's/^LIBGCOV = .*?\\n\\s*_gcov_merge_ior$/LIBGCOV =/ms;' \
+      -e 's/^GCC_EXTRA_PARTS = .*$/GCC_EXTRA_PARTS =/m;' \
+      x86_64-apple-darwin/libgcc/Makefile
+  fi
+}
+
+append_top_prereq_stubs() {
+  [ -f Makefile ] || return 0
+  grep -q DARWIN_BOOTSTRAP_TOP_PREREQ_STUBS Makefile && return 0
+  cat >> Makefile <<'MAKE'
+
+# DARWIN_BOOTSTRAP_TOP_PREREQ_STUBS
+.PHONY: configure-gmp maybe-configure-gmp all-gmp maybe-all-gmp install-gmp maybe-install-gmp
+configure-gmp maybe-configure-gmp all-gmp maybe-all-gmp install-gmp maybe-install-gmp:
+	@:
+
+.PHONY: configure-mpfr maybe-configure-mpfr all-mpfr maybe-all-mpfr install-mpfr maybe-install-mpfr
+configure-mpfr maybe-configure-mpfr all-mpfr maybe-all-mpfr install-mpfr maybe-install-mpfr:
+	@:
+
+.PHONY: configure-mpc maybe-configure-mpc all-mpc maybe-all-mpc install-mpc maybe-install-mpc
+configure-mpc maybe-configure-mpc all-mpc maybe-all-mpc install-mpc maybe-install-mpc:
+	@:
+
+.PHONY: configure-libiberty maybe-configure-libiberty all-libiberty maybe-all-libiberty install-libiberty maybe-install-libiberty
+configure-libiberty maybe-configure-libiberty all-libiberty maybe-all-libiberty install-libiberty maybe-install-libiberty:
+	@:
+
+.PHONY: configure-build-libiberty maybe-configure-build-libiberty all-build-libiberty maybe-all-build-libiberty
+configure-build-libiberty maybe-configure-build-libiberty all-build-libiberty maybe-all-build-libiberty:
+	@:
+
+.PHONY: configure-fixincludes maybe-configure-fixincludes all-fixincludes maybe-all-fixincludes install-fixincludes maybe-install-fixincludes
+configure-fixincludes maybe-configure-fixincludes all-fixincludes maybe-all-fixincludes install-fixincludes maybe-install-fixincludes:
+	@:
+
+.PHONY: configure-build-fixincludes maybe-configure-build-fixincludes all-build-fixincludes maybe-all-build-fixincludes
+configure-build-fixincludes maybe-configure-build-fixincludes all-build-fixincludes maybe-all-build-fixincludes:
+	@:
+
+.PHONY: configure-zlib maybe-configure-zlib all-zlib maybe-all-zlib install-zlib maybe-install-zlib
+configure-zlib maybe-configure-zlib all-zlib maybe-all-zlib install-zlib maybe-install-zlib:
+	@:
+
+.PHONY: configure-libcpp maybe-configure-libcpp all-libcpp maybe-all-libcpp install-libcpp maybe-install-libcpp
+configure-libcpp maybe-configure-libcpp all-libcpp maybe-all-libcpp install-libcpp maybe-install-libcpp:
+	@:
+
+.PHONY: configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-libdecnumber install-libdecnumber maybe-install-libdecnumber
+configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-libdecnumber install-libdecnumber maybe-install-libdecnumber:
+	@:
+MAKE
 }
 
 make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
@@ -485,6 +572,7 @@ make_dir=${PHASE44_MAKE_DIR:-.}
 make_targets=${PHASE44_TARGETS:-"all-gcc all-target-libstdc++-v3"}
 
 rewrite_phase34_store_refs
+append_top_prereq_stubs
 install_macho_tool_wrappers
 postprocess_macho_specs
 
@@ -512,6 +600,8 @@ if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
     CPP="$CPP" \
     CFLAGS="$CFLAGS" \
     CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+    CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+    CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
     AR="$AR" \
     NM="$NM" \
     RANLIB="$RANLIB" \
@@ -529,6 +619,8 @@ MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
   CPP="$CPP" \
   CFLAGS="$CFLAGS" \
   CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+  CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+  CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
   AR="$AR" \
   NM="$NM" \
   RANLIB="$RANLIB" \
