@@ -1,4 +1,20 @@
-# Darwin Bootstrap Plan
+# Darwin Bootstrap Todos
+
+## Current Status Update
+
+- [x] `plan.md` has moved to `todos.md`; keep this file as both the task list and running bootstrap log.
+- [x] Phase44 no longer reruns seeded GMP/MPFR/MPC/libiberty/fixincludes/zlib/libcpp/libdecnumber work during impure iteration.
+- [x] Phase37 wrapper now stages GCC source-neighbor directories, rewrites temp dependency paths, and handles nested GCC `config/...` includes.
+- [x] Phase44 now seeds GCC generated MD/GType outputs and overrides fragile generator stamps including `s-gtype`.
+- [x] Rebuilt the impure phase37 wrapper against the live phase34 TinyCC store path.
+- [x] Patched phase44 to seed/touch phase35 `build/gen*` binaries and override generator binary rebuild targets after `genmodes`/`genmddeps` relinking hit bootstrap assembler label gaps.
+- [x] The phase44 retry moved past generator binary linking and into GCC frontend compilation.
+- [x] Rebuilt the impure phase37 wrapper with the include-dir `config/` overlay fix and directly compiled `g++spec.o`.
+- [x] Directly validated the current phase37 wrapper/source-overlay fix by compiling `c-family/stub-objc.c` through the TinyCC-derived GCC wrapper.
+- [x] Added fast impure iteration controls: phase44 resume, phase44 per-target make, and phase37 self-test skipping for wrapper-only rebuilds.
+- [x] Added an impure Mach-O object mode to the phase37 GCC wrapper and validated `c-lang.o` plus `c-family/stub-objc.o` as Mach-O x86_64 objects.
+- [ ] Current phase44 blocker: run resumed Mach-O `all-gcc` and fix the next real failure beyond the C frontend object smoke targets.
+- [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
 
 ## Current runnable chain
 
@@ -149,7 +165,7 @@
 
 ## Running log
 
-- 2026-05-08: Switched `plan.md` progress tracking to append-only log entries; keep the checklist as a roadmap and record each new bootstrap boundary here instead of rewriting prior TODO text.
+- 2026-05-08: Switched `todos.md` progress tracking to append-only log entries; keep the checklist as a roadmap and record each new bootstrap boundary here instead of rewriting prior TODO text.
 - 2026-05-08: Added proper GCC 4.6 bootstrap patch hunks for libiberty `fnmatch.c`, `getopt.c`, `hex.c`, and `make-relative-prefix.c`; latest run reached GCC subconfigure after passing the prior libiberty compile boundary.
 - 2026-05-08: Validated the `make-relative-prefix.c` bootstrap stub in `make all-gcc`; libiberty now compiles through `make-relative-prefix.c` and stops while compiling `make-temp-file.c`.
 - 2026-05-08: Added a bootstrap `make-temp-file.c` implementation; libiberty now compiles through `objalloc.c` and stops while compiling `obstack.c`.
@@ -346,3 +362,37 @@
 - 2026-05-17: The following impure phase44 run showed wrapper overlay pollution in bundled MPFR: the phase37 driver was symlinking all files from earlier include roots into writable build directories, so MPFR inherited GMP build-system files such as `Makefile.in` and `gmp-h.in`. Restricted build-directory overlays to header-like files and known header directories so generated source trees keep their own Makefiles.
 - 2026-05-17: Phase44 was also still able to discover ambient host C++ tools during configure. The impure C++ phase now unsets inherited `CXX`/`CXXCPP`/`CXX_FOR_BUILD`, prepends failing `c++`/`g++`/`clang++` stubs, and supplies only a phase37-backed C++ preprocessor shim for configure sanity checks.
 - 2026-05-17: The GMP generator sources then exposed the other side of include staging: adjacent source includes like `#include "dumbmp.c"` must be available next to the temporary basename copy, but not sprayed into writable build directories. Split phase37 staging into source-neighbor temp links for `.c`/C++/assembly files and header-only overlays for include/build directories.
+- 2026-05-17: Phase44 then advanced through bundled GMP generator links and into GCC `fixincludes`; `fixincl.c` includes the generated `fixincl.x` table beside the source file, so the phase37 temp source-neighbor staging now also admits adjacent `*.x` generated include files without broadening build-directory overlays.
+- 2026-05-17: After the `fixincl.x` fix, the impure parallel phase44 retry passed `fixincludes` compilation but exposed a dirty-tree/parallel GMP libtool race where `libmpn.la` observed `fib_table.lo` before the generated libtool object was usable. The C++ phase now builds bundled GMP serially before the parallel top-level make and clears the generated GMP table objects when resuming an impure tree.
+- 2026-05-17: Fresh phase44 trees do not have `gmp/Makefile` immediately after top-level configure; GCC creates it through the `configure-gmp` make target. Phase44 now runs `configure-gmp` serially first, then builds bundled GMP serially, before allowing the rest of GCC/libstdc++ to run with the impure job count.
+- 2026-05-17: A fully serial bundled GMP prebuild made impure phase44 iteration too slow. The protective split remains (`configure-gmp`, then build GMP, then top-level GCC), but the GMP build now honors `BOOTSTRAP_JOBS` after stale duplicate phase44 writers are killed.
+- 2026-05-17: Moved the append-only bootstrap checklist/running log from `plan.md` to `todos.md`; continue recording impure phase44 iterations here and keep Nix validation deferred until the impure C++ path stabilizes.
+- 2026-05-17: Phase44 impure C++ run reached `configure-mpc`; the immediate blocker was MPC probing `-lmpfr` before a stable bootstrap-visible MPFR archive, so phase44 now prebuilds MPFR after GMP and patches only MPC's MPFR configure link probe while leaving the actual library build in place.
+- 2026-05-17: The impure phase44 rerun exposed another iteration-speed issue: the bootstrapped phase39 `make` can sit after `configure-gmp` completes, so impure debugging now uses `/usr/bin/make` via `BOOTSTRAP_MAKE` and leaves phase39/Nix validation for the stabilized pass.
+- 2026-05-17: To keep phase44 iteration impure and fast, phase44 now seeds GMP/MPFR/MPC build directories from the proven phase35 checkpoint and overrides their top-level configure/build/install targets as no-ops; full prerequisite rebuilds are deferred until the C++ boundary is stable.
+- 2026-05-17: Phase44 advanced past GMP/MPFR/MPC with seeded prerequisites and stopped in libcpp because GCC dependency files referenced the wrapper's temporary copied source path; the phase37 GCC wrapper now rewrites `-MF` dependency files back to stable source paths and strips temporary bootstrap directories.
+- 2026-05-17: Killed overlapping phase44 impure runs after a rerun collided with the previous `make all-gcc`; continue with exactly one phase44 process against the current partially built workspace.
+- 2026-05-17: Further reduced phase44 impure iteration by seeding phase35 host/build support directories (`libiberty`, `fixincludes`, `zlib`, `libcpp`, `libdecnumber`) and overriding their top-level targets; phase44 now focuses on the GCC/C++ frontend boundary rather than reconfiguring proven C support libraries.
+- 2026-05-17: Phase44 reached GCC build-generator compilation and `genmodes.c` failed because the wrapper copied the source into a temp directory without GCC subdirectories like `config/i386`; the phase37 wrapper now symlinks GCC source-neighbor directories into the temp compile area.
+- 2026-05-17: Phase44 got into GCC generator execution and `build/genenums` segfaulted; phase44 now seeds generated GCC MD/GC files and stamps from phase35 so the C++ pass can avoid re-running fragile TinyCC-built generators.
+- 2026-05-17: Seeded generator outputs alone was not enough because GCC `Makefile` regenerated them when prerequisites were newer; phase44 now appends bootstrap stamp overrides to `src/gcc/Makefile.in` and also seeds `mddeps.mk`/`build/gencondmd.c`.
+- 2026-05-17: Confirmed no stale phase44/GCC wrapper processes remain after killing the overlapping impure runs; continuing with one phase44 retry and leaving the log append-only in `todos.md`.
+- 2026-05-17: Phase44 generator-object compilation failed resolving `config/vxworks-dummy.h` from temporary-copied GCC sources; fixed the phase37 wrapper to add its temp source-neighbor directory to the include path, so nested GCC config includes can resolve the symlinked `config/` tree.
+- 2026-05-17: The phase37 `-I$tmpdir` fix was insufficient because GCC 4.6 reports nested quoted config includes relative to `config/i386`; changed the wrapper to materialize a temporary `config/` overlay with each config subdirectory containing a `config -> ..` symlink, avoiding source-tree mutation while satisfying those legacy include paths.
+- 2026-05-17: Phase44 passed the GCC config include blocker and reached `gengtype`, which emitted parse errors on `line-map.h` and then kept running; tightened phase44 to seed `gtype.state` plus `gtype-*.h` from phase35 and override `s-gtype` so the C++ pass does not execute that fragile generator.
+- 2026-05-17: Updated the top of `todos.md` with the active phase44 status/resolved items. The immediate blocker is not GCC source anymore: the impure phase37 wrapper still hardcodes a garbage-collected phase34 TinyCC store path, so rebuild the wrapper against the current phase34 before the next retry.
+- 2026-05-17: The impure phase37 rebuild initially tried `builtins.currentSystem` (`aarch64-darwin`) and found no bootstrap package attrs; fixed `scripts/impure/build-gcc-phase.sh` to default bootstrap package lookup to `x86_64-darwin`, matching the amd64 Darwin chain being built.
+- 2026-05-17: Avoided a slow accidental Nix rebuild after `phase34` lookup wanted to rebuild the whole seed chain from dirty sources; switched the impure phase37 rebuild to already-realized store paths for current phase34/35/36 instead.
+- 2026-05-17: Rebuilt `work/impure/phase37-newconv/out` against current realized phase34/35/36 stores; the stale garbage-collected phase34 path is gone. A manual stdin-based smoke was invalid for this wrapper and was stopped; continue validation through the phase44 retry.
+- 2026-05-17: Marked the live status at the top of this file as requested. The stale phase34 wrapper blocker is resolved, and the current phase44 retry includes a patch that seeds phase35 `build/gen*` binaries so GCC does not relink fragile generator programs such as `genmodes` through the bootstrap assembler path.
+- 2026-05-17: Phase44 moved past generator relinking; the explicit `build/gen*` target overrides are active and generator stamps now reuse phase35 outputs. The next failure is `g++spec.o`: GCC's copied-source include staging still left an include-dir-provided `config` as a plain symlink, so `config/i386/i386.h` looked for `config/i386/config/vxworks-dummy.h`. Patched the phase37 wrapper to expand `config/` overlays after include-dir staging as well as after source-neighbor staging.
+- 2026-05-17: Rebuilt the impure phase37 wrapper after the include-dir `config/` overlay fix and directly validated the previous `g++spec.o` failure command. The wrapper now compiles `../../src/gcc/cp/g++spec.c` to an object in the existing phase44 GCC build tree, so the next phase44 retry should resume past that include blocker.
+- 2026-05-17: The next phase44 retry passed the previous `g++spec.o` blocker and failed in frontend sources where generated/root headers include nested source paths: `all-tree.def` needs `ada/gcc-interface/ada-tree.def`, and `c-family/c-common.h` needs root headers while being included from a copied `c-family/` directory. Extended the phase37 temp overlay to merge known GCC source directories recursively and hydrate every nested overlay directory with root/bootstrap headers.
+
+## Bootstrap Log - 2026-05-17
+
+- Confirmed the non-recursive source-tree/header overlay is sufficient for the previous `c-family/stub-objc.c` failure: the phase37 wrapper produced `/tmp/stub-objc-test.o` without the `c-family/*.def` or `splay-tree.h` quoted-include misses.
+
+- 2026-05-17: Shortened the GCC46 impure loop. `PHASE44_RESUME=1` now reuses the existing top-level configure state, `PHASE44_MAKE_DIR=gcc PHASE44_TARGETS='...' PHASE44_SKIP_INSTALL=1` iterates individual GCC targets, and `PHASE37_SKIP_SELF_TESTS=1` rebuilds the wrapper without replaying link/run smoke tests. The phase37 wrapper no longer performs recursive overlays or CWD symlinking and avoids staging for plain `conftest.c` inputs.
+- 2026-05-17: Added `GCC46_BOOTSTRAP_OBJECT_FORMAT=macho` to the phase37 wrapper. In that mode it assembles x86_64 Mach-O objects with `/usr/bin/as`, links temporary build tools through `/usr/bin/cc`, and injects a small Darwin stdio compatibility object for TinyCC-style `_stdin`/`_stdout`/`_stderr` globals. This is an impure iteration path; the pure path still defaults to ELF objects.
+- 2026-05-17: Verified the resumed phase44 per-target loop with Mach-O objects: `c-lang.o` and `c-family/stub-objc.o` now build successfully as Mach-O x86_64 objects. The previous quoted include failures for `c-family/*.def`, `splay-tree.h`, and generated `gtype-desc.h` are fixed by source/build header overlays.

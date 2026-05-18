@@ -87,6 +87,9 @@ python="$python"
 elf_to_m1="$elf_to_m1"
 libgcc_objects="$gcc_lib/libgcc-objects"
 libgcc_symbols="$gcc_lib/libgcc-symbols"
+object_format="\${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}"
+macho_as="\${GCC46_BOOTSTRAP_AS:-$(command -v as || true)}"
+macho_linker="\${GCC46_BOOTSTRAP_MACHO_CC:-$(command -v cc || true)}"
 
 mode=link
 out_file=
@@ -172,14 +175,47 @@ ensure_symlink() {
   ln -s "\$target" "\$link" 2>/dev/null || [ -e "\$link" ] || [ -L "\$link" ]
 }
 
+expand_config_overlay() {
+  local config_link="\$tmpdir/config"
+  local config_target config_entry config_name sub_entry sub_name
+  [ -L "\$config_link" ] || return 0
+  config_target="\$(readlink "\$config_link")"
+  [ -d "\$config_target" ] || return 0
+  rm -f "\$config_link"
+  mkdir -p "\$config_link"
+  for config_entry in "\$config_target"/*; do
+    [ -e "\$config_entry" ] || continue
+    config_name="\${config_entry##*/}"
+    if [ -d "\$config_entry" ]; then
+      mkdir -p "\$config_link/\$config_name"
+      ensure_symlink .. "\$config_link/\$config_name/config"
+      for sub_entry in "\$config_entry"/*; do
+        [ -e "\$sub_entry" ] || continue
+        sub_name="\${sub_entry##*/}"
+        ensure_symlink "\$sub_entry" "\$config_link/\$config_name/\$sub_name"
+      done
+    else
+      ensure_symlink "\$config_entry" "\$config_link/\$config_name"
+    fi
+  done
+}
+
+is_known_source_dir() {
+  case "\$1" in
+    config|c-family|cp|ada|java|objc|go|fortran|lto) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 is_overlay_include() {
   local path="\$1"
-  local name="\$(basename "\$path")"
+  local name="\${path##*/}"
   if [ -d "\$path" ]; then
     case "\$name" in
       sys|bits|machine|arch) return 0 ;;
-      *) return 1 ;;
+      *) is_known_source_dir "\$name" && return 0 ;;
     esac
+    return 1
   fi
   case "\$name" in
     *.h|*.hh|*.hpp|*.hxx|*.inc|*.def|*.md|*.opt) return 0 ;;
@@ -189,10 +225,10 @@ is_overlay_include() {
 
 is_source_neighbor() {
   local path="\$1"
-  local name="\$(basename "\$path")"
+  local name="\${path##*/}"
   is_overlay_include "\$path" && return 0
   case "\$name" in
-    *.c|*.cc|*.cpp|*.cxx|*.S|*.s) return 0 ;;
+    *.c|*.cc|*.cpp|*.cxx|*.S|*.s|*.x) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -201,63 +237,117 @@ compile_to_asm() {
   local input="\$1"
   local asm_out="\$2"
   local compile_input="\$input"
+  local input_dir source_dir source_dir_name source_dir_target gcc_source_root source_entry source_name source_target include_dir include_entry include_name include_target
   local input_dir_args=()
+  local staged_source=0
   case "\$input" in
     */*)
-      input_dir_args=(-I"\$(dirname "\$input")")
-      compile_input="\$tmpdir/\$(basename "\$input")"
+      staged_source=1
+      input_dir="\${input%/*}"
+      input_dir_args=(-I"\$input_dir")
+      compile_input="\$tmpdir/\${input##*/}"
       cp "\$input" "\$compile_input"
-      for source_entry in "\$(dirname "\$input")"/*; do
+      source_dir="\$input_dir"
+      source_dir_name="\${source_dir##*/}"
+      case "\$source_dir" in
+        /*) source_dir_target="\$source_dir" ;;
+        *) source_dir_target="\$PWD/\$source_dir" ;;
+      esac
+      if [ -d "\$source_dir_target" ] && is_known_source_dir "\$source_dir_name"; then
+        ensure_symlink "\$source_dir_target" "\$tmpdir/\$source_dir_name"
+        gcc_source_root="\${source_dir_target%/*}"
+        for gcc_source_subdir in config c-family cp ada java objc go fortran lto; do
+          [ -d "\$gcc_source_root/\$gcc_source_subdir" ] || continue
+          ensure_symlink "\$gcc_source_root/\$gcc_source_subdir" "\$tmpdir/\$gcc_source_subdir"
+        done
+      fi
+      for source_entry in "\$source_dir"/*; do
         [ -e "\$source_entry" ] || continue
         is_source_neighbor "\$source_entry" || continue
-        source_name="\$(basename "\$source_entry")"
+        source_name="\${source_entry##*/}"
         case "\$source_entry" in
           /*) source_target="\$source_entry" ;;
           *) source_target="\$PWD/\$source_entry" ;;
         esac
         ensure_symlink "\$source_target" "\$tmpdir/\$source_name"
       done
+      expand_config_overlay
+      input_dir_args=(-I"\$tmpdir" "\${input_dir_args[@]}")
       ;;
   esac
-  if [ -d . ] && [ -w . ]; then
+  if [ "\$staged_source" -eq 1 ]; then
     for include_dir in -I"\$merged_include" "\${compiler_args[@]}" "\${input_dir_args[@]}"; do
       case "\$include_dir" in
         -I*) include_dir="\${include_dir#-I}" ;;
         *) continue ;;
       esac
       [ -d "\$include_dir" ] || continue
-      if [ "\$include_dir" != "\$merged_include" ] && [ -w "\$include_dir" ]; then
-        for merged_entry in "\$merged_include"/*; do
-          [ -e "\$merged_entry" ] || continue
-          is_overlay_include "\$merged_entry" || continue
-          merged_name="\$(basename "\$merged_entry")"
-          ensure_symlink "\$merged_entry" "\$include_dir/\$merged_name"
-        done
-      fi
       for include_entry in "\$include_dir"/*; do
         [ -e "\$include_entry" ] || continue
         is_overlay_include "\$include_entry" || continue
-        include_name="\$(basename "\$include_entry")"
+        include_name="\${include_entry##*/}"
         case "\$include_entry" in
           /*) include_target="\$include_entry" ;;
           *) include_target="\$PWD/\$include_entry" ;;
         esac
-        ensure_symlink "\$include_entry" "./\$include_name"
         ensure_symlink "\$include_target" "\$tmpdir/\$include_name"
       done
     done
+    expand_config_overlay
   fi
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$merged_include" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables -mno-sse2 \\
     "\${compiler_args[@]}" "\${input_dir_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
+  rewrite_dependency_files "\$compile_input" "\$input"
 }
 
 assemble_to_object() {
   local input="\$1"
   local object_out="\$2"
-  "\$assembler" "\$input" -o "\$object_out"
+  case "\$object_format" in
+    elf)
+      "\$assembler" "\$input" -o "\$object_out"
+      ;;
+    macho)
+      if [ -z "\$macho_as" ]; then
+        echo "gcc: GCC46_BOOTSTRAP_OBJECT_FORMAT=macho requires GCC46_BOOTSTRAP_AS or host as" >&2
+        exit 1
+      fi
+      "\$macho_as" -arch x86_64 "\$input" -o "\$object_out"
+      ;;
+    *)
+      echo "gcc: unsupported GCC46_BOOTSTRAP_OBJECT_FORMAT=\$object_format" >&2
+      exit 1
+      ;;
+  esac
+}
+
+rewrite_dependency_files() {
+  local tmp_source="\$1"
+  local real_source="\$2"
+  local arg dep_file content i
+  for ((i = 0; i < \${#compiler_args[@]}; i++)); do
+    arg="\${compiler_args[\$i]}"
+    case "\$arg" in
+      -MF)
+        i=\$((i + 1))
+        dep_file="\${compiler_args[\$i]}"
+        ;;
+      -MF*)
+        dep_file="\${arg#-MF}"
+        ;;
+      *)
+        continue
+        ;;
+    esac
+    [ -f "\$dep_file" ] || continue
+    content="\$(cat "\$dep_file")"
+    content="\${content//\$tmp_source/\$real_source}"
+    content="\${content//\$tmpdir\\//}"
+    printf '%s\n' "\$content" > "\$dep_file"
+  done
 }
 
 normalize_symbols() {
@@ -268,7 +358,7 @@ normalize_symbols() {
 
 add_object_symbols() {
   local object="\$1"
-  local symbols="\$tmpdir/symbols-\$(basename "\$object").tsv"
+  local symbols="\$tmpdir/symbols-\${object##*/}.tsv"
   "\$python" "\$elf_to_m1" --symbols "\$object" > "\$symbols"
   awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbols" >> "\$tmpdir/defined.raw"
   awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbols" >> "\$tmpdir/unresolved.raw"
@@ -295,7 +385,8 @@ select_libgcc_objects() {
   while [ "\$changed" = 1 ]; do
     changed=0
     for symbol_file in "\$libgcc_symbols"/*.tsv; do
-      member_name="\$(basename "\$symbol_file" .tsv)"
+      member_name="\${symbol_file##*/}"
+      member_name="\${member_name%.tsv}"
       member_object="\$libgcc_objects/\$member_name"
       grep -qxF "\$member_object" "\$tmpdir/selected-libgcc.list" 2>/dev/null && continue
 
@@ -319,7 +410,7 @@ if [ "\$mode" = asm ]; then
     exit 1
   fi
   if [ -z "\$out_file" ]; then
-    base="\$(basename "\${sources[0]}")"
+    base="\${sources[0]##*/}"
     out_file="\${base%.c}.s"
   fi
   compile_to_asm "\${sources[0]}" "\$out_file"
@@ -334,10 +425,10 @@ if [ "\$mode" = object ]; then
   fi
   if [ -z "\$out_file" ]; then
     if [ "\${#sources[@]}" -eq 1 ]; then
-      base="\$(basename "\${sources[0]}")"
+      base="\${sources[0]##*/}"
       out_file="\${base%.c}.o"
     else
-      base="\$(basename "\${asm_sources[0]}")"
+      base="\${asm_sources[0]##*/}"
       out_file="\${base%.*}.o"
     fi
   fi
@@ -376,6 +467,30 @@ if [ "\${#objects[@]}" -eq 0 ]; then
   exit 1
 fi
 
+if [ "\$object_format" = macho ]; then
+  if [ -z "\$macho_linker" ]; then
+    echo "gcc: GCC46_BOOTSTRAP_OBJECT_FORMAT=macho link mode requires GCC46_BOOTSTRAP_MACHO_CC or host cc" >&2
+    exit 1
+  fi
+  if [ -n "\$macho_as" ]; then
+    cat > "\$tmpdir/darwin-stdio.s" <<'ASM'
+	.data
+	.globl _stdin
+_stdin:
+	.quad ___stdinp
+	.globl _stdout
+_stdout:
+	.quad ___stdoutp
+	.globl _stderr
+_stderr:
+	.quad ___stderrp
+ASM
+    "\$macho_as" -arch x86_64 "\$tmpdir/darwin-stdio.s" -o "\$tmpdir/darwin-stdio.o"
+    objects+=("\$tmpdir/darwin-stdio.o")
+  fi
+  exec "\$macho_linker" -arch x86_64 -mmacosx-version-min=10.8 "\${objects[@]}" "\${link_args[@]}" -o "\$out_file"
+fi
+
 select_libgcc_objects
 
 exec "\$linker" "\${objects[@]}" "\${link_args[@]}" "\${selected_libgcc_objects[@]}" -o "\$out_file"
@@ -383,6 +498,10 @@ EOF_GCC
 chmod +x "$out/bin/gcc"
 ln -s gcc "$out/bin/cc"
 ln -s gcc "$out/bin/gcc-4.6"
+
+if [ "${PHASE37_SKIP_SELF_TESTS:-0}" = 1 ]; then
+  exit 0
+fi
 
 cat > smoke.c <<'C'
 extern int puts(const char *);

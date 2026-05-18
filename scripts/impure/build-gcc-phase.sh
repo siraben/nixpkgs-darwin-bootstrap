@@ -12,6 +12,10 @@ Environment overrides:
   IMPURE_ROOT     Local work root, default: $PWD/work/impure
   BOOTSTRAP_MAKE  Make executable, default: host make for impure speed
   BOOTSTRAP_JOBS  Parallel jobs, default: min(host CPUs, 8)
+  PHASE44_RESUME  If 1, reuse existing phase44 build/gcc Makefiles
+  PHASE44_MAKE_DIR Make subdirectory for phase44 target iteration, e.g. gcc
+  PHASE44_TARGETS Make targets for phase44, e.g. "c-lang.o c-family/stub-objc.o"
+  PHASE44_SKIP_INSTALL If 1, stop after phase44 make targets
   PHASE34         phase34 tinycc Darwin cc store path
   PHASE35         phase35 GCC 4.6 all-gcc store path
   PHASE37         phase37 GCC 4.6 bootstrap store path
@@ -21,6 +25,7 @@ Environment overrides:
   PHASE44_OUT     local phase44 output path
   PHASE45_OUT     local phase45 output path
   CCTOOLS         cctools store path
+  BOOTSTRAP_SYSTEM flake package system, default: x86_64-darwin
 EOF
 }
 
@@ -33,7 +38,7 @@ phase=$1
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 impure_root=${IMPURE_ROOT:-"$repo_root/work/impure"}
 
-system=$(nix eval --raw --impure --expr builtins.currentSystem)
+system=${BOOTSTRAP_SYSTEM:-x86_64-darwin}
 attr_path() {
   nix build --no-link --print-out-paths ".#packages.$system.$1"
 }
