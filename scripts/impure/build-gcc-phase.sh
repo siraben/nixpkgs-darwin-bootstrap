@@ -71,12 +71,12 @@ if [ -z "${BOOTSTRAP_JOBS:-}" ]; then
   fi
 fi
 
-if [ -z "$phase34" ]; then phase34=$(attr_path phase34-tinycc-darwin-cc); fi
 if [ -z "$phase39" ]; then phase39=$(attr_path phase39-gnumake); fi
 if [ -z "$cctools" ]; then cctools=$(nixpkgs_path cctools); fi
 
 case "$phase" in
   phase44)
+    if [ -z "$phase34" ]; then phase34=$(attr_path phase34-tinycc-darwin-cc); fi
     if [ -z "$phase35" ]; then phase35=$(attr_path phase35-gcc46-all-gcc); fi
     if [ -z "$phase37" ]; then phase37=$(attr_path phase37-gcc46-bootstrap); fi
     work_dir="$impure_root/phase44-gcc46-cxx"
@@ -95,6 +95,7 @@ case "$phase" in
   phase45)
     if [ -z "$phase42" ]; then phase42=$(attr_path phase42-gcc10-source); fi
     phase44_out=${PHASE44_OUT:-"$impure_root/phase44-gcc46-cxx/out"}
+    if [ -z "$phase34" ]; then phase34="$phase44_out"; fi
     work_dir="$impure_root/phase45-gcc10"
     out=${PHASE45_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
@@ -112,6 +113,7 @@ case "$phase" in
   phase46)
     if [ -z "$phase43" ]; then phase43=$(attr_path phase43-gcc-latest-source); fi
     phase45_out=${PHASE45_OUT:-"$impure_root/phase45-gcc10/out"}
+    if [ -z "$phase34" ]; then phase34="$phase45_out"; fi
     work_dir="$impure_root/phase46-gcc-latest"
     out=${PHASE46_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"

@@ -33,6 +33,12 @@
 - [x] Installed the direct `libstdc++`/`libsupc++` outputs into the phase44 impure prefix and smoke-tested `g++` compiling/linking a `std::string` Mach-O executable.
 - [x] Folded the direct target `libgcc`/`libstdc++` recipe and manual GCC output packaging into `scripts/gcc46/phase44-cxx.sh`.
 - [x] Added and validated `PHASE44_SKIP_MAIN_MAKE=1` so the direct runtime/package path can be rerun against a resumed phase44 tree without replaying `all-gcc`.
+- [x] Phase45 GCC 10 `xgcc` now survives `-dumpspecs` and `-print-sysroot-headers-suffix`; the bootstrap script patches the Darwin terminal-width crash and makes the sysroot suffix probe non-fatal.
+- [x] Phase45 resume mode now preserves already-built host helper archives instead of deleting `libcpp.a`/host support on every per-target retry.
+- [x] Phase45 C++ frontend link now uses C++-safe bootstrap headers for `times`, avoiding the mangled Darwin `__Z5timesP3tms` runtime reference.
+- [x] Phase45 skips GCC 10 bootstrap-only macro/fixincludes/selftest probes that hang under the transitional `xgcc` path.
+- [x] Phase45 target configure now pre-seeds Darwin x86_64 size/decimal/fixed-point facts to avoid intentional autoconf probes that can spin under transitional `xgcc`.
+- [ ] Current phase45 blocker: finish the resumed full GCC 10 `all`/install pass from the repaired `xgcc`, then use that output as the phase46 compiler.
 - [ ] Current phase44 blocker: validate the full scripted phase44 path from a clean work root, including seeded build helpers such as `gcov-iov`, then freeze it with the Nix derivation.
 
 ## Running Log
@@ -43,6 +49,11 @@
 - 2026-05-17: Fixed `insn-attrtab.o` by staging generated local GCC sources through the temp overlay while preserving the fast no-stage path for plain `conftest.c`.
 - 2026-05-18: Stripped debug flags from generated `insn-*.c` bootstrapped compiles and added an impure host-CC escape hatch for those huge generated files; `insn-emit.o` now validates quickly as Mach-O.
 - 2026-05-18: Made phase44 pass overridable `PHASE44_CFLAGS`/`PHASE44_CFLAGS_FOR_BUILD`, defaulting to `-g0`; validated `ggc-page.o` through the bootstrapped GCC 4.6 wrapper as Mach-O.
+- 2026-05-18: Diagnosed the phase45 GCC 10 driver crash with targeted `xgcc` probes: `-dumpspecs` crashed in diagnostic terminal-width probing, and `-print-sysroot-headers-suffix` crashed through the fatal diagnostic path. The GCC 10 source copy is now patched to avoid both bootstrap-only terminal/error paths.
+- 2026-05-18: Rebuilt phase45 `xgcc` impurely after the patches and validated `xgcc -B. -dumpspecs` plus `xgcc -B. -print-sysroot-headers-suffix`; resumed full phase45 `all` without reconfiguring from scratch.
+- 2026-05-18: Fixed the next phase45 link blocker by rewriting the bootstrap `sys/times.h` as a C++-safe Darwin declaration; `cc1` no longer carries the mangled `times` reference.
+- 2026-05-18: Patched phase45 GCC 10 iteration to no-op bootstrap-only `s-macro_list`, `s-fixinc_list`, and frontend selftests after the transitional `xgcc` hung in preprocessor/self-test probes.
+- 2026-05-18: Phase45 reached target `libgcc` configure; pre-seeded known Darwin x86_64 sizeof/decimal/fixed-point answers after autoconf's expected-failure probes produced long-running orphaned `cc1` jobs.
 - 2026-05-18: Added `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` as an impure-only discovery mode after normal GCC frontend files compiled correctly but slowly through the bootstrapped wrapper; `caller-save.o` validates as Mach-O.
 - 2026-05-18: The first host-CC discovery run reached `libbackend.a`; added `-Wno-error -Wno-format-security` to the host shortcut and validated the five previously missing backend objects as Mach-O.
 - 2026-05-18: Rebuilt phase44 `libcpp`, `cc1`, and `xgcc` after fixing Darwin stdio/stat ABI issues; `xgcc` now emits Mach-O x86_64 objects, and a smoke executable links/runs through the impure Mach-O linker with explicit `-isysroot`, `-nostartfiles`, and `-nodefaultlibs`.
