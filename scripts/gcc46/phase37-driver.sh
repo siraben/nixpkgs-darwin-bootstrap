@@ -415,19 +415,22 @@ compile_to_asm() {
   rewrite_dependency_files "\$compile_input" "\$input"
 }
 
-host_compile_generated_source() {
+host_compile_source() {
   local input="\$1"
   local object_out="\$2"
   local filtered_arg
   local host_args=()
-  case "\${input##*/}" in
-    insn-*.c) ;;
-    *) return 1 ;;
-  esac
   [ "\$object_format" = macho ] || return 1
-  [ "\${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-0}" = 1 ] || return 1
+  case "\${input##*/}" in
+    insn-*.c)
+      [ "\${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-0}" = 1 ] || [ "\${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-0}" = 1 ] || return 1
+      ;;
+    *)
+      [ "\${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-0}" = 1 ] || return 1
+      ;;
+  esac
   if [ -z "\$host_generated_cc" ]; then
-    echo "gcc: GCC46_BOOTSTRAP_HOST_CC_GENERATED=1 requires GCC46_BOOTSTRAP_HOST_CC or host cc" >&2
+    echo "gcc: host source compile shortcut requires GCC46_BOOTSTRAP_HOST_CC or host cc" >&2
     exit 1
   fi
   for filtered_arg in "\${compiler_args[@]}"; do
@@ -574,7 +577,7 @@ if [ "\$mode" = object ]; then
     fi
   fi
   if [ "\${#sources[@]}" -eq 1 ]; then
-    if ! host_compile_generated_source "\${sources[0]}" "\$out_file"; then
+    if ! host_compile_source "\${sources[0]}" "\$out_file"; then
       compile_to_asm "\${sources[0]}" "\$tmpdir/input.s"
       assemble_to_object "\$tmpdir/input.s" "\$out_file"
     fi

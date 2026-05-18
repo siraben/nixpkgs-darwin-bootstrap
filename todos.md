@@ -20,7 +20,9 @@
 - [x] Validated `insn-attrtab.o` as a Mach-O x86_64 object.
 - [x] Added an env-gated impure host-CC shortcut for huge generated `insn-*.c` GCC sources while preserving the wrapper-owned Mach-O path for normal sources.
 - [x] Validated `insn-emit.o` and `ggc-page.o` as Mach-O x86_64 objects under the resumed phase44 build.
-- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` with `PHASE44_CFLAGS=-g0` and `GCC46_BOOTSTRAP_HOST_CC_GENERATED=1`, then address the next concrete failure.
+- [x] Added a broader `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` impure discovery mode after full bootstrapped `all-gcc` iteration proved too slow.
+- [x] Validated `caller-save.o` as a Mach-O x86_64 object through the broader impure host-CC source shortcut.
+- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` with `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` to discover the next link or source-layout failure, then backfill the bootstrap-owned path.
 - [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
 
 ## Running Log
@@ -31,6 +33,7 @@
 - 2026-05-17: Fixed `insn-attrtab.o` by staging generated local GCC sources through the temp overlay while preserving the fast no-stage path for plain `conftest.c`.
 - 2026-05-18: Stripped debug flags from generated `insn-*.c` bootstrapped compiles and added an impure host-CC escape hatch for those huge generated files; `insn-emit.o` now validates quickly as Mach-O.
 - 2026-05-18: Made phase44 pass overridable `PHASE44_CFLAGS`/`PHASE44_CFLAGS_FOR_BUILD`, defaulting to `-g0`; validated `ggc-page.o` through the bootstrapped GCC 4.6 wrapper as Mach-O.
+- 2026-05-18: Added `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` as an impure-only discovery mode after normal GCC frontend files compiled correctly but slowly through the bootstrapped wrapper; `caller-save.o` validates as Mach-O.
 
 ## Current runnable chain
 
