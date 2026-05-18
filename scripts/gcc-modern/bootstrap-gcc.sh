@@ -37,6 +37,9 @@ fi
 if [ -f src/libgcc/configure ] && grep -q 'grep host_address=' src/libgcc/configure; then
   perl -0pi -e 's@cat > conftest\.c <<EOF\n#if defined\(__x86_64__\).*?eval `\$\{CC-cc\} -E conftest\.c \| grep host_address=`\nrm -f conftest\.c@host_address=64@s' src/libgcc/configure
 fi
+if [ -f src/libgcc/config.host ] && grep -q 'libemutls_w\.a' src/libgcc/config.host; then
+  perl -0pi -e 's@ libemutls_w\.a@@g' src/libgcc/config.host
+fi
 for glibc_configure in src/gcc/configure src/libgcc/configure; do
   if [ -f "$glibc_configure" ] && grep -q '__GLIBC__' "$glibc_configure"; then
     perl -0pi -e 's@if ac_fn_c_compute_int "\$LINENO" "__GLIBC__" "glibc_version_major".*?fi\n\nif ac_fn_c_compute_int "\$LINENO" "__GLIBC_MINOR__" "glibc_version_minor".*?fi@glibc_version_major=0\nglibc_version_minor=0@s' "$glibc_configure"
@@ -219,6 +222,7 @@ export glibc_version_minor=0
 export libgcc_cv_as_avx=yes
 export libgcc_cv_as_lse=no
 export libgcc_cv_init_priority=no
+export gcc_cv_use_emutls=no
 
 configure_flags=(
   --prefix="$out"

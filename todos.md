@@ -43,6 +43,7 @@
 - [x] Phase45 target configure now forces non-glibc `0.0` detection instead of compiling `<features.h>` probes through transitional `xgcc`.
 - [x] Phase45 GCC 10 host-helper regeneration now preserves the Darwin SDK fixes in `auto-host.h`/`config.status`/`config.cache` so `rlim_t` and `strsignal` do not regress during resumed `all-gcc`.
 - [x] Phase45 `libgcc` target configure now pre-seeds AVX/LSE/init-priority feature results to avoid final target compile probes that can spin under transitional `xgcc`.
+- [x] Phase45 Darwin `libgcc` now drops bootstrap-unneeded `libemutls_w.a` and caches `gcc_cv_use_emutls=no` so disabled-shared builds do not ask for missing `emutls_s.o`.
 - [ ] Current phase45 blocker: finish the resumed full GCC 10 `all`/install pass from the repaired `xgcc`, then use that output as the phase46 compiler.
 - [ ] Current phase44 blocker: validate the full scripted phase44 path from a clean work root, including seeded build helpers such as `gcov-iov`, then freeze it with the Nix derivation.
 
@@ -64,6 +65,7 @@
 - 2026-05-18: Phase45 `libgcc` configure next hung in GCC's generic target glibc-version detection on Darwin. Patched GCC/libgcc configure scripts and future configure flags to force the non-glibc `0.0` result.
 - 2026-05-18: A resumed phase45 `all-gcc` regenerated `auto-host.h`, reintroducing the modern-Darwin `rlim_t` macro and stale `strsignal` declaration result. The bootstrap script now patches `auto-host.h`, `config.status`, `config.cache`, and `cstamp-h` together before make resumes.
 - 2026-05-18: Phase45 `libgcc` configure then reached the remaining target feature probes; pre-seeded AVX/LSE/init-priority answers based on Darwin x86_64 expectations to keep configure from repeatedly compiling probe-only `conftest.c`.
+- 2026-05-18: Phase45 target `libgcc` configured and started building, then failed because Darwin's extra parts still requested `libemutls_w.a` while the disabled-shared path had no `emutls_s.o` rule. Removed that bootstrap-unneeded extra part and forced non-emutls TLS detection.
 - 2026-05-18: Added `GCC46_BOOTSTRAP_HOST_CC_SOURCES=1` as an impure-only discovery mode after normal GCC frontend files compiled correctly but slowly through the bootstrapped wrapper; `caller-save.o` validates as Mach-O.
 - 2026-05-18: The first host-CC discovery run reached `libbackend.a`; added `-Wno-error -Wno-format-security` to the host shortcut and validated the five previously missing backend objects as Mach-O.
 - 2026-05-18: Rebuilt phase44 `libcpp`, `cc1`, and `xgcc` after fixing Darwin stdio/stat ABI issues; `xgcc` now emits Mach-O x86_64 objects, and a smoke executable links/runs through the impure Mach-O linker with explicit `-isysroot`, `-nostartfiles`, and `-nodefaultlibs`.
