@@ -442,6 +442,7 @@ host_compile_source() {
   MACOSX_DEPLOYMENT_TARGET=10.8 "\$host_generated_cc" -arch x86_64 \
     -mmacosx-version-min=10.8 \
     -fno-asynchronous-unwind-tables -fno-unwind-tables \
+    -Wno-error -Wno-format-security \
     "\${host_args[@]}" \
     -c "\$input" -o "\$object_out"
   return 0
