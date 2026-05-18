@@ -28,8 +28,9 @@
 - [x] Validated current impure GCC 4.6 smoke path: `xgcc -c` produces a Mach-O x86_64 object, and `xgcc -isysroot … -nostartfiles -nodefaultlibs … -lSystem` links a Mach-O executable returning 42.
 - [x] Finished the direct phase44 target `libgcc` build with `xgcc` emitting Mach-O objects; `libgcc.a` and an intentionally empty bootstrap `libgcov.a` copy back into `build/gcc`.
 - [x] Minimized the current GCC 4.6 Mach-O patch set: keep temp `%g` auxbase paths, disable crashing target debug info, disable bootstrap-unneeded `libgcov`, and skip Darwin/i386 CRT extra-parts while the compiler/runtime boundary is still forming.
-- [ ] Current phase44 blocker: turn the direct target-`libgcc` recipe into a stable resumed phase44 path, then continue into `all-target-libstdc++-v3` with the same Mach-O compiler.
-- [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
+- [x] Direct target `libstdc++-v3` now builds to a Mach-O static `libstdc++.a` with the GCC 4.6 `xgcc`/`g++` pair.
+- [ ] Current phase44 blocker: install the direct `all-gcc`/`libgcc`/`libstdc++` outputs into `phase44` out, then smoke-test `g++ -S` and a minimal C++ link.
+- [ ] Stabilized checkpoint: fold the direct libstdc++ recipe into `scripts/gcc46/phase44-cxx.sh`, clean scratch symlinks, then validate the Nix phase.
 
 ## Running Log
 
@@ -47,6 +48,8 @@
 - 2026-05-18: Forced phase44 target compilation to `-O2 -g0`, disabled libgcc debug info, configured `--disable-threads`, and confirmed the `gthr-single.h` path avoids the missing Darwin `pthread.h` blocker.
 - 2026-05-18: Completed direct `make -C build/x86_64-apple-darwin/libgcc all`; disabled bootstrap-unneeded `libgcov` and Darwin/i386 CRT extra-parts to avoid premature runtime/header dependencies.
 - 2026-05-18: Confirmed appended top-level no-op stubs do not remove GNU make prerequisites; current fast loop is direct target iteration until the resumed top-level recipe is made dependency-clean.
+- 2026-05-18: Directly configured target `libstdc++-v3` with `build/gcc/g++`, bootstrap headers via `-isystem` rather than `--sysroot`, and link probes using `-nostartfiles -nodefaultlibs -Lbuild/gcc -lgcc -Wl,-syslibroot,$SDK -lSystem`; `libsupc++` and `src/.libs/libstdc++.a` now build as Mach-O archives.
+- 2026-05-18: Extended the phase34 bootstrap header surface only where proven by the libstdc++ build: C++-safe `NULL`, Darwin/BSD `errno` constants, ctype masks/`__istype`, locale categories, C math declarations, C99 stdint least/fast typedefs, and the missing stdio/string/time/stdlib declarations.
 
 ## Current runnable chain
 

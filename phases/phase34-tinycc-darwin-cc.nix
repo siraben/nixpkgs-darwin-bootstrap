@@ -63,10 +63,27 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/math.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_MATH_H
         #define _DARWIN_BOOTSTRAP_MATH_H
+        double acos(double);
+        double asin(double);
+        double atan(double);
+        double atan2(double, double);
+        double ceil(double);
+        double cos(double);
+        double cosh(double);
         double ldexp(double, int);
         double frexp(double, int *);
         double fabs(double);
+        double floor(double);
+        double fmod(double, double);
         double log(double);
+        double log10(double);
+        double modf(double, double *);
+        double pow(double, double);
+        double sin(double);
+        double sinh(double);
+        double sqrt(double);
+        double tan(double);
+        double tanh(double);
         double exp(double);
         double atof(const char *);
         double strtod(const char *, char **);
@@ -84,6 +101,8 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_SYS_TYPES_H
         #define _DARWIN_BOOTSTRAP_SYS_TYPES_H
         typedef unsigned long size_t;
+        typedef struct { int quot; int rem; } div_t;
+        typedef struct { long quot; long rem; } ldiv_t;
         typedef long ssize_t;
         typedef long ptrdiff_t;
         typedef long intptr_t;
@@ -100,6 +119,7 @@ with args;
         typedef int blksize_t;
         typedef long time_t;
         typedef long clock_t;
+        typedef unsigned long size_t;
         typedef char *caddr_t;
         #endif
         H
@@ -224,6 +244,7 @@ with args;
         struct tm *localtime(const time_t *);
         struct tm *gmtime(const time_t *);
         time_t mktime(struct tm *);
+        double difftime(time_t, time_t);
         char *ctime(const time_t *);
         char *asctime(const struct tm *);
         size_t strftime(char *, size_t, const char *, const struct tm *);
@@ -345,6 +366,22 @@ with args;
         typedef unsigned int uint32_t;
         typedef long int64_t;
         typedef unsigned long uint64_t;
+        typedef int8_t int_least8_t;
+        typedef uint8_t uint_least8_t;
+        typedef int16_t int_least16_t;
+        typedef uint16_t uint_least16_t;
+        typedef int32_t int_least32_t;
+        typedef uint32_t uint_least32_t;
+        typedef int64_t int_least64_t;
+        typedef uint64_t uint_least64_t;
+        typedef int8_t int_fast8_t;
+        typedef uint8_t uint_fast8_t;
+        typedef int64_t int_fast16_t;
+        typedef uint64_t uint_fast16_t;
+        typedef int64_t int_fast32_t;
+        typedef uint64_t uint_fast32_t;
+        typedef int64_t int_fast64_t;
+        typedef uint64_t uint_fast64_t;
         typedef long intmax_t;
         typedef unsigned long uintmax_t;
         typedef long intptr_t;
@@ -372,6 +409,11 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_LOCALE_H
         #define _DARWIN_BOOTSTRAP_LOCALE_H
         #define LC_ALL 0
+        #define LC_COLLATE 1
+        #define LC_CTYPE 2
+        #define LC_MONETARY 3
+        #define LC_NUMERIC 4
+        #define LC_TIME 5
         #ifndef CHAR_MAX
         #define CHAR_MAX 127
         #endif
@@ -409,7 +451,11 @@ with args;
         typedef unsigned long uintptr_t;
         typedef int wchar_t;
         #ifndef NULL
+        #ifdef __cplusplus
+        #define NULL 0
+        #else
         #define NULL ((void *)0)
+        #endif
         #endif
         #define offsetof(type, field) ((size_t)&((type *)0)->field)
         #endif
@@ -462,6 +508,7 @@ with args;
         char *strchr(const char *, int);
         char *index(const char *, int);
         int strcmp(const char *, const char *);
+        int strcoll(const char *, const char *);
         char *strcpy(char *, const char *);
         unsigned long strlen(const char *);
         int strncmp(const char *, const char *, size_t);
@@ -475,6 +522,7 @@ with args;
         char *strerror(int);
         char *strdup(const char *);
         char *strstr(const char *, const char *);
+        size_t strxfrm(char *, const char *, size_t);
         #endif
         H
 
@@ -495,10 +543,48 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/ctype.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_CTYPE_H
         #define _DARWIN_BOOTSTRAP_CTYPE_H
+        #define _CTYPE_A 0x00000100L
+        #define _CTYPE_C 0x00000200L
+        #define _CTYPE_D 0x00000400L
+        #define _CTYPE_G 0x00000800L
+        #define _CTYPE_L 0x00001000L
+        #define _CTYPE_P 0x00002000L
+        #define _CTYPE_S 0x00004000L
+        #define _CTYPE_U 0x00008000L
+        #define _CTYPE_X 0x00010000L
+        #define _CTYPE_R 0x00040000L
+        #define _A _CTYPE_A
+        #define _C _CTYPE_C
+        #define _D _CTYPE_D
+        #define _G _CTYPE_G
+        #define _L _CTYPE_L
+        #define _P _CTYPE_P
+        #define _S _CTYPE_S
+        #define _U _CTYPE_U
+        #define _X _CTYPE_X
+        #define _R _CTYPE_R
+        static inline unsigned long __darwin_bootstrap_ctype_mask(int c) {
+          unsigned long m = 0;
+          unsigned int u = (unsigned char)c;
+          if (u < 32 || u == 127) m |= _CTYPE_C;
+          if (u == ' ' || (u >= 9 && u <= 13)) m |= _CTYPE_S;
+          if (u >= '0' && u <= '9') m |= _CTYPE_D | _CTYPE_X;
+          if (u >= 'A' && u <= 'Z') m |= _CTYPE_U | _CTYPE_A;
+          if (u >= 'a' && u <= 'z') m |= _CTYPE_L | _CTYPE_A;
+          if ((u >= 'A' && u <= 'F') || (u >= 'a' && u <= 'f')) m |= _CTYPE_X;
+          if (u >= 32 && u <= 126) m |= _CTYPE_R;
+          if (u >= 33 && u <= 126) m |= _CTYPE_G;
+          if ((m & (_CTYPE_A | _CTYPE_D | _CTYPE_S | _CTYPE_C)) == 0 && u >= 33 && u <= 126) m |= _CTYPE_P;
+          return m;
+        }
+        static inline unsigned long __darwin_bootstrap_maskrune(int c, unsigned long f) { return __darwin_bootstrap_ctype_mask(c) & f; }
+        #define __maskrune(c, f) __darwin_bootstrap_maskrune((c), (f))
+        #define __istype(c, f) (__darwin_bootstrap_maskrune((c), (f)) != 0)
         int isalnum(int);
         int isalpha(int);
         int iscntrl(int);
         int isdigit(int);
+        int isgraph(int);
         int islower(int);
         int isprint(int);
         int ispunct(int);
@@ -518,23 +604,78 @@ with args;
         #define EINVAL 22
         #define ENOMEM 12
         #define ENOENT 2
+        #define EPERM 1
+        #define ESRCH 3
         #define EINTR 4
         #define EIO 5
+        #define ENXIO 6
         #define E2BIG 7
         #define EAGAIN 35
+        #define EWOULDBLOCK EAGAIN
         #define EBADF 9
         #define EACCES 13
+        #define EFAULT 14
+        #define EBUSY 16
         #define EEXIST 17
         #define ENOEXEC 8
         #define ENOTDIR 20
         #define EISDIR 21
+        #define ENODEV 19
+        #define ENOTTY 25
         #define EPIPE 32
         #define ECHILD 10
+        #define EDEADLK 11
         #define EXDEV 18
+        #define ENFILE 23
+        #define EMFILE 24
+        #define EFBIG 27
         #define ENOSPC 28
+        #define ESPIPE 29
+        #define EROFS 30
+        #define EMLINK 31
+        #define EDOM 33
         #define ERANGE 34
+        #define EINPROGRESS 36
+        #define EALREADY 37
+        #define ENOTSOCK 38
+        #define EDESTADDRREQ 39
+        #define EMSGSIZE 40
+        #define EPROTOTYPE 41
+        #define ENOPROTOOPT 42
+        #define EPROTONOSUPPORT 43
+        #define EOPNOTSUPP 45
+        #define ENOTSUP EOPNOTSUPP
+        #define EAFNOSUPPORT 47
+        #define EADDRINUSE 48
+        #define EADDRNOTAVAIL 49
+        #define ENETDOWN 50
+        #define ENETUNREACH 51
+        #define ENETRESET 52
+        #define ECONNABORTED 53
+        #define ECONNRESET 54
+        #define ENOBUFS 55
+        #define EISCONN 56
+        #define ENOTCONN 57
+        #define ETIMEDOUT 60
+        #define ECONNREFUSED 61
+        #define ELOOP 62
         #define ENAMETOOLONG 63
+        #define EHOSTUNREACH 65
+        #define ENOTEMPTY 66
+        #define ENOLCK 77
         #define ENOSYS 78
+        #define EOVERFLOW 84
+        #define ECANCELED 89
+        #define EIDRM 90
+        #define ENOMSG 91
+        #define EILSEQ 92
+        #define EBADMSG 94
+        #define ENODATA 96
+        #define ENOLINK 97
+        #define ENOSR 98
+        #define ENOSTR 99
+        #define EPROTO 100
+        #define ETIME 101
         #endif
         H
 
@@ -624,8 +765,14 @@ with args;
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
         #ifndef NULL
+        #ifdef __cplusplus
+        #define NULL 0
+        #else
         #define NULL ((void *)0)
         #endif
+        #endif
+        typedef struct { int quot; int rem; } div_t;
+        typedef struct { long quot; long rem; } ldiv_t;
         void abort(void);
         #define EXIT_SUCCESS 0
         #define EXIT_FAILURE 1
@@ -641,6 +788,10 @@ with args;
         int abs(int);
         long labs(long);
         long long llabs(long long);
+        div_t div(int, int);
+        ldiv_t ldiv(long, long);
+        int rand(void);
+        void srand(unsigned int);
         long strtol(const char *, char **, int);
         unsigned long strtoul(const char *, char **, int);
         long long strtoll(const char *, char **, int);
@@ -670,9 +821,14 @@ with args;
         #define SEEK_CUR 1
         #define SEEK_END 2
         typedef long FILE;
+        typedef long fpos_t;
         typedef unsigned long size_t;
         #ifndef NULL
+        #ifdef __cplusplus
+        #define NULL 0
+        #else
         #define NULL ((void *)0)
+        #endif
         #endif
         #include <stdarg.h>
         #define stdin ((FILE *)0)
@@ -683,8 +839,10 @@ with args;
         int vfprintf(FILE *, const char *, va_list);
         void perror(const char *);
         int fscanf(FILE *, const char *, ...);
+        int scanf(const char *, ...);
         int sscanf(const char *, const char *, ...);
         int sprintf(char *, const char *, ...);
+        int vprintf(const char *, va_list);
         int snprintf(char *, size_t, const char *, ...);
         int vsprintf(char *, const char *, va_list);
         int vsnprintf(char *, size_t, const char *, va_list);
@@ -704,6 +862,9 @@ with args;
         void setbuf(FILE *, char *);
         int getc(FILE *);
         char *fgets(char *, int, FILE *);
+        char *gets(char *);
+        int fgetpos(FILE *, fpos_t *);
+        int fsetpos(FILE *, const fpos_t *);
         int ungetc(int, FILE *);
         int putc(int, FILE *);
         int fflush(FILE *);
@@ -732,7 +893,10 @@ with args;
         void rewind(FILE *);
         int fileno(FILE *);
         int remove(const char *);
+        int rename(const char *, const char *);
         int setvbuf(FILE *, char *, int, size_t);
+        FILE *tmpfile(void);
+        char *tmpnam(char *);
         FILE *popen(const char *, const char *);
         int pclose(FILE *);
         #endif
