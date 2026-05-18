@@ -216,6 +216,9 @@ export libgcc_cv_dfp=no
 export libgcc_cv_fixed_point=no
 export glibc_version_major=0
 export glibc_version_minor=0
+export libgcc_cv_as_avx=yes
+export libgcc_cv_as_lse=no
+export libgcc_cv_init_priority=no
 
 configure_flags=(
   --prefix="$out"
