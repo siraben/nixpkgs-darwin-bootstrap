@@ -271,6 +271,7 @@ compile_to_asm() {
   local input_dir_args=()
   local source_overlay related_source_subdir root_overlay_entry root_overlay_name
   local staged_source=0
+  source_dir_name=
   case "\$input" in
     */*)
       staged_source=1
@@ -314,6 +315,14 @@ compile_to_asm() {
       done
       expand_config_overlay
       input_dir_args=(-I"\$tmpdir" "\${input_dir_args[@]}")
+      ;;
+    *)
+      if [ "\${input##*/}" != conftest.c ] && [ -f "\$input" ] && [ -d config ]; then
+        staged_source=1
+        compile_input="\$tmpdir/\${input##*/}"
+        cp "\$input" "\$compile_input"
+        input_dir_args=(-I"\$tmpdir")
+      fi
       ;;
   esac
   if [ "\$staged_source" -eq 1 ]; then

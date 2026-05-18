@@ -16,7 +16,9 @@
 - [x] Removed the broad phase44 source-tree header symlink overlays; include repair now happens inside the phase37 wrapper temp tree.
 - [x] Fixed wrapper temp-tree layout for GCC source-relative includes, including `../libcpp/internal.h`, `all-tree.def` references into `c-family/`, and nested `config/.../config/vxworks-dummy.h`.
 - [x] Validated the next Mach-O targets: `c-family/c-ppoutput.o`, `i386-c.o`, and `darwin-c.o`.
-- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` after the `darwin-c.o` fix and address the next concrete failure.
+- [x] Fixed generated plain GCC sources such as `insn-attrtab.c` by staging non-`conftest.c` local inputs through the same temp include overlay.
+- [x] Validated `insn-attrtab.o` as a Mach-O x86_64 object.
+- [ ] Current phase44 blocker: rerun resumed Mach-O `all-gcc` after the `insn-attrtab.o` fix and address the next concrete failure.
 - [ ] Stabilized checkpoint: after phase44 builds `all-gcc all-target-libstdc++-v3` impurely, clean scratch symlinks, commit tracked changes, then validate the Nix phase.
 
 ## Running Log
@@ -24,6 +26,7 @@
 - 2026-05-17: Resumed impure Mach-O phase44 `all-gcc`; fixed `c-family/c-ppoutput.o` by preserving source subdirectory layout and overlaying sibling `libcpp` headers inside the wrapper temp tree.
 - 2026-05-17: Removed phase44's broad source-tree header symlink overlays after they caused `tree.h`/`all-tree.def` to resolve relative to polluted language subdirectories.
 - 2026-05-17: Fixed `i386-c.o` and `darwin-c.o` by building real one-level temp overlays for GCC `config` and language directories, including `c-family` and nested `config/.../config` include compatibility.
+- 2026-05-17: Fixed `insn-attrtab.o` by staging generated local GCC sources through the temp overlay while preserving the fast no-stage path for plain `conftest.c`.
 
 ## Current runnable chain
 
