@@ -2,6 +2,9 @@
 
 ## Current Status Update
 
+- [x] Nix phase35 GCC 4.6 `all-gcc` builds cleanly from the extracted source-prep script after removing the stale driver option and dumpbase failure paths.
+- [x] Nix phase36 GCC 4.6 `libgcc` now builds with the direct `cc1` wrapper, Darwin `struct stat` ABI repair, staged configure inputs, and the bootstrap assembler path.
+- [x] Embedded Python phase scripts have been extracted into `scripts/`; keep future phase logic in separate script files rather than heredocs in Nix.
 - [x] Strict phase47 GCC16 self-build now completes `all-libcody all-gcc` with `GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0`, packages `work/impure/phase47-gcc16-strict/out`, and passes C/C++ Mach-O smoke links through its own wrappers.
 - [x] GNU Hello 2.12.2 now builds at `-O2 -g0` with the strict phase47 GCC16 handoff and runs `Hello, world!`, `--version`, and `--help`; proof script is `scripts/impure/build-gnu-hello.sh`.
 - [ ] Freeze the strict phase47 recipe into Nix and rerun from a clean store output instead of the current stabilized impure tree.
@@ -67,6 +70,9 @@
 
 ## Running Log
 
+- 2026-05-19: Extracted remaining embedded phase Python into standalone scripts, wired Nix phase47 strict GCC latest and GNU Hello comparison package entries, and verified no Python heredocs remain under `phases/`, `scripts/`, `packages.nix`, or `flake.nix`.
+- 2026-05-19: Rebuilt Nix phase35 GCC 4.6 `all-gcc` after moving source surgery into `scripts/gcc46/phase35-prepare-source.py`; the driver now tolerates the bootstrap option surface and avoids the stale `gccdump.s` dumpbase path.
+- 2026-05-19: Fixed the phase36 Nix libgcc boundary by matching the bootstrap libc `struct stat` layout to the generated Darwin headers, staging configure `conftest` sources through the direct `cc1` wrapper, forcing cross mode, and accepting the intentionally empty bootstrap `libgcov.a`.
 - 2026-05-18: Repackaged phase45 GCC 10 as a compiler-only handoff with wrapper shortcuts for `conftest` and phase46 support-library compiles; this keeps impure phase46 iteration out of the slow/hanging transitional `cc1` paths.
 - 2026-05-18: Reset phase46 after accumulated exploratory `physmem.c` edits, then made the source patch idempotent so Darwin skips non-Darwin libiberty memory headers including `machine/hal_sysinfo.h`.
 - 2026-05-18: Fixed the phase45 wrapper's `conftest -E` behavior so phase46 configure detects missing headers such as `process.h` instead of copying raw source and producing false-positive header results.

@@ -23,22 +23,7 @@ with args;
           cp $out/include/darwin/x86_64/kernel-stat.h $out/include/arch/kernel-stat.h
           cp $out/include/darwin/x86_64/signal.h $out/include/arch/signal.h
           cp $out/include/darwin/x86_64/syscall.h $out/include/arch/syscall.h
-          ${python3}/bin/python3 - <<'PY'
-          import os
-          from pathlib import Path
-
-          path = Path(os.environ["out"]) / "lib/mes/__assert_fail.c"
-          text = path.read_text()
-          text = text.replace(
-              "  if (file && *file)\n    {\n      eputs (file);\n      eputs (\":\");\n    }\n",
-              "  if (file)\n    if (*file)\n      {\n        eputs (file);\n        eputs (\":\");\n      }\n",
-          )
-          text = text.replace(
-              "  if (function && *function)\n    {\n      eputs (function);\n      eputs (\":\");\n    }\n",
-              "  if (function)\n    if (*function)\n      {\n        eputs (function);\n        eputs (\":\");\n      }\n",
-          )
-          path.write_text(text)
-          PY
+          ${python3}/bin/python3 ${root + "/scripts/mes/phase13-patch-assert-fail.py"}
 
           cat > $out/share/darwin-bootstrap/darwin-mes-next.txt <<'EOF'
           This is the Darwin Mes source-prep checkpoint.

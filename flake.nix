@@ -94,8 +94,14 @@
           phase44-gcc46-cxx-bootstrap = bootstrap.phase44-gcc46-cxx-bootstrap;
           phase45-gcc10-bootstrap = bootstrap.phase45-gcc10-bootstrap;
           phase46-gcc-latest-bootstrap = bootstrap.phase46-gcc-latest-bootstrap;
+          phase47-gcc-latest-strict-bootstrap = bootstrap.phase47-gcc-latest-strict-bootstrap;
           gcc10-bootstrap = bootstrap.phase45-gcc10-bootstrap;
-          gcc-latest-bootstrap = bootstrap.phase46-gcc-latest-bootstrap;
+          gcc-latest-bootstrap = bootstrap.phase47-gcc-latest-strict-bootstrap;
+          gcc-latest-bootstrap-fast = bootstrap.phase46-gcc-latest-bootstrap;
+          gnu-hello-gcc-latest-bootstrap = bootstrap.gnu-hello-gcc-latest-bootstrap;
+          gnu-hello-gcc-latest-strict = bootstrap.gnu-hello-gcc-latest-strict;
+          gnu-hello-nixpkgs-gcc-latest = bootstrap.gnu-hello-nixpkgs-gcc-latest;
+          gnu-hello-hash-comparison = bootstrap.gnu-hello-hash-comparison;
           tinycc-m2-negative-probe = bootstrap.tinycc-m2-negative-probe;
           tinycc-bootstrappable-src = bootstrap.tinyccBootstrappableSrc;
           tinycc-mes-src = bootstrap.tinyccMesSrc;

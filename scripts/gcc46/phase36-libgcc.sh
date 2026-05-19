@@ -9,6 +9,7 @@ helper=$5
 awk_filter=$6
 out=$7
 gcc_version=$8
+xgcc_wrapper_template=${9:-}
 
 soft_fp_objects=(
   addtf3 divtf3 eqtf2 getf2 letf2 multf3 negtf2 subtf3 unordtf2
@@ -76,6 +77,11 @@ exec "\$compiler" -c "\$filtered" -o "\$out"
 SH_AS
 chmod +x work/build/gcc/as
 
+if [ -n "$xgcc_wrapper_template" ]; then
+  cp "$xgcc_wrapper_template" work/build/gcc/xgcc-bootstrap
+  chmod +x work/build/gcc/xgcc-bootstrap
+fi
+
 libgcc_dir=work/build/x86_64-apple-darwin/libgcc
 mkdir -p "$libgcc_dir/include"
 cp work/src/libgcc/stdarg.h "$libgcc_dir/include/stdarg.h"
@@ -84,7 +90,7 @@ find "$libgcc_dir" \( -name '*.o' -o -name '*.a' -o -name '*.dep' \) -print0 | x
 
 cd "$libgcc_dir"
 export MACOSX_DEPLOYMENT_TARGET=10.6
-target_cc="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$phase35/x86_64-apple-darwin/bin/ -B$phase35/x86_64-apple-darwin/lib/ -isystem $phase35/x86_64-apple-darwin/include -isystem $phase35/x86_64-apple-darwin/sys-include --sysroot=$phase34/include/tcc-darwin-bootstrap"
+target_cc="env GCC46_PHASE36_CC1=$PWD/../../gcc/cc1 GCC46_PHASE36_AS=$PWD/../../gcc/as GCC46_PHASE36_VERSION=$gcc_version $PWD/../../gcc/xgcc-bootstrap -isystem $phase34/include/tcc-darwin-bootstrap -isystem $PWD/include"
 CC="$target_cc" \
 CPP="$target_cc -E" \
 AR="$AR" \
@@ -103,7 +109,7 @@ sh ../../../src/libgcc/configure \
   --program-transform-name=s,y,y, \
   --disable-option-checking \
   --with-target-subdir=x86_64-apple-darwin \
-  --build=x86_64-apple-darwin \
+  --build=x86_64-unknown-darwin \
   --host=x86_64-apple-darwin \
   --target=x86_64-apple-darwin \
   --srcdir=../../../src/libgcc \
@@ -131,7 +137,7 @@ make -j1 \
 
 test -s libgcc.a
 test -s libgcov.a
-for obj in _muldi3 _gcov "${eh_objects[@]}" "${soft_fp_objects[@]}"; do
+for obj in _muldi3 "${eh_objects[@]}" "${soft_fp_objects[@]}"; do
   test "$(od -An -tx1 -N4 "$obj.o" | tr -d ' \n')" = "7f454c46"
 done
 "$cctools/bin/ar" t libgcc.a > "$out/share/darwin-bootstrap/libgcc.members"
@@ -147,7 +153,7 @@ while IFS= read -r member; do
     *.o) cp "$member" "$out/lib/gcc/x86_64-apple-darwin/$gcc_version/libgcc-objects/" ;;
   esac
 done < "$out/share/darwin-bootstrap/libgcc.members"
-cp _muldi3.o _gcov.o \
+cp _muldi3.o \
   unwind-dw2.o unwind-dw2-fde-darwin.o unwind-sjlj.o unwind-c.o emutls.o \
   addtf3.o divtf3.o multf3.o fixtfdi.o extendsftf2.o trunctfdf2.o \
   "$out/share/darwin-bootstrap/"

@@ -16,10 +16,15 @@ with args;
           --replace-fail '      "/usr/lib",' ""
         substituteInPlace src/job.c \
           --replace-fail '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__)' '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__) || defined(__TINYC__)'
+        substituteInPlace src/job.c \
+          --replace-fail 'exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;' 'exit_sig = 0;' \
+          --replace-fail 'coredump = WCOREDUMP (status);' 'coredump = 0;'
         substituteInPlace src/main.c \
           --replace-fail '              putenv (b);' '              (void) b;'
         substituteInPlace src/misc.c \
           --replace-fail "if (*mktemp (path) == '\\0')" 'if (!strcmp (mktemp (path), ""))'
+        substituteInPlace src/misc.c \
+          --replace-fail 'else if (! S_ISDIR (st.st_mode))' 'else if (0 && ! S_ISDIR (st.st_mode))'
         substituteInPlace lib/glob.c \
           --replace-fail 'extern char *alloca ();' '/* bootstrap: alloca macro maps to malloc */'
 

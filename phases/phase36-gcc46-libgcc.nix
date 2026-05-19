@@ -10,7 +10,8 @@ with args;
           ${root + "/scripts/gcc46/phase36-libgcc.py"} \
           ${root + "/scripts/gcc46/phase36-bootstrap-as.awk"} \
           "$out" \
-          ${gcc46Version}
+          ${gcc46Version} \
+          ${root + "/scripts/gcc46/phase36-xgcc-wrapper.sh"}
       ''
     else
       null

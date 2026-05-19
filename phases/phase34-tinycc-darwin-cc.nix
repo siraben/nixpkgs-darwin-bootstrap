@@ -112,8 +112,6 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_SYS_TYPES_H
         #define _DARWIN_BOOTSTRAP_SYS_TYPES_H
         typedef unsigned long size_t;
-        typedef struct { int quot; int rem; } div_t;
-        typedef struct { long quot; long rem; } ldiv_t;
         typedef long ssize_t;
         typedef long ptrdiff_t;
         typedef long intptr_t;
@@ -1012,7 +1010,6 @@ with args;
         struct __sbuf { unsigned char *_base; int _size; };
         struct __sFILE { unsigned char *_p; int _r; int _w; short _flags; short _file; struct __sbuf _bf; int _lbfsize; void *_cookie; int (*_close)(void *); int (*_read)(void *, char *, int); long (*_seek)(void *, long, int); int (*_write)(void *, const char *, int); struct __sbuf _ub; void *_extra; int _ur; unsigned char _ubuf[3]; unsigned char _nbuf[1]; struct __sbuf _lb; int _blksize; long _offset; };
         typedef struct __sFILE FILE;
-        #define __sferror(p) ((p)->_flags & 0x0040)
         #define __sferror(p) (((p)->_flags & 0x0040) != 0)
         typedef long fpos_t;
         typedef unsigned long size_t;
@@ -1024,12 +1021,18 @@ with args;
         #endif
         #endif
         #include <stdarg.h>
+        #if defined(__TINYC__) && !defined(TCC_DARWIN_REAL_STDIO_GLOBALS)
+        #define stdin ((FILE *)0)
+        #define stdout ((FILE *)1)
+        #define stderr ((FILE *)2)
+        #else
         extern FILE *__stdinp;
         extern FILE *__stdoutp;
         extern FILE *__stderrp;
         #define stdin __stdinp
         #define stdout __stdoutp
         #define stderr __stderrp
+        #endif
         #ifdef __cplusplus
         extern "C" {
         #endif
