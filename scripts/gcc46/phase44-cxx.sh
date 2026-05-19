@@ -239,7 +239,8 @@ s-peep:
 # DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP
 stmp-fixinc:
 	@mkdir -p include-fixed
-	@cp gsyslimits.h include-fixed/syslimits.h
+	@if [ ! -f gsyslimits.h ] && [ -f $(srcdir)/gsyslimits.h ]; then cp $(srcdir)/gsyslimits.h gsyslimits.h; fi
+	@if [ -f gsyslimits.h ]; then cp gsyslimits.h include-fixed/syslimits.h; else : > include-fixed/syslimits.h; fi
 	$(STAMP) stmp-fixinc
 MAKE
 fi
@@ -250,7 +251,8 @@ if ! grep -q DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP src/gcc/Makefile.in; then
 # DARWIN_BOOTSTRAP_GCC_FIXINC_STAMP
 stmp-fixinc:
 	@mkdir -p include-fixed
-	@cp gsyslimits.h include-fixed/syslimits.h
+	@if [ ! -f gsyslimits.h ] && [ -f $(srcdir)/gsyslimits.h ]; then cp $(srcdir)/gsyslimits.h gsyslimits.h; fi
+	@if [ -f gsyslimits.h ]; then cp gsyslimits.h include-fixed/syslimits.h; else : > include-fixed/syslimits.h; fi
 	$(STAMP) stmp-fixinc
 MAKE
 fi
@@ -383,6 +385,24 @@ MAKE
         ;;
     esac
   done
+  current_src_escaped="$(printf '%s\n' "$PWD/../src" | sed 's/[\/&]/\\&/g')"
+  current_build_escaped="$(printf '%s\n' "$PWD" | sed 's/[\/&]/\\&/g')"
+  find \
+    gmp \
+    mpfr \
+    mpc \
+    libiberty \
+    build-x86_64-apple-darwin/libiberty \
+    fixincludes \
+    build-x86_64-apple-darwin/fixincludes \
+    zlib \
+    libcpp \
+    libdecnumber \
+    -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.cache -o -name config.log \) \
+    -exec perl -0pi \
+      -e "s#/nix/var/nix/builds/nix-[0-9]+-[0-9]+/src#$current_src_escaped#g;" \
+      -e "s#/nix/var/nix/builds/nix-[0-9]+-[0-9]+/build#$current_build_escaped#g;" \
+      {} +
 
   mkdir -p gcc
   phase35_gcc="$phase35/share/darwin-bootstrap/work/build/gcc"
@@ -533,6 +553,7 @@ rewrite_phase34_store_refs() {
 }
 
 fix_darwin_prereq_configs() {
+  local build_dir
   if [ -f gmp/config.h ]; then
     perl -0pi -e 's@/\*\s*#\s*undef\s+HAVE_STRNLEN\s*\*/@#define HAVE_STRNLEN 1@g' gmp/config.h
   fi
@@ -544,6 +565,11 @@ fix_darwin_prereq_configs() {
     [ -f "$prereq_src/aclocal.m4" ] && touch "$prereq_src/aclocal.m4"
     [ -f "$prereq_src/Makefile.in" ] && touch "$prereq_src/Makefile.in"
     [ -f "$prereq_src/configure" ] && touch "$prereq_src/configure"
+  done
+  for build_dir in gmp mpfr mpc libiberty zlib libcpp libdecnumber; do
+    [ -d "$build_dir" ] || continue
+    [ -f "$build_dir/config.status" ] && touch "$build_dir/config.status"
+    [ -f "$build_dir/Makefile" ] && touch "$build_dir/Makefile"
   done
 }
 
@@ -595,7 +621,11 @@ EOF
 #!/bin/sh
 exec "$GCC46_BOOTSTRAP_LD" "\$@"
 EOF
-  chmod +x gcc/as gcc/collect-ld
+  cat > gcc/ld <<EOF
+#!/bin/sh
+exec "$GCC46_BOOTSTRAP_LD" "\$@"
+EOF
+  chmod +x gcc/as gcc/collect-ld gcc/ld
 }
 
 postprocess_macho_specs() {
@@ -707,8 +737,13 @@ gcc_make_targets=${PHASE44_GCC_TARGETS:-"xgcc cc1 c++ g++"}
 sdk_path() {
   if [ -n "${PHASE44_SDK_PATH:-}" ]; then
     printf '%s\n' "$PHASE44_SDK_PATH"
-  else
+  elif command -v xcrun >/dev/null 2>&1; then
     xcrun --sdk macosx --show-sdk-path
+  elif [ -d /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ]; then
+    printf '%s\n' /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+  else
+    echo "phase44: set PHASE44_SDK_PATH or make xcrun visible" >&2
+    exit 1
   fi
 }
 
@@ -716,6 +751,28 @@ ensure_target_libgcc_macho() {
   [ "${PHASE44_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
   [ "$make_dir" = . ] || return 0
   [ -f gcc/xgcc ] || return 0
+  if [ ! -f gcc/libgcc.mvars ] || [ ! -f gcc/tconfig.h ]; then
+    if [ ! -f gcc/gsyslimits.h ] && [ -f ../src/gcc/gsyslimits.h ]; then
+      cp ../src/gcc/gsyslimits.h gcc/gsyslimits.h
+    fi
+    MAKEFLAGS= "$make_tool" -C gcc -j1 -o Makefile -o config.status \
+      MAKEINFO=true \
+      CC="$CC" \
+      CPP="$CPP" \
+      CFLAGS="$CFLAGS" \
+      CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+      CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+      CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+      AR="$AR" \
+      NM="$NM" \
+      RANLIB="$RANLIB" \
+      STRIP="$STRIP" \
+      LIPO="$LIPO" \
+      OTOOL="$OTOOL" \
+      libgcc-support \
+      > "$bootstrap_share/make-gcc-libgcc-support.stdout" \
+      2> "$bootstrap_share/make-gcc-libgcc-support.stderr"
+  fi
   if [ ! -f "$target/libgcc/Makefile" ]; then
     MAKEFLAGS= "$make_tool" -j1 -o Makefile -o config.status -o maybe-all-gcc -o all-gcc \
       MAKEINFO=true \
@@ -783,6 +840,9 @@ configure_direct_libstdcxx() {
   (
     cd "$target/libstdc++-v3"
     env \
+      PATH="$PWD/../../gcc:$PATH" \
+      AS="$GCC46_BOOTSTRAP_AS" \
+      LD="$GCC46_BOOTSTRAP_LD" \
       CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
       CXX="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
       CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \

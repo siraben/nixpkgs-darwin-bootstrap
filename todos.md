@@ -2,6 +2,8 @@
 
 ## Current Status Update
 
+- [x] Phase44 Nix formalization now builds a GCC 4.6 C/C++ handoff at `/nix/store/4dkz9jc1hqs89dda9i09ggpdnpw7k9r6-darwin-minimal-bootstrap-phase44-gcc-4.6.4-cxx-amd64`; it still temporarily uses nixpkgs `gnumake` as `BOOTSTRAP_MAKE` until phase39 can execute recipes instead of only echoing them.
+- [x] Phase44 Nix reaches `cc1`/`cc1plus`, `g++`, direct target `libgcc`, direct target `libstdc++`, packaging, and the C++ smoke assembly check with explicit Mach-O `as`/`ld` wrappers.
 - [x] Nix phase35 GCC 4.6 `all-gcc` builds cleanly from the extracted source-prep script after removing the stale driver option and dumpbase failure paths.
 - [x] Nix phase36 GCC 4.6 `libgcc` now builds with the direct `cc1` wrapper, Darwin `struct stat` ABI repair, staged configure inputs, and the bootstrap assembler path.
 - [x] Embedded Python phase scripts have been extracted into `scripts/`; keep future phase logic in separate script files rather than heredocs in Nix.
@@ -66,10 +68,16 @@
 - [x] Phase45 `libgcc` target configure now pre-seeds AVX/LSE/init-priority feature results to avoid final target compile probes that can spin under transitional `xgcc`.
 - [x] Phase45 Darwin `libgcc` now drops bootstrap-unneeded `libemutls_w.a` and caches `gcc_cv_use_emutls=no` so disabled-shared builds do not ask for missing `emutls_s.o`.
 - [x] Previous phase45 blocker resolved for the modern handoff path: full install is bypassed for now, and the compiler-only package is used as the phase46 input.
-- [ ] Current phase44 blocker: validate the full scripted phase44 path from a clean work root, including seeded build helpers such as `gcov-iov`, then freeze it with the Nix derivation.
+- [x] Current phase44 blocker resolved: the full scripted phase44 path validates from a clean Nix build root and packages the GCC 4.6 C++ handoff.
 
 ## Running Log
 
+- 2026-05-19: Switched the phase44 Nix scaffold to pass nixpkgs `gnumake` through `BOOTSTRAP_MAKE` because the current phase39 make artifact can print recipe lines but does not yet execute them; also enabled the previously discovered Mach-O object path, prerequisite archive rebuilds, and host-source shortcut for GCC 4.6 frontend files so Nix matches the stabilized impure phase44 recipe.
+- 2026-05-19: Phase44 Nix now reaches Mach-O rebuilds of GCC 4.6 support libraries; fixed stale copied build-dir references and extended the phase37 host overlay `stdint.h` for GMP/MPFR sources that expect C99 least/fast integer typedefs and `SIZE_MAX`.
+- 2026-05-19: Phase44 Nix completed the GCC frontend build through `cc1`, `cc1plus`, and `g++`; the direct target runtime step then exposed missing `libgcc.mvars`, `tconfig.h`, and `gsyslimits.h`, so the script now builds `gcc/libgcc-support` after restoring `gsyslimits.h` from the source tree.
+- 2026-05-19: The next phase44 Nix retry rebuilt Mach-O GMP/MPFR/MPC and host helper archives, then failed at SDK discovery because `xcrun` is not on the sandbox PATH; Nix now passes `PHASE44_SDK_PATH` and the script has a deterministic CLT SDK fallback.
+- 2026-05-19: Phase44 Nix then reached direct target `libgcc` and `libstdc++` configure; libstdc++ failed with `no acceptable ld found in $PATH`, so the phase now installs a build-local `ld` wrapper and exports `AS`/`LD`/`PATH` during direct libstdc++ configure.
+- 2026-05-19: Phase44 Nix completed successfully at `/nix/store/4dkz9jc1hqs89dda9i09ggpdnpw7k9r6-darwin-minimal-bootstrap-phase44-gcc-4.6.4-cxx-amd64`, including direct `libgcc`, direct `libstdc++`, package install, and C++ smoke assembly.
 - 2026-05-19: Extracted remaining embedded phase Python into standalone scripts, wired Nix phase47 strict GCC latest and GNU Hello comparison package entries, and verified no Python heredocs remain under `phases/`, `scripts/`, `packages.nix`, or `flake.nix`.
 - 2026-05-19: Rebuilt Nix phase35 GCC 4.6 `all-gcc` after moving source surgery into `scripts/gcc46/phase35-prepare-source.py`; the driver now tolerates the bootstrap option surface and avoids the stale `gccdump.s` dumpbase path.
 - 2026-05-19: Fixed the phase36 Nix libgcc boundary by matching the bootstrap libc `struct stat` layout to the generated Darwin headers, staging configure `conftest` sources through the direct `cc1` wrapper, forcing cross mode, and accepting the intentionally empty bootstrap `libgcov.a`.

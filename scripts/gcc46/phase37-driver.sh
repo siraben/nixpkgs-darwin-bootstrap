@@ -322,7 +322,7 @@ compile_to_asm() {
       input_dir_args=(-I"\$tmpdir" "\${input_dir_args[@]}")
       ;;
     *)
-      if [ "\${input##*/}" != conftest.c ] && [ -f "\$input" ] && [ -d config ]; then
+      if [ "\${input##*/}" != conftest.c ] && [ -f "\$input" ] && { [ -d config ] || [ -f config.h ]; }; then
         staged_source=1
         compile_input="\$tmpdir/\${input##*/}"
         cp "\$input" "\$compile_input"
@@ -485,6 +485,25 @@ HOST_STRING
 #include <_types/_uintmax_t.h>
 #ifndef _STDINT_H_
 #define _STDINT_H_
+#endif
+typedef int8_t int_least8_t;
+typedef int16_t int_least16_t;
+typedef int32_t int_least32_t;
+typedef int64_t int_least64_t;
+typedef uint8_t uint_least8_t;
+typedef uint16_t uint_least16_t;
+typedef uint32_t uint_least32_t;
+typedef uint64_t uint_least64_t;
+typedef int8_t int_fast8_t;
+typedef int64_t int_fast16_t;
+typedef int64_t int_fast32_t;
+typedef int64_t int_fast64_t;
+typedef uint8_t uint_fast8_t;
+typedef uint64_t uint_fast16_t;
+typedef uint64_t uint_fast32_t;
+typedef uint64_t uint_fast64_t;
+#ifndef SIZE_MAX
+#define SIZE_MAX ((size_t)-1)
 #endif
 HOST_STDINT
   MACOSX_DEPLOYMENT_TARGET=10.8 "\$host_generated_cc" -arch x86_64 \

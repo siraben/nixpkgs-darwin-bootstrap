@@ -4,7 +4,16 @@ with args;
       runCommand "darwin-minimal-bootstrap-phase44-gcc-${gcc46Version}-cxx-amd64" {
         nativeBuildInputs = [ perl ];
       } ''
-        ${root + "/scripts/gcc46/phase44-cxx.sh"} \
+        BOOTSTRAP_MAKE=${gnumake}/bin/make \
+          GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
+          GCC46_BOOTSTRAP_HOST_CC_SOURCES=1 \
+          GCC46_BOOTSTRAP_AS=/usr/bin/as \
+          GCC46_BOOTSTRAP_LD=/usr/bin/ld \
+          GCC46_BOOTSTRAP_MACHO_CC=/usr/bin/cc \
+          GCC46_BOOTSTRAP_HOST_CC=/usr/bin/cc \
+          PHASE44_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk \
+          PHASE44_REBUILD_MACHO_PREREQS=1 \
+          ${root + "/scripts/gcc46/phase44-cxx.sh"} \
           ${phase35-gcc46-all-gcc} \
           ${phase37-gcc46-bootstrap} \
           ${phase39-gnumake} \
