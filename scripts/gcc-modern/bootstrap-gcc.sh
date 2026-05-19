@@ -43,6 +43,19 @@ fi
 if [ -f src/libgcc/config.host ] && grep -q 'libemutls_w\.a' src/libgcc/config.host; then
   perl -0pi -e 's@ libemutls_w\.a@@g' src/libgcc/config.host
 fi
+if [ -f src/libgcc/config.host ] && grep -q 'libheapt_w\.a' src/libgcc/config.host; then
+  perl -0pi -e 's@ libheapt_w\.a@@g' src/libgcc/config.host
+fi
+if [ -f src/libgcc/config.host ] && grep -q 'crt3.o libd10-uwfef.a crttms.o crttme.o' src/libgcc/config.host; then
+  perl -0pi -e 's@extra_parts="crt3\.o libd10-uwfef\.a crttms\.o crttme\.o"@extra_parts="libd10-uwfef.a"@g' src/libgcc/config.host
+fi
+if [ -f src/gcc/config/darwin.h ] && grep -q -- '-lemutls_w' src/gcc/config/darwin.h; then
+  perl -0pi \
+    -e 's@# define DARWIN_SHARED_WEAK_ADDS \\\n"%\{%:version-compare\(>= 10\.11 mmacosx-version-min= -lemutls_w\): \\\n " DARWIN_HEAP_T_LIB "\}@# define DARWIN_SHARED_WEAK_ADDS " "@g;' \
+    -e 's@#define DARWIN_WEAK_CRTS \\\n"%\{static-libgcc\|static:\t\t\t\t\t\t  \\\n    %\{%:version-compare\(>= 10\.6 mmacosx-version-min= -lemutls_w\):\t  \\\n      " DARWIN_HEAP_T_LIB "\} ;\t\t\t\t\t\t  \\\n   : -lemutls_w\t" DARWIN_HEAP_T_LIB "\t\t\t\t\t  \\\n  \}"@#define DARWIN_WEAK_CRTS ""@g' \
+    src/gcc/config/darwin.h
+  perl -0pi -e 's@# define DARWIN_SHARED_WEAK_ADDS " ""@# define DARWIN_SHARED_WEAK_ADDS " "@g' src/gcc/config/darwin.h
+fi
 for glibc_configure in src/gcc/configure src/libgcc/configure; do
   if [ -f "$glibc_configure" ] && grep -q '__GLIBC__' "$glibc_configure"; then
     perl -0pi -e 's@if ac_fn_c_compute_int "\$LINENO" "__GLIBC__" "glibc_version_major".*?fi\n\nif ac_fn_c_compute_int "\$LINENO" "__GLIBC_MINOR__" "glibc_version_minor".*?fi@glibc_version_major=0\nglibc_version_minor=0@s' "$glibc_configure"
@@ -74,6 +87,18 @@ if [ -f src/libiberty/physmem.c ]; then
     -e 's@#if HAVE_SYS_TABLE_H\s*#\s*include <sys/table\.h>\s*#endif@#if HAVE_SYS_TABLE_H && !defined(__APPLE__)\n# include <sys/table.h>\n#endif@s;' \
     -e 's@#if HAVE_SYS_SYSTEMCFG_H\s*#\s*include <sys/systemcfg\.h>\s*#endif@#if HAVE_SYS_SYSTEMCFG_H && !defined(__APPLE__)\n# include <sys/systemcfg.h>\n#endif@s;' \
     src/libiberty/physmem.c
+fi
+if [ -f src/libiberty/setproctitle.c ] && grep -q '#ifdef HAVE_SYS_PRCTL_H' src/libiberty/setproctitle.c; then
+  perl -0pi -e 's@#ifdef HAVE_SYS_PRCTL_H@#if defined(HAVE_SYS_PRCTL_H) && !defined(__APPLE__)@' src/libiberty/setproctitle.c
+fi
+if [ -f src/libiberty/pex-unix.c ] && grep -q '#ifdef HAVE_PROCESS_H' src/libiberty/pex-unix.c; then
+  perl -0pi -e 's@#ifdef HAVE_PROCESS_H@#if defined(HAVE_PROCESS_H) && !defined(__APPLE__)@; s@#ifdef HAVE_VFORK_H@#if defined(HAVE_VFORK_H) && !defined(__APPLE__)@' src/libiberty/pex-unix.c
+fi
+if [ -f src/libcody/configure ] && grep -q '__cplusplus != 201103' src/libcody/configure; then
+  perl -0pi \
+    -e 's@#if __cplusplus != 201103\n#error "C\+\+11 is required"\n#endif@#if __cplusplus < 201103\n#error "C++11 is required"\n#endif@g;' \
+    -e 's@#if __cplusplus > 201103\n#error "C\+\+11 is required"\n#endif@#if __cplusplus < 201103\n#error "C++11 is required"\n#endif@g' \
+    src/libcody/configure
 fi
 
 if [ ! -x "$compiler/bin/g++" ]; then
@@ -124,6 +149,61 @@ clock_t times(struct tms *);
 #endif
 #endif
 SYS_TIMES_H
+cat > "$sysroot/include/ftw.h" <<'FTW_H'
+#ifndef _DARWIN_BOOTSTRAP_FTW_H
+#define _DARWIN_BOOTSTRAP_FTW_H
+#include <sys/stat.h>
+#define FTW_F 0
+#define FTW_D 1
+#define FTW_DNR 2
+#define FTW_NS 3
+#define FTW_SL 4
+#define FTW_DP 6
+#define FTW_SLN 7
+#define FTW_PHYS 0x01
+#define FTW_MOUNT 0x02
+#define FTW_DEPTH 0x04
+#define FTW_CHDIR 0x08
+struct FTW {
+  int base;
+  int level;
+};
+#ifdef __cplusplus
+extern "C" {
+#endif
+int ftw(const char *, int (*)(const char *, const struct stat *, int), int);
+int nftw(const char *, int (*)(const char *, const struct stat *, int, struct FTW *), int, int);
+#ifdef __cplusplus
+}
+#endif
+#endif
+FTW_H
+cat > "$sysroot/include/getopt.h" <<'GETOPT_H'
+#ifndef _DARWIN_BOOTSTRAP_GETOPT_H
+#define _DARWIN_BOOTSTRAP_GETOPT_H
+#define no_argument 0
+#define required_argument 1
+#define optional_argument 2
+struct option {
+  const char *name;
+  int has_arg;
+  int *flag;
+  int val;
+};
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern char *optarg;
+extern int optind;
+extern int opterr;
+extern int optopt;
+int getopt(int, char * const *, const char *);
+int getopt_long(int, char * const *, const char *, const struct option *, int *);
+#ifdef __cplusplus
+}
+#endif
+#endif
+GETOPT_H
 if [ -f "$sysroot/include/signal.h" ] && ! grep -q 'strsignal' "$sysroot/include/signal.h"; then
   perl -0pi -e 's@(__sighandler_t signal\(int, __sighandler_t\);\n)@#ifdef __cplusplus\nextern "C" {\n#endif\n$1@; s@(int sigprocmask\(int, const sigset_t \*, sigset_t \*\);\n)@$1char *strsignal(int);\n#ifdef __cplusplus\n}\n#endif\n@' "$sysroot/include/signal.h"
 fi
@@ -136,8 +216,26 @@ fi
 if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'F_GETFL' "$sysroot/include/fcntl.h"; then
   perl -0pi -e 's@(#define F_SETFD 2\n)@$1#define F_GETFL 3\n@' "$sysroot/include/fcntl.h"
 fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'F_DUPFD' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#define F_GETFD 1\n)@#define F_DUPFD 0\n$1@' "$sysroot/include/fcntl.h"
+fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'F_SETFL' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#define F_GETFL 3\n)@$1#define F_SETFL 4\n@' "$sysroot/include/fcntl.h"
+fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'F_SETLKW' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#define FD_CLOEXEC 1\n)@#define F_GETOWN 5\n#define F_SETOWN 6\n#define F_GETLK 7\n#define F_SETLK 8\n#define F_RDLCK 1\n#define F_UNLCK 2\n#define F_WRLCK 3\n#define F_SETLKW 9\n#define F_DUPFD_CLOEXEC 67\n$1@' "$sysroot/include/fcntl.h"
+fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'O_CLOEXEC' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#define O_APPEND 0x0008\n)@$1#define O_DIRECTORY 0x100000\n#define O_CLOEXEC 0x1000000\n#define AT_FDCWD -2\n@' "$sysroot/include/fcntl.h"
+fi
+if [ -f "$sysroot/include/fcntl.h" ] && ! grep -q 'struct flock' "$sysroot/include/fcntl.h"; then
+  perl -0pi -e 's@(#ifdef __cplusplus\nextern "C" \{\n#endif\n)@typedef long long off_t;\nstruct flock {\n  off_t l_start;\n  off_t l_len;\n  int l_pid;\n  short l_type;\n  short l_whence;\n};\n$1@' "$sysroot/include/fcntl.h"
+fi
 if [ -f "$sysroot/include/dirent.h" ] && ! grep -q 'extern "C"' "$sysroot/include/dirent.h"; then
   perl -0pi -e 's@(struct dirent \{[^\n]*\};\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#endif\n)\z@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/dirent.h"
+fi
+if [ -f "$sysroot/include/dirent.h" ] && ! grep -q 'DT_UNKNOWN' "$sysroot/include/dirent.h"; then
+  perl -0pi -e 's@(typedef struct DIR DIR;\n)@$1#define DT_UNKNOWN 0\n#define DT_FIFO 1\n#define DT_CHR 2\n#define DT_DIR 4\n#define DT_BLK 6\n#define DT_REG 8\n#define DT_LNK 10\n#define DT_SOCK 12\n@' "$sysroot/include/dirent.h"
 fi
 if [ -f "$sysroot/include/sys/stat.h" ] && ! grep -q 'extern "C"' "$sysroot/include/sys/stat.h"; then
   perl -0pi -e 's@(#define st_ctime st_ctimespec.tv_sec\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#define S_IFMT 0170000\n)@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/sys/stat.h"
@@ -148,14 +246,46 @@ fi
 if [ -f "$sysroot/include/sys/mman.h" ] && ! grep -q 'extern "C"' "$sysroot/include/sys/mman.h"; then
   perl -0pi -e 's@(#define MAP_FAILED \(\(void \*\)-1\)\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#endif\n)\z@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/sys/mman.h"
 fi
+if [ -f "$sysroot/include/sys/mman.h" ] && ! grep -q 'MADV_RANDOM' "$sysroot/include/sys/mman.h"; then
+  perl -0pi -e 's@(#define MAP_FAILED \(\(void \*\)-1\)\n)@$1#define MADV_RANDOM 1\n@; s@(int mprotect\(void \*, size_t, int\);\n)@$1int madvise(void *, size_t, int);\n@' "$sysroot/include/sys/mman.h"
+fi
 if [ -f "$sysroot/include/sys/sysctl.h" ] && ! grep -q 'extern "C"' "$sysroot/include/sys/sysctl.h"; then
   perl -0pi -e 's@(#define KERN_OSRELEASE 2\n)@$1#ifdef __cplusplus\nextern "C" {\n#endif\n@; s@(#endif\n)\z@#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/sys/sysctl.h"
+fi
+if [ -f "$sysroot/include/signal.h" ]; then
+  perl -0pi -e 's@typedef long sigset_t;@typedef unsigned int sigset_t;@g' "$sysroot/include/signal.h"
+fi
+if [ -f "$sysroot/include/sys/types.h" ]; then
+  perl -0pi -e 's@typedef long off_t;@typedef long long off_t;@g' "$sysroot/include/sys/types.h"
+fi
+if [ -f "$sysroot/include/sys/stat.h" ]; then
+  perl -0pi -e 's@typedef long off_t;@typedef long long off_t;@g' "$sysroot/include/sys/stat.h"
+fi
+if [ -f "$sysroot/include/sys/stat.h" ] && ! grep -q 'fstatat' "$sysroot/include/sys/stat.h"; then
+  perl -0pi -e 's@(int fstat\(int, struct stat \*\);\n)@$1int fstatat(int, const char *, struct stat *, int);\n@' "$sysroot/include/sys/stat.h"
+fi
+if [ -f "$sysroot/include/unistd.h" ]; then
+  perl -0pi -e 's@typedef long off_t;@typedef long long off_t;@g' "$sysroot/include/unistd.h"
+fi
+if [ -f "$sysroot/include/stdint.h" ]; then
+  perl -0pi \
+    -e 's@typedef long int64_t;@typedef long long int64_t;@g;' \
+    -e 's@typedef unsigned long uint64_t;@typedef unsigned long long uint64_t;@g;' \
+    -e 's@typedef long intmax_t;@typedef long long intmax_t;@g;' \
+    -e 's@typedef unsigned long uintmax_t;@typedef unsigned long long uintmax_t;@g' \
+    "$sysroot/include/stdint.h"
 fi
 if ! grep -q '_PC_PATH_MAX' "$sysroot/include/unistd.h"; then
   perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@#ifndef _PC_PATH_MAX\n#define _PC_PATH_MAX 5\n#endif\nlong pathconf(const char *, int);\nchar *realpath(const char *, char *);\n$1@' "$sysroot/include/unistd.h"
 fi
 if ! grep -q 'getpagesize' "$sysroot/include/unistd.h"; then
   perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@int getpagesize(void);\nint vfork(void);\n$1@' "$sysroot/include/unistd.h"
+fi
+if ! grep -q 'int truncate' "$sysroot/include/unistd.h"; then
+  perl -0pi -e 's@(int ftruncate\(int, off_t\);\n)@$1int truncate(const char *, off_t);\n@' "$sysroot/include/unistd.h"
+fi
+if ! grep -q 'execve' "$sysroot/include/unistd.h"; then
+  perl -0pi -e 's@(int execvp\([^\n]+\);\n)@$1int execve(const char *, char *const *, char *const *);\n@' "$sysroot/include/unistd.h"
 fi
 if [ -f "$sysroot/include/string.h" ] && ! grep -q 'strerror_r' "$sysroot/include/string.h"; then
   perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@int strerror_r(int, char *, unsigned long);\n$1@' "$sysroot/include/string.h"
@@ -166,20 +296,85 @@ fi
 if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'getprogname' "$sysroot/include/stdlib.h"; then
   perl -0pi -e 's@(#ifdef __cplusplus\n}\n#endif\n#endif\n)\z@const char *getprogname(void);\n$1@' "$sysroot/include/stdlib.h"
 fi
+if [ -f "$sysroot/include/stdio.h" ] && grep -q '#define stdout ((FILE \\*)1)' "$sysroot/include/stdio.h"; then
+  perl -0pi \
+    -e 's@#define stdin \(\(FILE \*\)0\)\n#define stdout \(\(FILE \*\)1\)\n#define stderr \(\(FILE \*\)2\)\n@extern FILE *__stdinp;\nextern FILE *__stdoutp;\nextern FILE *__stderrp;\n#define stdin __stdinp\n#define stdout __stdoutp\n#define stderr __stderrp\n@' \
+    "$sysroot/include/stdio.h"
+fi
+if [ -f "$sysroot/include/stdio.h" ] && grep -q 'typedef long FILE;' "$sysroot/include/stdio.h"; then
+  perl -0pi -e 's@typedef long FILE;@struct __sbuf { unsigned char *_base; int _size; };\nstruct __sFILE { unsigned char *_p; int _r; int _w; short _flags; short _file; struct __sbuf _bf; int _lbfsize; void *_cookie; int (*_close)(void *); int (*_read)(void *, char *, int); long (*_seek)(void *, long, int); int (*_write)(void *, const char *, int); struct __sbuf _ub; void *_extra; int _ur; unsigned char _ubuf[3]; unsigned char _nbuf[1]; struct __sbuf _lb; int _blksize; long _offset; };\ntypedef struct __sFILE FILE;\n#define __sferror(p) ((p)->_flags & 0x0040)@' "$sysroot/include/stdio.h"
+fi
+if [ -f "$sysroot/include/stdio.h" ] && grep -q 'struct __sFILE { void \*__opaque; };' "$sysroot/include/stdio.h"; then
+  perl -0pi -e 's@struct __sFILE \{ void \*__opaque; \};@struct __sbuf { unsigned char *_base; int _size; };\nstruct __sFILE { unsigned char *_p; int _r; int _w; short _flags; short _file; struct __sbuf _bf; int _lbfsize; void *_cookie; int (*_close)(void *); int (*_read)(void *, char *, int); long (*_seek)(void *, long, int); int (*_write)(void *, const char *, int); struct __sbuf _ub; void *_extra; int _ur; unsigned char _ubuf[3]; unsigned char _nbuf[1]; struct __sbuf _lb; int _blksize; long _offset; };\n#define __sferror(p) ((p)->_flags & 0x0040)@' "$sysroot/include/stdio.h"
+fi
+if [ -f "$sysroot/include/stdio.h" ] && ! grep -q '#define __sferror' "$sysroot/include/stdio.h"; then
+  perl -0pi -e 's@(typedef struct __sFILE FILE;\n)@$1#define __sferror(p) ((p)->_flags & 0x0040)\n@' "$sysroot/include/stdio.h"
+fi
 if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'MB_CUR_MAX ' "$sysroot/include/stdlib.h"; then
   perl -0pi -e 's@(#define EXIT_FAILURE 1\n)@$1#ifndef MB_CUR_MAX\n#define MB_CUR_MAX 1\n#endif\n#ifndef MB_CUR_MAX_L\n#define MB_CUR_MAX_L(x) (1)\n#endif\n@' "$sysroot/include/stdlib.h"
 fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'RAND_MAX' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(#define EXIT_FAILURE 1\n)@$1#ifndef RAND_MAX\n#define RAND_MAX 2147483647\n#endif\n@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'typedef int wchar_t' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(typedef unsigned long size_t;\n)@$1#ifndef __cplusplus\ntypedef int wchar_t;\n#endif\n@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'mblen' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(void srand\(unsigned int\);\n)@$1int mblen(const char *, size_t);\nsize_t mbstowcs(wchar_t *, const char *, size_t);\nint mbtowc(wchar_t *, const char *, size_t);\n@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'aligned_alloc' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(void \*malloc\(size_t\);\n)@$1void *aligned_alloc(size_t, size_t);\n@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/stdlib.h" ] && ! grep -q 'posix_memalign' "$sysroot/include/stdlib.h"; then
+  perl -0pi -e 's@(void \*aligned_alloc\(size_t, size_t\);\n)@$1int posix_memalign(void **, size_t, size_t);\n@' "$sysroot/include/stdlib.h"
+fi
+if [ -f "$sysroot/include/time.h" ] && ! grep -q 'timespec_get' "$sysroot/include/time.h"; then
+  perl -0pi -e 's@(int nanosleep\(const struct timespec \*, struct timespec \*\);\n)@$1#ifndef TIME_UTC\n#define TIME_UTC 1\n#endif\nint timespec_get(struct timespec *, int);\n@' "$sysroot/include/time.h"
+fi
+if [ -f "$sysroot/include/time.h" ] && ! grep -q 'clock_gettime' "$sysroot/include/time.h"; then
+  perl -0pi -e 's@(int nanosleep\(const struct timespec \*, struct timespec \*\);\n)@$1#ifndef CLOCK_REALTIME\n#define CLOCK_REALTIME 0\n#endif\nint clock_gettime(int, struct timespec *);\n@' "$sysroot/include/time.h"
+fi
+if [ -f "$sysroot/include/ctype.h" ] && ! grep -q '#define _CTYPE_B' "$sysroot/include/ctype.h"; then
+  perl -0pi -e 's@(#define DARWIN_BOOTSTRAP_CTYPE_BITS 1\n)@$1#define _CTYPE_B 0x00000001L\n@; s@(#define _R _CTYPE_R\n)@$1#define _B _CTYPE_B\n@' "$sysroot/include/ctype.h"
+fi
+if [ -f "$sysroot/include/math.h" ] && ! grep -q 'FP_NAN' "$sysroot/include/math.h"; then
+  perl -0pi -e 's@(#define _DARWIN_BOOTSTRAP_MATH_H\n)@$1#define FP_NAN 0\n#define FP_INFINITE 1\n#define FP_NORMAL 2\n#define FP_SUBNORMAL 3\n#define FP_ZERO 4\n@' "$sysroot/include/math.h"
+fi
 if ! grep -q 'INTMAX_MAX' "$sysroot/include/stdint.h"; then
-  perl -0pi -e 's@(#endif\n)\z@#define INTMAX_MAX 9223372036854775807L\n#define INTMAX_MIN (-INTMAX_MAX - 1L)\n#define UINTMAX_MAX 18446744073709551615UL\n$1@' "$sysroot/include/stdint.h"
+  perl -0pi -e 's@(#endif\n)\z@#define INTMAX_MAX 9223372036854775807LL\n#define INTMAX_MIN (-INTMAX_MAX - 1LL)\n#define UINTMAX_MAX 18446744073709551615ULL\n$1@' "$sysroot/include/stdint.h"
+fi
+perl -0pi \
+  -e 's@#define INTMAX_MAX 9223372036854775807L\b@#define INTMAX_MAX 9223372036854775807LL@g;' \
+  -e 's@#define INTMAX_MIN \(-INTMAX_MAX - 1L\)@#define INTMAX_MIN (-INTMAX_MAX - 1LL)@g;' \
+  -e 's@#define UINTMAX_MAX 18446744073709551615UL\b@#define UINTMAX_MAX 18446744073709551615ULL@g' \
+  "$sysroot/include/stdint.h"
+if ! grep -q 'UINT_MAX' "$sysroot/include/stdint.h"; then
+  perl -0pi -e 's@(#define UINTMAX_MAX 18446744073709551615U?LL\n)@$1#define UINT_MAX 4294967295U\n#define ULONG_MAX 18446744073709551615UL\n@' "$sysroot/include/stdint.h"
+fi
+if ! grep -q 'UINT64_MAX' "$sysroot/include/stdint.h"; then
+  perl -0pi -e 's@(#define UINTMAX_MAX 18446744073709551615U?LL\n)@$1#define UINT64_MAX 18446744073709551615ULL\n#define INT64_MAX 9223372036854775807LL\n#define INT64_MIN (-INT64_MAX - 1LL)\n@' "$sysroot/include/stdint.h"
+fi
+if ! grep -q 'UINT32_MAX' "$sysroot/include/stdint.h"; then
+  perl -0pi -e 's@(#define UINT64_MAX 18446744073709551615ULL\n)@#define UINT8_MAX 255U\n#define INT8_MAX 127\n#define INT8_MIN (-INT8_MAX - 1)\n#define UINT16_MAX 65535U\n#define INT16_MAX 32767\n#define INT16_MIN (-INT16_MAX - 1)\n#define UINT32_MAX 4294967295U\n#define INT32_MAX 2147483647\n#define INT32_MIN (-INT32_MAX - 1)\n$1@' "$sysroot/include/stdint.h"
 fi
 if ! grep -q 'SIZE_MAX' "$sysroot/include/stdint.h"; then
-  perl -0pi -e 's@(#define UINTMAX_MAX 18446744073709551615UL\n)@$1#define SIZE_MAX 18446744073709551615UL\n@' "$sysroot/include/stdint.h"
+  perl -0pi -e 's@(#define UINTMAX_MAX 18446744073709551615U?LL\n)@$1#define SIZE_MAX 18446744073709551615UL\n@' "$sysroot/include/stdint.h"
 fi
 if ! grep -q 'PTRDIFF_MAX' "$sysroot/include/stdint.h"; then
   perl -0pi -e 's@(#define SIZE_MAX 18446744073709551615UL\n)@$1#define PTRDIFF_MAX 9223372036854775807L\n#define PTRDIFF_MIN (-PTRDIFF_MAX - 1L)\n@' "$sysroot/include/stdint.h"
 fi
-if [ -f "$sysroot/include/inttypes.h" ] && ! grep -q 'PRIi64' "$sysroot/include/inttypes.h"; then
-  perl -0pi -e 's@(#endif\n)\z@#define PRId64 "ld"\n#define PRIi64 "li"\n#define PRIu64 "lu"\n#define PRIx64 "lx"\n#define PRIX64 "lX"\n$1@' "$sysroot/include/inttypes.h"
+if [ -f "$sysroot/include/inttypes.h" ]; then
+  if grep -q 'PRIi64' "$sysroot/include/inttypes.h"; then
+    perl -0pi \
+      -e 's@#define PRId64 "l?ld"@#define PRId64 "lld"@g;' \
+      -e 's@#define PRIi64 "l?li"@#define PRIi64 "lli"@g;' \
+      -e 's@#define PRIu64 "l?lu"@#define PRIu64 "llu"@g;' \
+      -e 's@#define PRIx64 "l?lx"@#define PRIx64 "llx"@g;' \
+      -e 's@#define PRIX64 "l?lX"@#define PRIX64 "llX"@g' \
+      "$sysroot/include/inttypes.h"
+  else
+    perl -0pi -e 's@(#endif\n)\z@#define PRId64 "lld"\n#define PRIi64 "lli"\n#define PRIu64 "llu"\n#define PRIx64 "llx"\n#define PRIX64 "llX"\n$1@' "$sysroot/include/inttypes.h"
+  fi
 fi
 if [ ! -f "$sysroot/include/wchar.h" ]; then
   cat > "$sysroot/include/wchar.h" <<'WCHAR_H'
@@ -263,18 +458,69 @@ if [ ! -f "$sysroot/include/xlocale.h" ]; then
 typedef void *locale_t;
 #define LC_GLOBAL_LOCALE ((locale_t)-1)
 #define LC_C_LOCALE ((locale_t)0)
+#define LC_ALL_MASK 0x3f
 #ifndef MB_CUR_MAX_L
 #define MB_CUR_MAX_L(x) (1)
 #endif
+locale_t newlocale(int, const char *, locale_t);
+void freelocale(locale_t);
 locale_t uselocale(locale_t);
 #endif
 XLOCALE_H
+fi
+if [ -f "$sysroot/include/xlocale.h" ] && ! grep -q 'newlocale' "$sysroot/include/xlocale.h"; then
+  perl -0pi -e 's@(#define LC_C_LOCALE \(\(locale_t\)0\)\n)@$1#define LC_ALL_MASK 0x3f\n@; s@(locale_t uselocale\(locale_t\);\n)@locale_t newlocale(int, const char *, locale_t);\nvoid freelocale(locale_t);\n$1@' "$sysroot/include/xlocale.h"
+fi
+if [ ! -f "$sysroot/include/locale.h" ]; then
+  cat > "$sysroot/include/locale.h" <<'LOCALE_H'
+#ifndef _DARWIN_BOOTSTRAP_LOCALE_H
+#define _DARWIN_BOOTSTRAP_LOCALE_H
+#include <xlocale.h>
+#define LC_ALL 0
+#define LC_COLLATE 1
+#define LC_CTYPE 2
+#define LC_MONETARY 3
+#define LC_NUMERIC 4
+#define LC_TIME 5
+struct lconv {
+  char *decimal_point;
+  char *thousands_sep;
+  char *grouping;
+  char *int_curr_symbol;
+  char *currency_symbol;
+  char *mon_decimal_point;
+  char *mon_thousands_sep;
+  char *mon_grouping;
+  char *positive_sign;
+  char *negative_sign;
+  char int_frac_digits;
+  char frac_digits;
+  char p_cs_precedes;
+  char p_sep_by_space;
+  char n_cs_precedes;
+  char n_sep_by_space;
+  char p_sign_posn;
+  char n_sign_posn;
+};
+#ifdef __cplusplus
+extern "C" {
+#endif
+char *setlocale(int, const char *);
+struct lconv *localeconv(void);
+#ifdef __cplusplus
+}
+#endif
+#endif
+LOCALE_H
 fi
 if [ -f "$sysroot/include/sys/resource.h" ] && ! grep -q 'getrusage' "$sysroot/include/sys/resource.h"; then
   perl -0pi -e 's@(#endif\n)\z@#ifdef __cplusplus\nextern "C" {\n#endif\nint getrusage(int, struct rusage *);\n#ifdef __cplusplus\n}\n#endif\n$1@' "$sysroot/include/sys/resource.h"
 fi
 if [ -f "$sysroot/include/sys/resource.h" ] && ! grep -q 'RLIMIT_CORE' "$sysroot/include/sys/resource.h"; then
   perl -0pi -e 's@(#define RUSAGE_CHILDREN -1\n)@$1#define RLIMIT_CORE 4\n#define RLIM_INFINITY 9223372036854775807UL\n@' "$sysroot/include/sys/resource.h"
+fi
+if [ -f "$sysroot/include/sys/resource.h" ] && ! grep -q 'RLIMIT_NOFILE' "$sysroot/include/sys/resource.h"; then
+  perl -0pi -e 's@(#define RLIMIT_CORE 4\n)@$1#define RLIMIT_NOFILE 8\n@; s@(int getrusage\(int, struct rusage \*\);\n)@$1int getrlimit(int, struct rlimit *);\nint setrlimit(int, const struct rlimit *);\n@' "$sysroot/include/sys/resource.h"
 fi
 
 sdk_path() {
@@ -321,7 +567,7 @@ export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
 export PATH="$compiler/bin:$cctools/bin:$PATH"
   export MACOSX_DEPLOYMENT_TARGET=10.8
-  export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0 -Dwint_t=int}"
+  export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0}"
   export CXXFLAGS="${GCC_MODERN_CXXFLAGS:--O2 -g0 -std=c++14}"
   export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
   export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -std=c++14 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
@@ -329,6 +575,7 @@ export CFLAGS_FOR_TARGET="${GCC_MODERN_CFLAGS_FOR_TARGET:--O2 -g0}"
 export CXXFLAGS_FOR_TARGET="${GCC_MODERN_CXXFLAGS_FOR_TARGET:--O2 -g0}"
 export LDFLAGS="${GCC_MODERN_LDFLAGS:-$bootstrap_link_flags}"
 export LDFLAGS_FOR_BUILD="${GCC_MODERN_LDFLAGS_FOR_BUILD:-}"
+export GCC_MODERN_WRAPPER_HOST_SHORTCUTS="${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}"
 export GMP_CONFIGURE_ARGS="--disable-assembly"
 export CPPFLAGS_FOR_TARGET="-isystem $sysroot/include"
 export ac_cv_sizeof_char=1
@@ -370,6 +617,7 @@ configure_flags=(
   --disable-plugin
   --disable-vtable-verify
   --disable-decimal-float
+  --disable-libstdcxx-pch
   --without-isl
   --with-glibc-version=0.0
   --disable-nls
@@ -385,6 +633,15 @@ if [ "$label" = gcc-latest ]; then
   export ac_cv_prog_CPP="$CC -E"
   export ac_cv_header_stdc=yes
   export ac_cv_header_minix_config_h=no
+  export ac_cv_header_process_h=no
+  export ac_cv_header_sys_prctl_h=no
+  export ac_cv_header_vfork_h=no
+  export ac_cv_header_direct_h=no
+  export ac_cv_header_malloc_h=no
+  export ac_cv_header_sys_auxv_h=no
+  export ac_cv_header_sys_locking_h=no
+  export ac_cv_header_thread_h=no
+  export gcc_cv_type_rlim_t=yes
   export ac_cv_header_sys_wait_h=yes
   export ac_cv_header_time=yes
   export ac_cv_sizeof_size_t=8
@@ -403,6 +660,7 @@ fi
 
 package_modern_compiler() {
   local gcc_build_dir="$PWD/gcc"
+  local libstdcxx_build_dir="$PWD/$target/libstdc++-v3"
   local gcc_tool_dir="$out/libexec/gcc/$target/$version"
   local gcc_runtime_dir="$out/lib/gcc/$target/$version"
 
@@ -433,12 +691,25 @@ package_modern_compiler() {
       -exec cp {} "$gcc_runtime_dir/" \;
   fi
   rm -f "$gcc_runtime_dir/specs" "$gcc_runtime_dir/cc1" "$gcc_runtime_dir/cc1plus"
-  for archive in libstdc++.a libsupc++.a; do
-    if [ -f "$compiler/lib/$archive" ]; then
-      cp "$compiler/lib/$archive" "$out/lib/"
-    fi
-  done
-  if [ -d "$compiler/include/c++" ]; then
+  if [ -f "$libstdcxx_build_dir/src/.libs/libstdc++.a" ]; then
+    cp "$libstdcxx_build_dir/src/.libs/libstdc++.a" "$out/lib/"
+  elif [ -f "$compiler/lib/libstdc++.a" ]; then
+    cp "$compiler/lib/libstdc++.a" "$out/lib/"
+  fi
+  if [ -f "$libstdcxx_build_dir/libsupc++/.libs/libsupc++.a" ]; then
+    cp "$libstdcxx_build_dir/libsupc++/.libs/libsupc++.a" "$out/lib/"
+  elif [ -f "$compiler/lib/libsupc++.a" ]; then
+    cp "$compiler/lib/libsupc++.a" "$out/lib/"
+  fi
+  if [ -d "$libstdcxx_build_dir/include" ]; then
+    mkdir -p "$out/include/c++"
+    find "$out/include/c++" -mindepth 1 -maxdepth 1 -type d ! -name "$version" -exec rm -rf {} +
+    rm -rf "$out/include/c++/$version"
+    cp -RL "$libstdcxx_build_dir/include" "$out/include/c++/$version"
+    find "$PWD/../src/libstdc++-v3/libsupc++" -maxdepth 1 -type f \
+      \( -name '*.h' -o ! -name '*.*' \) \
+      -exec cp {} "$out/include/c++/$version/" \;
+  elif [ -d "$compiler/include/c++" ]; then
     cp -R "$compiler/include/c++" "$out/include/"
   fi
   if [ -d "$sysroot/include" ]; then
@@ -519,7 +790,7 @@ append_wl_args() {
 }
 add_default_link_args() {
   local arg have_syslibroot=0 have_lsystem=0
-  for arg in "\${ld_args[@]}"; do
+  for arg in \${ld_args+"\${ld_args[@]}"}; do
     [ "\$arg" = -syslibroot ] && have_syslibroot=1
     [ "\$arg" = -lSystem ] && have_lsystem=1
   done
@@ -775,10 +1046,13 @@ if [ "\${#objects[@]}" = 0 ]; then
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
 add_default_link_args
+ld_args+=(-L"\$root/lib/gcc/$target/$version" -L"\$root/lib" -lgcc)
 case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
-    cxx_link_args
-    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
+      cxx_link_args
+      exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+    fi
     ;;
 esac
 exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
@@ -791,10 +1065,11 @@ root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
 cxx_inc=\$(ls -d "\$root"/include/c++/* 2>/dev/null | sort | tail -1 || true)
 driver="\$root/libexec/gcc/$target/$version/xg++"
-driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/" --sysroot="\$root/$target" -isystem "\$root/$target/include" -isystem "\$default_sdk/usr/include")
+driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/" --sysroot="\$root/$target")
 if [ -n "\$cxx_inc" ] && [ -d "\$cxx_inc" ]; then
   driver_args+=(-nostdinc++ -isystem "\$cxx_inc" -isystem "\$cxx_inc/$target")
 fi
+driver_args+=(-isystem "\$root/$target/include" -isystem "\$default_sdk/usr/include")
 is_conftest_args() {
   local arg
   for arg in "\$@"; do
@@ -862,7 +1137,7 @@ append_wl_args() {
 }
 add_default_link_args() {
   local arg have_syslibroot=0 have_lsystem=0
-  for arg in "\${ld_args[@]}"; do
+  for arg in \${ld_args+"\${ld_args[@]}"}; do
     [ "\$arg" = -syslibroot ] && have_syslibroot=1
     [ "\$arg" = -lSystem ] && have_lsystem=1
   done
@@ -1126,10 +1401,13 @@ if [ "\${#objects[@]}" = 0 ]; then
   exec "\$driver" "\${driver_args[@]}" "\$@"
 fi
 add_default_link_args
+ld_args+=(-L"\$root/lib/gcc/$target/$version" -L"\$root/lib" -lgcc -lstdc++ -lsupc++)
 case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
-    cxx_link_args
-    exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
+      cxx_link_args
+      exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+    fi
     ;;
 esac
 exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
@@ -1191,27 +1469,84 @@ if [ -f Makefile ]; then
       "$makefile"
   done < <(find "./build-$target" -name Makefile -type f 2>/dev/null || true)
   find "./build-$target" -path '*/libcpp/Makefile' -type f -exec touch {} + 2>/dev/null || true
+  target_arch="${target%%-*}"
+  for build_archive_dir in "./build-$target/libcpp"; do
+    if [ -f "$build_archive_dir/libcpp.a" ] \
+      && command -v lipo >/dev/null 2>&1 \
+      && ! lipo -info "$build_archive_dir/libcpp.a" 2>/dev/null | grep -q "architecture: $target_arch\\|are: .*\\b$target_arch\\b"; then
+      rm -f "$build_archive_dir"/libcpp.a
+      find "$build_archive_dir" -maxdepth 1 -name '*.o' -delete
+      find "$build_archive_dir/.deps" -type f \( -name '*.TPo' -o -name '*.Po' \) -delete 2>/dev/null || true
+    fi
+    if [ -f "$build_archive_dir/libcpp.a" ] \
+      && command -v nm >/dev/null 2>&1 \
+      && nm "$build_archive_dir/libcpp.a" 2>/dev/null | grep -q 'cpp_finishP10cpp_readerPl'; then
+      rm -f "$build_archive_dir"/libcpp.a
+      find "$build_archive_dir" -maxdepth 1 -name '*.o' -delete
+      find "$build_archive_dir/.deps" -type f \( -name '*.TPo' -o -name '*.Po' \) -delete 2>/dev/null || true
+    fi
+  done
+  if [ -f libcody/libcody.a ] \
+    && command -v nm >/dev/null 2>&1 \
+    && nm libcody/libcody.a 2>/dev/null | grep -q 'Resolver10GetCMINameERKSs'; then
+    rm -f libcody/libcody.a
+    find libcody -maxdepth 1 -name '*.o' -delete
+    find libcody -maxdepth 2 -path '*/.deps/*' -type f \( -name '*.TPo' -o -name '*.Po' \) -delete 2>/dev/null || true
+  fi
   find . -path '*/mpfr/src/Makefile' -type f -exec perl -0pi \
-    -e 's@^(DEFS = .*)$@$1 -DHAVE_WCHAR_H=1 -Dwint_t=int@m;' \
+    -e 's@^(DEFS = .*)$@$1 -DHAVE_WCHAR_H=1@m; s@[[:space:]]-Dwint_t=int@@g' \
     {} +
+  if [ -d "build-$target" ] && [ ! -x "build-$target/fixincludes/fixinc.sh" ]; then
+    mkdir -p "build-$target/fixincludes"
+    cat > "build-$target/fixincludes/fixinc.sh" <<'FIXINC_SH'
+#!/usr/bin/env bash
+exit 0
+FIXINC_SH
+    chmod +x "build-$target/fixincludes/fixinc.sh"
+  fi
   if [ -f gcc/auto-host.h ]; then
     perl -0pi \
       -e 's@^#define HAVE_DECL_STRSIGNAL 0$@#define HAVE_DECL_STRSIGNAL 1@m;' \
+      -e 's@^#define HAVE_DECL_GETRLIMIT 0$@#define HAVE_DECL_GETRLIMIT 1@m;' \
+      -e 's@^#define HAVE_DECL_SETRLIMIT 0$@#define HAVE_DECL_SETRLIMIT 1@m;' \
+      -e 's@^#define HAVE_DECL_MADVISE 0$@#define HAVE_DECL_MADVISE 1@m;' \
+      -e 's@^#define MKDIR_TAKES_ONE_ARG 1$@/* #undef MKDIR_TAKES_ONE_ARG */@m;' \
       -e 's@^#define rlim_t long$@/* #undef rlim_t */@m;' \
+      -e 's@/\* Define to 1 if you have the <sys/locking\.h> header file\. \*/\n#ifndef USED_FOR_TARGET\n#define HAVE_SYS_LOCKING_H 1\n#endif@/* Define to 1 if you have the <sys/locking.h> header file. */\n/* #undef HAVE_SYS_LOCKING_H */@;' \
       gcc/auto-host.h
     if [ -f gcc/config.status ]; then
       perl -0pi \
         -e 's@D\["HAVE_DECL_STRSIGNAL"\]=" 0"@D["HAVE_DECL_STRSIGNAL"]=" 1"@m;' \
+        -e 's@D\["HAVE_DECL_GETRLIMIT"\]=" 0"@D["HAVE_DECL_GETRLIMIT"]=" 1"@m;' \
+        -e 's@D\["HAVE_DECL_SETRLIMIT"\]=" 0"@D["HAVE_DECL_SETRLIMIT"]=" 1"@m;' \
+        -e 's@D\["HAVE_DECL_MADVISE"\]=" 0"@D["HAVE_DECL_MADVISE"]=" 1"@m;' \
+        -e 's@D\["MKDIR_TAKES_ONE_ARG"\]=" 1"@D["MKDIR_TAKES_ONE_ARG"]=" /* undef */"@m;' \
         -e 's@D\["rlim_t"\]=" long"@D["rlim_t"]=" /* undef */"@m;' \
         gcc/config.status
     fi
     if [ -f gcc/config.cache ]; then
       perl -0pi \
         -e 's@^gcc_cv_have_decl_strsignal=.*$@gcc_cv_have_decl_strsignal=yes@m;' \
+        -e 's@^gcc_cv_have_decl_getrlimit=.*$@gcc_cv_have_decl_getrlimit=yes@m;' \
+        -e 's@^gcc_cv_have_decl_setrlimit=.*$@gcc_cv_have_decl_setrlimit=yes@m;' \
+        -e 's@^gcc_cv_have_decl_madvise=.*$@gcc_cv_have_decl_madvise=yes@m;' \
         -e 's@^ac_cv_type_rlim_t=.*$@ac_cv_type_rlim_t=yes@m;' \
+        -e 's@^ac_cv_header_direct_h=.*$@ac_cv_header_direct_h=\${ac_cv_header_direct_h=no}@m;' \
+        -e 's@^ac_cv_header_malloc_h=.*$@ac_cv_header_malloc_h=\${ac_cv_header_malloc_h=no}@m;' \
+        -e 's@^ac_cv_header_sys_auxv_h=.*$@ac_cv_header_sys_auxv_h=\${ac_cv_header_sys_auxv_h=no}@m;' \
+        -e 's@^ac_cv_header_sys_locking_h=.*$@ac_cv_header_sys_locking_h=\${ac_cv_header_sys_locking_h=no}@m;' \
+        -e 's@^ac_cv_header_thread_h=.*$@ac_cv_header_thread_h=\${ac_cv_header_thread_h=no}@m;' \
         gcc/config.cache
       grep -q '^gcc_cv_have_decl_strsignal=' gcc/config.cache || printf '%s\n' 'gcc_cv_have_decl_strsignal=yes' >> gcc/config.cache
+      grep -q '^gcc_cv_have_decl_getrlimit=' gcc/config.cache || printf '%s\n' 'gcc_cv_have_decl_getrlimit=yes' >> gcc/config.cache
+      grep -q '^gcc_cv_have_decl_setrlimit=' gcc/config.cache || printf '%s\n' 'gcc_cv_have_decl_setrlimit=yes' >> gcc/config.cache
+      grep -q '^gcc_cv_have_decl_madvise=' gcc/config.cache || printf '%s\n' 'gcc_cv_have_decl_madvise=yes' >> gcc/config.cache
       grep -q '^ac_cv_type_rlim_t=' gcc/config.cache || printf '%s\n' 'ac_cv_type_rlim_t=yes' >> gcc/config.cache
+      grep -q '^ac_cv_header_direct_h=' gcc/config.cache || printf '%s\n' 'ac_cv_header_direct_h=${ac_cv_header_direct_h=no}' >> gcc/config.cache
+      grep -q '^ac_cv_header_malloc_h=' gcc/config.cache || printf '%s\n' 'ac_cv_header_malloc_h=${ac_cv_header_malloc_h=no}' >> gcc/config.cache
+      grep -q '^ac_cv_header_sys_auxv_h=' gcc/config.cache || printf '%s\n' 'ac_cv_header_sys_auxv_h=${ac_cv_header_sys_auxv_h=no}' >> gcc/config.cache
+      grep -q '^ac_cv_header_sys_locking_h=' gcc/config.cache || printf '%s\n' 'ac_cv_header_sys_locking_h=${ac_cv_header_sys_locking_h=no}' >> gcc/config.cache
+      grep -q '^ac_cv_header_thread_h=' gcc/config.cache || printf '%s\n' 'ac_cv_header_thread_h=${ac_cv_header_thread_h=no}' >> gcc/config.cache
     fi
     echo timestamp > gcc/cstamp-h
     rm -f gcc/toplev.o gcc/opts.o gcc/gcc.o gcc/darwin-driver.o \
@@ -1242,6 +1577,16 @@ GCOV_STUB_RULES
       -e 's@^selftest-c: s-selftest-c$@selftest-c:@m;' \
       -e 's@^selftest-c\+\+: s-selftest-c\+\+$@selftest-c++:@m;' \
       gcc/Makefile
+    if ! grep -q 'DARWIN_BOOTSTRAP_GENMATCH_CPPLIB' gcc/Makefile; then
+      cat >> gcc/Makefile <<'GENMATCH_CPPLIB_RULES'
+
+# DARWIN_BOOTSTRAP_GENMATCH_CPPLIB
+# Darwin ld resolves static archives left-to-right and does not rescan archive
+# members for intra-archive C++ references.  Repeating libcpp at the end keeps
+# the GCC 16 build/genmatch link strict without falling back to host clang++.
+build/genmatch$(build_exeext): BUILD_LIBS += $(BUILD_CPPLIB)
+GENMATCH_CPPLIB_RULES
+    fi
   fi
   mkdir -p libbacktrace/.libs
   cat > libbacktrace/darwin-bootstrap-backtrace-stub.c <<'BACKTRACE_STUB_C'
@@ -1336,11 +1681,6 @@ BACKTRACE_STUB_C
     -e 's@^maybe-all-isl: all-isl$@maybe-all-isl:@m;' \
     -e 's@^maybe-configure-isl: configure-isl$@maybe-configure-isl:@m;' \
     -e 's@^maybe-install-isl: install-isl$@maybe-install-isl:@m;' \
-    -e 's@^maybe-all-libcody: all-libcody$@maybe-all-libcody:@m;' \
-    -e 's@^maybe-configure-libcody: configure-libcody$@maybe-configure-libcody:@m;' \
-    -e 's@^maybe-install-libcody: install-libcody$@maybe-install-libcody:@m;' \
-    -e 's@^maybe-install-strip-libcody: install-strip-libcody$@maybe-install-strip-libcody:@m;' \
-    -e 's@^all-gcc: all-libcody$@all-gcc:@m;' \
     -e 's@^maybe-all-build-fixincludes: all-build-fixincludes$@maybe-all-build-fixincludes:@m;' \
     -e 's@^maybe-configure-build-fixincludes: configure-build-fixincludes$@maybe-configure-build-fixincludes:@m;' \
     -e 's@^maybe-all-fixincludes: all-fixincludes$@maybe-all-fixincludes:@m;' \
@@ -1368,6 +1708,9 @@ build_cores=${BOOTSTRAP_JOBS:-1}
 
 make_dir=${GCC_MODERN_MAKE_DIR:-.}
 make_targets=${GCC_MODERN_TARGETS:-all}
+if [ "$make_dir" = . ] && [ "$make_targets" = all-gcc ]; then
+  make_targets="all-libcody all-gcc"
+fi
 
 if [ "${GCC_MODERN_PACKAGE_ONLY:-0}" != 1 ]; then
   MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \

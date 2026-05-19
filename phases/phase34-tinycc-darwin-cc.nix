@@ -63,6 +63,11 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/math.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_MATH_H
         #define _DARWIN_BOOTSTRAP_MATH_H
+        #define FP_NAN 0
+        #define FP_INFINITE 1
+        #define FP_NORMAL 2
+        #define FP_SUBNORMAL 3
+        #define FP_ZERO 4
         #ifdef __cplusplus
         extern "C" {
         #endif
@@ -117,7 +122,7 @@ with args;
         typedef int pid_t;
         typedef unsigned int uid_t;
         typedef unsigned int gid_t;
-        typedef long off_t;
+        typedef long long off_t;
         typedef unsigned int ino_t;
         typedef int dev_t;
         typedef unsigned short nlink_t;
@@ -133,7 +138,7 @@ with args;
         cat > $out/include/tcc-darwin-bootstrap/sys/stat.h <<'H'
         #ifndef _DARWIN_BOOTSTRAP_SYS_STAT_H
         #define _DARWIN_BOOTSTRAP_SYS_STAT_H
-        typedef long off_t;
+        typedef long long off_t;
         typedef unsigned short mode_t;
         typedef int dev_t;
         typedef unsigned short nlink_t;
@@ -171,6 +176,7 @@ with args;
         #define st_ctime st_ctimespec.tv_sec
         int stat(const char *, struct stat *);
         int fstat(int, struct stat *);
+        int fstatat(int, const char *, struct stat *, int);
         int lstat(const char *, struct stat *);
         int chmod(const char *, mode_t);
         int chown(const char *, unsigned int, unsigned int);
@@ -216,9 +222,32 @@ with args;
         #define O_EXCL 0x0800
         #define O_TRUNC 0x0400
         #define O_APPEND 0x0008
+        #define O_DIRECTORY 0x100000
+        #define O_CLOEXEC 0x1000000
+        #define AT_FDCWD -2
+        #define F_DUPFD 0
         #define F_GETFD 1
         #define F_SETFD 2
+        #define F_GETFL 3
+        #define F_SETFL 4
+        #define F_GETOWN 5
+        #define F_SETOWN 6
+        #define F_GETLK 7
+        #define F_SETLK 8
+        #define F_RDLCK 1
+        #define F_UNLCK 2
+        #define F_WRLCK 3
+        #define F_SETLKW 9
+        #define F_DUPFD_CLOEXEC 67
         #define FD_CLOEXEC 1
+        typedef long long off_t;
+        struct flock {
+          off_t l_start;
+          off_t l_len;
+          int l_pid;
+          short l_type;
+          short l_whence;
+        };
         int open(const char *, int, ...);
         int creat(const char *, int);
         int fcntl(int, int, ...);
@@ -229,10 +258,55 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_DIRENT_H
         #define _DARWIN_BOOTSTRAP_DIRENT_H
         typedef struct DIR DIR;
+        #define DT_UNKNOWN 0
+        #define DT_FIFO 1
+        #define DT_CHR 2
+        #define DT_DIR 4
+        #define DT_BLK 6
+        #define DT_REG 8
+        #define DT_LNK 10
+        #define DT_SOCK 12
         struct dirent { unsigned long d_ino; unsigned long d_seekoff; unsigned short d_reclen; unsigned short d_namlen; unsigned char d_type; char d_name[1024]; };
         DIR *opendir(const char *);
         struct dirent *readdir(DIR *);
         int closedir(DIR *);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/ftw.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_FTW_H
+        #define _DARWIN_BOOTSTRAP_FTW_H
+        #include <sys/stat.h>
+        #define FTW_F 0
+        #define FTW_D 1
+        #define FTW_DNR 2
+        #define FTW_NS 3
+        #define FTW_SL 4
+        #define FTW_DP 6
+        #define FTW_SLN 7
+        #define FTW_PHYS 0x01
+        #define FTW_MOUNT 0x02
+        #define FTW_DEPTH 0x04
+        #define FTW_CHDIR 0x08
+        struct FTW { int base; int level; };
+        int ftw(const char *, int (*)(const char *, const struct stat *, int), int);
+        int nftw(const char *, int (*)(const char *, const struct stat *, int, struct FTW *), int, int);
+        #endif
+        H
+
+        cat > $out/include/tcc-darwin-bootstrap/getopt.h <<'H'
+        #ifndef _DARWIN_BOOTSTRAP_GETOPT_H
+        #define _DARWIN_BOOTSTRAP_GETOPT_H
+        #define no_argument 0
+        #define required_argument 1
+        #define optional_argument 2
+        struct option { const char *name; int has_arg; int *flag; int val; };
+        extern char *optarg;
+        extern int optind;
+        extern int opterr;
+        extern int optopt;
+        int getopt(int, char * const *, const char *);
+        int getopt_long(int, char * const *, const char *, const struct option *, int *);
         #endif
         H
 
@@ -259,6 +333,14 @@ with args;
         char *asctime(const struct tm *);
         size_t strftime(char *, size_t, const char *, const struct tm *);
         int nanosleep(const struct timespec *, struct timespec *);
+        #ifndef CLOCK_REALTIME
+        #define CLOCK_REALTIME 0
+        #endif
+        int clock_gettime(int, struct timespec *);
+        #ifndef TIME_UTC
+        #define TIME_UTC 1
+        #endif
+        int timespec_get(struct timespec *, int);
         #ifdef __cplusplus
         }
         #endif
@@ -327,9 +409,11 @@ with args;
         #define MAP_ANON 0x1000
         #define MAP_ANONYMOUS MAP_ANON
         #define MAP_FAILED ((void *)-1)
+        #define MADV_RANDOM 1
         void *mmap(void *, size_t, int, int, int, off_t);
         int munmap(void *, size_t);
         int mprotect(void *, size_t, int);
+        int madvise(void *, size_t, int);
         #endif
         H
 
@@ -346,8 +430,14 @@ with args;
         #include <sys/time.h>
         #define RUSAGE_SELF 0
         #define RUSAGE_CHILDREN -1
+        #define RLIMIT_CORE 4
+        #define RLIMIT_NOFILE 8
+        #define RLIM_INFINITY 9223372036854775807UL
         struct rusage { struct timeval ru_utime; struct timeval ru_stime; long ru_maxrss; long ru_ixrss; long ru_idrss; long ru_isrss; long ru_minflt; long ru_majflt; long ru_nswap; long ru_inblock; long ru_oublock; long ru_msgsnd; long ru_msgrcv; long ru_nsignals; long ru_nvcsw; long ru_nivcsw; long ru_reserved[16]; };
         struct rlimit { unsigned long rlim_cur; unsigned long rlim_max; };
+        int getrusage(int, struct rusage *);
+        int getrlimit(int, struct rlimit *);
+        int setrlimit(int, const struct rlimit *);
         #endif
         H
 
@@ -377,8 +467,8 @@ with args;
         typedef unsigned short uint16_t;
         typedef int int32_t;
         typedef unsigned int uint32_t;
-        typedef long int64_t;
-        typedef unsigned long uint64_t;
+        typedef long long int64_t;
+        typedef unsigned long long uint64_t;
         typedef int8_t int_least8_t;
         typedef uint8_t uint_least8_t;
         typedef int16_t int_least16_t;
@@ -395,10 +485,30 @@ with args;
         typedef uint32_t uint_fast32_t;
         typedef int64_t int_fast64_t;
         typedef uint64_t uint_fast64_t;
-        typedef long intmax_t;
-        typedef unsigned long uintmax_t;
+        typedef long long intmax_t;
+        typedef unsigned long long uintmax_t;
         typedef long intptr_t;
         typedef unsigned long uintptr_t;
+        #define UINT_MAX 4294967295U
+        #define ULONG_MAX 18446744073709551615UL
+        #define UINT8_MAX 255U
+        #define INT8_MAX 127
+        #define INT8_MIN (-INT8_MAX - 1)
+        #define UINT16_MAX 65535U
+        #define INT16_MAX 32767
+        #define INT16_MIN (-INT16_MAX - 1)
+        #define UINT32_MAX 4294967295U
+        #define INT32_MAX 2147483647
+        #define INT32_MIN (-INT32_MAX - 1)
+        #define UINT64_MAX 18446744073709551615ULL
+        #define INT64_MAX 9223372036854775807LL
+        #define INT64_MIN (-INT64_MAX - 1LL)
+        #define INTMAX_MAX 9223372036854775807LL
+        #define INTMAX_MIN (-INTMAX_MAX - 1LL)
+        #define UINTMAX_MAX 18446744073709551615ULL
+        #define SIZE_MAX 18446744073709551615UL
+        #define PTRDIFF_MAX 9223372036854775807L
+        #define PTRDIFF_MIN (-PTRDIFF_MAX - 1L)
         #endif
         H
 
@@ -569,6 +679,7 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_CTYPE_H
         #define _DARWIN_BOOTSTRAP_CTYPE_H
         #define DARWIN_BOOTSTRAP_CTYPE_BITS 1
+        #define _CTYPE_B 0x00000001L
         #define _CTYPE_A 0x00000100L
         #define _CTYPE_C 0x00000200L
         #define _CTYPE_D 0x00000400L
@@ -589,6 +700,7 @@ with args;
         #define _U _CTYPE_U
         #define _X _CTYPE_X
         #define _R _CTYPE_R
+        #define _B _CTYPE_B
         static inline unsigned long __darwin_bootstrap_ctype_mask(int c) {
           unsigned long m = 0;
           unsigned int u = (unsigned char)c;
@@ -736,7 +848,7 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_SIGNAL_H
         #define _DARWIN_BOOTSTRAP_SIGNAL_H
         typedef int sig_atomic_t;
-        typedef long sigset_t;
+        typedef unsigned int sigset_t;
         typedef void (*__sighandler_t)(int);
         struct sigaction { __sighandler_t sa_handler; sigset_t sa_mask; int sa_flags; };
         #define SIG_DFL ((__sighandler_t)0)
@@ -802,6 +914,9 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_STDLIB_H
         #define _DARWIN_BOOTSTRAP_STDLIB_H
         typedef unsigned long size_t;
+        #ifndef __cplusplus
+        typedef int wchar_t;
+        #endif
         #ifndef NULL
         #ifdef __cplusplus
         #define NULL 0
@@ -817,6 +932,9 @@ with args;
         void abort(void);
         #define EXIT_SUCCESS 0
         #define EXIT_FAILURE 1
+        #ifndef RAND_MAX
+        #define RAND_MAX 2147483647
+        #endif
         #ifndef MB_CUR_MAX
         #define MB_CUR_MAX 1
         #endif
@@ -830,6 +948,8 @@ with args;
         void free(void *);
         char *getenv(const char *);
         void *malloc(size_t);
+        void *aligned_alloc(size_t, size_t);
+        int posix_memalign(void **, size_t, size_t);
         void *calloc(size_t, size_t);
         void *realloc(void *, size_t);
         int abs(int);
@@ -839,6 +959,9 @@ with args;
         ldiv_t ldiv(long, long);
         int rand(void);
         void srand(unsigned int);
+        int mblen(const char *, size_t);
+        size_t mbstowcs(wchar_t *, const char *, size_t);
+        int mbtowc(wchar_t *, const char *, size_t);
         long strtol(const char *, char **, int);
         unsigned long strtoul(const char *, char **, int);
         long long strtoll(const char *, char **, int);
@@ -864,9 +987,12 @@ with args;
         typedef void *locale_t;
         #define LC_GLOBAL_LOCALE ((locale_t)-1)
         #define LC_C_LOCALE ((locale_t)0)
+        #define LC_ALL_MASK 0x3f
         #ifndef MB_CUR_MAX_L
         #define MB_CUR_MAX_L(x) (1)
         #endif
+        locale_t newlocale(int, const char *, locale_t);
+        void freelocale(locale_t);
         locale_t uselocale(locale_t);
         #endif
         H
@@ -886,6 +1012,7 @@ with args;
         struct __sbuf { unsigned char *_base; int _size; };
         struct __sFILE { unsigned char *_p; int _r; int _w; short _flags; short _file; struct __sbuf _bf; int _lbfsize; void *_cookie; int (*_close)(void *); int (*_read)(void *, char *, int); long (*_seek)(void *, long, int); int (*_write)(void *, const char *, int); struct __sbuf _ub; void *_extra; int _ur; unsigned char _ubuf[3]; unsigned char _nbuf[1]; struct __sbuf _lb; int _blksize; long _offset; };
         typedef struct __sFILE FILE;
+        #define __sferror(p) ((p)->_flags & 0x0040)
         #define __sferror(p) (((p)->_flags & 0x0040) != 0)
         typedef long fpos_t;
         typedef unsigned long size_t;
@@ -897,9 +1024,12 @@ with args;
         #endif
         #endif
         #include <stdarg.h>
-        #define stdin ((FILE *)0)
-        #define stdout ((FILE *)1)
-        #define stderr ((FILE *)2)
+        extern FILE *__stdinp;
+        extern FILE *__stdoutp;
+        extern FILE *__stderrp;
+        #define stdin __stdinp
+        #define stdout __stdoutp
+        #define stderr __stderrp
         #ifdef __cplusplus
         extern "C" {
         #endif
@@ -978,7 +1108,7 @@ with args;
         #ifndef _DARWIN_BOOTSTRAP_UNISTD_H
         #define _DARWIN_BOOTSTRAP_UNISTD_H
         typedef long ssize_t;
-        typedef long off_t;
+        typedef long long off_t;
         typedef unsigned int uid_t;
         typedef unsigned int gid_t;
         #ifdef __cplusplus
@@ -995,6 +1125,7 @@ with args;
         int execv(const char *, char *const *);
         int execl(const char *, const char *, ...);
         int execlp(const char *, const char *, ...);
+        int execve(const char *, char *const *, char *const *);
         int execvp(const char *, char *const *);
         int fork(void);
         char *getcwd(char *, unsigned long);
@@ -1012,6 +1143,7 @@ with args;
         int fsync(int);
         int fdatasync(int);
         int ftruncate(int, off_t);
+        int truncate(const char *, off_t);
         int lchown(const char *, unsigned int, unsigned int);
         int link(const char *, const char *);
         int pipe(int *);
