@@ -15,10 +15,14 @@ with args;
           --replace-fail '      "/lib",' "" \
           --replace-fail '      "/usr/lib",' ""
         substituteInPlace src/job.c \
-          --replace-fail '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__)' '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__) || defined(__TINYC__)'
+          --replace-fail '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__)' '#if defined(__MSDOS__) || defined(VMS) || defined(_AMIGA) || defined(__riscos__)'
         substituteInPlace src/job.c \
           --replace-fail 'exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;' 'exit_sig = 0;' \
           --replace-fail 'coredump = WCOREDUMP (status);' 'coredump = 0;'
+        substituteInPlace src/job.c \
+          --replace-fail '  return 1;' '  return 0;'
+        substituteInPlace src/job.c \
+          --replace-fail '  /* Find the real system load average.  */' '  return 0; /* Find the real system load average.  */'
         substituteInPlace src/main.c \
           --replace-fail '              putenv (b);' '              (void) b;'
         substituteInPlace src/main.c \
