@@ -28,7 +28,9 @@
         in
         {
           default =
-            if bootstrap.phase37-gcc46-bootstrap != null then
+            if bootstrap.phase47-gcc-latest-strict-bootstrap != null then
+              bootstrap.phase47-gcc-latest-strict-bootstrap
+            else if bootstrap.phase37-gcc46-bootstrap != null then
               bootstrap.phase37-gcc46-bootstrap
             else
               bootstrap.raw-syscall-hello;

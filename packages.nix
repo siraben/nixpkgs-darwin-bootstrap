@@ -37,160 +37,44 @@ let
   stage0Sources =
     minimal-bootstrap-sources.minimal-bootstrap-sources or minimal-bootstrap-sources;
 
-  mesVersion = "0.27.1";
+  sources = import ./sources.nix { inherit fetchurl gcc_latest; };
 
-  mesTarball = fetchurl {
-    url = "mirror://gnu/mes/mes-${mesVersion}.tar.gz";
-    hash = "sha256-GDpA6kfqSfih470bnRLmdjdNZNY7x557wa59Zz398l0=";
-  };
-
-  gcc46Version = "4.6.4";
-
-  gcc46Tarball = fetchurl {
-    url = "mirror://gnu/gcc/gcc-${gcc46Version}/gcc-${gcc46Version}.tar.bz2";
-    hash = "sha256-Na8Wr6C2evm46xXK+3bSvF9WhUBVJSL13CyI3UXZd+g=";
-  };
-
-  gcc46GmpTarball = fetchurl {
-    url = "mirror://gnu/gmp/gmp-4.3.2.tar.bz2";
-    hash = "sha256-k2FiwDEohsIVgQAreZMoKaoEjPr5k3xiZa6qFPHNF3U=";
-  };
-
-  gcc46MpfrTarball = fetchurl {
-    url = "https://www.mpfr.org/mpfr-2.4.2/mpfr-2.4.2.tar.bz2";
-    hash = "sha256-x+daCKjUnSCC5MruFZGgXRG51WJ1FOZ48C1moSS88ro=";
-  };
-
-  gcc46MpcTarball = fetchurl {
-    url = "https://gcc.gnu.org/pub/gcc/infrastructure/mpc-0.8.1.tar.gz";
-    hash = "sha256-5mRgN1clH9ijUoSCdkl6THm3+LIf2K7dXMBZijj+4+Q=";
-  };
-
-  gcc10Version = "10.4.0";
-
-  gcc10Tarball = fetchurl {
-    url = "mirror://gnu/gcc/gcc-${gcc10Version}/gcc-${gcc10Version}.tar.xz";
-    hash = "sha256-ySl9W818tD89/C/tU4npSMkxL9li72pM5FXP+WPr5PE=";
-  };
-
-  gcc10GmpVersion = "6.2.1";
-
-  gcc10GmpTarball = fetchurl {
-    url = "mirror://gnu/gmp/gmp-${gcc10GmpVersion}.tar.xz";
-    hash = "sha256-/UgpkSzd0S+EGBw0Ucx1K+IkZD6H+sSXtp7d2txJtPI=";
-  };
-
-  gccLatestVersion = gcc_latest.version;
-
-  gccLatestTarball = fetchurl {
-    url = "mirror://gnu/gcc/gcc-${gccLatestVersion}/gcc-${gccLatestVersion}.tar.xz";
-    hash = "sha256-Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4=";
-  };
-
-  gnuHelloVersion = "2.12.2";
-
-  gnuHelloTarball = fetchurl {
-    url = "mirror://gnu/hello/hello-${gnuHelloVersion}.tar.gz";
-    hash = "sha256-WpqZbcKSzCTc9BHO6H6S9qrluNE72caBm0x6nc4IGKs=";
-  };
-
-  gccLatestGmpVersion = "6.3.0";
-
-  gccLatestGmpTarball = fetchurl {
-    url = "mirror://gnu/gmp/gmp-${gccLatestGmpVersion}.tar.xz";
-    hash = "sha256-o8K4AgG4nmhhb0rTC8Zq7kknw85Q4zkpyoGdXENTiJg=";
-  };
-
-  gccModernMpfrVersion = "4.2.2";
-
-  gccModernMpfrTarball = fetchurl {
-    url = "mirror://gnu/mpfr/mpfr-${gccModernMpfrVersion}.tar.xz";
-    hash = "sha256-tnugOD736KhWNzTi6InvXsPDuJigHQD6CmhprYHGzgE=";
-  };
-
-  gccModernMpcVersion = "1.3.1";
-
-  gccModernMpcTarball = fetchurl {
-    url = "mirror://gnu/mpc/mpc-${gccModernMpcVersion}.tar.gz";
-    hash = "sha256-q2QkkvXPiCt0qgy3MM1BCoHtzb7IlRg86TDnBsHHWbg=";
-  };
-
-  gccModernIslVersion = "0.24";
-
-  gccModernIslTarball = fetchurl {
-    url = "https://gcc.gnu.org/pub/gcc/infrastructure/isl-${gccModernIslVersion}.tar.bz2";
-    hash = "sha256-/PeN2WVsEOuM+fvV9ZoLawE4YgX+GTSzsoegoYmBRcA=";
-  };
-
-  gnumakeVersion = "4.4.1";
-
-  gnumakeTarball = fetchurl {
-    url = "mirror://gnu/make/make-${gnumakeVersion}.tar.gz";
-    hash = "sha256-3Rb7HWe/q3mnL16DkHNcSePo5wtJRaFasfgd23hlj7M=";
-  };
-
-  gnupatchVersion = "2.5.9";
-
-  gnupatchTarball = fetchurl {
-    url = "mirror://gnu/patch/patch-${gnupatchVersion}.tar.gz";
-    hash = "sha256-7LXGRp1zK88B1uwa/p5k8WaMq6W/2xA8KNf1N7o824o=";
-  };
-
-  coreutilsVersion = "5.0";
-  coreutilsLiveBootstrap = "https://github.com/fosslinux/live-bootstrap/raw/a8752029f60217a5c41c548b16f5cdd2a1a0e0db/sysa/coreutils-${coreutilsVersion}";
-
-  coreutilsTarball = fetchurl {
-    url = "mirror://gnu/coreutils/coreutils-${coreutilsVersion}.tar.gz";
-    hash = "sha256-wnznXj9iRV9PrPTz/VW8njh30KsdXAQmyU2haMw0mIM=";
-  };
-
-  coreutilsMakefile = fetchurl {
-    url = "${coreutilsLiveBootstrap}/mk/main.mk";
-    hash = "sha256-zdGb+WebOqRY5X1bQXqrzlJo4NEULVoz1Rm7zlgnT1o=";
-  };
-
-  coreutilsPatches = [
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/modechange.patch";
-      hash = "sha256-RddxUzLzTo/xYNDzfnu2fSv820QQYqP70NJrwYsiqhM=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/mbstate.patch";
-      hash = "sha256-fo/C2F0NzlGtuV+iQwW9sr4TB1oH6V4I2bI/6jRg42c=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/ls-strcmp.patch";
-      hash = "sha256-5pZCTaMtkAKuU76/tB3leBXrJ3DS5LWY3WvgrsnPqFM=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/touch-getdate.patch";
-      hash = "sha256-qhISPP99SWV1GaOdKC8q19PfWVoQ2KI3ykfOTU/5o/U=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/touch-dereference.patch";
-      hash = "sha256-qjnadcdkb0TSk8xWv+pjmh32O+bMm2ec5x0JMEcufnI=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/expr-strcmp.patch";
-      hash = "sha256-SaVxnAzFoHLjT/95ly8Yhzxc6UnbO3H3xzyGqh0Nw6U=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/sort-locale.patch";
-      hash = "sha256-zEShwIcwdMa6b/jHEDJ16apLFgfaYf8M9d37W1GArC0=";
-    })
-    (fetchurl {
-      url = "${coreutilsLiveBootstrap}/patches/uniq-fopen.patch";
-      hash = "sha256-1w2zfx+Mw2cC4b9D0SR18pGc+326yLLJgEQm2j3URmM=";
-    })
-    ./patches/coreutils-hash-no-float.patch
-  ];
-
-  nyaccVersion = "1.09.1";
-
-  nyaccTarball = fetchurl {
-    url = "mirror://savannah/nyacc/nyacc-${nyaccVersion}.tar.gz";
-    hash = "sha256-DsmuU34NlReBpQ3jx5KayXqFwdS16F5dUVQuN1ECJxc=";
-  };
+  inherit (sources)
+    mesVersion
+    mesTarball
+    gcc46Version
+    gcc46Tarball
+    gcc46GmpTarball
+    gcc46MpfrTarball
+    gcc46MpcTarball
+    gcc10Version
+    gcc10Tarball
+    gcc10GmpVersion
+    gcc10GmpTarball
+    gccLatestVersion
+    gccLatestTarball
+    gnuHelloVersion
+    gnuHelloTarball
+    gccLatestGmpVersion
+    gccLatestGmpTarball
+    gccModernMpfrVersion
+    gccModernMpfrTarball
+    gccModernMpcVersion
+    gccModernMpcTarball
+    gccModernIslVersion
+    gccModernIslTarball
+    gnumakeVersion
+    gnumakeTarball
+    gnupatchVersion
+    gnupatchTarball
+    coreutilsVersion
+    coreutilsLiveBootstrap
+    coreutilsTarball
+    coreutilsMakefile
+    coreutilsPatches
+    nyaccVersion
+    nyaccTarball
+    ;
 
   mesNyacc = stdenv.mkDerivation {
     pname = "darwin-minimal-bootstrap-nyacc";
@@ -645,171 +529,26 @@ let
     else
       null;
 
-  buildGnuHelloWithGcc =
-    name: compiler:
-    if hostPlatform.isx86_64 then
-      runCommand name { } ''
-        tar -xf ${gnuHelloTarball}
-        mkdir build
-        cd build
+  gnuHello = import ./gnu-hello.nix (phaseContext // phaseDefs // { inherit gcc_latest; });
 
-        export PATH="${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        export CC="${compiler}/bin/gcc"
-        export CXX="${compiler}/bin/g++"
-        export AR="${cctools}/bin/ar"
-        export RANLIB="${cctools}/bin/ranlib"
-        export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
-        export GCC_MODERN_CONFTEST_TIMEOUT=120
-        export CFLAGS="-O2 -g0"
-        export CXXFLAGS="-O2 -g0"
+  inherit (gnuHello)
+    gnu-hello-gcc-latest-bootstrap
+    gnu-hello-gcc-latest-strict
+    gnu-hello-nixpkgs-gcc-latest
+    gnu-hello-hash-comparison
+    ;
 
-        ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
-          > configure.stdout \
-          2> configure.stderr
-        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
-          > make.stdout \
-          2> make.stderr
-
-        ./hello > hello.stdout
-        ./hello --version > version.stdout
-        ./hello --help > help.stdout
-        grep -qx 'Hello, world!' hello.stdout
-        grep -q 'GNU Hello' version.stdout
-        grep -q 'Usage:' help.stdout
-
-        mkdir -p "$out/bin" "$out/share/darwin-bootstrap"
-        cp ./hello "$out/bin/hello"
-        cp configure.stdout configure.stderr make.stdout make.stderr \
-          hello.stdout version.stdout help.stdout \
-          "$out/share/darwin-bootstrap/"
-        shasum -a 256 "$out/bin/hello" | tee "$out/share/darwin-bootstrap/hello.sha256"
-      ''
-    else
-      null;
-
-  gnu-hello-gcc-latest-bootstrap =
-    buildGnuHelloWithGcc
-      "darwin-minimal-bootstrap-gnu-hello-${gnuHelloVersion}-gcc-latest"
-      phase46-gcc-latest-bootstrap;
-
-  gnu-hello-gcc-latest-strict =
-    buildGnuHelloWithGcc
-      "darwin-minimal-bootstrap-gnu-hello-${gnuHelloVersion}-gcc-latest-strict"
-      phase47-gcc-latest-strict-bootstrap;
-
-  gnu-hello-nixpkgs-gcc-latest =
-    if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-gnu-hello-${gnuHelloVersion}-nixpkgs-gcc-latest" {
-        hardeningDisable = [ "fortify" ];
-      } ''
-        tar -xf ${gnuHelloTarball}
-        mkdir build
-        cd build
-
-        export PATH="${gcc_latest}/bin:${gnumake}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        export CC="${gcc_latest}/bin/gcc"
-        export CXX="${gcc_latest}/bin/g++"
-        export NIX_HARDENING_ENABLE=
-        export CFLAGS="-O2 -g0 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
-        export CXXFLAGS="-O2 -g0 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"
-
-        ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
-          > configure.stdout \
-          2> configure.stderr
-        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
-          > make.stdout \
-          2> make.stderr
-
-        ./hello > hello.stdout
-        ./hello --version > version.stdout
-        ./hello --help > help.stdout
-        grep -qx 'Hello, world!' hello.stdout
-        grep -q 'GNU Hello' version.stdout
-        grep -q 'Usage:' help.stdout
-
-        mkdir -p "$out/bin" "$out/share/darwin-bootstrap"
-        cp ./hello "$out/bin/hello"
-        cp configure.stdout configure.stderr make.stdout make.stderr \
-          hello.stdout version.stdout help.stdout \
-          "$out/share/darwin-bootstrap/"
-        {
-          printf 'nixpkgs_gcc_latest_version='
-          ${gcc_latest}/bin/gcc -dumpversion
-        } > "$out/share/darwin-bootstrap/compiler.txt"
-        shasum -a 256 "$out/bin/hello" | tee "$out/share/darwin-bootstrap/hello.sha256"
-      ''
-    else
-      null;
-
-  gnu-hello-hash-comparison =
-    if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-gnu-hello-hash-comparison" { } ''
-        mkdir -p "$out/share/darwin-bootstrap"
-        phase46_hash="$(cut -d' ' -f1 ${gnu-hello-gcc-latest-bootstrap}/share/darwin-bootstrap/hello.sha256)"
-        phase47_hash="$(cut -d' ' -f1 ${gnu-hello-gcc-latest-strict}/share/darwin-bootstrap/hello.sha256)"
-        nixpkgs_hash="$(cut -d' ' -f1 ${gnu-hello-nixpkgs-gcc-latest}/share/darwin-bootstrap/hello.sha256)"
-        {
-          printf 'phase46_gcc_latest=%s\n' "$phase46_hash"
-          printf 'phase47_gcc_latest_strict=%s\n' "$phase47_hash"
-          printf 'nixpkgs_gcc_latest=%s\n' "$nixpkgs_hash"
-          printf 'phase46_phase47_equal=%s\n' "$([ "$phase46_hash" = "$phase47_hash" ] && echo yes || echo no)"
-          printf 'phase47_nixpkgs_equal=%s\n' "$([ "$phase47_hash" = "$nixpkgs_hash" ] && echo yes || echo no)"
-          cat ${gnu-hello-nixpkgs-gcc-latest}/share/darwin-bootstrap/compiler.txt
-        } > "$out/share/darwin-bootstrap/hello-hashes.txt"
-      ''
-    else
-      null;
-
-  tests = {
-    hex0-converts-hex = runCommand "darwin-minimal-bootstrap-hex0-converts-hex" { } ''
-      cat > input.hex0 <<'HEX'
-        68 65 6c 6c 6f 0a ; hello newline
-      HEX
-      ${hex0}/bin/hex0 input.hex0 output
-      test "$(cat output)" = "hello"
-      ${hex0}/bin/hex0 ${hex0}/share/darwin-bootstrap/hex0-amd64-darwin.hex0 hex0-self
-      cmp ${hex0}/bin/hex0 hex0-self
-      mkdir $out
-    '';
-
-    raw-syscall-hello-runs = runCommand "darwin-minimal-bootstrap-raw-syscall-hello-runs" { } ''
-      output="$(${raw-syscall-hello}/bin/raw-syscall-hello)"
-      test "$output" = "hello darwin"
-      mkdir $out
-    '';
-
-    xcode-signing-bridge = runCommand "darwin-minimal-bootstrap-xcode-signing-bridge" { } ''
-      source ${darwin.signingUtils}
-
-      cp ${raw-syscall-hello-unsigned}/bin/raw-syscall-hello ./raw-syscall-hello
-      chmod +w ./raw-syscall-hello
-      sign ./raw-syscall-hello
-
-      output="$(./raw-syscall-hello)"
-      test "$output" = "hello darwin"
-      mkdir $out
-    '';
-
-    m2libc-darwin-smoke = m2libcDarwinSmoke;
-
-    macho-template-hello-runs = machoTemplateHelloRuns;
-
-    stage0-posix-phase-graph = runCommand "darwin-minimal-bootstrap-stage0-posix-phase-graph" { } ''
-      test ${lib.escapeShellArg (toString stage0-posix.sameLengthAsLinuxMesccToolsBoot)} = 1
-      test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 3
-      test ${lib.escapeShellArg stage0-posix.m2libcOS} = Darwin
-      test ${lib.escapeShellArg stage0-posix.executableHeader} = MACHO-${arch}.hex2
-      if grep -q '/linux/' ${./stage0-posix/mescc-tools-boot.nix}; then
-        echo "Darwin mescc-tools-boot still references Linux M2libc paths" >&2
-        exit 1
-      fi
-      mkdir $out
-    '';
-  } // lib.optionalAttrs (phase37-gcc46-bootstrap != null) {
-    gcc46-bootstrap-smoke = phase37-gcc46-bootstrap;
-  } // lib.optionalAttrs (gnu-hello-hash-comparison != null) {
-    gnu-hello-hash-comparison = gnu-hello-hash-comparison;
-  };
+  tests = import ./checks.nix (phaseContext // phaseDefs // {
+    inherit
+      darwin
+      hex0
+      raw-syscall-hello
+      raw-syscall-hello-unsigned
+      m2libcDarwinSmoke
+      machoTemplateHelloRuns
+      gnu-hello-hash-comparison
+      ;
+  });
 in
 {
   inherit

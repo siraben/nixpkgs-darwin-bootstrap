@@ -1,5 +1,13 @@
 # Darwin Bootstrap Todos
 
+## Roadmap / Current Status
+
+- [x] Primary path is amd64 Darwin: the Nixified Mach-O chain now reaches GCC 4.6.4 C/C++, GCC 10.4.0, nixpkgs-matched `gcc_latest`, and strict phase47 `gcc_latest`.
+- [x] Current package proof is GNU Hello 2.12.2 built by phase46, strict phase47, and nixpkgs `gcc_latest`; `gnu-hello-hash-comparison` is the formal validation entrypoint.
+- [ ] Purity hardening remains: phase44/phase45/phase46 shortcuts, CLT SDK paths, Apple `/usr/bin` tools, nixpkgs `gnumake`, and compiler-only sysroot/wrapper packaging are explicit impurity boundaries.
+- [ ] Next promotion target is a bootstrap-appropriate Darwin `stdenv.cc` boundary with complete bintools, SDK/sysroot, runtime libraries, `nix-support`, and fewer host shortcuts.
+- [ ] aarch64 remains a follow-up track with smoke/template coverage and a signed `hex1` candidate only; defer trusted-chain work until the amd64 boundaries stabilize.
+
 ## Current Status Update
 
 - [x] Phase44 Nix formalization now builds a GCC 4.6 C/C++ handoff at `/nix/store/f73f69s2fagkl4iyfgyyn536npvdgk95-darwin-minimal-bootstrap-phase44-gcc-4.6.4-cxx-amd64`; it still temporarily uses nixpkgs `gnumake` as `BOOTSTRAP_MAKE` until phase39 can execute recipes instead of only echoing them.
@@ -9,11 +17,11 @@
 - [x] Nix phase35 GCC 4.6 `all-gcc` builds cleanly from the extracted source-prep script after removing the stale driver option and dumpbase failure paths.
 - [x] Nix phase36 GCC 4.6 `libgcc` now builds with the direct `cc1` wrapper, Darwin `struct stat` ABI repair, staged configure inputs, and the bootstrap assembler path.
 - [x] Embedded Python phase scripts have been extracted into `scripts/`; keep future phase logic in separate script files rather than heredocs in Nix.
-- [x] Strict phase47 GCC16 self-build now completes `all-libcody all-gcc` with `GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0`, packages `work/impure/phase47-gcc16-strict/out`, and passes C/C++ Mach-O smoke links through its own wrappers.
-- [x] GNU Hello 2.12.2 now builds at `-O2 -g0` with the strict phase47 GCC16 handoff and runs `Hello, world!`, `--version`, and `--help`; proof script is `scripts/impure/build-gnu-hello.sh`.
+- [x] Strict phase47 `gcc_latest` self-build now completes `all-libcody all-gcc` with `GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0`, packages `phase47-gcc-latest-strict-bootstrap`, and passes C/C++ Mach-O smoke links through its own wrappers.
+- [x] GNU Hello 2.12.2 now builds at `-O2 -g0` with the strict phase47 `gcc_latest` handoff and runs `Hello, world!`, `--version`, and `--help`; the formal proof is `gnu-hello-gcc-latest-strict`.
 - [x] Freeze the strict phase47 recipe into Nix and rerun from a clean store output instead of the current stabilized impure tree.
 - [x] Compare the strict phase47-built GNU Hello bytes against a nixpkgs GCC-built GNU Hello after adding a same-source/same-flags nixpkgs reference build; phase46 and strict phase47 are byte-identical, while nixpkgs GCC 15.2.0 differs.
-- [x] Retarget the bootstrap `gcc-latest` handoff to nixpkgs `gcc_latest.version` so GNU Hello comparisons use matching GCC major/minor versions; side build validation is still running.
+- [x] Retarget the bootstrap `gcc-latest` handoff to nixpkgs `gcc_latest.version` so GNU Hello comparisons use matching GCC major/minor versions; `gnu-hello-hash-comparison` is the validation entrypoint.
 - [x] Phase45 GCC 10 now packages a compiler-only handoff from the repaired `all-gcc` tree for phase46 iteration.
 - [x] Phase45 GCC 10 wrapper handles normal Mach-O compile/link smoke tests, configure `conftest` probes, and impure phase46 support-library source compiles without falling back into the slow/hanging transitional `cc1` path.
 - [x] Phase46 source patching now normalizes `libiberty/physmem.c` Darwin header guards idempotently, including `machine/hal_sysinfo.h`, `sys/table.h`, and `sys/systemcfg.h`.
@@ -22,9 +30,9 @@
 - [x] Phase46 now reaches GCC's own `Makefile`; the next blocker was a stale `LIBBACKTRACE` prerequisite despite `--disable-libbacktrace`, so the compiler-only handoff strips that dependency from `gcc/Makefile`.
 - [x] Phase46 GCC frontend now skips `stmp-fixinc` directly by clearing `STMP_FIXINC`; no compiler-only handoff should depend on generated fixed system headers.
 - [ ] Phase46 impure discovery currently compiles GCC frontend sources and final host C++ links with host clang through the wrapper to avoid multi-minute GCC10 `cc1plus` iterations; this must be narrowed or removed before freezing a bootstrap-pure phase.
-- [x] Phase46 impure `all-gcc` for GCC latest/16 completed from the GCC 10 handoff and packages a smoke-tested compiler-only handoff.
-- [x] Strict phase47 GCC16 self-build with wrapper host shortcuts disabled passed the GCC frontend boundary.
-- [x] GNU Hello `-O2` built by strict phase47 GCC16 runs successfully; the earlier exit 139 was fixed by making the bootstrap sysroot expose Darwin-compatible stdio/fcntl details and by linking wrapper default runtimes.
+- [x] Phase46 impure `all-gcc` for nixpkgs-matched `gcc_latest` completed from the GCC 10 handoff and packages a smoke-tested compiler-only handoff.
+- [x] Strict phase47 `gcc_latest` self-build with wrapper host shortcuts disabled passed the GCC frontend boundary.
+- [x] GNU Hello `-O2` built by strict phase47 `gcc_latest` runs successfully; the earlier exit 139 was fixed by making the bootstrap sysroot expose Darwin-compatible stdio/fcntl details and by linking wrapper default runtimes.
 - [ ] Reuse nixpkgs GCC infrastructure at the recipe boundary first: minimal-bootstrap source/dependency/configure shape plus gcc-ng compiler-only archive seeding, not full `stdenv.mkDerivation` until the phase46 compiler is promoted to a complete runtime/wrapper closure.
 - [ ] Stop treating the modern GCC phase like the early GCC46 phase: switch stabilized GCC15/latest iteration to external nixpkgs-style GMP/MPFR/MPC/zlib and the full Apple SDK sysroot before trying to prove strict GNU package builds.
 - [ ] Promote the phase46 compiler-only handoff into a bootstrap-appropriate Darwin `stdenv.cc` boundary with complete `nix-support`, bintools, SDK/sysroot, `libgcc`, and `libstdc++` metadata before switching to full nixpkgs GCC machinery.
@@ -75,6 +83,7 @@
 
 ## Running Log
 
+- 2026-05-20: Began repo organization cleanup after matching `gcc_latest` to nixpkgs: refreshed README/current roadmap, split source metadata into `sources.nix`, split GNU Hello proofs into `gnu-hello.nix`, split checks into `checks.nix`, extracted phase34 TinyCC wrapper/header payloads into `scripts/tinycc/` and `bootstrap/headers/`, made the flake default point at strict `gcc_latest`, and removed stale local ignored artifacts.
 - 2026-05-19: Formal `gnu-hello-hash-comparison` now builds through phase45 GCC10, phase46 GCC16, strict self-host phase47 GCC16, phase46 GNU Hello, strict phase47 GNU Hello, and the nixpkgs reference. Phase46 and strict phase47 Hello are byte-identical (`4be8eaba032a9e13ea552f8b733f3bac34b7e16287c70db518e06d6f954cd94a`); nixpkgs GCC 15.2.0 Hello differs (`f23f901be1f6c913487bfc939364f746127357805c0ccbe2a922c7c6b793f417`).
 - 2026-05-19: Formal strict phase47 now reaches `libcody` with bootstrap C headers filtered, but GCC's builtin include dirs still precede SDK libc++ and make `<cstddef>` include GCC's `stddef.h`; libc++ fallback mode now uses `-nostdinc`, adds libc++ first, then re-adds the GCC internal include/include-fixed dirs and SDK C headers explicitly.
 - 2026-05-19: Formal strict phase47 moved from missing GCC16 C++ traits to SDK libc++ compilation, but `libcody` then exposed bootstrap C headers masking SDK C headers; the packaged GCC16 `g++` wrapper now omits the bootstrap sysroot include path in libc++ mode and filters any propagated bootstrap include paths before invoking the real driver.
