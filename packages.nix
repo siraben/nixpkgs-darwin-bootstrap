@@ -529,7 +529,13 @@ let
     else
       null;
 
-  gnuHello = import ./gnu-hello.nix (phaseContext // phaseDefs // { inherit gcc_latest; });
+  gnuHello = import ./gnu-hello.nix (
+    phaseContext
+    // phaseDefs
+    // {
+      inherit gcc_latest gnuHelloVersion gnuHelloTarball;
+    }
+  );
 
   inherit (gnuHello)
     gnu-hello-gcc-latest-bootstrap

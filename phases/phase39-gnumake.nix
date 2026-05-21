@@ -20,8 +20,6 @@ with args;
           --replace-fail 'exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;' 'exit_sig = 0;' \
           --replace-fail 'coredump = WCOREDUMP (status);' 'coredump = 0;'
         substituteInPlace src/job.c \
-          --replace-fail '  return 1;' '  return 0;'
-        substituteInPlace src/job.c \
           --replace-fail '  /* Find the real system load average.  */' '  return 0; /* Find the real system load average.  */'
         substituteInPlace src/main.c \
           --replace-fail '              putenv (b);' '              (void) b;'
@@ -31,6 +29,7 @@ with args;
           --replace-fail '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
         substituteInPlace src/main.c \
           --replace-fail "  /* Set up 'MAKEFLAGS' again for the normal targets.  */" "skip_bootstrap_remake_makefiles: /* Set up 'MAKEFLAGS' again for the normal targets.  */"
+        ${python3}/bin/python3 ${root + "/scripts/gnumake/phase39-patch-job.py"}
         substituteInPlace src/misc.c \
           --replace-fail "if (*mktemp (path) == '\\0')" 'if (!strcmp (mktemp (path), ""))'
         substituteInPlace src/misc.c \
@@ -43,8 +42,8 @@ with args;
         cp lib/fnmatch.in.h lib/fnmatch.h
 
         export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
-        export CFLAGS="-I./src -I./lib -DHAVE_CONFIG_H -DLIBDIR=\"$out/lib\" -DLOCALEDIR=\"/fake-locale\" -DPOSIX=1 -DNO_ARCHIVES=1 -DNO_OUTPUT_SYNC=1 -DO_TMPFILE=020000000 -DFILE_TIMESTAMP_HI_RES=0 -Dalloca=malloc -DHAVE_ATEXIT -DHAVE_DECL_BSD_SIGNAL=0 -DHAVE_DECL_GETLOADAVG=0 -DHAVE_DECL_SYS_SIGLIST=0 -DHAVE_DECL__SYS_SIGLIST=0 -DHAVE_DECL___SYS_SIGLIST=0 -DHAVE_DIRENT_H -DHAVE_DUP2 -DHAVE_FCNTL_H -DHAVE_FDOPEN -DHAVE_GETCWD -DHAVE_GETTIMEOFDAY -DHAVE_INTTYPES_H -DHAVE_ISATTY -DHAVE_LIMITS_H -DHAVE_LOCALE_H -DHAVE_MEMORY_H -DHAVE_MKTEMP -DHAVE_SETVBUF -DHAVE_SIGSETMASK -DHAVE_STDINT_H -DHAVE_STDLIB_H -DHAVE_STRDUP -DHAVE_STRERROR -DHAVE_STRINGS_H -DHAVE_STRING_H -DHAVE_STRTOLL -DHAVE_SYS_FILE_H -DHAVE_SYS_PARAM_H -DHAVE_SYS_RESOURCE_H -DHAVE_SYS_SELECT_H -DHAVE_SYS_STAT_H -DHAVE_SYS_TIME_H -DHAVE_SYS_WAIT_H -DHAVE_TTYNAME -DHAVE_UMASK -DHAVE_UNISTD_H -DHAVE_WAITPID -DMAKE_JOBSERVER -DMAKE_SYMLINKS -DPATH_SEPARATOR_CHAR=0x3a"
-        export CFLAGS="$CFLAGS -DSCCS_GET=\"get\" -DSTDC_HEADERS -Dvfork=fork"
+        export CFLAGS="-I./src -I./lib -DHAVE_CONFIG_H -DLIBDIR=\"$out/lib\" -DLOCALEDIR=\"/fake-locale\" -DPOSIX=1 -DNO_ARCHIVES=1 -DNO_OUTPUT_SYNC=1 -DO_TMPFILE=020000000 -DFILE_TIMESTAMP_HI_RES=0 -Dalloca=malloc -DHAVE_ATEXIT -DHAVE_DECL_BSD_SIGNAL=0 -DHAVE_DECL_GETLOADAVG=0 -DHAVE_DECL_SYS_SIGLIST=0 -DHAVE_DECL__SYS_SIGLIST=0 -DHAVE_DECL___SYS_SIGLIST=0 -DHAVE_DIRENT_H -DHAVE_DUP2 -DHAVE_FCNTL_H -DHAVE_FDOPEN -DHAVE_GETCWD -DHAVE_GETTIMEOFDAY -DHAVE_INTTYPES_H -DHAVE_ISATTY -DHAVE_LIMITS_H -DHAVE_LOCALE_H -DHAVE_MEMORY_H -DHAVE_MKTEMP -DHAVE_SETVBUF -DHAVE_SIGSETMASK -DHAVE_STDINT_H -DHAVE_STDLIB_H -DHAVE_STRDUP -DHAVE_STRERROR -DHAVE_STRINGS_H -DHAVE_STRING_H -DHAVE_STRTOLL -DHAVE_SYS_FILE_H -DHAVE_SYS_PARAM_H -DHAVE_SYS_RESOURCE_H -DHAVE_SYS_SELECT_H -DHAVE_SYS_STAT_H -DHAVE_SYS_TIME_H -DHAVE_SYS_WAIT_H -DHAVE_TTYNAME -DHAVE_UMASK -DHAVE_UNISTD_H -DHAVE_WAITPID -DMAKE_SYMLINKS -DPATH_SEPARATOR_CHAR=0x3a"
+        export CFLAGS="$CFLAGS -DSCCS_GET=\"get\" -DSTDC_HEADERS"
 
         sources='src/commands.c src/default.c src/dir.c src/expand.c src/file.c src/function.c src/getopt.c src/getopt1.c src/guile.c src/hash.c src/implicit.c src/job.c src/load.c src/loadapi.c src/main.c src/misc.c src/output.c src/read.c src/remake.c src/rule.c src/shuffle.c src/signame.c src/strcache.c src/variable.c src/version.c src/vpath.c lib/fnmatch.c lib/glob.c src/remote-stub.c src/posixos.c'
         objects=
@@ -60,14 +59,24 @@ with args;
         test ! -s make-version.stderr
         cat > bootstrap-smoke.mk <<'MK'
         .RECIPEPREFIX := >
-        all:
-        >echo hi
+        all: serial parallel
+        serial:
+        >@printf 'serial\n' > serial.out
+        parallel: a b
+        >@cat a.out b.out > parallel.out
+        a:
+        >@printf 'a\n' > a.out
+        b:
+        >@printf 'b\n' > b.out
         MK
-        MAKEFLAGS= ./make -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
-        grep -q 'echo hi' make-smoke.stdout
+        MAKEFLAGS= ./make -j2 -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
+        grep -q serial serial.out
+        grep -q a parallel.out
+        grep -q b parallel.out
 
         install -Dm755 make $out/bin/make
         cp make-version.stdout make-version.stderr make-smoke.stdout make-smoke.stderr \
+          serial.out parallel.out \
           make-link.stdout make-link.stderr \
           $out/share/darwin-bootstrap/
       ''

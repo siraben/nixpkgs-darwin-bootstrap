@@ -15,6 +15,9 @@ with args;
       cp -R mpfr-${gccModernMpfrVersion} $out/mpfr
       cp -R mpc-${gccModernMpcVersion} $out/mpc
       cp -R isl-${gccModernIslVersion} $out/isl
+      substituteInPlace $out/zlib/zutil.h \
+        --replace-fail 'defined(MACOS) || defined(TARGET_OS_MAC)' \
+          'defined(MACOS) || (defined(TARGET_OS_MAC) && !defined(__APPLE__))'
 
       test -x $out/configure
       test -f $out/gcc/gcc.cc

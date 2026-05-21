@@ -24,6 +24,10 @@ extern long sys_rename(const char *old, const char *new);
 extern long sys_execve(const char *path, char *const argv[], char *const envp[]);
 extern long sys_fork(void);
 extern long sys_wait4(int pid, int *status, int options, void *rusage);
+extern long sys_pipe(int *fds);
+extern long sys_dup(int fd);
+extern long sys_dup2(int oldfd, int newfd);
+extern long sys_fcntl(int fd, int cmd, long arg);
 extern void _exit(int code);
 extern void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long off);
 void *memcpy(void *d, const void *s, size_t n);
@@ -473,9 +477,9 @@ int execl(const char *path, const char *arg, ...) { char *argv[2]; argv[0] = (ch
 int execlp(const char *file, const char *arg, ...) { char *argv[2]; argv[0] = (char *)arg; argv[1] = 0; return execvp(file, argv); }
 int execvp(const char *f, char *const a[]) { char path[1024]; const char *dirs[3]; int i; if (strchr(f, '/')) return execve(f, a, environ); dirs[0] = "/bin/"; dirs[1] = "/usr/bin/"; dirs[2] = 0; for (i = 0; dirs[i]; i++) { strcpy(path, dirs[i]); strcat(path, f); execve(path, a, environ); } return -1; }
 int fork(void) { long r = sys_fork(); if (r < 0) { errno = -r; return -1; } return r; }
-int pipe(int *fds) { return -1; }
-int dup(int fd) { return fd; }
-int dup2(int oldfd, int newfd) { return newfd; }
+int pipe(int *fds) { long r = sys_pipe(fds); if (r < 0) { errno = -r; return -1; } return r; }
+int dup(int fd) { long r = sys_dup(fd); if (r < 0) { errno = -r; return -1; } return r; }
+int dup2(int oldfd, int newfd) { long r = sys_dup2(oldfd, newfd); if (r < 0) { errno = -r; return -1; } return r; }
 int fsync(int fd) { return 0; }
 int fdatasync(int fd) { return 0; }
 int ftruncate(int fd, long length) { return 0; }
@@ -486,7 +490,7 @@ int kill(int pid, int sig) { return -1; }
 int sigemptyset(long *set) { if (set) *set = 0; return 0; }
 int sigaddset(long *set, int sig) { if (set) *set |= 1L << sig; return 0; }
 int sigprocmask(int how, const long *set, long *oldset) { if (oldset) *oldset = 0; return 0; }
-int fcntl(int fd, int cmd, long arg) { return 0; }
+int fcntl(int fd, int cmd, long arg) { long r = sys_fcntl(fd, cmd, arg); if (r < 0) { errno = -r; return -1; } return r; }
 void sync(void) { }
 int gettimeofday(void *tv, void *tz) { if (tv) { long *p = tv; p[0] = 0; p[1] = 0; } return 0; }
 int settimeofday(const void *tv, const void *tz) { return 0; }
