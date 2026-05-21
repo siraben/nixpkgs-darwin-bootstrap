@@ -1272,7 +1272,7 @@ root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
 cxx_inc=\$(ls -d "\$root"/include/c++/* 2>/dev/null | sort | tail -1 || true)
 use_libcxx=0
-if [ "$version" = 16.1.0 ] && [ -n "\$cxx_inc" ] && [ "\$(basename -- "\$cxx_inc")" != "$version" ] && [ -d "\$default_sdk/usr/include/c++/v1" ]; then
+if [ -n "\$cxx_inc" ] && [ "\$(basename -- "\$cxx_inc")" != "$version" ] && [ -d "\$default_sdk/usr/include/c++/v1" ]; then
   cxx_inc="\$default_sdk/usr/include/c++/v1"
   use_libcxx=1
 fi
@@ -1867,7 +1867,7 @@ GCOV_STUB_RULES
 # DARWIN_BOOTSTRAP_GENMATCH_CPPLIB
 # Darwin ld resolves static archives left-to-right and does not rescan archive
 # members for intra-archive C++ references.  Repeating libcpp at the end keeps
-# the GCC 16 build/genmatch link strict without falling back to host clang++.
+# the modern GCC build/genmatch link strict without falling back to host clang++.
 build/genmatch$(build_exeext): BUILD_LIBS += $(BUILD_CPPLIB)
 GENMATCH_CPPLIB_RULES
     fi

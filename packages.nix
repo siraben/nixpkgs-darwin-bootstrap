@@ -80,11 +80,11 @@ let
     hash = "sha256-/UgpkSzd0S+EGBw0Ucx1K+IkZD6H+sSXtp7d2txJtPI=";
   };
 
-  gccLatestVersion = "16.1.0";
+  gccLatestVersion = gcc_latest.version;
 
   gccLatestTarball = fetchurl {
     url = "mirror://gnu/gcc/gcc-${gccLatestVersion}/gcc-${gccLatestVersion}.tar.xz";
-    hash = "sha256-UO+02Uwzl6/zsNYaWr10i03THZ0/Kre+BbFx02pRD3k=";
+    hash = "sha256-Q4/ZloJrDIJIWinaA6ctcdbjVBqD7HAt9Ccfb+Al0k4=";
   };
 
   gnuHelloVersion = "2.12.2";

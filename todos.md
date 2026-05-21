@@ -13,6 +13,7 @@
 - [x] GNU Hello 2.12.2 now builds at `-O2 -g0` with the strict phase47 GCC16 handoff and runs `Hello, world!`, `--version`, and `--help`; proof script is `scripts/impure/build-gnu-hello.sh`.
 - [x] Freeze the strict phase47 recipe into Nix and rerun from a clean store output instead of the current stabilized impure tree.
 - [x] Compare the strict phase47-built GNU Hello bytes against a nixpkgs GCC-built GNU Hello after adding a same-source/same-flags nixpkgs reference build; phase46 and strict phase47 are byte-identical, while nixpkgs GCC 15.2.0 differs.
+- [x] Retarget the bootstrap `gcc-latest` handoff to nixpkgs `gcc_latest.version` so GNU Hello comparisons use matching GCC major/minor versions; side build validation is still running.
 - [x] Phase45 GCC 10 now packages a compiler-only handoff from the repaired `all-gcc` tree for phase46 iteration.
 - [x] Phase45 GCC 10 wrapper handles normal Mach-O compile/link smoke tests, configure `conftest` probes, and impure phase46 support-library source compiles without falling back into the slow/hanging transitional `cc1` path.
 - [x] Phase46 source patching now normalizes `libiberty/physmem.c` Darwin header guards idempotently, including `machine/hal_sysinfo.h`, `sys/table.h`, and `sys/systemcfg.h`.
