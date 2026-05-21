@@ -347,6 +347,7 @@ compile_to_asm() {
         esac
         if [ -d "\$include_entry" ] && is_known_source_dir "\$include_name"; then
           if [ "\$include_target" != "\$tmpdir/\$include_name" ]; then
+            [ -L "\$tmpdir/\$include_name" ] && rm -f "\$tmpdir/\$include_name" 2>/dev/null || true
             overlay_dir_contents "\$include_target" "\$tmpdir/\$include_name"
           fi
           if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
@@ -369,7 +370,7 @@ compile_to_asm() {
       source_overlay="\$tmpdir/\$source_dir_name"
       for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
         [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
-        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir"
+        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
         if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
           ensure_symlink . "\$source_overlay/\$related_source_subdir"
         else
@@ -379,10 +380,11 @@ compile_to_asm() {
     fi
     for source_overlay in "\$tmpdir"/config "\$tmpdir"/c-family "\$tmpdir"/cp "\$tmpdir"/ada "\$tmpdir"/java "\$tmpdir"/objc "\$tmpdir"/go "\$tmpdir"/fortran "\$tmpdir"/lto "\$tmpdir"/libcpp; do
       [ -d "\$source_overlay" ] || continue
+      [ -L "\$source_overlay" ] && continue
       source_dir_name="\${source_overlay##*/}"
       for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
         [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
-        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir"
+        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
         if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
           ensure_symlink . "\$source_overlay/\$related_source_subdir"
         else
@@ -395,6 +397,18 @@ compile_to_asm() {
         root_overlay_name="\${root_overlay_entry##*/}"
         ensure_symlink "../\$root_overlay_name" "\$source_overlay/\$root_overlay_name"
       done
+    done
+    for core_header in stdarg.h stddef.h stdbool.h float.h; do
+      if [ -e "\$merged_include/\$core_header" ]; then
+        [ -L "\$tmpdir/\$core_header" ] && rm -f "\$tmpdir/\$core_header"
+        [ -e "\$tmpdir/\$core_header" ] || cp "\$merged_include/\$core_header" "\$tmpdir/\$core_header"
+      fi
+      if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
+        if [ -e "\$merged_include/\$core_header" ]; then
+          [ -L "\$tmpdir/\$source_dir_name/\$core_header" ] && rm -f "\$tmpdir/\$source_dir_name/\$core_header"
+          [ -e "\$tmpdir/\$source_dir_name/\$core_header" ] || cp "\$merged_include/\$core_header" "\$tmpdir/\$source_dir_name/\$core_header"
+        fi
+      fi
     done
     expand_config_overlay
   fi
@@ -413,7 +427,7 @@ compile_to_asm() {
   MACOSX_DEPLOYMENT_TARGET=10.6 "\$xgcc" -B"\$gcc_exec/" \\
     --sysroot="\$sysroot" -isystem "\$merged_include" \\
     -fno-asynchronous-unwind-tables -fno-unwind-tables -mno-sse2 \\
-    "\${effective_compiler_args[@]}" "\${input_dir_args[@]}" \\
+    "\${input_dir_args[@]}" "\${effective_compiler_args[@]}" \\
     -S "\$compile_input" -o "\$asm_out"
   rewrite_dependency_files "\$compile_input" "\$input"
 }

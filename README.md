@@ -5,10 +5,9 @@ Standalone Darwin minimal-bootstrap experiments for reproducing the Linux
 
 ## Current state
 
-The active, runnable bootstrap path is `x86_64-darwin`/amd64. As of commit
-`cdbdf32`, the Nixified chain reaches a strict self-hosted modern GCC handoff
-whose GCC source version is matched to nixpkgs `gcc_latest.version` (`15.2.0`
-with the current lock).
+The active, runnable bootstrap path is `x86_64-darwin`/amd64. The Nixified
+chain reaches a strict self-hosted modern GCC handoff whose GCC source version
+is matched to nixpkgs `gcc_latest.version` (`15.2.0` with the current lock).
 
 The implemented amd64 chain is:
 
@@ -41,9 +40,10 @@ The implemented amd64 chain is:
   GCC sources, generated sources, support libraries, and configure probes.
   Phase47 is the stricter replay with `GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0`,
   but it is still a compiler-only handoff, not a complete Darwin `stdenv.cc`.
-- `phase39-gnumake` exists, but the GCC and GNU Hello formalizations still use
-  nixpkgs `gnumake` until the bootstrapped make handles Darwin job execution
-  reliably.
+- `phase39-gnumake` exists and passes a recipe-execution smoke test, but the
+  GCC and GNU Hello formalizations still use nixpkgs `gnumake`. A direct
+  phase39 GNU Hello build currently segfaults while evaluating Automake's
+  generated makefiles, so this is not yet a promoted bootstrap make boundary.
 - The modern GCC packages carry a staged, patched bootstrap sysroot and wrapper
   metadata sufficient for the current proofs; they are not yet a full nixpkgs
   compiler/runtime/bintools closure.

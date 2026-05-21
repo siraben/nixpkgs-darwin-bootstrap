@@ -577,16 +577,17 @@ rebuild_macho_archive() {
   local dir="$1"
   shift
   remove_phase34_header_symlinks "$dir"
-  MAKEFLAGS= "$make_tool" -C "$dir" -j1 clean >/dev/null 2>&1 || true
+  MAKEFLAGS= "$make_tool" -C "$dir" -j"$build_cores" clean >/dev/null 2>&1 || true
   fix_darwin_prereq_configs
   env \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
-    GCC46_BOOTSTRAP_HOST_CC_SOURCES="${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-1}" \
+    GCC46_BOOTSTRAP_HOST_CC_SOURCES=1 \
+    GCC46_BOOTSTRAP_HOST_CC_GENERATED="${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-1}" \
     GCC46_BOOTSTRAP_AS="$GCC46_BOOTSTRAP_AS" \
     GCC46_BOOTSTRAP_MACHO_CC="$GCC46_BOOTSTRAP_MACHO_CC" \
     GCC46_BOOTSTRAP_HOST_CC="$GCC46_BOOTSTRAP_HOST_CC" \
     MAKEFLAGS= \
-    "$make_tool" -C "$dir" -j1 -o Makefile -o config.status \
+    "$make_tool" -C "$dir" -j"$build_cores" -o Makefile -o config.status \
       CC="$CC" \
       CFLAGS="$CFLAGS" \
       AR="$AR" \
@@ -766,7 +767,8 @@ make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
 # The phase39 GNU Make is intentionally minimal and does not yet have a
 # bootstrap-proven jobserver/pipe path.  Keep Nix builds serial by default, but
 # allow impure debug runs to override both the make executable and job count.
-build_cores=${BOOTSTRAP_JOBS:-1}
+build_cores=${BOOTSTRAP_JOBS:-${NIX_BUILD_CORES:-1}}
+main_build_cores=${PHASE44_MAIN_JOBS:-1}
 make_dir=${PHASE44_MAKE_DIR:-.}
 make_targets=${PHASE44_TARGETS:-"all-gcc"}
 gcc_make_targets=${PHASE44_GCC_TARGETS:-"xgcc cc1 c++ g++"}
@@ -792,7 +794,7 @@ ensure_target_libgcc_macho() {
     if [ ! -f gcc/gsyslimits.h ] && [ -f ../src/gcc/gsyslimits.h ]; then
       cp ../src/gcc/gsyslimits.h gcc/gsyslimits.h
     fi
-    MAKEFLAGS= "$make_tool" -C gcc -j1 -o Makefile -o config.status \
+    MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" -o Makefile -o config.status \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
@@ -832,7 +834,7 @@ ensure_target_libgcc_macho() {
       2> "$bootstrap_share/configure-target-libgcc.stderr"
     postprocess_macho_specs
   fi
-  MAKEFLAGS= "$make_tool" -C "$target/libgcc" -j1 \
+  MAKEFLAGS= "$make_tool" -C "$target/libgcc" -j"$main_build_cores" \
     MAKEINFO=true \
     CRTSTUFF_T_CFLAGS="-isystem $target_include" \
     LIBGCC2_INCLUDES="-isystem $target_include" \
@@ -912,12 +914,12 @@ build_direct_libstdcxx() {
   [ -f gcc/g++ ] || return 0
   ensure_target_libgcc_macho
   configure_direct_libstdcxx
-  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j1 \
+  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j"$main_build_cores" \
     MAKEINFO=true \
     all \
     > "$bootstrap_share/make-direct-libstdcxx.stdout" \
     2> "$bootstrap_share/make-direct-libstdcxx.stderr"
-  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j1 \
+  MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j"$main_build_cores" \
     MAKEINFO=true \
     install \
     > "$bootstrap_share/install-direct-libstdcxx.stdout" \
@@ -1004,7 +1006,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
         > "$bootstrap_share/configure-gcc.stdout" \
         2> "$bootstrap_share/configure-gcc.stderr"
     fi
-    MAKEFLAGS= "$make_tool" -C gcc -j"$build_cores" \
+    MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
@@ -1022,7 +1024,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
       > "$bootstrap_share/make.stdout" \
       2> "$bootstrap_share/make.stderr"
   else
-    MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+    MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$main_build_cores" \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
