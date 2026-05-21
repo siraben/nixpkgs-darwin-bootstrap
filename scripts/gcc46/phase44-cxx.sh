@@ -129,6 +129,20 @@ if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
   export GCC46_BOOTSTRAP_MACHO_CC="${GCC46_BOOTSTRAP_MACHO_CC:-/usr/bin/cc}"
   export GCC46_BOOTSTRAP_HOST_CC="${GCC46_BOOTSTRAP_HOST_CC:-/usr/bin/cc}"
+  # When GCC46_BOOTSTRAP_LD is not in $PATH (e.g. nixpkgs darwin.binutils-unwrapped),
+  # the host C compiler invoked via GCC46_BOOTSTRAP_MACHO_CC can't posix_spawn ld
+  # by name. Add the binutils directory to PATH so raw clang can find ld/as.
+  bin_dir=$(dirname "$GCC46_BOOTSTRAP_LD")
+  case ":$PATH:" in
+    *":$bin_dir:"*) ;;
+    *) export PATH="$bin_dir:$PATH" ;;
+  esac
+  # nixpkgs clang doesn't pick the host SDK automatically; export SDKROOT so
+  # clang adds -isysroot to ld for finding libSystem and friends. This is a
+  # no-op for Apple /usr/bin/cc which uses its built-in default SDK.
+  if [ -n "${PHASE44_SDK_PATH:-}" ] && [ -z "${SDKROOT:-}" ]; then
+    export SDKROOT="$PHASE44_SDK_PATH"
+  fi
 fi
 export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"

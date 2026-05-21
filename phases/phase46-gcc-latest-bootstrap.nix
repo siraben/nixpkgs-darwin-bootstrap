@@ -4,7 +4,7 @@ with args;
       runCommand "darwin-minimal-bootstrap-phase46-gcc-${gccLatestVersion}-amd64" {
         nativeBuildInputs = [ perl ];
       } ''
-        export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
         export GCC_MODERN_TARGETS=all-gcc
         export GCC_MODERN_COMPILER_ONLY=1
         export BOOTSTRAP_MAKE=${gnumake}/bin/make
