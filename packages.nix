@@ -656,6 +656,8 @@ let
         export PATH="${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         export CC="${compiler}/bin/gcc"
         export CXX="${compiler}/bin/g++"
+        export AR="${cctools}/bin/ar"
+        export RANLIB="${cctools}/bin/ranlib"
         export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
         export GCC_MODERN_CONFTEST_TIMEOUT=120
         export CFLAGS="-O2 -g0"
@@ -664,7 +666,7 @@ let
         ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
           > configure.stdout \
           2> configure.stderr
-        ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
+        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
           > make.stdout \
           2> make.stderr
 

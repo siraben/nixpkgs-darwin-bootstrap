@@ -628,6 +628,43 @@ EOF
   chmod +x gcc/as gcc/collect-ld gcc/ld
 }
 
+install_output_macho_tool_wrappers() {
+  [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
+  local runtime_dir="$out/lib/gcc/$target/$gcc_version"
+  mkdir -p "$out/bin" "$runtime_dir"
+  for wrapper_dir in "$out/bin" "$runtime_dir"; do
+    cat > "$wrapper_dir/as" <<EOF
+#!/bin/sh
+has_input=0
+skip_next=0
+for arg do
+  if [ "\$skip_next" = 1 ]; then
+    skip_next=0
+    continue
+  fi
+  case "\$arg" in
+    -arch|-o) skip_next=1 ;;
+    -*) ;;
+    *) has_input=1 ;;
+  esac
+done
+if [ "\$has_input" = 0 ]; then
+  exec "$GCC46_BOOTSTRAP_AS" "\$@" -
+fi
+exec "$GCC46_BOOTSTRAP_AS" "\$@"
+EOF
+    cat > "$wrapper_dir/ld" <<EOF
+#!/bin/sh
+exec "$GCC46_BOOTSTRAP_LD" "\$@"
+EOF
+    cat > "$wrapper_dir/collect-ld" <<EOF
+#!/bin/sh
+exec "$GCC46_BOOTSTRAP_LD" "\$@"
+EOF
+    chmod +x "$wrapper_dir/as" "$wrapper_dir/ld" "$wrapper_dir/collect-ld"
+  done
+}
+
 postprocess_macho_specs() {
   [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
   [ -f gcc/specs ] || return 0
@@ -1020,6 +1057,7 @@ mkdir -p "$out/bin" "$out/lib/gcc/$target/$gcc_version" "$out/$target/include" "
 cp -R "$target_include/." "$out/$target/include/"
 cp gcc/xgcc "$out/bin/gcc"
 cp gcc/g++ "$out/bin/g++"
+install_output_macho_tool_wrappers
 write_deployment_target_wrapper gcc
 write_deployment_target_wrapper g++
 cp gcc/cc1 "$out/lib/gcc/$target/$gcc_version/cc1"
