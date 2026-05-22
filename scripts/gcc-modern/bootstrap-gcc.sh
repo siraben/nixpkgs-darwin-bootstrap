@@ -582,6 +582,14 @@ fi
 bootstrap_link_flags="-nostartfiles -nodefaultlibs -L$gcc_lib_dir -L$compiler/lib -lgcc -lstdc++ -lsupc++ -Wl,-syslibroot,$sdk -lSystem"
 build_cc=${GCC_MODERN_HOST_CC:-/usr/bin/cc}
 build_cxx=${GCC_MODERN_HOST_CXX:-/usr/bin/c++}
+# wrapper_host_* are single-binary paths baked into the generated gcc/g++
+# wrappers via heredoc substitution. They always resolve to an actual binary
+# (never the multi-arg compound build_cc form), so they're safe to use in
+# wrapper `exec` lines without word-splitting issues.
+wrapper_host_cc="${GCC_MODERN_HOST_CC:-/usr/bin/cc}"
+wrapper_host_cxx="${GCC_MODERN_HOST_CXX:-/usr/bin/c++}"
+wrapper_host_ld="${GCC_MODERN_LD:-/usr/bin/ld}"
+wrapper_host_bin_dir=$(dirname "$wrapper_host_ld")
 if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" != 1 ]; then
   build_cc="$cc $bootstrap_link_flags"
   build_cxx="$cxx $bootstrap_link_flags"
@@ -922,6 +930,12 @@ package_modern_compiler() {
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
+# When wrapper_host_cc is nixpkgs clang (not Apple /usr/bin/cc), it can't
+# posix_spawn ld by name; prepend the binutils dir so PATH lookups succeed.
+case ":\$PATH:" in
+  *":$wrapper_host_bin_dir:"*) ;;
+  *) export PATH="$wrapper_host_bin_dir:\$PATH" ;;
+esac
 driver="\$root/libexec/gcc/$target/$version/xgcc"
 driver_args=(-B"\$root/libexec/gcc/$target/$version/" -B"\$root/lib/gcc/$target/$version/" --sysroot="\$root/$target" -isystem "\$root/$target/include" -isystem "\$default_sdk/usr/include")
 is_conftest_args() {
@@ -1039,7 +1053,7 @@ host_conftest_compile() {
     esac
   done
   [ -n "\$source" ] || return 1
-  /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
+  $wrapper_host_cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
   [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
@@ -1098,11 +1112,11 @@ host_source_compile() {
   esac
   case "\$PWD:\$source" in
     */build/gcc*:*|*/build/libiberty*:*|*/build/libcpp*:*|*/build/libdecnumber*:*|*/build/zlib*:*|*/build/gmp*:*|*/build/mpfr*:*|*/build/mpc*:*|*/build/libbacktrace*:*|*/build/libcody*:*|*/build/fixincludes*:*|*/build/build-*/fixincludes*:*)
-      /usr/bin/cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      $wrapper_host_cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
       exit "\$?"
       ;;
     */src/gcc/*|*/src/libiberty/*|*/src/libcpp/*|*/src/libdecnumber/*|*/src/zlib/*|*/src/gmp/*|*/src/mpfr/*|*/src/mpc/*|*/src/libbacktrace/*|*/src/libcody/*|*/src/fixincludes/*)
-      /usr/bin/cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      $wrapper_host_cc -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
       exit "\$?"
       ;;
     *)
@@ -1134,7 +1148,7 @@ host_conftest_link() {
         ;;
     esac
   done
-  /usr/bin/cc -arch x86_64 "\${host_args[@]}" -o "\$out"
+  $wrapper_host_cc -arch x86_64 "\${host_args[@]}" -o "\$out"
 }
 case "\$#" in
   1)
@@ -1160,7 +1174,7 @@ for arg in "\$@"; do
 done
 if [ "\$preprocess_only" = 1 ]; then
   if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
-    /usr/bin/cc -arch x86_64 -E "\$@"
+    $wrapper_host_cc -arch x86_64 -E "\$@"
     exit "\$?"
   fi
   out=
@@ -1258,11 +1272,11 @@ case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
     if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
       cxx_link_args
-      exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+      exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     fi
     ;;
 esac
-exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+exec $wrapper_host_ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
 WRAPPER
 
   cat > "$out/bin/g++" <<WRAPPER
@@ -1270,6 +1284,10 @@ WRAPPER
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
+case ":\$PATH:" in
+  *":$wrapper_host_bin_dir:"*) ;;
+  *) export PATH="$wrapper_host_bin_dir:\$PATH" ;;
+esac
 cxx_inc=\$(ls -d "\$root"/include/c++/* 2>/dev/null | sort | tail -1 || true)
 use_libcxx=0
 if [ -n "\$cxx_inc" ] && [ "\$(basename -- "\$cxx_inc")" != "$version" ] && [ -d "\$default_sdk/usr/include/c++/v1" ]; then
@@ -1441,7 +1459,7 @@ host_conftest_compile() {
     esac
   done
   [ -n "\$source" ] || return 1
-  /usr/bin/cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
+  $wrapper_host_cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
   [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
@@ -1508,11 +1526,11 @@ host_source_compile() {
   esac
   case "\$PWD:\$source" in
     */build/gcc*:*|*/build/libiberty*:*|*/build/libcpp*:*|*/build/libdecnumber*:*|*/build/zlib*:*|*/build/gmp*:*|*/build/mpfr*:*|*/build/mpc*:*|*/build/libbacktrace*:*|*/build/libcody*:*|*/build/fixincludes*:*|*/build/build-*/fixincludes*:*)
-      /usr/bin/c++ -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      $wrapper_host_cxx -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
       exit "\$?"
       ;;
     */src/gcc/*|*/src/libiberty/*|*/src/libcpp/*|*/src/libdecnumber/*|*/src/zlib/*|*/src/gmp/*|*/src/mpfr/*|*/src/mpc/*|*/src/libbacktrace/*|*/src/libcody/*|*/src/fixincludes/*)
-      /usr/bin/c++ -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
+      $wrapper_host_cxx -arch x86_64 -Wno-error=format-security -Wno-error=implicit-function-declaration -Wno-error=unguarded-availability "\${host_args[@]}"
       exit "\$?"
       ;;
     *)
@@ -1544,7 +1562,7 @@ host_conftest_link() {
         ;;
     esac
   done
-  /usr/bin/cc -arch x86_64 "\${host_args[@]}" -o "\$out"
+  $wrapper_host_cc -arch x86_64 "\${host_args[@]}" -o "\$out"
 }
 case "\$#" in
   1)
@@ -1570,7 +1588,7 @@ for arg in "\$@"; do
 done
 if [ "\$preprocess_only" = 1 ]; then
   if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
-    /usr/bin/c++ -arch x86_64 -E "\$@"
+    $wrapper_host_cxx -arch x86_64 -E "\$@"
     exit "\$?"
   fi
   out=
@@ -1677,11 +1695,11 @@ case "\$PWD" in
   */phase46-gcc-latest/build/gcc*)
     if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
       cxx_link_args
-      exec /usr/bin/c++ -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
+      exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     fi
     ;;
 esac
-exec /usr/bin/ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
+exec $wrapper_host_ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
 WRAPPER
   chmod +x "$out/bin/gcc" "$out/bin/g++"
 
@@ -1953,7 +1971,7 @@ backtrace_syminfo (struct backtrace_state *state, uintptr_t addr,
   return 0;
 }
 BACKTRACE_STUB_C
-  /usr/bin/cc -arch x86_64 -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
+  $wrapper_host_cc -arch x86_64 -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
     -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
     -o libbacktrace/darwin-bootstrap-backtrace-stub.o
   "$AR" rc libbacktrace/.libs/libbacktrace.a libbacktrace/darwin-bootstrap-backtrace-stub.o
