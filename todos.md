@@ -84,6 +84,12 @@
 
 ## Running Log
 
+- 2026-05-23: Task #12 LANDED for phase47 strict. Goal — promote GMP/MPFR/MPC/ISL from in-tree builds under phase45/46/47 to standalone Nix-store derivations built from the bootstrap compiler chain — achieved end-to-end. New derivations:
+    - phase26c-bootstrap-gmp   (GMP 6.3.0, built by phase46)
+    - phase26d-bootstrap-mpfr  (MPFR 4.2.2, depends on phase26c)
+    - phase26e-bootstrap-mpc   (MPC 1.3.1, depends on phase26c+d)
+    - phase26f-bootstrap-isl   (ISL 0.24, depends on phase26c)
+  Each ships `$out/include/<name>.h` + `$out/lib/lib<name>.a` and runs a smoke link. bootstrap-gcc.sh now picks up `GCC_MODERN_EXTERNAL_GMP/MPFR/MPC/ISL` env vars; when set, it appends `--with-gmp=…` etc. to GCC's configure flags AND removes the in-tree `gmp/`, `mpfr/`, `mpc/`, `isl/` directories from the source tree so the external paths win unambiguously. Phase45 and phase46 still use in-tree libs because they are the compilers used to build phase26c-f (cycle break); phase47 strict consumes the externals — that's where the bit-equivalent GNU Hello proof lands. `nix build .#packages.x86_64-darwin.gnu-hello-hash-comparison` reproduces phase46 == strict phase47 at hash `5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73` post-switch, identical to the pre-task baseline. CFLAGS knobs required for GMP 6.3.0 + MPFR/MPC/ISL to build through GCC 15.2: `-std=gnu99 -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-return-type` (configure conftests are K&R-era).
 - 2026-05-22: Task #12 (external GMP/MPFR/MPC for modern GCC) first attempt blocked by the same root cause as #13. Tried `phases/phase26c-bootstrap-gmp.nix` building GMP 6.3.0 standalone using two candidates:
   - phase44 (gcc46-cxx): `ld: library not found for -lgcc_ext.10.5` — phase44's Darwin specs reference a legacy compat lib we never built/shipped.
   - phase45 (gcc10): `stddef.h:27: unterminated #if`, `limits.h:34: syslimits.h: No such file or directory` — phase45's compiler-only handoff bundles incomplete headers that work for the chain's internal self-builds (with the wrapper overriding paths) but break external `configure` tests that invoke the compiler directly.

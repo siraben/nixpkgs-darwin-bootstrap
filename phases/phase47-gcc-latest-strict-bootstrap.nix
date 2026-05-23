@@ -5,6 +5,10 @@ with args;
         nativeBuildInputs = [ perl ];
       } ''
         export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        export GCC_MODERN_EXTERNAL_GMP=${phase26c-bootstrap-gmp}
+        export GCC_MODERN_EXTERNAL_MPFR=${phase26d-bootstrap-mpfr}
+        export GCC_MODERN_EXTERNAL_MPC=${phase26e-bootstrap-mpc}
+        export GCC_MODERN_EXTERNAL_ISL=${phase26f-bootstrap-isl}
         export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
         export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
         export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld

@@ -827,13 +827,35 @@ configure_flags=(
   --disable-vtable-verify
   --disable-decimal-float
   --disable-libstdcxx-pch
-  --without-isl
   --with-glibc-version=0.0
   --disable-nls
   --disable-shared
   --disable-threads
   --enable-languages=c,c++
 )
+
+# Task #12: when external GMP/MPFR/MPC/ISL are available via env vars
+# (phase26c/d/e/f), point GCC's configure at them and remove the
+# in-tree variant from the source tree so configure picks the
+# external paths.  Mirrors nixpkgs gcc_latest's structure.
+if [ -n "${GCC_MODERN_EXTERNAL_GMP:-}" ]; then
+  configure_flags+=(--with-gmp="$GCC_MODERN_EXTERNAL_GMP")
+  rm -rf gmp gmp-*
+fi
+if [ -n "${GCC_MODERN_EXTERNAL_MPFR:-}" ]; then
+  configure_flags+=(--with-mpfr="$GCC_MODERN_EXTERNAL_MPFR")
+  rm -rf mpfr mpfr-*
+fi
+if [ -n "${GCC_MODERN_EXTERNAL_MPC:-}" ]; then
+  configure_flags+=(--with-mpc="$GCC_MODERN_EXTERNAL_MPC")
+  rm -rf mpc mpc-*
+fi
+if [ -n "${GCC_MODERN_EXTERNAL_ISL:-}" ]; then
+  configure_flags+=(--with-isl="$GCC_MODERN_EXTERNAL_ISL")
+  rm -rf isl isl-*
+else
+  configure_flags+=(--without-isl)
+fi
 
 if [ "$label" = gcc-latest ]; then
   export ac_cv_prog_cc_c99=no

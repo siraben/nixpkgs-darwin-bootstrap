@@ -5,6 +5,10 @@ with args;
         nativeBuildInputs = [ perl ];
       } ''
         export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        ## phase46 keeps in-tree gmp/mpfr/mpc/isl: it's the compiler used
+        ## to build phase26c-f, so we can't reference them here without a
+        ## cycle. phase47 strict consumes external libs (the goal lands
+        ## there). See todos task #12.
         export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
         export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
         export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld

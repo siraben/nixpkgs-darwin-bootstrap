@@ -5,6 +5,9 @@ with args;
         nativeBuildInputs = [ perl ];
       } ''
         export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        ## phase45 keeps in-tree gmp/mpfr/mpc/isl: it's the compiler that
+        ## *builds* the standalone phase26c-f, so we can't reference them
+        ## here without a cycle. phase46/47 use external (next-stage gain).
         export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
         export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
         export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld
