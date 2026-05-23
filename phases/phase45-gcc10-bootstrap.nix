@@ -5,6 +5,11 @@ with args;
         nativeBuildInputs = [ perl ];
       } ''
         export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
+        export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
+        export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld
+        export GCC_MODERN_AS=${darwin.binutils-unwrapped}/bin/as
+        export SDKROOT=$GCC_MODERN_SDK_PATH
         export GCC_MODERN_TARGETS=all-gcc
         export GCC_MODERN_COMPILER_ONLY=1
         export BOOTSTRAP_MAKE=${gnumake}/bin/make
