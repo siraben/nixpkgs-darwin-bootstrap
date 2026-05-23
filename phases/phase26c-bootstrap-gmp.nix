@@ -40,24 +40,36 @@ with args;
         tar -xf ${tarball}
         cd gmp-${version}
 
-        ## Use phase45 GCC 10 as the bootstrap compiler. Phase44 (GCC 4.6)
-        ## would be closer to nixpkgs minimal-bootstrap's gcc46-cxx → gmp
-        ## ordering, but its Darwin specs reference libgcc_ext.10.5 which
-        ## the chain doesn't ship; phase45's GCC 10 is the first modern
-        ## frontend with usable Darwin codegen for external builds.
-        ## Apple SDK still needed for libSystem; see todos #11/#13.
-        compiler=${phase45-gcc10-bootstrap}
+        ## Use phase46 GCC 15.2 as the bootstrap compiler. Earlier candidates:
+        ##   - phase44 (gcc46-cxx): missing libgcc_ext.10.5
+        ##   - phase45 (gcc10): incomplete bundled stddef.h / missing syslimits.h
+        ## Phase46 ships a more complete bootstrap-sysroot at
+        ## $out/x86_64-apple-darwin/include/ (stdio.h, limits.h, etc.) which
+        ## external configure tests can resolve.  Apple SDK still needed for
+        ## libSystem at link time; see todos #11/#13.
+        compiler=${phase46-gcc-latest-bootstrap}
         sdk=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
 
+        ## Match the configuration that gnu-hello.nix uses successfully —
+        ## phase46 wrapper internally injects -isysroot / -Wl,-syslibroot
+        ## when GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0.
         export PATH="$compiler/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         export CC="$compiler/bin/gcc"
         export CXX="$compiler/bin/g++"
         export AR=${cctools}/bin/ar
         export RANLIB=${cctools}/bin/ranlib
         export NM=${cctools}/bin/nm
-        export CFLAGS="-O2 -g0 -isysroot $sdk"
-        export CXXFLAGS="-O2 -g0 -isysroot $sdk"
-        export LDFLAGS="-Wl,-syslibroot,$sdk"
+        export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
+        export GCC_MODERN_CONFTEST_TIMEOUT=120
+        ## GMP 6.3.0's autoconf still ships configure tests written in K&R /
+        ## pre-C99 style that GCC 15 rejects (mismatched function arity,
+        ## implicit int return, etc.). Force -std=gnu89 + relax the strict
+        ## diagnostics so configure can complete; GMP source itself is
+        ## strictly typed and compiles cleanly under these flags.
+        ## Use gnu99 (declarations in for-init are needed by gen-sieve.c);
+        ## the warning relaxations are still needed for configure conftests.
+        export CFLAGS="-O2 -g0 -std=gnu99 -Wno-implicit-function-declaration -Wno-implicit-int -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-return-type"
+        export CXXFLAGS="-O2 -g0"
         export MACOSX_DEPLOYMENT_TARGET=10.8
 
         ## --disable-assembly avoids the GMP asm fragments which depend on
