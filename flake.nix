@@ -74,6 +74,9 @@
           phase26-gcc46-source = bootstrap.phase26-gcc46-source;
           phase26b-elf64-to-m1 = bootstrap.phase26b-elf64-to-m1;
           phase26c-bootstrap-gmp = bootstrap.phase26c-bootstrap-gmp;
+          phase26d-bootstrap-mpfr = bootstrap.phase26d-bootstrap-mpfr;
+          phase26e-bootstrap-mpc = bootstrap.phase26e-bootstrap-mpc;
+          phase26f-bootstrap-isl = bootstrap.phase26f-bootstrap-isl;
           phase42-gcc10-source = bootstrap.phase42-gcc10-source;
           phase43-gcc-latest-source = bootstrap.phase43-gcc-latest-source;
           gcc46-darwin-bootstrap-src = bootstrap.gcc46DarwinBootstrapSrc;
