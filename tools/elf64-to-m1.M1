@@ -1,0 +1,77 @@
+## tools/elf64-to-m1.M1
+##
+## Hand-written x86_64 Darwin Mach-O implementation of the ELF→M1 converter.
+## Bootstraps through the existing M1+hex2 chain (no Python in the closure).
+##
+## This file is built iteratively. Current milestone: minimal Darwin Mach-O
+## that exits with status 0. Future iterations add ELF parsing and M1 emission.
+##
+## Build:
+##   M1 -f amd64_defs.M1 -f elf64-to-m1.M1 -o elf64-to-m1.hex2
+##   hex2 (with MACHO-amd64.hex2 prefix) elf64-to-m1.hex2 -> Mach-O binary
+##
+## See phase26b-elf64-to-m1.nix for the assembly pipeline.
+
+## ===========================================================================
+## ELF64 constants (referenced by future iterations)
+## ===========================================================================
+##  SHT_SYMTAB           = 2
+##  SHT_RELA             = 4
+##  SHT_NOBITS           = 8
+##  SHN_UNDEF            = 0
+##  SHN_COMMON           = 0xfff2
+##  R_X86_64_64          = 1
+##  R_X86_64_PC32        = 2
+##  R_X86_64_PLT32       = 4
+##  R_X86_64_GOTPCREL    = 9
+##  R_X86_64_32          = 10
+##  R_X86_64_32S         = 11
+##  R_X86_64_GOTPCRELX   = 41
+##  R_X86_64_REX_GOTPCRELX = 42
+
+## ===========================================================================
+## Darwin amd64 syscall numbers (0x02000000 syscall-class bit)
+## ===========================================================================
+## SYS_exit  = 0x02000001
+## SYS_read  = 0x02000003
+## SYS_write = 0x02000004
+## SYS_open  = 0x02000005
+## SYS_close = 0x02000006
+## SYS_lseek = 0x020000c7
+## SYS_mmap  = 0x020000c5
+
+## ===========================================================================
+## ENTRY POINT (Darwin LC_MAIN ABI: rdi=argc, rsi=argv, rdx=envp)
+## Current behavior: write "elf64-to-m1: not yet implemented\n" to stderr
+## and exit 42 so the build harness can detect the placeholder.
+## ===========================================================================
+:_start
+
+	mov_rbp,rsp
+	push_rdi                                ; argc
+	push_rsi                                ; argv
+	push_rdx                                ; envp
+
+	;; write(2, msg, msg_len)  — Darwin SYS_write = 0x02000004
+	mov_rax, %0x2000004
+	mov_rdi, %0x2                           ; fd = stderr
+	lea_rsi,[rip+DWORD] %DATA_msg_notimpl   ; msg ptr
+	mov_rdx, %0x26                          ; msg_len = 38 bytes (33 chars + ?)
+	syscall
+
+	;; exit(42)
+	mov_rdi, %0x2a
+	mov_rax, %0x2000001                     ; SYS_exit
+	syscall
+
+	;; should never reach
+	ret
+
+## ===========================================================================
+## Data section
+## ===========================================================================
+:ELF_data
+:HEX2_data
+
+:DATA_msg_notimpl
+	"elf64-to-m1: not yet implemented\n"
