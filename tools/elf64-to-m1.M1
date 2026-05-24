@@ -1152,7 +1152,7 @@
 	;; downstream tools (phase5-amd64-m2.py, scripts/tinycc/tcc-darwin-
 	;; cc.sh) use to split code-side bytes from data-side bytes.
 	lea_rdi,[rip+DWORD] %DATA_section_markers
-	mov_rsi, %0x18                          ; 24 bytes
+	mov_rsi, %0x17                          ; 23 bytes (no trailing NUL)
 	call %FUNCTION_write_stdout
 
 	;; Sanity: only .text/.symtab/.strtab are mandatory.  .rela.text is
@@ -1569,9 +1569,9 @@
 	;; Args: rdi=name, rsi=skip_prefix.
 	push_rdi                                ; [rsp+8] = name
 	push_rsi                                ; [rsp]   = skip_prefix
-	;; Write "\n\t%"
+	;; Write "\n%"
 	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
-	mov_rsi, %0x03
+	mov_rsi, %0x02
 	call %FUNCTION_write_stdout
 	;; skip_prefix?
 	!0x48 !0x8b !0x04 !0x24                      ; mov rax, [rsp]
@@ -1853,7 +1853,7 @@
 :DATA_space
 	" "
 :DATA_label_ref_prefix
-	!0x0a !0x09 !0x25                       ; "\n\t%"
+	!0x0a !0x25                             ; "\n%"
 :DATA_colon
 	!0x3a                                   ; ":"
 :DATA_empty_string
@@ -1864,11 +1864,14 @@
 :DATA_plus
 	"_plus_"
 :DATA_section_markers
-	!0x0a                                   ; "\n"
-	":ELF_data"
-	!0x0a                                   ; "\n"
-	":HEX2_data"
-	!0x0a !0x0a                             ; "\n\n"
+	;; M1 string literals are NUL-terminated, so emit explicit bytes to
+	;; keep the markers on their own lines (no NUL between segments).
+	;; Total: 1 + 9 + 1 + 10 + 2 = 23 bytes ("\n:ELF_data\n:HEX2_data\n\n").
+	!0x0a
+	!0x3a !0x45 !0x4c !0x46 !0x5f !0x64 !0x61 !0x74 !0x61
+	!0x0a
+	!0x3a !0x48 !0x45 !0x58 !0x32 !0x5f !0x64 !0x61 !0x74 !0x61
+	!0x0a !0x0a
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
