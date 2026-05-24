@@ -2028,9 +2028,33 @@ if [ "$make_dir" = . ] && [ "$make_targets" = all-gcc ] && grep -q '^all-libcody
   make_targets="all-libcody all-gcc"
 fi
 
+## Task #13: when GCC_MODERN_BUILD_TARGET_LIBS=1, also build libgcc +
+## libstdc++ from the just-built xgcc, passing -isystem $sysroot/include
+## via the same LIBGCC2_INCLUDES / CRTSTUFF_T_CFLAGS knobs that
+## phase44-cxx.sh uses for the GCC 4.6 chain. Without these the target
+## libgcc compile can't find <stdio.h> (the bundled $out/$target/include
+## doesn't exist yet at build time).
+target_lib_make_args=()
+if [ "${GCC_MODERN_BUILD_TARGET_LIBS:-0}" = 1 ]; then
+  if [[ "$make_targets" != *all-target-libgcc* ]]; then
+    make_targets="$make_targets all-target-libgcc all-target-libstdc++-v3"
+  fi
+  ## GCC propagates CFLAGS_FOR_TARGET / CXXFLAGS_FOR_TARGET to recursive
+  ## target builds; LIBGCC2_INCLUDES alone doesn't reach $target/libgcc
+  ## from the top-level make. Pass the bootstrap sysroot includes via
+  ## both so libgcc2.c can find <stdio.h> via tsystem.h.
+  target_lib_make_args=(
+    CFLAGS_FOR_TARGET="-O2 -g0 -isystem $sysroot/include"
+    CXXFLAGS_FOR_TARGET="-O2 -g0 -isystem $sysroot/include"
+    CRTSTUFF_T_CFLAGS="-isystem $sysroot/include"
+    LIBGCC2_INCLUDES="-isystem $sysroot/include"
+  )
+fi
+
 if [ "${GCC_MODERN_PACKAGE_ONLY:-0}" != 1 ]; then
   MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
     MAKEINFO=true \
+    "${target_lib_make_args[@]}" \
     $make_targets \
     > "$bootstrap_share/make.stdout" \
     2> "$bootstrap_share/make.stderr"

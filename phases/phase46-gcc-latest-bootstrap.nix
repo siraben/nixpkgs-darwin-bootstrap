@@ -16,6 +16,18 @@ with args;
         export SDKROOT=$GCC_MODERN_SDK_PATH
         export GCC_MODERN_TARGETS=all-gcc
         export GCC_MODERN_COMPILER_ONLY=1
+        ## Task #13 first iteration: phase46 *can* build its own libgcc +
+        ## libstdc++ (set GCC_MODERN_BUILD_TARGET_LIBS=1), and the resulting
+        ## $out/include/c++/15.2.0 + lib/gcc/.../libgcc.a + lib/libstdc++.a
+        ## packages cleanly. BUT phase47 strict's GCC 15.2 self-build then
+        ## breaks at `cfn-operators.pd:192: error: no such operator
+        ## 'BUILT_IN_CBR'` — when phase47's wrapper picks up phase46's
+        ## matching libstdc++ instead of SDK libc++, the build-machine
+        ## genmatch produces a cfn-operators.pd that match.pd doesn't
+        ## understand (float128-related). Need to either disable libstdc++
+        ## use in phase47's wrapper for the build-machine genmatch path
+        ## or fix the float128 mismatch. Until that's resolved, phase46
+        ## stays compiler-only.
         export BOOTSTRAP_MAKE=${gnumake}/bin/make
         ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
           ${phase43-gcc-latest-source} \
