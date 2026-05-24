@@ -67,7 +67,15 @@
 	;;   [rbp -144] = output fd  (default 1 = stdout; overwritten when 2nd
 	;;                            positional argv is given)
 	;;   [rbp -152] = output path (NULL when writing to stdout)
+	;;   [rbp -160] = .data       sh_offset
+	;;   [rbp -168] = .data       sh_size
+	;;   [rbp -176] = .data       section index
+	;;   [rbp -184] = .data       buffer pointer
 	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
 	push_rax
 	push_rax
 	push_rax
@@ -552,7 +560,7 @@
 	call %FUNCTION_streq
 	!0x5f
 	!0x48 !0x85 !0xc0
-	je %SECTION_next
+	je %SECTION_check_data
 	;; Found .rela.text: store at [rbp-48] / [rbp-56].
 	!0x48 !0x8b !0x04 !0x24
 	!0x48 !0xc1 !0xe0 !0x06
@@ -564,6 +572,29 @@
 	lea_rdi,[rip+DWORD] %DATA_msg_found_rela_text
 	mov_rsi, %0x13
 	call %FUNCTION_write_stderr
+	jmp %SECTION_next
+
+:SECTION_check_data
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_data
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_next
+	;; Found .data: store offset, size, and section index.
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	!0x48 !0x8b !0x50 !0x18
+	;; mov [rbp - 160], rdx   (disp32)
+	!0x48 !0x89 !0x95 !0x60 !0xff !0xff !0xff
+	!0x48 !0x8b !0x50 !0x20
+	;; mov [rbp - 168], rdx
+	!0x48 !0x89 !0x95 !0x58 !0xff !0xff !0xff
+	;; Section index (saved rcx on stack top)
+	!0x48 !0x8b !0x04 !0x24
+	;; mov [rbp - 176], rax
+	!0x48 !0x89 !0x85 !0x50 !0xff !0xff !0xff
 
 :SECTION_next
 	;; pop rcx (loop idx)
@@ -652,6 +683,22 @@
 	call %FUNCTION_load_section
 	;; mov [rbp - 120], rax
 	!0x48 !0x89 !0x45 !0x88
+
+	;; .data (optional — skip if size is 0)
+	;; mov rax, [rbp - 168]
+	!0x48 !0x8b !0x85 !0x58 !0xff !0xff !0xff
+	test_rax,rax
+	je %SKIP_DATA_LOAD
+	;; mov rdi, [rbp - 160]
+	!0x48 !0x8b !0xbd !0x60 !0xff !0xff !0xff
+	;; mov rsi, [rbp - 168]
+	!0x48 !0x8b !0xb5 !0x58 !0xff !0xff !0xff
+	;; mov rdx, r12
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 184], rax
+	!0x48 !0x89 !0x85 !0x48 !0xff !0xff !0xff
+:SKIP_DATA_LOAD
 
 	;; Sanity dump: print first u64 of .text contents.
 	lea_rdi,[rip+DWORD] %DATA_lbl_text_first
@@ -1154,6 +1201,91 @@
 	lea_rdi,[rip+DWORD] %DATA_section_markers
 	mov_rsi, %0x17                          ; 23 bytes (no trailing NUL)
 	call %FUNCTION_write_stdout
+
+	;; ---------------------------------------------------------------
+	;; Emit .data section, if present.  Layout: for each byte, scan
+	;; symtab for matching (shndx == data_idx, value == offset), emit
+	;; label definitions; then emit the byte.  No relocations or
+	;; synth labels in this minimal version.
+	;; ---------------------------------------------------------------
+	;; mov rax, [rbp - 168]
+	!0x48 !0x8b !0x85 !0x58 !0xff !0xff !0xff
+	test_rax,rax
+	je %DATA_skip_emit
+
+	xor_ecx,ecx
+:DATA_emit_loop
+	;; cmp rcx, [rbp - 168]
+	!0x48 !0x3b !0x8d !0x58 !0xff !0xff !0xff
+	jge %DATA_emit_done
+
+	;; Per-byte label-definition pass on .data.
+	push_rcx
+	;; xor r8, r8
+	!0x4d !0x31 !0xc0
+:DATA_lbl_loop
+	;; rax = r8 * 24
+	!0x4c !0x89 !0xc0
+	!0x48 !0x6b !0xc0 !0x18
+	;; cmp rax, [rbp - 72]   (symtab_size)
+	!0x48 !0x3b !0x45 !0xb8
+	jge %DATA_lbl_done
+
+	;; r9 = symtab + offset
+	!0x4c !0x8b !0x4d !0x90
+	!0x49 !0x01 !0xc1
+
+	;; shndx == data_idx?
+	!0x41 !0x0f !0xb7 !0x41 !0x06
+	;; cmp rax, [rbp - 176]
+	!0x48 !0x3b !0x85 !0x50 !0xff !0xff !0xff
+	jne %DATA_lbl_next
+
+	;; value == rcx (top of stack)
+	!0x49 !0x8b !0x41 !0x08
+	!0x48 !0x3b !0x04 !0x24
+	jne %DATA_lbl_next
+
+	;; name != 0
+	!0x41 !0x8b !0x01
+	!0x48 !0x85 !0xc0
+	je %DATA_lbl_next
+
+	;; Emit :<prefix?><name>
+	;; rdi = strtab + name
+	!0x48 !0x8b !0x7d !0x88
+	!0x48 !0x01 !0xc7
+	;; rsi = skip_prefix = bind from [r9+4]
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	!0x48 !0x89 !0xc6
+	;; push r8
+	!0x41 !0x50
+	call %FUNCTION_emit_label_def
+	!0x41 !0x58
+
+:DATA_lbl_next
+	;; inc r8
+	!0x49 !0xff !0xc0
+	jmp %DATA_lbl_loop
+:DATA_lbl_done
+	pop_rcx
+
+	;; Emit byte at .data + rcx
+	;; mov rdx, [rbp - 184]
+	!0x48 !0x8b !0x95 !0x48 !0xff !0xff !0xff
+	!0x48 !0x01 !0xca
+	;; movzx edi, byte [rdx]
+	!0x0f !0xb6 !0x3a
+	push_rcx
+	call %FUNCTION_emit_byte_hex
+	pop_rcx
+
+	;; inc rcx
+	!0x48 !0xff !0xc1
+	jmp %DATA_emit_loop
+:DATA_emit_done
+:DATA_skip_emit
 
 	;; Sanity: only .text/.symtab/.strtab are mandatory.  .rela.text is
 	;; optional — tcc-emitted objects (and other simple inputs) may have
@@ -1982,6 +2114,9 @@
 	!0x00
 :DATA_name_rela_text
 	".rela.text"
+	!0x00
+:DATA_name_data
+	".data"
 	!0x00
 
 :DATA_msg_found_symtab

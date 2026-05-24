@@ -30,8 +30,8 @@ with args;
         test ! -s strlen-c.stdout
         test ! -s strlen-c.stderr
 
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix hello_ hello.o hello-object.M1
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix strlen_ strlen.o strlen-object.M1
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix hello_ hello.o hello-object.M1
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix strlen_ strlen.o strlen-object.M1
 
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start
