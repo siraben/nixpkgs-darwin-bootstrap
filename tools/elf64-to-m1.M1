@@ -988,6 +988,11 @@
 	!0x48 !0x8b !0x7d !0x88
 	;; add rdi, rax
 	!0x48 !0x01 !0xc7
+	;; rsi = skip_prefix = (bind != 0): movzx eax, byte [r9+4]; shr eax, 4
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
 	;; push r8 (save loop ctr)
 	!0x41 !0x50
 	call %FUNCTION_emit_label_def
@@ -1031,7 +1036,7 @@
 	jne %LBL_next
 
 :LBL_synth_do_emit
-	;; rdi = strtab + st_name; rsi = delta
+	;; rdi = strtab + st_name; rsi = delta; rdx = skip_prefix
 	;; mov eax, [r9]
 	!0x41 !0x8b !0x01
 	;; mov rdi, [rbp - 120]
@@ -1040,6 +1045,11 @@
 	!0x48 !0x01 !0xc7
 	;; mov rsi, rdx
 	!0x48 !0x89 !0xd6
+	;; skip_prefix = bind from [r9+4]>>4
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	;; mov rdx, rax
+	!0x48 !0x89 !0xc2
 	;; push r8, r9 (save loop ctr & sym ptr)
 	!0x41 !0x50
 	!0x41 !0x51
@@ -1121,7 +1131,13 @@
 	;; add rdi, rax
 	!0x48 !0x01 !0xc7
 
-	;; Emit "\n\t%LABEL_<name>"
+	;; Emit "\n\t%<prefix?><name>".  rsi = skip_prefix = bind from r10.
+	;; movzx eax, byte [r10+4]
+	!0x41 !0x0f !0xb6 !0x42 !0x04
+	;; shr eax, 4
+	!0xc1 !0xe8 !0x04
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
 	push_rcx
 	call %FUNCTION_emit_label_ref
 	pop_rcx
@@ -1447,39 +1463,47 @@
 	ret
 
 ## ===========================================================================
-## FUNCTION_emit_label_def(rdi=name_ptr) — writes ":<name>\n" to stdout.
-##   Used at .text byte offsets where symbols are defined.
+## FUNCTION_emit_label_def(rdi=name_ptr, rsi=skip_prefix) — writes
+##   ":<name>\n" (or ":<prefix><name>\n" if skip_prefix==0) to stdout.
+##   Matches Python label_name semantics: GLOBAL/WEAK symbols (bind != 0)
+##   are emitted without the --prefix; LOCAL symbols get it.
 ##   Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_label_def
-	push_rdi                                ; save name ptr
+	push_rdi                                ; [rsp+8] = name ptr (after rsi push)
+	push_rsi                                ; [rsp]   = skip_prefix
+	;; Emit "\n" first so the label always starts on a fresh line.
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
 	;; Emit ":"
 	lea_rdi,[rip+DWORD] %DATA_colon
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
+	;; skip_prefix nonzero → omit prefix
+	;; mov rax, [rsp]
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %ELD_skip_prefix
 	;; Emit prefix from [rbp - 136]
-	;; mov rdi, [rbp - 136]   (disp32)
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_strlen
-	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
-	;; mov rdi, [rbp - 136]
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
-	;; Emit name
-	;; mov rdi, [rsp]
-	!0x48 !0x8b !0x3c !0x24
+:ELD_skip_prefix
+	;; Emit name (saved at [rsp+8])
+	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_strlen
-	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
-	;; mov rdi, [rsp]
-	!0x48 !0x8b !0x3c !0x24
+	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_write_stdout
 	;; Emit "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	pop_rdi
+	;; add rsp, 16
+	!0x48 !0x83 !0xc4 !0x10
 	ret
 
 ## ===========================================================================
@@ -1490,21 +1514,31 @@
 ##   Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_synth_label
-	;; Save delta and name on stack.
-	push_rsi                                ; [rsp+8] = delta
-	push_rdi                                ; [rsp]   = name ptr
+	;; Args: rdi=name, rsi=delta, rdx=skip_prefix.
+	push_rdx                                ; [rsp+16] = skip_prefix
+	push_rsi                                ; [rsp+ 8] = delta
+	push_rdi                                ; [rsp+ 0] = name ptr
+	;; Emit "\n" so the label starts on a fresh line.
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
 	;; Emit ":"
 	lea_rdi,[rip+DWORD] %DATA_colon
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
+	;; skip_prefix?
+	!0x48 !0x8b !0x44 !0x24 !0x10                ; mov rax, [rsp+16]
+	test_rax,rax
+	jne %ESL_skip_prefix
 	;; Emit prefix
-	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff   ; mov rdi, [rbp - 136]
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_strlen
-	!0x48 !0x89 !0xc6                            ; mov rsi, rax
+	!0x48 !0x89 !0xc6
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
+:ESL_skip_prefix
 	;; Emit name (from [rsp])
-	!0x48 !0x8b !0x3c !0x24                      ; mov rdi, [rsp]
+	!0x48 !0x8b !0x3c !0x24
 	call %FUNCTION_strlen
 	!0x48 !0x89 !0xc6
 	!0x48 !0x8b !0x3c !0x24
@@ -1514,14 +1548,14 @@
 	mov_rsi, %0x06
 	call %FUNCTION_write_stdout
 	;; Emit delta hex (from [rsp+8])
-	!0x48 !0x8b !0x7c !0x24 !0x08                ; mov rdi, [rsp+8]
+	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_hex_lz
 	;; Emit "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	;; add rsp, 16
-	!0x48 !0x83 !0xc4 !0x10
+	;; add rsp, 24
+	!0x48 !0x83 !0xc4 !0x18
 	ret
 
 ## ===========================================================================
@@ -1532,29 +1566,37 @@
 ##   where <label> is the prefix-cleaned symbol name (no extra prefix).
 ## ===========================================================================
 :FUNCTION_emit_label_ref
-	;; Save name ptr for later use.
-	push_rdi
-	;; Write "\n\t%" (3 bytes).
+	;; Args: rdi=name, rsi=skip_prefix.
+	push_rdi                                ; [rsp+8] = name
+	push_rsi                                ; [rsp]   = skip_prefix
+	;; Write "\n\t%"
 	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
 	mov_rsi, %0x03
 	call %FUNCTION_write_stdout
-	;; Write the prefix from [rbp - 136].
+	;; skip_prefix?
+	!0x48 !0x8b !0x04 !0x24                      ; mov rax, [rsp]
+	test_rax,rax
+	jne %ELR_skip_prefix
+	;; Write prefix
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_strlen
 	!0x48 !0x89 !0xc6
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
-	;; Write the name (strlen + write).
-	;; mov rdi, [rsp]
-	!0x48 !0x8b !0x3c !0x24
+:ELR_skip_prefix
+	;; Write name (from [rsp+8])
+	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_strlen
-	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
-	;; mov rdi, [rsp]
-	!0x48 !0x8b !0x3c !0x24
+	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_write_stdout
-	;; Pop the saved name ptr (discarded after use).
-	pop_rdi
+	;; Write trailing "\n" so the next emit (label def or byte) doesn't
+	;; glue onto the symbol-reference token.
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; add rsp, 16
+	!0x48 !0x83 !0xc4 !0x10
 	ret
 
 ## ===========================================================================
