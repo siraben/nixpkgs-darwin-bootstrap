@@ -950,25 +950,40 @@
 	;; add r9, rax
 	!0x49 !0x01 !0xc1
 
-	;; movzx eax, word [r9 + 6]   (st_shndx)
+	;; shndx == text_idx?
+	;; movzx eax, word [r9 + 6]
 	!0x41 !0x0f !0xb7 !0x41 !0x06
 	;; cmp rax, [rbp - 128]
 	!0x48 !0x3b !0x45 !0x80
 	jne %LBL_next
 
-	;; mov rax, [r9 + 8]    (st_value)
-	!0x49 !0x8b !0x41 !0x08
-	;; cmp rax, [rsp]
-	!0x48 !0x3b !0x04 !0x24
-	jne %LBL_next
-
-	;; mov eax, [r9]        (st_name u32)
+	;; name != 0?
+	;; mov eax, [r9]
 	!0x41 !0x8b !0x01
 	;; test rax, rax
 	!0x48 !0x85 !0xc0
 	je %LBL_next
 
-	;; Emit :<name>\n
+	;; delta = rcx - sym_value
+	;; mov rdx, [rsp]                       ; saved rcx
+	!0x48 !0x8b !0x14 !0x24
+	;; mov rax, [r9 + 8]                    ; sym_value
+	!0x49 !0x8b !0x41 !0x08
+	;; sub rdx, rax
+	!0x48 !0x29 !0xc2
+	;; cmp rdx, 0
+	!0x48 !0x83 !0xfa !0x00
+	jl %LBL_next                            ; delta < 0 → outside symbol
+
+	;; delta == 0 → emit primary label
+	;; test rdx, rdx
+	!0x48 !0x85 !0xd2
+	jne %LBL_check_synth
+
+	;; Primary label at sym_value:
+	;; rdi = strtab + st_name
+	;; mov eax, [r9]
+	!0x41 !0x8b !0x01
 	;; mov rdi, [rbp - 120]
 	!0x48 !0x8b !0x7d !0x88
 	;; add rdi, rax
@@ -977,6 +992,60 @@
 	!0x41 !0x50
 	call %FUNCTION_emit_label_def
 	;; pop r8
+	!0x41 !0x58
+	jmp %LBL_next                           ; delta=0 → no synth
+
+:LBL_check_synth
+	;; delta > 0.  Synthetic _plus_<hex> only for GLOBAL/WEAK symbols.
+	;; bind = st_info >> 4
+	;; movzx eax, byte [r9 + 4]
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	;; shr eax, 4
+	!0xc1 !0xe8 !0x04
+	;; test eax, eax
+	!0x85 !0xc0
+	je %LBL_next
+
+	;; delta < sym_size?
+	;; cmp rdx, [r9 + 16]   (REX.W|REX.B = 0x49 to reach r9 base)
+	!0x49 !0x3b !0x51 !0x10
+	jge %LBL_next
+
+	;; Addend set: {1, 2} or (delta >= 8 and delta % 8 == 0)
+	;; cmp rdx, 1
+	!0x48 !0x83 !0xfa !0x01
+	je %LBL_synth_do_emit
+	;; cmp rdx, 2
+	!0x48 !0x83 !0xfa !0x02
+	je %LBL_synth_do_emit
+	;; cmp rdx, 8
+	!0x48 !0x83 !0xfa !0x08
+	jl %LBL_next
+	;; (delta & 7) == 0?
+	;; mov rax, rdx
+	!0x48 !0x89 !0xd0
+	;; and rax, 7
+	!0x48 !0x83 !0xe0 !0x07
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	jne %LBL_next
+
+:LBL_synth_do_emit
+	;; rdi = strtab + st_name; rsi = delta
+	;; mov eax, [r9]
+	!0x41 !0x8b !0x01
+	;; mov rdi, [rbp - 120]
+	!0x48 !0x8b !0x7d !0x88
+	;; add rdi, rax
+	!0x48 !0x01 !0xc7
+	;; mov rsi, rdx
+	!0x48 !0x89 !0xd6
+	;; push r8, r9 (save loop ctr & sym ptr)
+	!0x41 !0x50
+	!0x41 !0x51
+	call %FUNCTION_emit_synth_label
+	;; pop r9, r8
+	!0x41 !0x59
 	!0x41 !0x58
 
 :LBL_next
@@ -1308,6 +1377,74 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_emit_hex_lz(rdi=value) — writes hex without leading zeros
+##   to output fd (i.e., '1' not '00000001').  Used for synthetic
+##   '_plus_<addend_hex>' label suffixes.  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_hex_lz
+	;; Allocate 24-byte scratch on stack (16 digits max + slack).
+	;; sub rsp, 24
+	!0x48 !0x83 !0xec !0x18
+	;; rcx = rsp + 16  (one past last digit slot; we write backward)
+	;; mov rcx, rsp
+	!0x48 !0x89 !0xe1
+	;; add rcx, 16
+	!0x48 !0x83 !0xc1 !0x10
+	;; rax = value
+	;; mov rax, rdi
+	!0x48 !0x89 !0xf8
+	;; If zero, emit a single '0'.
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	jne %EHL_digits
+	;; dec rcx; mov byte [rcx], '0'
+	!0x48 !0xff !0xc9
+	!0xc6 !0x01 !0x30
+	jmp %EHL_write
+:EHL_digits
+	;; rdx = rax & 0xf
+	;; mov rdx, rax
+	!0x48 !0x89 !0xc2
+	;; and rdx, 0xf
+	!0x48 !0x83 !0xe2 !0x0f
+	;; cmp dl, 0xa
+	!0x80 !0xfa !0x0a
+	jl %EHL_low_digit
+	;; add dl, 0x57   ('a' - 10)
+	!0x80 !0xc2 !0x57
+	jmp %EHL_store
+:EHL_low_digit
+	;; add dl, 0x30
+	!0x80 !0xc2 !0x30
+:EHL_store
+	;; dec rcx
+	!0x48 !0xff !0xc9
+	;; mov [rcx], dl
+	!0x88 !0x11
+	;; shr rax, 4
+	!0x48 !0xc1 !0xe8 !0x04
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	jne %EHL_digits
+:EHL_write
+	;; write(output_fd, rcx, (rsp+16) - rcx)
+	;; mov rdi, [rbp - 144]
+	!0x48 !0x8b !0xbd !0x70 !0xff !0xff !0xff
+	;; mov rsi, rcx
+	!0x48 !0x89 !0xce
+	;; mov rdx, rsp
+	!0x48 !0x89 !0xe2
+	;; add rdx, 16
+	!0x48 !0x83 !0xc2 !0x10
+	;; sub rdx, rcx
+	!0x48 !0x29 !0xca
+	mov_rax, %0x2000004
+	syscall
+	;; add rsp, 24
+	!0x48 !0x83 !0xc4 !0x18
+	ret
+
+## ===========================================================================
 ## FUNCTION_emit_label_def(rdi=name_ptr) — writes ":<name>\n" to stdout.
 ##   Used at .text byte offsets where symbols are defined.
 ##   Clobbers rax/rcx/rdx/rdi/rsi.
@@ -1341,6 +1478,48 @@
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
 	pop_rdi
+	ret
+
+## ===========================================================================
+## FUNCTION_emit_synth_label(rdi=name_ptr, rsi=delta) — writes
+##   ":<prefix><name>_plus_<delta_hex>\n" to output fd.  Used for the
+##   synthetic intermediate labels python tools/elf64-to-m1.py creates
+##   for GLOBAL/WEAK symbols at addends {1, 2, 8, 16, 24, ...}.
+##   Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_synth_label
+	;; Save delta and name on stack.
+	push_rsi                                ; [rsp+8] = delta
+	push_rdi                                ; [rsp]   = name ptr
+	;; Emit ":"
+	lea_rdi,[rip+DWORD] %DATA_colon
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; Emit prefix
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff   ; mov rdi, [rbp - 136]
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6                            ; mov rsi, rax
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_write_stdout
+	;; Emit name (from [rsp])
+	!0x48 !0x8b !0x3c !0x24                      ; mov rdi, [rsp]
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_write_stdout
+	;; Emit "_plus_"
+	lea_rdi,[rip+DWORD] %DATA_plus
+	mov_rsi, %0x06
+	call %FUNCTION_write_stdout
+	;; Emit delta hex (from [rsp+8])
+	!0x48 !0x8b !0x7c !0x24 !0x08                ; mov rdi, [rsp+8]
+	call %FUNCTION_emit_hex_lz
+	;; Emit "\n"
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; add rsp, 16
+	!0x48 !0x83 !0xc4 !0x10
 	ret
 
 ## ===========================================================================
@@ -1638,6 +1817,8 @@
 :DATA_arg_prefix
 	"--prefix"
 	!0x00
+:DATA_plus
+	"_plus_"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
