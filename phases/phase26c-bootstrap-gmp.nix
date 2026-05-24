@@ -48,7 +48,7 @@ with args;
         ## external configure tests can resolve.  Apple SDK still needed for
         ## libSystem at link time; see todos #11/#13.
         compiler=${phase46-gcc-latest-bootstrap}
-        sdk=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
         ## Match the configuration that gnu-hello.nix uses successfully —
         ## phase46 wrapper internally injects -isysroot / -Wl,-syslibroot

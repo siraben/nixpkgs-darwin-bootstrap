@@ -15,7 +15,7 @@ with args;
 
         compiler=${phase46-gcc-latest-bootstrap}
         gmp=${phase26c-bootstrap-gmp}
-        sdk=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+        sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
         export PATH="$compiler/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         export CC="$compiler/bin/gcc"
