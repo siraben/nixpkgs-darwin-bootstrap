@@ -4,7 +4,7 @@ with args;
       runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
         mkdir -p $out/share/darwin-bootstrap
 
-        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \
+        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix tcc_self_ \
           ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
           tcc-from-elf.M1
 
