@@ -127,17 +127,44 @@
 	jne %ARGV_short_read
 
 	;; Validate ELF magic: bytes 0-3 at r13 must be 0x7f 'E' 'L' 'F'.
-	;; mov ecx, [r13]   (418B0D ... wait need addressing form)
 	;; mov ecx, dword ptr [r13+0]  (41 8B 4D 00)
 	!0x41 !0x8b !0x4d !0x00
 	;; cmp ecx, 0x464c457f  (81F9 imm32)
 	!0x81 !0xf9 !0x7f !0x45 !0x4c !0x46
 	jne %ARGV_not_elf
 
-	;; ELF header magic OK. For now, print "valid ELF" and exit 0
-	;; (real iteration will continue to section parsing).
-	lea_rdi,[rip+DWORD] %DATA_msg_valid_elf
-	mov_rsi, %0x12                          ; len = 18 bytes "valid ELF header\n"
+	;; e_ident[EI_CLASS] (byte at offset 4) must be 2 (ELFCLASS64)
+	;; movzx eax, byte ptr [r13+4]   (41 0F B6 45 04)
+	!0x41 !0x0f !0xb6 !0x45 !0x04
+	;; cmp al, 2
+	!0x3c !0x02
+	jne %ARGV_not_elf
+
+	;; e_ident[EI_DATA] (byte at offset 5) must be 1 (ELFDATA2LSB)
+	;; movzx eax, byte ptr [r13+5]   (41 0F B6 45 05)
+	!0x41 !0x0f !0xb6 !0x45 !0x05
+	;; cmp al, 1
+	!0x3c !0x01
+	jne %ARGV_not_elf
+
+	;; e_type (u16 at offset 16) must be 1 (ET_REL)
+	;; movzx eax, word ptr [r13+16]  (41 0F B7 45 10)
+	!0x41 !0x0f !0xb7 !0x45 !0x10
+	;; cmp ax, 1
+	!0x66 !0x83 !0xf8 !0x01
+	jne %ARGV_not_elf
+
+	;; e_machine (u16 at offset 18) must be 62 (EM_X86_64)
+	;; movzx eax, word ptr [r13+18]  (41 0F B7 45 12)
+	!0x41 !0x0f !0xb7 !0x45 !0x12
+	;; cmp ax, 62  (0x3E)
+	!0x66 !0x83 !0xf8 !0x3e
+	jne %ARGV_not_elf
+
+	;; All ELF header fields OK. Print "valid ELF64 x86_64 rel\n" and
+	;; exit 0 (full parser body comes in future iterations).
+	lea_rdi,[rip+DWORD] %DATA_msg_valid_elf64
+	mov_rsi, %0x18                          ; len = 24 bytes
 	call %FUNCTION_write_stderr
 	xor_edi,edi
 	call %FUNCTION_exit
@@ -342,6 +369,9 @@
 
 :DATA_msg_valid_elf
 	"valid ELF header\n"
+
+:DATA_msg_valid_elf64
+	"valid ELF64 x86_64 rel\n"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
