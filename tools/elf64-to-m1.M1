@@ -567,6 +567,80 @@
 	!0x48 !0x8b !0x3f
 	call %FUNCTION_print_hex64
 
+	;; ---------------------------------------------------------------
+	;; Walk symbol table: each Elf64_Sym is 24 bytes:
+	;;   st_name   u32  offset 0
+	;;   st_info   u8   offset 4
+	;;   st_other  u8   offset 5
+	;;   st_shndx  u16  offset 6
+	;;   st_value  u64  offset 8
+	;;   st_size   u64  offset 16
+	;; Print "<name> <st_value>" for every entry.
+	;; ---------------------------------------------------------------
+	lea_rdi,[rip+DWORD] %DATA_msg_symtab_hdr
+	mov_rsi, %0x10
+	call %FUNCTION_write_stderr
+
+	xor_ecx,ecx                             ; loop index
+:SYM_loop
+	;; rax = rcx * 24  (entry offset within symtab)
+	;; imul rax, rcx, 24   (48 6B C1 18)
+	!0x48 !0x6b !0xc1 !0x18
+	;; cmp rax, [rbp - 72]   (symtab_size)
+	!0x48 !0x3b !0x45 !0xb8
+	jge %SYM_loop_end
+
+	;; rdx = symtab_buf + offset  (entry pointer)
+	;; mov rdx, [rbp - 112]
+	!0x48 !0x8b !0x55 !0x90
+	;; add rdx, rax
+	!0x48 !0x01 !0xc2
+
+	;; rdi = strtab_buf + st_name
+	;; mov eax, [rdx]        (32-bit st_name)
+	!0x8b !0x02
+	;; mov rdi, [rbp - 120]  (strtab_buf)
+	!0x48 !0x8b !0x7d !0x88
+	;; add rdi, rax
+	!0x48 !0x01 !0xc7
+
+	;; Save rcx, rdx across calls
+	push_rcx
+	push_rdx
+
+	;; Print name
+	;; Save rdi for write call
+	push_rdi
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	;; pop rdi (restore name ptr — strlen preserves rdi but it was pushed,
+	;; we use the pop to drop the saved copy and restore working rdi).
+	pop_rdi
+	call %FUNCTION_write_stderr
+
+	;; Print separator " "
+	lea_rdi,[rip+DWORD] %DATA_space
+	mov_rsi, %0x01
+	call %FUNCTION_write_stderr
+
+	;; Print st_value (rdx+8)
+	;; mov rdx, [rsp]    (pull entry ptr from stack — we pushed it earlier)
+	!0x48 !0x8b !0x14 !0x24
+	;; mov rdi, [rdx + 8]
+	!0x48 !0x8b !0x7a !0x08
+	call %FUNCTION_print_hex64
+
+	;; Restore rdx, rcx (we pushed them in order rcx,rdx — now stack top is rdx)
+	pop_rdx
+	pop_rcx
+
+	;; rcx++
+	;; inc rcx
+	!0x48 !0xff !0xc1
+	jmp %SYM_loop
+:SYM_loop_end
+
 	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
 	;; mov rax, [rbp - 32]
 	!0x48 !0x8b !0x45 !0xe0
@@ -972,6 +1046,11 @@
 	"strs: "
 :DATA_lbl_text_first
 	"text[0..7]: "
+
+:DATA_msg_symtab_hdr
+	"== symbols ==\n  "
+:DATA_space
+	" "
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
