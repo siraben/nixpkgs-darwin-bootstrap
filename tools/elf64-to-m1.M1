@@ -1132,9 +1132,11 @@
 	jmp %EMIT_loop
 :EMIT_loop_end
 
-	;; Emit final newline so the dump terminates cleanly.
-	lea_rdi,[rip+DWORD] %DATA_newline
-	mov_rsi, %0x01
+	;; Emit "\n:ELF_data\n:HEX2_data\n\n" — section dividers that
+	;; downstream tools (phase5-amd64-m2.py, scripts/tinycc/tcc-darwin-
+	;; cc.sh) use to split code-side bytes from data-side bytes.
+	lea_rdi,[rip+DWORD] %DATA_section_markers
+	mov_rsi, %0x18                          ; 24 bytes
 	call %FUNCTION_write_stdout
 
 	;; Sanity: only .text/.symtab/.strtab are mandatory.  .rela.text is
@@ -1819,6 +1821,12 @@
 	!0x00
 :DATA_plus
 	"_plus_"
+:DATA_section_markers
+	!0x0a                                   ; "\n"
+	":ELF_data"
+	!0x0a                                   ; "\n"
+	":HEX2_data"
+	!0x0a !0x0a                             ; "\n\n"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
