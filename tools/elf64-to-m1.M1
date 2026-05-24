@@ -1143,16 +1143,18 @@
 	ret
 
 ## ===========================================================================
-## FUNCTION_emit_label_ref(rdi=name_ptr) — writes "\n\t%LABEL_<name>"
+## FUNCTION_emit_label_ref(rdi=name_ptr) — writes "\n\t%<name>"
 ##   to stdout.  Used by the emit loop to render symbol references at
 ##   relocation sites.  Clobbers rax/rcx/rdx/rdi/rsi.
+##   Mirrors python tools/elf64-to-m1.py: relocations emit `%<label>`
+##   where <label> is the prefix-cleaned symbol name (no extra prefix).
 ## ===========================================================================
 :FUNCTION_emit_label_ref
 	;; Save name ptr for later use.
 	push_rdi
-	;; Write "\n\t%LABEL_" (9 bytes).
+	;; Write "\n\t%" (3 bytes).
 	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
-	mov_rsi, %0x09
+	mov_rsi, %0x03
 	call %FUNCTION_write_stdout
 	;; Write the name (strlen + write).
 	;; mov rdi, [rsp]
@@ -1420,8 +1422,7 @@
 :DATA_space
 	" "
 :DATA_label_ref_prefix
-	!0x0a !0x09
-	"%LABEL_"
+	!0x0a !0x09 !0x25                       ; "\n\t%"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
