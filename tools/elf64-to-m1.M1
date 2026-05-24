@@ -49,6 +49,25 @@
 	push_rsi                                ; [rbp - 16] = argv
 	push_rdx                                ; [rbp - 24] = envp
 
+	;; Section info storage (initialized to zero).  Slots:
+	;;   [rbp - 32] = .text       sh_offset
+	;;   [rbp - 40] = .text       sh_size
+	;;   [rbp - 48] = .rela.text  sh_offset
+	;;   [rbp - 56] = .rela.text  sh_size
+	;;   [rbp - 64] = .symtab     sh_offset
+	;;   [rbp - 72] = .symtab     sh_size
+	;;   [rbp - 80] = .strtab     sh_offset
+	;;   [rbp - 88] = .strtab     sh_size
+	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+
 	;; Walk argv looking for the first positional (non-flag) argument
 	;; and treat it as the input path. argv is at [rbp - 16], a pointer
 	;; to argv[0]. We iterate from argv[1] onward looking for a string
@@ -370,6 +389,14 @@
 	;; test rax, rax
 	!0x48 !0x85 !0xc0
 	je %SECTION_check_strtab
+	;; Found .symtab: store sh_offset at [rbp-64], sh_size at [rbp-72].
+	!0x48 !0x8b !0x04 !0x24                 ; mov rax, [rsp]
+	!0x48 !0xc1 !0xe0 !0x06                 ; shl rax, 6
+	!0x48 !0x01 !0xd8                       ; add rax, rbx
+	!0x48 !0x8b !0x50 !0x18                 ; mov rdx, [rax + 24]
+	!0x48 !0x89 !0x55 !0xc0                 ; mov [rbp - 64], rdx
+	!0x48 !0x8b !0x50 !0x20                 ; mov rdx, [rax + 32]
+	!0x48 !0x89 !0x55 !0xb8                 ; mov [rbp - 72], rdx
 	lea_rdi,[rip+DWORD] %DATA_msg_found_symtab
 	mov_rsi, %0x10                          ; "  -> symtab\n   " padded
 	call %FUNCTION_write_stderr
@@ -382,6 +409,14 @@
 	!0x5f
 	!0x48 !0x85 !0xc0
 	je %SECTION_check_text
+	;; Found .strtab: store at [rbp-80] / [rbp-88].
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	!0x48 !0x8b !0x50 !0x18
+	!0x48 !0x89 !0x55 !0xb0                 ; mov [rbp - 80], rdx
+	!0x48 !0x8b !0x50 !0x20
+	!0x48 !0x89 !0x55 !0xa8                 ; mov [rbp - 88], rdx
 	lea_rdi,[rip+DWORD] %DATA_msg_found_strtab
 	mov_rsi, %0x10
 	call %FUNCTION_write_stderr
@@ -394,6 +429,14 @@
 	!0x5f
 	!0x48 !0x85 !0xc0
 	je %SECTION_check_rela_text
+	;; Found .text: store at [rbp-32] / [rbp-40].
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	!0x48 !0x8b !0x50 !0x18
+	!0x48 !0x89 !0x55 !0xe0                 ; mov [rbp - 32], rdx
+	!0x48 !0x8b !0x50 !0x20
+	!0x48 !0x89 !0x55 !0xd8                 ; mov [rbp - 40], rdx
 	lea_rdi,[rip+DWORD] %DATA_msg_found_text
 	mov_rsi, %0xe
 	call %FUNCTION_write_stderr
@@ -406,6 +449,14 @@
 	!0x5f
 	!0x48 !0x85 !0xc0
 	je %SECTION_next
+	;; Found .rela.text: store at [rbp-48] / [rbp-56].
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	!0x48 !0x8b !0x50 !0x18
+	!0x48 !0x89 !0x55 !0xd0                 ; mov [rbp - 48], rdx
+	!0x48 !0x8b !0x50 !0x20
+	!0x48 !0x89 !0x55 !0xc8                 ; mov [rbp - 56], rdx
 	lea_rdi,[rip+DWORD] %DATA_msg_found_rela_text
 	mov_rsi, %0x13
 	call %FUNCTION_write_stderr
@@ -420,7 +471,58 @@
 	jmp %SECTION_loop
 :SECTION_loop_end
 
+	;; Dump stored section info: print "section_name: <hex_offset>" for
+	;; each of .text / .rela.text / .symtab / .strtab.
+	lea_rdi,[rip+DWORD] %DATA_lbl_text
+	mov_rsi, %0x06                          ; "text: "
+	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 32]
+	!0x48 !0x8b !0x7d !0xe0
+	call %FUNCTION_print_hex64
+
+	lea_rdi,[rip+DWORD] %DATA_lbl_rela
+	mov_rsi, %0x06                          ; "rela: "
+	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 48]
+	!0x48 !0x8b !0x7d !0xd0
+	call %FUNCTION_print_hex64
+
+	lea_rdi,[rip+DWORD] %DATA_lbl_syms
+	mov_rsi, %0x06                          ; "syms: "
+	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 64]
+	!0x48 !0x8b !0x7d !0xc0
+	call %FUNCTION_print_hex64
+
+	lea_rdi,[rip+DWORD] %DATA_lbl_strs
+	mov_rsi, %0x06                          ; "strs: "
+	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 80]
+	!0x48 !0x8b !0x7d !0xb0
+	call %FUNCTION_print_hex64
+
+	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
+	;; mov rax, [rbp - 32]
+	!0x48 !0x8b !0x45 !0xe0
+	test_rax,rax
+	je %SECTION_missing
+	;; mov rax, [rbp - 48]
+	!0x48 !0x8b !0x45 !0xd0
+	test_rax,rax
+	je %SECTION_missing
+	;; mov rax, [rbp - 64]
+	!0x48 !0x8b !0x45 !0xc0
+	test_rax,rax
+	je %SECTION_missing
+	;; mov rax, [rbp - 80]
+	!0x48 !0x8b !0x45 !0xb0
+	test_rax,rax
+	je %SECTION_missing
+
 	xor_edi,edi
+	call %FUNCTION_exit
+:SECTION_missing
+	mov_rdi, %0x2                           ; exit 2 = missing section
 	call %FUNCTION_exit
 
 :ARGV_open_failed
@@ -492,6 +594,64 @@
 :FUNCTION_write_fd
 	mov_rax, %0x2000004
 	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_print_hex64(rdi=val) — prints val as 16 hex digits + "\n"
+##                                  to stderr.  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_print_hex64
+	;; Allocate 17 bytes on stack: 16 hex digits + newline.
+	;; sub rsp, 32  (4883EC20)  — 32 for alignment
+	!0x48 !0x83 !0xec !0x20
+	;; rsi = rsp (buffer start)
+	;; mov rsi, rsp  (4889E6)
+	!0x48 !0x89 !0xe6
+	;; rcx = 16 (digit count)
+	mov_rcx, %0x10
+:PHEX_loop
+	;; rdx = (rdi >> ((rcx-1)*4)) & 0xf
+	;; Easier: rotate left by 4 and take low nibble each iter (16 iters).
+	;; rol rdi, 4   (48C1C704)
+	!0x48 !0xc1 !0xc7 !0x04
+	;; mov al, dil  (4088F8)
+	!0x40 !0x88 !0xf8
+	;; and al, 0x0f
+	!0x24 !0x0f
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	jl %PHEX_digit
+	;; al >= 10: add 0x57 ('a' - 10 = 0x61 - 0x0a)
+	;; add al, 0x57
+	!0x04 !0x57
+	jmp %PHEX_emit
+:PHEX_digit
+	;; add al, 0x30 ('0')
+	!0x04 !0x30
+:PHEX_emit
+	;; mov [rsi], al  (8806)
+	!0x88 !0x06
+	;; inc rsi
+	!0x48 !0xff !0xc6
+	;; loop: dec rcx; jnz PHEX_loop
+	;; dec rcx  (48FFC9)
+	!0x48 !0xff !0xc9
+	;; test rcx,rcx
+	!0x48 !0x85 !0xc9
+	jne %PHEX_loop
+	;; mov byte [rsi], 0x0a
+	!0xc6 !0x06 !0x0a
+
+	;; write(2, rsp, 17)
+	mov_rdi, %0x2
+	;; mov rsi, rsp
+	!0x48 !0x89 !0xe6
+	mov_rdx, %0x11
+	mov_rax, %0x2000004
+	syscall
+
+	;; add rsp, 32
+	!0x48 !0x83 !0xc4 !0x20
 	ret
 
 ## ===========================================================================
@@ -688,6 +848,15 @@
 	"  -> text    \n"
 :DATA_msg_found_rela_text
 	"  -> rela.text   \n"
+
+:DATA_lbl_text
+	"text: "
+:DATA_lbl_rela
+	"rela: "
+:DATA_lbl_syms
+	"syms: "
+:DATA_lbl_strs
+	"strs: "
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
