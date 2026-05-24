@@ -748,6 +748,100 @@
 	jmp %REL_loop
 :REL_loop_end
 
+	;; ---------------------------------------------------------------
+	;; First-cut M1 emitter: walk .text byte-by-byte, emit "!0xHH ".
+	;; This produces the unrelocated body — relocations and labels are
+	;; layered on in subsequent commits.
+	;; ---------------------------------------------------------------
+	xor_ecx,ecx
+:EMIT_loop
+	;; if rcx >= text_size, exit
+	;; cmp rcx, [rbp - 40]
+	!0x48 !0x3b !0x4d !0xd8
+	jge %EMIT_loop_end
+
+	;; Linear-scan .rela.text for a relocation whose r_offset == rcx.
+	;; xor r9, r9   ; reloc counter
+	!0x4d !0x31 !0xc9
+:RELOC_check_loop
+	;; rax = r9 * 24
+	;; mov rax, r9
+	!0x4c !0x89 !0xc8
+	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
+	;; cmp rax, [rbp - 56]   (rela_size)
+	!0x48 !0x3b !0x45 !0xc8
+	jge %RELOC_check_none
+
+	;; rdx = rela_buf + offset
+	;; mov rdx, [rbp - 104]
+	!0x48 !0x8b !0x55 !0x98
+	;; add rdx, rax
+	!0x48 !0x01 !0xc2
+
+	;; Compare [rdx] (r_offset) with rcx
+	;; mov rax, [rdx]
+	!0x48 !0x8b !0x02
+	;; cmp rax, rcx
+	!0x48 !0x39 !0xc8
+	je %RELOC_check_match
+
+	;; inc r9
+	!0x49 !0xff !0xc1
+	jmp %RELOC_check_loop
+
+:RELOC_check_none
+	;; No relocation — emit raw byte.
+	;; rdx = text_buf + rcx
+	!0x48 !0x8b !0x55 !0xa0
+	!0x48 !0x01 !0xca
+	;; movzx edi, byte [rdx]
+	!0x0f !0xb6 !0x3a
+	push_rcx
+	call %FUNCTION_emit_byte_hex
+	pop_rcx
+	;; inc rcx; loop
+	!0x48 !0xff !0xc1
+	jmp %EMIT_loop
+
+:RELOC_check_match
+	;; rdx points to the matched Elf64_Rela.  sym_index = high 32 of
+	;; (rdx + 8) (r_info).
+	;; mov rax, [rdx + 8]
+	!0x48 !0x8b !0x42 !0x08
+	;; shr rax, 32
+	!0x48 !0xc1 !0xe8 !0x20
+	;; rax = sym_index
+	;; sym_entry = symtab + sym_index * 24
+	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
+	;; mov r10, [rbp - 112]   (symtab_buf)
+	!0x4c !0x8b !0x55 !0x90
+	;; add r10, rax
+	!0x49 !0x01 !0xc2
+
+	;; name_ptr = strtab_buf + [r10] (st_name u32)
+	;; mov eax, [r10]
+	!0x41 !0x8b !0x02
+	;; mov rdi, [rbp - 120]   (strtab_buf)
+	!0x48 !0x8b !0x7d !0x88
+	;; add rdi, rax
+	!0x48 !0x01 !0xc7
+
+	;; Emit "\n\t%LABEL_<name>"
+	push_rcx
+	call %FUNCTION_emit_label_ref
+	pop_rcx
+
+	;; Advance rcx by 4 (skip the 32-bit relocation slot).
+	;; add rcx, 4
+	!0x48 !0x83 !0xc1 !0x04
+	jmp %EMIT_loop
+:EMIT_loop_end
+
+	;; Emit final newline so the dump terminates cleanly.
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+
 	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
 	;; mov rax, [rbp - 32]
 	!0x48 !0x8b !0x45 !0xe0
@@ -976,6 +1070,98 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_emit_label_ref(rdi=name_ptr) — writes "\n\t%LABEL_<name>"
+##   to stdout.  Used by the emit loop to render symbol references at
+##   relocation sites.  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_label_ref
+	;; Save name ptr for later use.
+	push_rdi
+	;; Write "\n\t%LABEL_" (9 bytes).
+	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
+	mov_rsi, %0x09
+	call %FUNCTION_write_stdout
+	;; Write the name (strlen + write).
+	;; mov rdi, [rsp]
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	;; mov rdi, [rsp]
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_write_stdout
+	;; Pop the saved name ptr (discarded after use).
+	pop_rdi
+	ret
+
+## ===========================================================================
+## FUNCTION_emit_byte_hex(rdi=byte_val) — writes "!0xHH " (6 bytes) to
+##   stdout.  Used by the M1 output emitter to produce one byte per
+##   .text byte.  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_byte_hex
+	;; Allocate 8 bytes on stack; we use 6 ("!0xHH ").
+	;; sub rsp, 8
+	!0x48 !0x83 !0xec !0x08
+	;; rsi = rsp (buffer)
+	!0x48 !0x89 !0xe6
+	;; mov byte [rsi+0], 0x21  '!'
+	!0xc6 !0x06 !0x21
+	;; mov byte [rsi+1], 0x30  '0'
+	!0xc6 !0x46 !0x01 !0x30
+	;; mov byte [rsi+2], 0x78  'x'
+	!0xc6 !0x46 !0x02 !0x78
+
+	;; High nibble = (rdi >> 4) & 0xf
+	;; mov rax, rdi
+	!0x48 !0x89 !0xf8
+	;; shr rax, 4
+	!0x48 !0xc1 !0xe8 !0x04
+	;; and al, 0x0f
+	!0x24 !0x0f
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	jl %EBH_hi_digit
+	;; add al, 0x57  ('a' - 10)
+	!0x04 !0x57
+	jmp %EBH_hi_emit
+:EBH_hi_digit
+	!0x04 !0x30                              ; add al, 0x30  ('0')
+:EBH_hi_emit
+	;; mov [rsi+3], al   (88 46 03)
+	!0x88 !0x46 !0x03
+
+	;; Low nibble = rdi & 0xf
+	;; mov rax, rdi
+	!0x48 !0x89 !0xf8
+	;; and al, 0x0f
+	!0x24 !0x0f
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	jl %EBH_lo_digit
+	!0x04 !0x57
+	jmp %EBH_lo_emit
+:EBH_lo_digit
+	!0x04 !0x30
+:EBH_lo_emit
+	;; mov [rsi+4], al   (88 46 04)
+	!0x88 !0x46 !0x04
+	;; mov byte [rsi+5], 0x20  ' '
+	!0xc6 !0x46 !0x05 !0x20
+
+	;; write(1, rsi, 6)
+	mov_rdi, %0x1
+	;; mov rsi, rsp (already there but write hadn't been called between)
+	!0x48 !0x89 !0xe6
+	mov_rdx, %0x6
+	mov_rax, %0x2000004
+	syscall
+
+	;; add rsp, 8
+	!0x48 !0x83 !0xc4 !0x08
+	ret
+
+## ===========================================================================
 ## FUNCTION_load_section(rdi=offset, rsi=size, rdx=fd) — mmap a buffer,
 ##   lseek the fd to offset, read size bytes into the buffer, and return
 ##   the buffer pointer in rax.  Caller is responsible for storing the
@@ -1160,6 +1346,9 @@
 	"== relocs  ==\n  "
 :DATA_space
 	" "
+:DATA_label_ref_prefix
+	!0x0a !0x09
+	"%LABEL_"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
