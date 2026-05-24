@@ -753,6 +753,79 @@
 	;; This produces the unrelocated body — relocations and labels are
 	;; layered on in subsequent commits.
 	;; ---------------------------------------------------------------
+	;; ---------------------------------------------------------------
+	;; GOT-load mutation pre-pass.  For relocations of type
+	;; R_X86_64_GOTPCREL(0x9) / GOTPCRELX(0x29) / REX_GOTPCRELX(0x2a),
+	;; flip the preceding 'mov' opcode byte (0x8b) to 'lea' (0x8d):
+	;; we are substituting the symbol's direct address for the GOT
+	;; load.  Mirrors python tools/elf64-to-m1.py mutate_got_load.
+	;; ---------------------------------------------------------------
+	xor_ecx,ecx
+:GOTMUT_loop
+	;; rax = rcx * 24
+	;; mov rax, rcx
+	!0x48 !0x89 !0xc8
+	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
+	;; cmp rax, [rbp - 56]   (rela_size)
+	!0x48 !0x3b !0x45 !0xc8
+	jge %GOTMUT_done
+
+	;; rdx = rela_buf + offset
+	;; mov rdx, [rbp - 104]
+	!0x48 !0x8b !0x55 !0x98
+	;; add rdx, rax
+	!0x48 !0x01 !0xc2
+
+	;; r_type = low 32 of r_info (rdx+8)
+	;; mov eax, [rdx + 8]
+	!0x8b !0x42 !0x08
+
+	;; if r_type == 9, mutate
+	;; cmp eax, 9
+	!0x83 !0xf8 !0x09
+	je %GOTMUT_mutate
+	;; if r_type == 0x29
+	!0x83 !0xf8 !0x29
+	je %GOTMUT_mutate
+	;; if r_type == 0x2a
+	!0x83 !0xf8 !0x2a
+	je %GOTMUT_mutate
+	jmp %GOTMUT_next
+
+:GOTMUT_mutate
+	;; r10 = text_buf + r_offset (rdx + 0)
+	;; mov r9, [rdx]
+	!0x4c !0x8b !0x0a
+	;; mov r10, [rbp - 96]   (text_buf)
+	!0x4c !0x8b !0x55 !0xa0
+	;; add r10, r9
+	!0x4d !0x01 !0xca
+
+	;; Try r10[-2] first
+	;; movzx eax, byte [r10 - 2]
+	!0x41 !0x0f !0xb6 !0x42 !0xfe
+	;; cmp al, 0x8b
+	!0x3c !0x8b
+	jne %GOTMUT_try_minus1
+	;; mov byte [r10 - 2], 0x8d
+	!0x41 !0xc6 !0x42 !0xfe !0x8d
+	jmp %GOTMUT_next
+
+:GOTMUT_try_minus1
+	;; movzx eax, byte [r10 - 1]
+	!0x41 !0x0f !0xb6 !0x42 !0xff
+	;; cmp al, 0x8b
+	!0x3c !0x8b
+	jne %GOTMUT_next                        ; neither matched — skip silently
+	;; mov byte [r10 - 1], 0x8d
+	!0x41 !0xc6 !0x42 !0xff !0x8d
+
+:GOTMUT_next
+	;; inc rcx
+	!0x48 !0xff !0xc1
+	jmp %GOTMUT_loop
+:GOTMUT_done
+
 	xor_ecx,ecx
 :EMIT_loop
 	;; if rcx >= text_size, exit
