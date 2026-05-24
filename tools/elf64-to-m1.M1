@@ -49,18 +49,111 @@
 	push_rsi                                ; [rbp - 16] = argv
 	push_rdx                                ; [rbp - 24] = envp
 
-	;; TODO: when the argv parser and ELF logic are wired, dispatch here.
-	;; For now, emit a clear "not yet implemented" diagnostic so the
-	;; build harness can detect this is the placeholder build.
+	;; Walk argv looking for the first positional (non-flag) argument
+	;; and treat it as the input path. argv is at [rbp - 16], a pointer
+	;; to argv[0]. We iterate from argv[1] onward looking for a string
+	;; whose first byte is NOT '-'.
 
-	lea_rdi,[rip+DWORD] %DATA_msg_notimpl   ; rdi = msg ptr
-	mov_rsi, %0x21                          ; rsi = msg len (33 bytes)
+	call %FUNCTION_argv                     ; rax = argv (char**)
+	;; rbx = argv pointer
+	;; mov rbx, rax  (4889C3)
+	!0x48 !0x89 !0xc3
+	;; rbx += 8  -> argv[1]
+	;; add rbx, 8  (4883C308)
+	!0x48 !0x83 !0xc3 !0x08
+
+:ARGV_loop
+	;; mov rcx, [rbx]   (488B0B)  — current argv[i]
+	!0x48 !0x8b !0x0b
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	je %ARGV_no_input                       ; NULL terminator → no input path
+
+	;; movzx eax, byte [rcx]   (0FB601)
+	!0x0f !0xb6 !0x01
+	;; cmp al, 0x2d  ('-')
+	!0x3c !0x2d
+	jne %ARGV_found_input                   ; first byte != '-' → positional
+
+	;; skip flag, advance argv pointer
+	;; add rbx, 8
+	!0x48 !0x83 !0xc3 !0x08
+	jmp %ARGV_loop
+
+:ARGV_no_input
+	;; No positional found. Print usage to stderr and exit 64 (EX_USAGE).
+	lea_rdi,[rip+DWORD] %DATA_msg_usage
+	mov_rsi, %0x40                          ; len = 64 bytes
 	call %FUNCTION_write_stderr
-
-	mov_rdi, %0x2a                          ; status = 42
+	mov_rdi, %0x40
 	call %FUNCTION_exit
-	;; should never reach
-	ret
+
+:ARGV_found_input
+	;; rcx points at the input path string. Open it read-only.
+	;; mov rdi, rcx   (4889CF)
+	!0x48 !0x89 !0xcf
+	call %FUNCTION_open_ro
+	;; rax = fd  (or negative on failure)
+	test_rax,rax
+	jl %ARGV_open_failed                    ; jl = signed less, true if rax < 0
+	;; Save fd at GLOBAL_INPUT_FD
+	;; mov [rip+DWORD] GLOBAL_INPUT_FD, eax    (rip-rel store 32-bit)
+	;; For simplicity use mov [rip+DWORD], rax (488905) — overwrites 8 bytes
+	lea_rbx,[rip+DWORD] %GLOBAL_INPUT_FD
+	;; mov [rbx], eax   (8903)
+	!0x89 !0x03
+
+	;; Read 64 bytes (size of ELF64 header) into a static buffer.
+	;; rdi = fd, rsi = buf, rdx = 64
+	;; mov rdi, rax
+	!0x48 !0x89 !0xc7
+	lea_rsi,[rip+DWORD] %BUFFER_elf_header
+	mov_rdx, %0x40
+	call %FUNCTION_read_n
+
+	;; rax = bytes read; must be 64.
+	;; cmp rax, 64
+	cmp_rax,BYTE !0x40
+	jne %ARGV_short_read
+
+	;; Validate ELF magic: bytes 0-3 must be 0x7f 'E' 'L' 'F'.
+	lea_rax,[rip+DWORD] %BUFFER_elf_header
+	;; mov ecx, [rax]   (8B08)
+	!0x8b !0x08
+	;; cmp ecx, 0x464c457f  ('\x7fELF' LE)
+	;; mov edx, 0x464c457f / cmp ecx, edx via long form
+	;; cmp ecx, imm32  (81F9 imm32)
+	!0x81 !0xf9 !0x7f !0x45 !0x4c !0x46
+	jne %ARGV_not_elf
+
+	;; ELF header magic OK. For now, print "valid ELF" and exit 0
+	;; (real iteration will continue to section parsing).
+	lea_rdi,[rip+DWORD] %DATA_msg_valid_elf
+	mov_rsi, %0x12                          ; len = 18 bytes "valid ELF header\n"
+	call %FUNCTION_write_stderr
+	xor_edi,edi
+	call %FUNCTION_exit
+
+:ARGV_open_failed
+	lea_rdi,[rip+DWORD] %DATA_msg_open_failed
+	mov_rsi, %0x1a                          ; len = 26 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, %0x4a                          ; exit 74 (EX_IOERR)
+	call %FUNCTION_exit
+
+:ARGV_short_read
+	lea_rdi,[rip+DWORD] %DATA_msg_short_read
+	mov_rsi, %0x21                          ; len = 33 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, %0x41
+	call %FUNCTION_exit
+
+:ARGV_not_elf
+	lea_rdi,[rip+DWORD] %DATA_msg_not_elf
+	mov_rsi, %0x3c                          ; len = 60 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, %0x41
+	call %FUNCTION_exit
 
 ## ===========================================================================
 ## FUNCTION_exit(rdi=status) — call Darwin SYS_exit, never returns
@@ -238,6 +331,19 @@
 
 :DATA_msg_usage
 	"usage: elf64-to-m1 [--prefix=PFX] [--symbols] input.o [output.M1]"
+
+:DATA_msg_valid_elf
+	"valid ELF header\n"
+
+:DATA_msg_short_read
+	"elf64-to-m1: short read on ELF header"
+
+## ELF64 header buffer (64 bytes)
+:BUFFER_elf_header
+	%0x00000000 %0x00000000 %0x00000000 %0x00000000
+	%0x00000000 %0x00000000 %0x00000000 %0x00000000
+	%0x00000000 %0x00000000 %0x00000000 %0x00000000
+	%0x00000000 %0x00000000 %0x00000000 %0x00000000
 
 ## Globals — bump-allocated working memory pointer + cursor
 :GLOBAL_BASE
