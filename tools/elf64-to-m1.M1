@@ -212,9 +212,68 @@
 	mov_rax, %0x2000003                     ; SYS_read
 	syscall
 
-	;; Print summary "ELF sections read: <n>\n" — for now just static msg
+	;; Print summary "ELF sections loaded\n"
 	lea_rdi,[rip+DWORD] %DATA_msg_sections_loaded
-	mov_rsi, %0x18                          ; len = 24 bytes ("ELF sections loaded\n" + padding)
+	mov_rsi, %0x14                          ; len = 20 bytes
+	call %FUNCTION_write_stderr
+
+	;; Load shstrtab content.  e_shstrndx is at header offset 0x3e (u16).
+	;; movzx eax, word ptr [r13 + 0x3e]   (41 0F B7 45 3E)
+	!0x41 !0x0f !0xb7 !0x45 !0x3e
+	;; Compute pointer to shstrtab's section header:
+	;;   rbp_arg = rbx + eax * 64  (rbp is our frame base, can't clobber;
+	;;   reuse rcx for temp)
+	;; mov rcx, rax  (4889C1)
+	!0x48 !0x89 !0xc1
+	;; shl rcx, 6   (48C1E106)
+	!0x48 !0xc1 !0xe1 !0x06
+	;; add rcx, rbx   (4801D9)
+	!0x48 !0x01 !0xd9
+	;; rcx now points at section header N (shstrtab) — its sh_offset
+	;; is at +24 (u64) and sh_size at +32 (u64).
+	;; mov r14, [rcx + 24]   (4C 8B 71 18)   r14 = sh_offset
+	!0x4c !0x8b !0x71 !0x18
+	;; mov r15, [rcx + 32]   (4C 8B 79 20)   r15 = sh_size
+	!0x4c !0x8b !0x79 !0x20
+
+	;; mmap r15 + 0x1000 bytes for shstrtab buffer (page-aligned).
+	;; mov rdi, r15
+	!0x4c !0x89 !0xff
+	;; add rdi, 0xfff   (48 81 C7 FF 0F 00 00)
+	!0x48 !0x81 !0xc7 !0xff !0x0f !0x00 !0x00
+	;; and rdi, ~0xfff   (48 81 E7 00 F0 FF FF)
+	!0x48 !0x81 !0xe7 !0x00 !0xf0 !0xff !0xff
+	call %FUNCTION_mmap_anon
+	;; Save shstrtab base in rbp-displaced slot (rbp is our frame base).
+	;; Actually let's just keep it in another callee-saved reg: use rbx
+	;; offset.  But rbx is our section table base.  We need another
+	;; callee-saved register; push rax on stack.
+	;; push rax
+	!0x50
+
+	;; Seek + read shstrtab:
+	;;   lseek(r12, r14, 0); read(r12, ptr=rsp[0], r15)
+	;; mov rdi, r12
+	!0x4c !0x89 !0xe7
+	;; mov rsi, r14
+	!0x4c !0x89 !0xf6
+	xor_edx,edx
+	mov_rax, %0x20000c7
+	syscall
+	;; mov rdi, r12
+	!0x4c !0x89 !0xe7
+	;; mov rsi, [rsp]   (488B3424)
+	!0x48 !0x8b !0x34 !0x24
+	;; mov rdx, r15
+	!0x4c !0x89 !0xfa
+	mov_rax, %0x2000003
+	syscall
+	;; pop discard
+	!0x58
+
+	;; Print "shstrtab loaded\n"
+	lea_rdi,[rip+DWORD] %DATA_msg_shstrtab
+	mov_rsi, %0x10                          ; len = 16 bytes
 	call %FUNCTION_write_stderr
 
 	xor_edi,edi
@@ -426,6 +485,9 @@
 
 :DATA_msg_sections_loaded
 	"ELF sections loaded\n"
+
+:DATA_msg_shstrtab
+	"shstrtab loaded\n"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
