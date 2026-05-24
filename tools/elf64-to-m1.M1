@@ -58,7 +58,15 @@
 	;;   [rbp - 72] = .symtab     sh_size
 	;;   [rbp - 80] = .strtab     sh_offset
 	;;   [rbp - 88] = .strtab     sh_size
+	;;   [rbp - 96] = .text       buffer pointer (filled after loop)
+	;;   [rbp -104] = .rela.text  buffer pointer
+	;;   [rbp -112] = .symtab     buffer pointer
+	;;   [rbp -120] = .strtab     buffer pointer
 	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
 	push_rax
 	push_rax
 	push_rax
@@ -501,6 +509,64 @@
 	!0x48 !0x8b !0x7d !0xb0
 	call %FUNCTION_print_hex64
 
+	;; ---------------------------------------------------------------
+	;; Load each section's bytes into a freshly-mmapped buffer.
+	;; Buffer pointers stored at [rbp-96]/-104/-112/-120 respectively.
+	;; ---------------------------------------------------------------
+	;; .text
+	;; mov rdi, [rbp - 32]   ; offset
+	!0x48 !0x8b !0x7d !0xe0
+	;; mov rsi, [rbp - 40]   ; size
+	!0x48 !0x8b !0x75 !0xd8
+	;; mov rdx, r12          ; fd
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 96], rax
+	!0x48 !0x89 !0x45 !0xa0
+
+	;; .rela.text
+	;; mov rdi, [rbp - 48]
+	!0x48 !0x8b !0x7d !0xd0
+	;; mov rsi, [rbp - 56]
+	!0x48 !0x8b !0x75 !0xc8
+	;; mov rdx, r12
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 104], rax
+	!0x48 !0x89 !0x45 !0x98
+
+	;; .symtab
+	;; mov rdi, [rbp - 64]
+	!0x48 !0x8b !0x7d !0xc0
+	;; mov rsi, [rbp - 72]
+	!0x48 !0x8b !0x75 !0xb8
+	;; mov rdx, r12
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 112], rax
+	!0x48 !0x89 !0x45 !0x90
+
+	;; .strtab
+	;; mov rdi, [rbp - 80]
+	!0x48 !0x8b !0x7d !0xb0
+	;; mov rsi, [rbp - 88]
+	!0x48 !0x8b !0x75 !0xa8
+	;; mov rdx, r12
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 120], rax
+	!0x48 !0x89 !0x45 !0x88
+
+	;; Sanity dump: print first u64 of .text contents.
+	lea_rdi,[rip+DWORD] %DATA_lbl_text_first
+	mov_rsi, %0x0c                          ; "text[0..7]: "
+	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 96]   ; text buf
+	!0x48 !0x8b !0x7d !0xa0
+	;; mov rdi, [rdi]        ; first 8 bytes
+	!0x48 !0x8b !0x3f
+	call %FUNCTION_print_hex64
+
 	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
 	;; mov rax, [rbp - 32]
 	!0x48 !0x8b !0x45 !0xe0
@@ -729,6 +795,53 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_load_section(rdi=offset, rsi=size, rdx=fd) — mmap a buffer,
+##   lseek the fd to offset, read size bytes into the buffer, and return
+##   the buffer pointer in rax.  Caller is responsible for storing the
+##   returned pointer (we do not retain it).
+## ===========================================================================
+:FUNCTION_load_section
+	;; Save args on stack: rdi=offset, rsi=size, rdx=fd.
+	push_rdi                                ; [rsp+24] = offset (after later pushes)
+	push_rsi                                ; [rsp+16] = size
+	push_rdx                                ; [rsp+ 8] = fd
+
+	;; mmap_anon((size + 0xfff) & ~0xfff)
+	;; mov rdi, rsi
+	!0x48 !0x89 !0xf7
+	;; add rdi, 0xfff
+	!0x48 !0x81 !0xc7 !0xff !0x0f !0x00 !0x00
+	;; and rdi, ~0xfff   (0xFFFFFFFFFFFFF000 — sign-extended imm32 0xFFFFF000)
+	!0x48 !0x81 !0xe7 !0x00 !0xf0 !0xff !0xff
+	call %FUNCTION_mmap_anon
+	push_rax                                ; [rsp] = buf
+
+	;; lseek(fd, offset, SEEK_SET=0)
+	;; mov rdi, [rsp+8]    fd
+	!0x48 !0x8b !0x7c !0x24 !0x08
+	;; mov rsi, [rsp+24]   offset
+	!0x48 !0x8b !0x74 !0x24 !0x18
+	xor_edx,edx
+	mov_rax, %0x20000c7
+	syscall
+
+	;; read(fd, buf, size)
+	;; mov rdi, [rsp+8]    fd
+	!0x48 !0x8b !0x7c !0x24 !0x08
+	;; mov rsi, [rsp]      buf
+	!0x48 !0x8b !0x34 !0x24
+	;; mov rdx, [rsp+16]   size
+	!0x48 !0x8b !0x54 !0x24 !0x10
+	mov_rax, %0x2000003
+	syscall
+
+	;; Return buf in rax: mov rax, [rsp]
+	!0x48 !0x8b !0x04 !0x24
+	;; add rsp, 32
+	!0x48 !0x83 !0xc4 !0x20
+	ret
+
+## ===========================================================================
 ## FUNCTION_mmap_anon(rdi=len) — anonymous mmap; returns base ptr in rax.
 ##   addr=0, prot=PROT_READ|PROT_WRITE=3, flags=MAP_PRIVATE|MAP_ANON=0x1002,
 ##   fd=-1, offset=0
@@ -857,6 +970,8 @@
 	"syms: "
 :DATA_lbl_strs
 	"strs: "
+:DATA_lbl_text_first
+	"text[0..7]: "
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
