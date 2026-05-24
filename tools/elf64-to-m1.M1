@@ -1,17 +1,15 @@
 ## tools/elf64-to-m1.M1
 ##
 ## Hand-written x86_64 Darwin Mach-O implementation of the ELF→M1 converter.
-## Bootstraps through the existing M1+hex2 chain (no Python in the closure).
+## Bootstraps through the existing M1+hex2 chain (no Python in this phase's
+## closure).  This is a work-in-progress: the helper layer (syscalls,
+## strings, simple I/O) is here; the actual ELF parser + M1 emitter is
+## stubbed.  Future iterations grow the parser body.
 ##
-## This file is built iteratively. Current milestone: minimal Darwin Mach-O
-## that exits with status 0. Future iterations add ELF parsing and M1 emission.
+## Calling convention used internally:
+##   System V amd64 — args in rdi/rsi/rdx/rcx/r8/r9; return in rax.
+##   We preserve rbx/rbp/r12-r15 across calls.
 ##
-## Build:
-##   M1 -f amd64_defs.M1 -f elf64-to-m1.M1 -o elf64-to-m1.hex2
-##   hex2 (with MACHO-amd64.hex2 prefix) elf64-to-m1.hex2 -> Mach-O binary
-##
-## See phase26b-elf64-to-m1.nix for the assembly pipeline.
-
 ## ===========================================================================
 ## ELF64 constants (referenced by future iterations)
 ## ===========================================================================
@@ -39,32 +37,188 @@
 ## SYS_close = 0x02000006
 ## SYS_lseek = 0x020000c7
 ## SYS_mmap  = 0x020000c5
+## SYS_fstat = 0x02000153  (fstat64 on legacy ABI)
 
 ## ===========================================================================
 ## ENTRY POINT (Darwin LC_MAIN ABI: rdi=argc, rsi=argv, rdx=envp)
-## Current behavior: write "elf64-to-m1: not yet implemented\n" to stderr
-## and exit 42 so the build harness can detect the placeholder.
 ## ===========================================================================
 :_start
 
 	mov_rbp,rsp
-	push_rdi                                ; argc
-	push_rsi                                ; argv
-	push_rdx                                ; envp
+	push_rdi                                ; [rbp - 8]  = argc
+	push_rsi                                ; [rbp - 16] = argv
+	push_rdx                                ; [rbp - 24] = envp
 
-	;; write(2, msg, msg_len)  — Darwin SYS_write = 0x02000004
-	mov_rax, %0x2000004
-	mov_rdi, %0x2                           ; fd = stderr
-	lea_rsi,[rip+DWORD] %DATA_msg_notimpl   ; msg ptr
-	mov_rdx, %0x26                          ; msg_len = 38 bytes (33 chars + ?)
-	syscall
+	;; TODO: when the argv parser and ELF logic are wired, dispatch here.
+	;; For now, emit a clear "not yet implemented" diagnostic so the
+	;; build harness can detect this is the placeholder build.
 
-	;; exit(42)
-	mov_rdi, %0x2a
-	mov_rax, %0x2000001                     ; SYS_exit
-	syscall
+	lea_rdi,[rip+DWORD] %DATA_msg_notimpl   ; rdi = msg ptr
+	mov_rsi, %0x21                          ; rsi = msg len (33 bytes)
+	call %FUNCTION_write_stderr
 
+	mov_rdi, %0x2a                          ; status = 42
+	call %FUNCTION_exit
 	;; should never reach
+	ret
+
+## ===========================================================================
+## FUNCTION_exit(rdi=status) — call Darwin SYS_exit, never returns
+## ===========================================================================
+:FUNCTION_exit
+	mov_rax, %0x2000001
+	syscall
+	;; if syscall returned, hang on a 1-byte read from fd -1
+	mov_rdi, %0xffffffff
+	xor_eax,eax
+	mov_rax, %0x2000003
+	syscall
+	jmp %FUNCTION_exit
+
+## ===========================================================================
+## FUNCTION_write_stderr(rdi=buf, rsi=len) — write to fd 2; returns nbytes.
+## Caller-saves rax/rcx/r11 per amd64 syscall ABI.
+## ===========================================================================
+:FUNCTION_write_stderr
+	;; Darwin SYS_write(fd=2, buf, len). Caller passed buf in rdi, len in rsi.
+	;; Need:  rdi <- 2,  rsi <- buf (the caller's rdi), rdx <- len (caller's rsi)
+	;; mov rdx, rsi   (4889F2) — amd64_defs lacks this, raw bytes
+	!0x48 !0x89 !0xf2
+	;; mov rsi, rdi   (4889FE) — also missing
+	!0x48 !0x89 !0xfe
+	mov_rdi, %0x2
+	mov_rax, %0x2000004
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_write_stdout(rdi=buf, rsi=len) — write to fd 1; returns nbytes.
+## ===========================================================================
+:FUNCTION_write_stdout
+	;; mov rdx, rsi
+	!0x48 !0x89 !0xf2
+	;; mov rsi, rdi
+	!0x48 !0x89 !0xfe
+	mov_rdi, %0x1
+	mov_rax, %0x2000004
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_write_fd(rdi=fd, rsi=buf, rdx=len) — generic write
+## ===========================================================================
+:FUNCTION_write_fd
+	mov_rax, %0x2000004
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_strlen(rdi=ptr) — returns byte count up to NUL in rax.
+## ===========================================================================
+:FUNCTION_strlen
+	mov_rax,rdi                              ; rax = walk pointer
+:STRLEN_loop
+	;; cmp byte ptr [rax], 0
+	!0x80 !0x38 !0x00
+	je %STRLEN_done
+	;; inc rax
+	!0x48 !0xff !0xc0
+	jmp %STRLEN_loop
+:STRLEN_done
+	;; sub rax, rdi   (4829F8) — not in amd64_defs, raw bytes
+	!0x48 !0x29 !0xf8
+	ret
+
+## ===========================================================================
+## FUNCTION_open_ro(rdi=path) — open(path, O_RDONLY=0); returns fd in rax.
+## ===========================================================================
+:FUNCTION_open_ro
+	xor_esi,esi                              ; rsi = O_RDONLY (0)
+	xor_edx,edx                              ; rdx = mode (0, unused)
+	mov_rax, %0x2000005                      ; SYS_open
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_close(rdi=fd) — SYS_close
+## ===========================================================================
+:FUNCTION_close
+	mov_rax, %0x2000006
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_read_n(rdi=fd, rsi=buf, rdx=count) — SYS_read; returns nbytes
+## ===========================================================================
+:FUNCTION_read_n
+	mov_rax, %0x2000003
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_mmap_anon(rdi=len) — anonymous mmap; returns base ptr in rax.
+##   addr=0, prot=PROT_READ|PROT_WRITE=3, flags=MAP_PRIVATE|MAP_ANON=0x1002,
+##   fd=-1, offset=0
+## ===========================================================================
+:FUNCTION_mmap_anon
+	;; mov rsi, rdi   (caller passed len in rdi; move to rsi)
+	!0x48 !0x89 !0xfe
+	xor_edi,edi                              ; rdi = addr (0)
+	mov_rdx, %0x3                            ; rdx = prot
+	;; mov r10, 0x1002  (MAP_ANON|MAP_PRIVATE)
+	!0x49 !0xc7 !0xc2 !0x02 !0x10 !0x00 !0x00
+	;; mov r8, -1  (fd, all-ones)
+	!0x49 !0xc7 !0xc0 !0xff !0xff !0xff !0xff
+	;; xor r9, r9   (offset)
+	!0x4d !0x31 !0xc9
+	mov_rax, %0x20000c5
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_argc() — returns argc in rax  (read from [rbp - 8] frame slot)
+## ===========================================================================
+:FUNCTION_argc
+	;; mov rax, [rbp - 8]
+	!0x48 !0x8b !0x45 !0xf8
+	ret
+
+## ===========================================================================
+## FUNCTION_argv() — returns argv pointer in rax (read from [rbp - 16])
+## ===========================================================================
+:FUNCTION_argv
+	;; mov rax, [rbp - 16]
+	!0x48 !0x8b !0x45 !0xf0
+	ret
+
+## ===========================================================================
+## FUTURE WORK STUBS — fill in iteratively.
+## ===========================================================================
+:FUNCTION_parse_args
+	ret
+
+:FUNCTION_load_input
+	ret
+
+:FUNCTION_parse_elf_header
+	ret
+
+:FUNCTION_parse_sections
+	ret
+
+:FUNCTION_parse_symbols
+	ret
+
+:FUNCTION_parse_relocations
+	ret
+
+:FUNCTION_build_labels
+	ret
+
+:FUNCTION_emit_output
+	ret
+
+:FUNCTION_write_output
 	ret
 
 ## ===========================================================================
@@ -74,4 +228,32 @@
 :HEX2_data
 
 :DATA_msg_notimpl
-	"elf64-to-m1: not yet implemented\n"
+	"elf64-to-m1: not yet implemented"
+
+:DATA_msg_not_elf
+	"elf64-to-m1: input is not an ELF64 little-endian relocatable"
+
+:DATA_msg_open_failed
+	"elf64-to-m1: open() failed"
+
+:DATA_msg_usage
+	"usage: elf64-to-m1 [--prefix=PFX] [--symbols] input.o [output.M1]"
+
+## Globals — bump-allocated working memory pointer + cursor
+:GLOBAL_BASE
+	%0x00000000 %0x00000000
+
+:GLOBAL_INPUT_FD
+	%0x00000000
+
+:GLOBAL_INPUT_PATH_PTR
+	%0x00000000 %0x00000000
+
+:GLOBAL_OUTPUT_PATH_PTR
+	%0x00000000 %0x00000000
+
+:GLOBAL_PREFIX_PTR
+	%0x00000000 %0x00000000
+
+:GLOBAL_SYMBOLS_MODE
+	%0x00000000
