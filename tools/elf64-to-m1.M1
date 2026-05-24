@@ -161,11 +161,62 @@
 	!0x66 !0x83 !0xf8 !0x3e
 	jne %ARGV_not_elf
 
-	;; All ELF header fields OK. Print "valid ELF64 x86_64 rel\n" and
-	;; exit 0 (full parser body comes in future iterations).
-	lea_rdi,[rip+DWORD] %DATA_msg_valid_elf64
-	mov_rsi, %0x18                          ; len = 24 bytes
+	;; All ELF header fields OK. Read section header table info:
+	;;   e_shoff      at offset 0x28 (8 bytes)
+	;;   e_shentsize  at offset 0x3a (2 bytes)
+	;;   e_shnum      at offset 0x3c (2 bytes)
+	;;   e_shstrndx   at offset 0x3e (2 bytes)
+
+	;; mov r14, [r13 + 0x28]   (4D 8B 75 28)  — r14 = e_shoff
+	!0x4d !0x8b !0x75 !0x28
+	;; movzx r15d, word ptr [r13 + 0x3c]   (45 0F B7 7D 3C)  — r15 = e_shnum
+	!0x45 !0x0f !0xb7 !0x7d !0x3c
+
+	;; Allocate buffer for section header table:
+	;;   bytes = e_shnum * 64
+	;; mov rax, r15   (4C 89 F8)
+	!0x4c !0x89 !0xf8
+	;; shl rax, 6   (48 C1 E0 06)   — multiply by 64
+	!0x48 !0xc1 !0xe0 !0x06
+	;; Round up to next page (add 0xfff, mask 0xfffffffffffff000)
+	;; add rax, 0xfff   (48 05 FF 0F 00 00)
+	!0x48 !0x05 !0xff !0x0f !0x00 !0x00
+	;; and rax, ~0xfff   (48 25 00 F0 FF FF — sign-extended -0x1000)
+	!0x48 !0x25 !0x00 !0xf0 !0xff !0xff
+	;; mov rdi, rax
+	!0x48 !0x89 !0xc7
+	call %FUNCTION_mmap_anon
+	;; Save section table base in rbx (callee-saved)
+	;; mov rbx, rax
+	!0x48 !0x89 !0xc3
+
+	;; Seek input fd to e_shoff:  lseek(r12, r14, SEEK_SET=0)
+	;; mov rdi, r12
+	!0x4c !0x89 !0xe7
+	;; mov rsi, r14
+	!0x4c !0x89 !0xf6
+	xor_edx,edx
+	mov_rax, %0x20000c7                     ; SYS_lseek
+	syscall
+
+	;; Read e_shnum * 64 bytes into rbx
+	;; mov rdi, r12
+	!0x4c !0x89 !0xe7
+	;; mov rsi, rbx
+	!0x48 !0x89 !0xde
+	;; rdx = r15 * 64
+	;; mov rdx, r15
+	!0x4c !0x89 !0xfa
+	;; shl rdx, 6
+	!0x48 !0xc1 !0xe2 !0x06
+	mov_rax, %0x2000003                     ; SYS_read
+	syscall
+
+	;; Print summary "ELF sections read: <n>\n" — for now just static msg
+	lea_rdi,[rip+DWORD] %DATA_msg_sections_loaded
+	mov_rsi, %0x18                          ; len = 24 bytes ("ELF sections loaded\n" + padding)
 	call %FUNCTION_write_stderr
+
 	xor_edi,edi
 	call %FUNCTION_exit
 
@@ -372,6 +423,9 @@
 
 :DATA_msg_valid_elf64
 	"valid ELF64 x86_64 rel\n"
+
+:DATA_msg_sections_loaded
+	"ELF sections loaded\n"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
