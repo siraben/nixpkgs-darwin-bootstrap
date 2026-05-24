@@ -64,6 +64,9 @@
 	;;   [rbp -120] = .strtab     buffer pointer
 	;;   [rbp -128] = .text       section index (st_shndx for label match)
 	;;   [rbp -136] = --prefix    pointer (NUL-terminated, "" if absent)
+	;;   [rbp -144] = output fd  (default 1 = stdout; overwritten when 2nd
+	;;                            positional argv is given)
+	;;   [rbp -152] = output path (NULL when writing to stdout)
 	xor_eax,eax
 	push_rax
 	push_rax
@@ -79,6 +82,13 @@
 	push_rax
 	push_rax
 	push_rax
+	push_rax
+	push_rax
+
+	;; Initialize output fd to 1 (stdout).
+	mov_rax, %0x1
+	;; mov [rbp - 144], rax  (disp32: -144 = 0xFFFFFF70)
+	!0x48 !0x89 !0x85 !0x70 !0xff !0xff !0xff
 
 	;; Initialize the prefix slot to point at an empty string.  Argv
 	;; parsing below overwrites it if --prefix appears.
@@ -1095,7 +1105,10 @@
 	!0x48 !0x89 !0xf2
 	;; mov rsi, rdi
 	!0x48 !0x89 !0xfe
-	mov_rdi, %0x1
+	;; Output fd lives in [rbp - 144]; defaults to 1 but may be replaced
+	;; by an open()ed output file when the user passes an output path.
+	;; mov rdi, [rbp - 144]   (disp32)
+	!0x48 !0x8b !0xbd !0x70 !0xff !0xff !0xff
 	mov_rax, %0x2000004
 	syscall
 	ret
