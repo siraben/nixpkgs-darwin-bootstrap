@@ -345,7 +345,73 @@
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x1
 	call %FUNCTION_write_stderr
-	;; pop rcx
+
+	;; Check the current section name against our targets.  Recompute
+	;; the name pointer first (rdi was clobbered by write).
+	;; mov rax, [rsp]              ; rax = saved rcx (loop idx)
+	!0x48 !0x8b !0x04 !0x24
+	;; shl rax, 6
+	!0x48 !0xc1 !0xe0 !0x06
+	;; add rax, rbx
+	!0x48 !0x01 !0xd8
+	;; mov edx, [rax]               ; sh_name
+	!0x8b !0x10
+	;; mov rdi, r14 + rdx
+	!0x4c !0x89 !0xf7
+	!0x48 !0x01 !0xd7
+
+	;; Compare against ".symtab"
+	;; Save rdi across call (streq advances it).  push rdi.
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_symtab
+	call %FUNCTION_streq
+	;; pop rdi
+	!0x5f
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	je %SECTION_check_strtab
+	lea_rdi,[rip+DWORD] %DATA_msg_found_symtab
+	mov_rsi, %0x10                          ; "  -> symtab\n   " padded
+	call %FUNCTION_write_stderr
+	jmp %SECTION_next
+
+:SECTION_check_strtab
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_strtab
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_check_text
+	lea_rdi,[rip+DWORD] %DATA_msg_found_strtab
+	mov_rsi, %0x10
+	call %FUNCTION_write_stderr
+	jmp %SECTION_next
+
+:SECTION_check_text
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_text
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_check_rela_text
+	lea_rdi,[rip+DWORD] %DATA_msg_found_text
+	mov_rsi, %0xe
+	call %FUNCTION_write_stderr
+	jmp %SECTION_next
+
+:SECTION_check_rela_text
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_rela_text
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_next
+	lea_rdi,[rip+DWORD] %DATA_msg_found_rela_text
+	mov_rsi, %0x13
+	call %FUNCTION_write_stderr
+
+:SECTION_next
+	;; pop rcx (loop idx)
 	!0x59
 
 	;; rcx++
@@ -426,6 +492,37 @@
 :FUNCTION_write_fd
 	mov_rax, %0x2000004
 	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_streq(rdi=a, rsi=b) — returns 1 in rax if NUL-terminated
+##                                 strings are equal, 0 otherwise.  Both
+##                                 rdi and rsi are walked; clobbers rax,
+##                                 rcx, rdx.
+## ===========================================================================
+:FUNCTION_streq
+:STREQ_loop
+	;; movzx eax, byte ptr [rdi]   (0FB607)
+	!0x0f !0xb6 !0x07
+	;; movzx edx, byte ptr [rsi]   (0FB616)
+	!0x0f !0xb6 !0x16
+	;; cmp al, dl                  (38D0)
+	!0x38 !0xd0
+	jne %STREQ_diff
+	;; if both are NUL, they matched.  test al, al  (84C0)
+	!0x84 !0xc0
+	je %STREQ_eq
+	;; advance both pointers
+	;; inc rdi                     (48FFC7)
+	!0x48 !0xff !0xc7
+	;; inc rsi                     (48FFC6)
+	!0x48 !0xff !0xc6
+	jmp %STREQ_loop
+:STREQ_diff
+	xor_eax,eax                              ; rax = 0
+	ret
+:STREQ_eq
+	mov_rax, %0x1                            ; rax = 1
 	ret
 
 ## ===========================================================================
@@ -569,6 +666,28 @@
 
 :DATA_newline
 	!0x0a
+
+:DATA_name_symtab
+	".symtab"
+	!0x00
+:DATA_name_strtab
+	".strtab"
+	!0x00
+:DATA_name_text
+	".text"
+	!0x00
+:DATA_name_rela_text
+	".rela.text"
+	!0x00
+
+:DATA_msg_found_symtab
+	"  -> symtab    \n"
+:DATA_msg_found_strtab
+	"  -> strtab    \n"
+:DATA_msg_found_text
+	"  -> text    \n"
+:DATA_msg_found_rela_text
+	"  -> rela.text   \n"
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
