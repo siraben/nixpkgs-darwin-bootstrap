@@ -1463,6 +1463,173 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_emit_cleaned_name(rdi=name_ptr) — emits the name to the
+##   output fd, escaping it the same way python label_name() does.
+##   If the name matches [A-Za-z_][A-Za-z0-9_]*, emit verbatim.
+##   Otherwise prepend 'ELF_' (plus 'L_' when the first byte is a
+##   digit) and replace each non-[A-Za-z0-9_] byte with '_'.
+##   Clobbers rax/rcx/rdx/rdi/rsi; preserves rbx via push.
+## ===========================================================================
+:FUNCTION_emit_cleaned_name
+	push_rbx
+	;; mov rbx, rdi
+	!0x48 !0x89 !0xfb
+
+	;; First pass: scan to determine if escape is needed.  rcx = needs_escape flag.
+	xor_ecx,ecx
+	;; mov rax, rbx
+	!0x48 !0x89 !0xd8
+
+	;; First byte must be alpha or '_'.
+	;; movzx edx, byte [rax]
+	!0x0f !0xb6 !0x10
+	;; test dl, dl
+	!0x84 !0xd2
+	je %CN_emit_plain                       ; empty string
+
+	;; check 'A'(0x41)..'Z'(0x5a)
+	;; cmp dl, 0x41
+	!0x80 !0xfa !0x41
+	jl %CN_check_first_us
+	;; cmp dl, 0x5a
+	!0x80 !0xfa !0x5a
+	jle %CN_scan_rest
+:CN_check_first_us
+	;; cmp dl, 0x5f
+	!0x80 !0xfa !0x5f
+	je %CN_scan_rest
+	;; cmp dl, 0x61 ('a')
+	!0x80 !0xfa !0x61
+	jl %CN_first_escape
+	;; cmp dl, 0x7a ('z')
+	!0x80 !0xfa !0x7a
+	jle %CN_scan_rest
+:CN_first_escape
+	mov_rcx, %0x1
+:CN_scan_rest
+	;; inc rax
+	!0x48 !0xff !0xc0
+:CN_sl
+	;; movzx edx, byte [rax]
+	!0x0f !0xb6 !0x10
+	;; test dl, dl
+	!0x84 !0xd2
+	je %CN_decide
+	;; allow 0-9, A-Z, _, a-z
+	;; cmp dl, 0x30
+	!0x80 !0xfa !0x30
+	jl %CN_check_alpha
+	;; cmp dl, 0x39
+	!0x80 !0xfa !0x39
+	jle %CN_sl_next
+:CN_check_alpha
+	;; cmp dl, 0x41
+	!0x80 !0xfa !0x41
+	jl %CN_check_us
+	;; cmp dl, 0x5a
+	!0x80 !0xfa !0x5a
+	jle %CN_sl_next
+:CN_check_us
+	;; cmp dl, 0x5f
+	!0x80 !0xfa !0x5f
+	je %CN_sl_next
+	;; cmp dl, 0x61
+	!0x80 !0xfa !0x61
+	jl %CN_force_escape
+	;; cmp dl, 0x7a
+	!0x80 !0xfa !0x7a
+	jle %CN_sl_next
+:CN_force_escape
+	mov_rcx, %0x1
+:CN_sl_next
+	;; inc rax
+	!0x48 !0xff !0xc0
+	jmp %CN_sl
+
+:CN_decide
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	je %CN_emit_plain
+
+	;; Escape path: emit "ELF_"
+	lea_rdi,[rip+DWORD] %DATA_elf_underscore
+	mov_rsi, %0x04
+	call %FUNCTION_write_stdout
+	;; If first byte of original name is digit, emit "L_"
+	;; movzx eax, byte [rbx]
+	!0x0f !0xb6 !0x03
+	;; cmp al, 0x30
+	!0x3c !0x30
+	jl %CN_no_lprefix
+	;; cmp al, 0x39
+	!0x3c !0x39
+	jg %CN_no_lprefix
+	lea_rdi,[rip+DWORD] %DATA_l_underscore
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+:CN_no_lprefix
+:CN_eloop
+	;; movzx eax, byte [rbx]
+	!0x0f !0xb6 !0x03
+	;; test al, al
+	!0x84 !0xc0
+	je %CN_done
+	;; alnum/_ check (same as scan)
+	;; cmp al, 0x30
+	!0x3c !0x30
+	jl %CN_check_alpha_e
+	;; cmp al, 0x39
+	!0x3c !0x39
+	jle %CN_eb
+:CN_check_alpha_e
+	;; cmp al, 0x41
+	!0x3c !0x41
+	jl %CN_subst
+	;; cmp al, 0x5a
+	!0x3c !0x5a
+	jle %CN_eb
+	;; cmp al, 0x5f
+	!0x3c !0x5f
+	je %CN_eb
+	;; cmp al, 0x61
+	!0x3c !0x61
+	jl %CN_subst
+	;; cmp al, 0x7a
+	!0x3c !0x7a
+	jle %CN_eb
+:CN_subst
+	;; mov al, '_'
+	!0xb0 !0x5f
+:CN_eb
+	;; push rax (8 bytes; we use the low byte)
+	push_rax
+	;; write(output_fd, rsp, 1)
+	!0x48 !0x8b !0xbd !0x70 !0xff !0xff !0xff
+	;; mov rsi, rsp
+	!0x48 !0x89 !0xe6
+	mov_rdx, %0x1
+	mov_rax, %0x2000004
+	syscall
+	pop_rax
+	;; inc rbx
+	!0x48 !0xff !0xc3
+	jmp %CN_eloop
+
+:CN_emit_plain
+	;; mov rdi, rbx
+	!0x48 !0x89 !0xdf
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	;; mov rdi, rbx
+	!0x48 !0x89 !0xdf
+	call %FUNCTION_write_stdout
+
+:CN_done
+	pop_rbx
+	ret
+
+## ===========================================================================
 ## FUNCTION_emit_label_def(rdi=name_ptr, rsi=skip_prefix) — writes
 ##   ":<name>\n" (or ":<prefix><name>\n" if skip_prefix==0) to stdout.
 ##   Matches Python label_name semantics: GLOBAL/WEAK symbols (bind != 0)
@@ -1492,12 +1659,9 @@
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :ELD_skip_prefix
-	;; Emit name (saved at [rsp+8])
+	;; Emit cleaned name (saved at [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
-	call %FUNCTION_strlen
-	!0x48 !0x89 !0xc6
-	!0x48 !0x8b !0x7c !0x24 !0x08
-	call %FUNCTION_write_stdout
+	call %FUNCTION_emit_cleaned_name
 	;; Emit "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
@@ -1537,12 +1701,9 @@
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :ESL_skip_prefix
-	;; Emit name (from [rsp])
+	;; Emit cleaned name (from [rsp])
 	!0x48 !0x8b !0x3c !0x24
-	call %FUNCTION_strlen
-	!0x48 !0x89 !0xc6
-	!0x48 !0x8b !0x3c !0x24
-	call %FUNCTION_write_stdout
+	call %FUNCTION_emit_cleaned_name
 	;; Emit "_plus_"
 	lea_rdi,[rip+DWORD] %DATA_plus
 	mov_rsi, %0x06
@@ -1584,12 +1745,9 @@
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :ELR_skip_prefix
-	;; Write name (from [rsp+8])
+	;; Write cleaned name (from [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
-	call %FUNCTION_strlen
-	!0x48 !0x89 !0xc6
-	!0x48 !0x8b !0x7c !0x24 !0x08
-	call %FUNCTION_write_stdout
+	call %FUNCTION_emit_cleaned_name
 	;; Write trailing "\n" so the next emit (label def or byte) doesn't
 	;; glue onto the symbol-reference token.
 	lea_rdi,[rip+DWORD] %DATA_newline
@@ -1863,6 +2021,10 @@
 	!0x00
 :DATA_plus
 	"_plus_"
+:DATA_elf_underscore
+	!0x45 !0x4c !0x46 !0x5f                  ; "ELF_"
+:DATA_l_underscore
+	!0x4c !0x5f                              ; "L_"
 :DATA_section_markers
 	;; M1 string literals are NUL-terminated, so emit explicit bytes to
 	;; keep the markers on their own lines (no NUL between segments).
