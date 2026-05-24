@@ -96,33 +96,41 @@
 	;; rax = fd  (or negative on failure)
 	test_rax,rax
 	jl %ARGV_open_failed                    ; jl = signed less, true if rax < 0
-	;; Save fd at GLOBAL_INPUT_FD
-	;; mov [rip+DWORD] GLOBAL_INPUT_FD, eax    (rip-rel store 32-bit)
-	;; For simplicity use mov [rip+DWORD], rax (488905) — overwrites 8 bytes
-	lea_rbx,[rip+DWORD] %GLOBAL_INPUT_FD
-	;; mov [rbx], eax   (8903)
-	!0x89 !0x03
 
-	;; Read 64 bytes (size of ELF64 header) into a static buffer.
-	;; rdi = fd, rsi = buf, rdx = 64
-	;; mov rdi, rax
-	!0x48 !0x89 !0xc7
-	lea_rsi,[rip+DWORD] %BUFFER_elf_header
+	;; Keep fd in r12 (callee-saved; survives subsequent calls).
+	;; We deliberately do NOT store to GLOBAL_INPUT_FD because the
+	;; data section lives inside __TEXT (read-only) — writes SIGBUS
+	;; until the Mach-O segment-size patcher is rewritten to move
+	;; data into a separate __DATA segment (task #14 doc).
+	;; mov r12, rax   (4989C4)
+	!0x49 !0x89 !0xc4
+
+	;; mmap a 64-byte buffer (round up to 4K) for the ELF header — we
+	;; can't reuse BUFFER_elf_header in __TEXT for the same write
+	;; reason. mmap_anon takes len in rdi and returns ptr in rax.
+	mov_rdi, %0x1000
+	call %FUNCTION_mmap_anon
+	;; Keep buffer ptr in r13 (callee-saved).
+	;; mov r13, rax   (4989C5)
+	!0x49 !0x89 !0xc5
+
+	;; Read 64 bytes into r13's region:  rdi=fd, rsi=buf, rdx=64.
+	;; mov rdi, r12
+	!0x4c !0x89 !0xe7
+	;; mov rsi, r13
+	!0x4c !0x89 !0xee
 	mov_rdx, %0x40
 	call %FUNCTION_read_n
 
 	;; rax = bytes read; must be 64.
-	;; cmp rax, 64
 	cmp_rax,BYTE !0x40
 	jne %ARGV_short_read
 
-	;; Validate ELF magic: bytes 0-3 must be 0x7f 'E' 'L' 'F'.
-	lea_rax,[rip+DWORD] %BUFFER_elf_header
-	;; mov ecx, [rax]   (8B08)
-	!0x8b !0x08
-	;; cmp ecx, 0x464c457f  ('\x7fELF' LE)
-	;; mov edx, 0x464c457f / cmp ecx, edx via long form
-	;; cmp ecx, imm32  (81F9 imm32)
+	;; Validate ELF magic: bytes 0-3 at r13 must be 0x7f 'E' 'L' 'F'.
+	;; mov ecx, [r13]   (418B0D ... wait need addressing form)
+	;; mov ecx, dword ptr [r13+0]  (41 8B 4D 00)
+	!0x41 !0x8b !0x4d !0x00
+	;; cmp ecx, 0x464c457f  (81F9 imm32)
 	!0x81 !0xf9 !0x7f !0x45 !0x4c !0x46
 	jne %ARGV_not_elf
 
