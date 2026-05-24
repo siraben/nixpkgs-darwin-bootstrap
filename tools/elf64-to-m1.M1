@@ -63,6 +63,7 @@
 	;;   [rbp -112] = .symtab     buffer pointer
 	;;   [rbp -120] = .strtab     buffer pointer
 	;;   [rbp -128] = .text       section index (st_shndx for label match)
+	;;   [rbp -136] = --prefix    pointer (NUL-terminated, "" if absent)
 	xor_eax,eax
 	push_rax
 	push_rax
@@ -77,11 +78,19 @@
 	push_rax
 	push_rax
 	push_rax
+	push_rax
+
+	;; Initialize the prefix slot to point at an empty string.  Argv
+	;; parsing below overwrites it if --prefix appears.
+	lea_rax,[rip+DWORD] %DATA_empty_string
+	;; mov [rbp - 136], rax   (uses disp32 form since -136 < -128)
+	!0x48 !0x89 !0x85 !0x78 !0xff !0xff !0xff
 
 	;; Walk argv looking for the first positional (non-flag) argument
 	;; and treat it as the input path. argv is at [rbp - 16], a pointer
-	;; to argv[0]. We iterate from argv[1] onward looking for a string
-	;; whose first byte is NOT '-'.
+	;; to argv[0]. We iterate from argv[1] onward, recognizing
+	;; "--prefix <value>" as a single option that stores <value> in
+	;; the prefix slot, and treat the first non-'-' token as the input.
 
 	call %FUNCTION_argv                     ; rax = argv (char**)
 	;; rbx = argv pointer
@@ -104,7 +113,34 @@
 	!0x3c !0x2d
 	jne %ARGV_found_input                   ; first byte != '-' → positional
 
-	;; skip flag, advance argv pointer
+	;; Flag.  Check for "--prefix".
+	;; mov rdi, rcx
+	!0x48 !0x89 !0xcf
+	lea_rsi,[rip+DWORD] %DATA_arg_prefix
+	;; push rbx, rcx
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	;; pop rcx, rbx
+	pop_rcx
+	pop_rbx
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	je %ARGV_skip_flag
+
+	;; --prefix: next argv slot is the value.
+	;; add rbx, 8 → argv[i+1]
+	!0x48 !0x83 !0xc3 !0x08
+	;; mov rcx, [rbx]
+	!0x48 !0x8b !0x0b
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	je %ARGV_no_input
+	;; mov [rbp - 136], rcx     (disp32)
+	!0x48 !0x89 !0x8d !0x78 !0xff !0xff !0xff
+
+:ARGV_skip_flag
+	;; advance past current arg (or past --prefix value)
 	;; add rbx, 8
 	!0x48 !0x83 !0xc3 !0x08
 	jmp %ARGV_loop
@@ -1215,6 +1251,15 @@
 	lea_rdi,[rip+DWORD] %DATA_colon
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
+	;; Emit prefix from [rbp - 136]
+	;; mov rdi, [rbp - 136]   (disp32)
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	;; mov rdi, [rbp - 136]
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_write_stdout
 	;; Emit name
 	;; mov rdi, [rsp]
 	!0x48 !0x8b !0x3c !0x24
@@ -1244,6 +1289,12 @@
 	;; Write "\n\t%" (3 bytes).
 	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
 	mov_rsi, %0x03
+	call %FUNCTION_write_stdout
+	;; Write the prefix from [rbp - 136].
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 	;; Write the name (strlen + write).
 	;; mov rdi, [rsp]
@@ -1514,6 +1565,11 @@
 	!0x0a !0x09 !0x25                       ; "\n\t%"
 :DATA_colon
 	!0x3a                                   ; ":"
+:DATA_empty_string
+	!0x00
+:DATA_arg_prefix
+	"--prefix"
+	!0x00
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
