@@ -164,8 +164,53 @@
 	call %FUNCTION_exit
 
 :ARGV_found_input
-	;; rcx points at the input path string. Open it read-only.
-	;; mov rdi, rcx   (4889CF)
+	;; rcx points at the first positional (the input path).
+	;; Continue scanning argv for the 2nd positional (output path).
+	push_rcx                                ; preserve input path on stack
+	;; add rbx, 8 — past the input path
+	!0x48 !0x83 !0xc3 !0x08
+
+:ARGV_loop_for_output
+	;; mov rcx, [rbx]
+	!0x48 !0x8b !0x0b
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	je %ARGV_done_for_output
+	;; movzx eax, byte [rcx]
+	!0x0f !0xb6 !0x01
+	;; cmp al, 0x2d ('-')
+	!0x3c !0x2d
+	jne %ARGV_capture_output
+	;; flag → skip
+	;; add rbx, 8
+	!0x48 !0x83 !0xc3 !0x08
+	jmp %ARGV_loop_for_output
+
+:ARGV_capture_output
+	;; mov [rbp - 152], rcx (disp32)
+	!0x48 !0x89 !0x8d !0x68 !0xff !0xff !0xff
+
+:ARGV_done_for_output
+	pop_rcx                                 ; restore input path in rcx
+
+	;; If output path is set, open it write-only and store fd in [rbp-144].
+	;; mov rax, [rbp - 152]
+	!0x48 !0x8b !0x85 !0x68 !0xff !0xff !0xff
+	test_rax,rax
+	je %ARGV_skip_output_open
+	push_rcx                                ; save input path across open
+	;; mov rdi, rax
+	!0x48 !0x89 !0xc7
+	call %FUNCTION_open_wo
+	test_rax,rax
+	jl %ARGV_open_failed                    ; reuse the existing failure path
+	;; mov [rbp - 144], rax
+	!0x48 !0x89 !0x85 !0x70 !0xff !0xff !0xff
+	pop_rcx
+
+:ARGV_skip_output_open
+	;; Now open the input read-only.
+	;; mov rdi, rcx
 	!0x48 !0x89 !0xcf
 	call %FUNCTION_open_ro
 	;; rax = fd  (or negative on failure)
@@ -1023,20 +1068,18 @@
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
 
-	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
-	;; mov rax, [rbp - 32]
+	;; Sanity: only .text/.symtab/.strtab are mandatory.  .rela.text is
+	;; optional — tcc-emitted objects (and other simple inputs) may have
+	;; no relocations at all.
+	;; mov rax, [rbp - 32]   (.text)
 	!0x48 !0x8b !0x45 !0xe0
 	test_rax,rax
 	je %SECTION_missing
-	;; mov rax, [rbp - 48]
-	!0x48 !0x8b !0x45 !0xd0
-	test_rax,rax
-	je %SECTION_missing
-	;; mov rax, [rbp - 64]
+	;; mov rax, [rbp - 64]   (.symtab)
 	!0x48 !0x8b !0x45 !0xc0
 	test_rax,rax
 	je %SECTION_missing
-	;; mov rax, [rbp - 80]
+	;; mov rax, [rbp - 80]   (.strtab)
 	!0x48 !0x8b !0x45 !0xb0
 	test_rax,rax
 	je %SECTION_missing
@@ -1228,6 +1271,17 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_open_wo(rdi=path) — open(path, O_WRONLY|O_CREAT|O_TRUNC=0x601,
+##   mode 0644).  Returns fd in rax (or negative errno).
+## ===========================================================================
+:FUNCTION_open_wo
+	mov_rsi, %0x601                          ; flags
+	mov_rdx, %0x1a4                          ; mode = 0644
+	mov_rax, %0x2000005                      ; SYS_open
+	syscall
+	ret
+
+## ===========================================================================
 ## FUNCTION_open_ro(rdi=path) — open(path, O_RDONLY=0); returns fd in rax.
 ## ===========================================================================
 :FUNCTION_open_ro
@@ -1377,9 +1431,10 @@
 	;; mov byte [rsi+5], 0x20  ' '
 	!0xc6 !0x46 !0x05 !0x20
 
-	;; write(1, rsi, 6)
-	mov_rdi, %0x1
-	;; mov rsi, rsp (already there but write hadn't been called between)
+	;; write(output_fd, rsi, 6)
+	;; mov rdi, [rbp - 144]   (disp32 because -144 < -128)
+	!0x48 !0x8b !0xbd !0x70 !0xff !0xff !0xff
+	;; mov rsi, rsp
 	!0x48 !0x89 !0xe6
 	mov_rdx, %0x6
 	mov_rax, %0x2000004
