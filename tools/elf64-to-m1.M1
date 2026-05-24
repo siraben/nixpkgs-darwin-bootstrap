@@ -641,6 +641,113 @@
 	jmp %SYM_loop
 :SYM_loop_end
 
+	;; ---------------------------------------------------------------
+	;; Walk .rela.text: each Elf64_Rela is 24 bytes:
+	;;   r_offset u64  offset 0
+	;;   r_info   u64  offset 8   (sym_index<<32 | r_type)
+	;;   r_addend i64  offset 16
+	;; Print "<sym_name> <r_offset> <r_type>" per relocation.
+	;; ---------------------------------------------------------------
+	lea_rdi,[rip+DWORD] %DATA_msg_rela_hdr
+	mov_rsi, %0x10
+	call %FUNCTION_write_stderr
+
+	xor_ecx,ecx
+:REL_loop
+	;; rax = rcx * 24
+	!0x48 !0x6b !0xc1 !0x18
+	;; cmp rax, [rbp - 56]   (rela_size)
+	!0x48 !0x3b !0x45 !0xc8
+	jge %REL_loop_end
+
+	;; rdx = rela_buf + offset
+	;; mov rdx, [rbp - 104]
+	!0x48 !0x8b !0x55 !0x98
+	;; add rdx, rax
+	!0x48 !0x01 !0xc2
+
+	;; rax = r_info (rdx + 8)
+	;; mov rax, [rdx + 8]
+	!0x48 !0x8b !0x42 !0x08
+	;; r_type = low 32 bits → ecx-like.  Save full r_info on stack first.
+	push_rax                                ; [rsp] = r_info
+	;; r_type = (rax & 0xffffffff)
+	;; mov r9d, eax        (low 32 of rax)
+	!0x41 !0x89 !0xc1
+	;; r9 = r_type (zero-extended)
+
+	;; sym_index = r_info >> 32
+	;; shr rax, 32   (48C1E820)
+	!0x48 !0xc1 !0xe8 !0x20
+	;; rax = sym_index
+
+	;; sym_entry = symtab_buf + sym_index * 24
+	;; imul rax, rax, 24
+	!0x48 !0x6b !0xc0 !0x18
+	;; mov r10, [rbp - 112]   (symtab_buf)
+	!0x4c !0x8b !0x55 !0x90
+	;; add r10, rax            (r10 = &symtab[sym_index])
+	!0x49 !0x01 !0xc2
+
+	;; name_ptr = strtab_buf + [r10] (st_name u32)
+	;; mov eax, [r10]   (41 8B 02)
+	!0x41 !0x8b !0x02
+	;; mov rdi, [rbp - 120]   (strtab_buf)
+	!0x48 !0x8b !0x7d !0x88
+	;; add rdi, rax
+	!0x48 !0x01 !0xc7
+
+	;; Save rcx, rdx, r9 across calls
+	push_rcx
+	push_rdx
+	;; push r9   (4151)
+	!0x41 !0x51
+
+	;; print name
+	push_rdi
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	pop_rdi
+	call %FUNCTION_write_stderr
+
+	;; print " "
+	lea_rdi,[rip+DWORD] %DATA_space
+	mov_rsi, %0x01
+	call %FUNCTION_write_stderr
+
+	;; print r_offset (rdx + 0)
+	;; mov rdx, [rsp + 8]    (saved rdx is 1 quad above r9 on stack)
+	!0x48 !0x8b !0x54 !0x24 !0x08
+	;; mov rdi, [rdx]
+	!0x48 !0x8b !0x3a
+	call %FUNCTION_print_hex64
+
+	;; print " "
+	lea_rdi,[rip+DWORD] %DATA_space
+	mov_rsi, %0x01
+	call %FUNCTION_write_stderr
+
+	;; print r_type (was in r9, saved on top of stack)
+	;; mov rdi, [rsp]
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_print_hex64
+
+	;; Restore: pop r9, rdx, rcx
+	;; pop r9   (4159)
+	!0x41 !0x59
+	pop_rdx
+	pop_rcx
+
+	;; Discard saved r_info
+	;; add rsp, 8
+	!0x48 !0x83 !0xc4 !0x08
+
+	;; rcx++
+	!0x48 !0xff !0xc1
+	jmp %REL_loop
+:REL_loop_end
+
 	;; Sanity: bail with non-zero exit if any of the four offsets is 0.
 	;; mov rax, [rbp - 32]
 	!0x48 !0x8b !0x45 !0xe0
@@ -1049,6 +1156,8 @@
 
 :DATA_msg_symtab_hdr
 	"== symbols ==\n  "
+:DATA_msg_rela_hdr
+	"== relocs  ==\n  "
 :DATA_space
 	" "
 
