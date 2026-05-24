@@ -221,60 +221,138 @@
 	;; movzx eax, word ptr [r13 + 0x3e]   (41 0F B7 45 3E)
 	!0x41 !0x0f !0xb7 !0x45 !0x3e
 	;; Compute pointer to shstrtab's section header:
-	;;   rbp_arg = rbx + eax * 64  (rbp is our frame base, can't clobber;
-	;;   reuse rcx for temp)
+	;;   rcx = rbx + eax * 64
 	;; mov rcx, rax  (4889C1)
 	!0x48 !0x89 !0xc1
 	;; shl rcx, 6   (48C1E106)
 	!0x48 !0xc1 !0xe1 !0x06
 	;; add rcx, rbx   (4801D9)
 	!0x48 !0x01 !0xd9
-	;; rcx now points at section header N (shstrtab) — its sh_offset
-	;; is at +24 (u64) and sh_size at +32 (u64).
-	;; mov r14, [rcx + 24]   (4C 8B 71 18)   r14 = sh_offset
-	!0x4c !0x8b !0x71 !0x18
-	;; mov r15, [rcx + 32]   (4C 8B 79 20)   r15 = sh_size
-	!0x4c !0x8b !0x79 !0x20
+	;; Extract shstrtab offset/size into scratch r10/r11 (caller-saved
+	;; in our private convention; we don't call across the syscalls below).
+	;; mov r10, [rcx + 24]   (4C 8B 51 18)   r10 = sh_offset
+	!0x4c !0x8b !0x51 !0x18
+	;; mov r11, [rcx + 32]   (4C 8B 59 20)   r11 = sh_size
+	!0x4c !0x8b !0x59 !0x20
 
-	;; mmap r15 + 0x1000 bytes for shstrtab buffer (page-aligned).
-	;; mov rdi, r15
-	!0x4c !0x89 !0xff
+	;; mmap r11 + 0x1000 bytes for shstrtab buffer (page-aligned).
+	;; mov rdi, r11
+	!0x4c !0x89 !0xdf
 	;; add rdi, 0xfff   (48 81 C7 FF 0F 00 00)
 	!0x48 !0x81 !0xc7 !0xff !0x0f !0x00 !0x00
 	;; and rdi, ~0xfff   (48 81 E7 00 F0 FF FF)
 	!0x48 !0x81 !0xe7 !0x00 !0xf0 !0xff !0xff
+	;; Save r10/r11 across the call (FUNCTION_mmap_anon clobbers r10,r11
+	;; via syscall ABI).
+	;; push r10  (4152) ; push r11 (4153)
+	!0x41 !0x52
+	!0x41 !0x53
 	call %FUNCTION_mmap_anon
-	;; Save shstrtab base in rbp-displaced slot (rbp is our frame base).
-	;; Actually let's just keep it in another callee-saved reg: use rbx
-	;; offset.  But rbx is our section table base.  We need another
-	;; callee-saved register; push rax on stack.
-	;; push rax
-	!0x50
+	;; pop r11 ; pop r10
+	!0x41 !0x5b
+	!0x41 !0x5a
+	;; Save shstrtab buffer base in r14 (callee-saved — survives forever).
+	;; mov r14, rax   (4989C6)
+	!0x49 !0x89 !0xc6
 
-	;; Seek + read shstrtab:
-	;;   lseek(r12, r14, 0); read(r12, ptr=rsp[0], r15)
+	;; Seek + read shstrtab.  syscall clobbers r11 but we don't need it after.
 	;; mov rdi, r12
 	!0x4c !0x89 !0xe7
-	;; mov rsi, r14
-	!0x4c !0x89 !0xf6
+	;; mov rsi, r10                            ; sh_offset
+	!0x4c !0x89 !0xd6
 	xor_edx,edx
 	mov_rax, %0x20000c7
 	syscall
 	;; mov rdi, r12
 	!0x4c !0x89 !0xe7
-	;; mov rsi, [rsp]   (488B3424)
-	!0x48 !0x8b !0x34 !0x24
-	;; mov rdx, r15
-	!0x4c !0x89 !0xfa
+	;; mov rsi, r14                            ; shstrtab buffer
+	!0x4c !0x89 !0xf6
+	;; mov rdx, r11                            ; sh_size — but r11 was
+	;; clobbered by lseek syscall.  Re-read from section header.
+	;; Recompute rcx = rbx + e_shstrndx*64 (it's idempotent).
+	;; movzx eax, word ptr [r13 + 0x3e]
+	!0x41 !0x0f !0xb7 !0x45 !0x3e
+	;; mov rdx, rax  (4889C2)
+	!0x48 !0x89 !0xc2
+	;; shl rdx, 6   (48C1E206)
+	!0x48 !0xc1 !0xe2 !0x06
+	;; add rdx, rbx (4801DA)
+	!0x48 !0x01 !0xda
+	;; mov rdx, [rdx + 32]  (488B5220)         ; rdx = sh_size
+	!0x48 !0x8b !0x52 !0x20
 	mov_rax, %0x2000003
 	syscall
-	;; pop discard
-	!0x58
+
+	;; Re-establish r15 = e_shnum from ELF header (was overwritten when
+	;; we used r15 as the section-table size counter earlier).
+	;; movzx r15d, word ptr [r13 + 0x3c]   (45 0F B7 7D 3C)
+	!0x45 !0x0f !0xb7 !0x7d !0x3c
 
 	;; Print "shstrtab loaded\n"
 	lea_rdi,[rip+DWORD] %DATA_msg_shstrtab
 	mov_rsi, %0x10                          ; len = 16 bytes
 	call %FUNCTION_write_stderr
+
+	;; ---------------------------------------------------------------
+	;; Walk section headers and print each name (sh_name -> shstrtab).
+	;; Register state at loop top:
+	;;   rbx = section table base
+	;;   r14 = shstrtab base
+	;;   r15 = e_shnum (count)
+	;;   r12 = fd (kept)
+	;;   r13 = elf header (kept)
+	;; Loop counter in scratch register: we use rbp's stack frame for
+	;; counter by pushing it before each call.  Simpler: rcx loop reg
+	;; saved across calls via push/pop.
+	;; ---------------------------------------------------------------
+	xor_ecx,ecx                             ; rcx = 0 (loop index)
+:SECTION_loop
+	;; if (rcx == r15) exit loop  (rcx increments by 1, so equality suffices)
+	;; cmp rcx, r15   (4C39F9)
+	!0x4c !0x39 !0xf9
+	je %SECTION_loop_end
+
+	;; section header N at rbx + rcx*64; sh_name at +0 (u32).
+	;; mov rax, rcx
+	!0x48 !0x89 !0xc8
+	;; shl rax, 6
+	!0x48 !0xc1 !0xe0 !0x06
+	;; add rax, rbx
+	!0x48 !0x01 !0xd8
+	;; mov edx, [rax + 0]   (8B10)            ; edx = sh_name (u32)
+	!0x8b !0x10
+
+	;; name_ptr = r14 + rdx
+	;; mov rdi, r14
+	!0x4c !0x89 !0xf7
+	;; add rdi, rdx
+	!0x48 !0x01 !0xd7
+
+	;; Save rcx across calls.
+	;; push rcx
+	!0x51
+	;; rsi = strlen(rdi)
+	call %FUNCTION_strlen
+	;; mov rsi, rax
+	!0x48 !0x89 !0xc6
+	;; rdi must still be name_ptr — strlen returns via rax but we need
+	;; to re-pass rdi to write.  strlen preserves rdi conceptually but
+	;; not guaranteed by our convention.  Reload: rcx is on stack, top.
+	;; Actually FUNCTION_strlen reads from rdi and only mutates rax/rcx;
+	;; rdi is preserved.  Continue.
+	call %FUNCTION_write_stderr
+	;; Print newline.
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x1
+	call %FUNCTION_write_stderr
+	;; pop rcx
+	!0x59
+
+	;; rcx++
+	;; inc rcx (48FFC1)
+	!0x48 !0xff !0xc1
+	jmp %SECTION_loop
+:SECTION_loop_end
 
 	xor_edi,edi
 	call %FUNCTION_exit
@@ -488,6 +566,9 @@
 
 :DATA_msg_shstrtab
 	"shstrtab loaded\n"
+
+:DATA_newline
+	!0x0a
 
 :DATA_msg_short_read
 	"elf64-to-m1: short read on ELF header"
