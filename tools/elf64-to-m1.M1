@@ -1244,36 +1244,42 @@
 	jmp %EMIT_loop
 
 :RELOC_check_match
-	;; rdx points to the matched Elf64_Rela.  r_info = (rdx+8).
-	;; Save r_type (low 32) and compute sym_index (high 32).
-	;; mov rax, [rdx + 8]
+	;; rdx points to the matched Elf64_Rela.  Extract everything we need
+	;; before potentially clobbering rdx.
+	;; mov rax, [rdx + 8]   (r_info)
 	!0x48 !0x8b !0x42 !0x08
-	;; mov r8d, eax  — r8 = r_type
+	;; mov r8d, eax          (r_type, low 32)
 	!0x41 !0x89 !0xc0
-	;; sym_index = rax >> 32
+	;; sym_index in high 32
 	!0x48 !0xc1 !0xe8 !0x20
-	;; Preserve sym_index in r11 for the suffix.
-	;; mov r11, rax  (4989C3)
+	;; mov r11, rax          (preserve sym_idx for suffix arg)
 	!0x49 !0x89 !0xc3
-	;; sym_entry = symtab + sym_index * 24
+	;; sym_entry = symtab + sym_idx * 24
 	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
-	;; mov r10, [rbp - 112]   (symtab_buf)
-	!0x4c !0x8b !0x55 !0x90
-	;; add r10, rax
-	!0x49 !0x01 !0xc2
+	!0x4c !0x8b !0x55 !0x90                 ; mov r10, [rbp - 112]
+	!0x49 !0x01 !0xc2                       ; add r10, rax
+
+	;; r9 = effective_addend.  r_addend at [rdx+16].
+	!0x4c !0x8b !0x4a !0x10                 ; mov r9, [rdx + 16]
+	;; PC-rel types (2/4/9/41/42): r9 += 4.  ABS types (1/10/11) keep.
+	!0x41 !0x83 !0xf8 !0x01
+	je %RELOC_addend_done
+	!0x41 !0x83 !0xf8 !0x0a
+	je %RELOC_addend_done
+	!0x41 !0x83 !0xf8 !0x0b
+	je %RELOC_addend_done
+	;; add r9, 4
+	!0x49 !0x83 !0xc1 !0x04
+:RELOC_addend_done
 
 	;; name_ptr = strtab_buf + [r10] (st_name u32)
-	;; mov eax, [r10]
 	!0x41 !0x8b !0x02
-	;; mov rdi, [rbp - 120]   (strtab_buf)
 	!0x48 !0x8b !0x7d !0x88
-	;; add rdi, rax
 	!0x48 !0x01 !0xc7
 
-	;; rsi = skip_prefix = bind from r10
+	;; rsi = skip_prefix = bind
 	!0x41 !0x0f !0xb6 !0x42 !0x04
 	!0xc1 !0xe8 !0x04
-	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
 
 	;; Dispatch on r_type (in r8d).
@@ -1293,29 +1299,50 @@
 	!0x41 !0x83 !0xf8 !0x0b
 	je %RELOC_emit_abs32
 	;; default: GOTPCREL family — emit %symbol_ref, advance 4.
-	;; mov rdx, r11  (sym_idx for LOCAL suffix)
-	!0x4c !0x89 !0xda
-	push_rcx
+	;; rdx = sym_idx; rcx = target_offset if effective_addend != 0 else 0.
+	!0x4c !0x89 !0xda                       ; mov rdx, r11
+	;; If r9 == 0, rcx = 0; else rcx = sym.value + r9.
+	push_rcx                                ; save outer rcx
+	!0x4d !0x85 !0xc9                       ; test r9, r9
+	je %RELOC_default_zero
+	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  sym.value
+	!0x4c !0x01 !0xc9                       ; add rcx, r9
+	jmp %RELOC_default_call
+:RELOC_default_zero
+	xor_ecx,ecx
+:RELOC_default_call
 	call %FUNCTION_emit_label_ref
 	pop_rcx
-	;; add rcx, 4
 	!0x48 !0x83 !0xc1 !0x04
 	jmp %EMIT_loop
 
 :RELOC_emit_abs64
-	;; mov rdx, r11
 	!0x4c !0x89 !0xda
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %RELOC_abs64_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %RELOC_abs64_call
+:RELOC_abs64_zero
+	xor_ecx,ecx
+:RELOC_abs64_call
 	call %FUNCTION_emit_abs64_ref
 	pop_rcx
-	;; add rcx, 8
 	!0x48 !0x83 !0xc1 !0x08
 	jmp %EMIT_loop
 
 :RELOC_emit_abs32
-	;; mov rdx, r11
 	!0x4c !0x89 !0xda
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %RELOC_abs32_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %RELOC_abs32_call
+:RELOC_abs32_zero
+	xor_ecx,ecx
+:RELOC_abs32_call
 	call %FUNCTION_emit_abs32_ref
 	pop_rcx
 	!0x48 !0x83 !0xc1 !0x04
@@ -1348,9 +1375,16 @@
 
 :RELOC_pc32_label
 	;; Cross-section PC32: emit %sym, advance 4.
-	;; mov rdx, r11
 	!0x4c !0x89 !0xda
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %RELOC_pc32lbl_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %RELOC_pc32lbl_call
+:RELOC_pc32lbl_zero
+	xor_ecx,ecx
+:RELOC_pc32lbl_call
 	call %FUNCTION_emit_label_ref
 	pop_rcx
 	!0x48 !0x83 !0xc1 !0x04
@@ -1606,40 +1640,50 @@
 	jmp %DATA_emit_raw
 
 :DRELOC_match
-	;; Extract r_type (low 32 of r_info at rdx+8) and sym_idx (high 32).
-	;; mov rax, [rdx + 8]
+	;; rdx points to matched reloc.  Extract everything before clobbering.
 	!0x48 !0x8b !0x42 !0x08
-	;; mov r8d, eax  (r_type)
 	!0x41 !0x89 !0xc0
 	!0x48 !0xc1 !0xe8 !0x20
-	;; mov r11, rax  (sym_idx)
 	!0x49 !0x89 !0xc3
-	;; sym_entry = symtab + sym_idx * 24
 	!0x48 !0x6b !0xc0 !0x18
-	;; mov r10, [rbp - 112]
 	!0x4c !0x8b !0x55 !0x90
 	!0x49 !0x01 !0xc2
-	;; rdi = strtab + st_name
+	;; r9 = effective_addend
+	!0x4c !0x8b !0x4a !0x10
+	!0x41 !0x83 !0xf8 !0x01
+	je %DRELOC_addend_done
+	!0x41 !0x83 !0xf8 !0x0a
+	je %DRELOC_addend_done
+	!0x41 !0x83 !0xf8 !0x0b
+	je %DRELOC_addend_done
+	!0x49 !0x83 !0xc1 !0x04
+:DRELOC_addend_done
 	!0x41 !0x8b !0x02
 	!0x48 !0x8b !0x7d !0x88
 	!0x48 !0x01 !0xc7
-	;; rsi = skip_prefix
 	!0x41 !0x0f !0xb6 !0x42 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc6
-	;; rdx = sym_idx = r11
 	!0x4c !0x89 !0xda
-	pop_rcx                                 ; rcx back
+	pop_rcx
 
 	;; Dispatch
-	!0x41 !0x83 !0xf8 !0x01                 ; cmp r8d, 1 (R_X86_64_64)
+	!0x41 !0x83 !0xf8 !0x01
 	je %DRELOC_emit_abs64
-	!0x41 !0x83 !0xf8 !0x0a                 ; cmp r8d, 10
+	!0x41 !0x83 !0xf8 !0x0a
 	je %DRELOC_emit_abs32
-	!0x41 !0x83 !0xf8 !0x0b                 ; cmp r8d, 11
+	!0x41 !0x83 !0xf8 !0x0b
 	je %DRELOC_emit_abs32
 	;; default: emit %label, advance 4
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %DRELOC_default_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %DRELOC_default_call
+:DRELOC_default_zero
+	xor_ecx,ecx
+:DRELOC_default_call
 	call %FUNCTION_emit_label_ref
 	pop_rcx
 	!0x48 !0x83 !0xc1 !0x04
@@ -1647,6 +1691,14 @@
 
 :DRELOC_emit_abs64
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %DRELOC_abs64_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %DRELOC_abs64_call
+:DRELOC_abs64_zero
+	xor_ecx,ecx
+:DRELOC_abs64_call
 	call %FUNCTION_emit_abs64_ref
 	pop_rcx
 	!0x48 !0x83 !0xc1 !0x08
@@ -1654,6 +1706,14 @@
 
 :DRELOC_emit_abs32
 	push_rcx
+	!0x4d !0x85 !0xc9
+	je %DRELOC_abs32_zero
+	!0x49 !0x8b !0x4a !0x08
+	!0x4c !0x01 !0xc9
+	jmp %DRELOC_abs32_call
+:DRELOC_abs32_zero
+	xor_ecx,ecx
+:DRELOC_abs32_call
 	call %FUNCTION_emit_abs32_ref
 	pop_rcx
 	!0x48 !0x83 !0xc1 !0x04
@@ -2613,7 +2673,8 @@
 ##   address).  Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_abs32_ref
-	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx, rcx=target_offset.
+	push_rcx
 	push_rdx
 	push_rdi
 	push_rsi
@@ -2631,20 +2692,30 @@
 :EA32_skip_prefix
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
-	;; LOCAL suffix
+	;; LOCAL idx suffix
 	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
-	jne %EA32_no_suffix
+	jne %EA32_no_idx
 	lea_rdi,[rip+DWORD] %DATA_underscore
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
 	!0x48 !0x8b !0x7c !0x24 !0x10
 	call %FUNCTION_emit_dec_lz
-:EA32_no_suffix
+:EA32_no_idx
+	;; synth suffix if target_offset != 0
+	!0x48 !0x8b !0x44 !0x24 !0x18
+	test_rax,rax
+	je %EA32_no_synth
+	lea_rdi,[rip+DWORD] %DATA_plus
+	mov_rsi, %0x06
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x18
+	call %FUNCTION_emit_hex_lz
+:EA32_no_synth
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	!0x48 !0x83 !0xc4 !0x18
+	!0x48 !0x83 !0xc4 !0x20
 	ret
 
 ## ===========================================================================
@@ -2655,7 +2726,8 @@
 ##   Mirrors python emit_section's R_X86_64_64 branch.
 ## ===========================================================================
 :FUNCTION_emit_abs64_ref
-	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx, rcx=target_offset.
+	push_rcx
 	push_rdx
 	push_rdi
 	push_rsi
@@ -2673,26 +2745,37 @@
 :EAR_skip_prefix
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
-	;; LOCAL suffix
+	;; LOCAL idx suffix
 	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
-	jne %EAR_no_suffix
+	jne %EAR_no_idx
 	lea_rdi,[rip+DWORD] %DATA_underscore
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
 	!0x48 !0x8b !0x7c !0x24 !0x10
 	call %FUNCTION_emit_dec_lz
-:EAR_no_suffix
+:EAR_no_idx
+	;; synth suffix
+	!0x48 !0x8b !0x44 !0x24 !0x18
+	test_rax,rax
+	je %EAR_no_synth
+	lea_rdi,[rip+DWORD] %DATA_plus
+	mov_rsi, %0x06
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x18
+	call %FUNCTION_emit_hex_lz
+:EAR_no_synth
 	lea_rdi,[rip+DWORD] %DATA_zero4
 	mov_rsi, %0x1a
 	call %FUNCTION_write_stdout
-	!0x48 !0x83 !0xc4 !0x18
+	!0x48 !0x83 !0xc4 !0x20
 	ret
 
 ## ===========================================================================
 ## FUNCTION_emit_label_ref(rdi=name_ptr, rsi=skip_prefix) — writes "\n%<name>"
 :FUNCTION_emit_label_ref
-	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx, rcx=target_offset.
+	push_rcx                                ; [rsp+24] = target_offset
 	push_rdx                                ; [rsp+16] = sym_idx
 	push_rdi                                ; [rsp+ 8] = name
 	push_rsi                                ; [rsp+ 0] = skip_prefix
@@ -2715,19 +2798,28 @@
 	;; If LOCAL, append "_<sym_idx>".
 	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
-	jne %ELR_no_suffix
+	jne %ELR_no_idx_suffix
 	lea_rdi,[rip+DWORD] %DATA_underscore
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
 	!0x48 !0x8b !0x7c !0x24 !0x10
 	call %FUNCTION_emit_dec_lz
-:ELR_no_suffix
-	;; Trailing "\n"
+:ELR_no_idx_suffix
+	;; If target_offset != 0, append "_plus_<hex>"
+	!0x48 !0x8b !0x44 !0x24 !0x18            ; mov rax, [rsp+24]
+	test_rax,rax
+	je %ELR_no_synth
+	lea_rdi,[rip+DWORD] %DATA_plus
+	mov_rsi, %0x06
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x18
+	call %FUNCTION_emit_hex_lz
+:ELR_no_synth
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	;; add rsp, 24
-	!0x48 !0x83 !0xc4 !0x18
+	;; add rsp, 32
+	!0x48 !0x83 !0xc4 !0x20
 	ret
 
 ## ===========================================================================
