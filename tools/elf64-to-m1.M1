@@ -1217,11 +1217,23 @@
 	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
 
-	;; Dispatch on r_type (in r8).
+	;; Dispatch on r_type (in r8d).
 	;; cmp r8d, 1   (R_X86_64_64)
 	!0x41 !0x83 !0xf8 !0x01
 	je %RELOC_emit_abs64
-	;; default: PC32/PLT32/GOTPCREL — emit %symbol_ref, advance 4
+	;; cmp r8d, 2   (R_X86_64_PC32)
+	!0x41 !0x83 !0xf8 !0x02
+	je %RELOC_check_pc32
+	;; cmp r8d, 4   (R_X86_64_PLT32)
+	!0x41 !0x83 !0xf8 !0x04
+	je %RELOC_check_pc32
+	;; cmp r8d, 10  (R_X86_64_32)
+	!0x41 !0x83 !0xf8 !0x0a
+	je %RELOC_emit_abs32
+	;; cmp r8d, 11  (R_X86_64_32S)
+	!0x41 !0x83 !0xf8 !0x0b
+	je %RELOC_emit_abs32
+	;; default: GOTPCREL family — emit %symbol_ref, advance 4
 	push_rcx
 	call %FUNCTION_emit_label_ref
 	pop_rcx
@@ -1236,6 +1248,47 @@
 	pop_rcx
 	;; add rcx, 8
 	!0x48 !0x83 !0xc1 !0x08
+	jmp %EMIT_loop
+
+:RELOC_emit_abs32
+	;; Emit "\n&<sym>\n" and skip 4 bytes.
+	push_rcx
+	call %FUNCTION_emit_abs32_ref
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x04
+	jmp %EMIT_loop
+
+:RELOC_check_pc32
+	;; PC32 / PLT32.  If sym's shndx == text_idx (same section), emit
+	;; the computed 4-byte signed displacement (sym_value + r_addend -
+	;; r_offset).  Otherwise fall back to a %symbol_ref + advance 4.
+	;; movzx eax, word [r10 + 6]   (st_shndx)
+	!0x41 !0x0f !0xb7 !0x42 !0x06
+	;; cmp rax, [rbp - 128]   (text_idx)
+	!0x48 !0x3b !0x45 !0x80
+	jne %RELOC_pc32_label
+
+	;; Same-section: disp = sym_value + r_addend - rcx (rcx = r_offset).
+	;; mov rax, [r10 + 8]    (sym_value)
+	!0x49 !0x8b !0x42 !0x08
+	;; add rax, [rdx + 16]   (r_addend, signed i64)
+	!0x48 !0x03 !0x42 !0x10
+	;; sub rax, rcx
+	!0x48 !0x29 !0xc8
+	;; mov rdi, rax
+	!0x48 !0x89 !0xc7
+	push_rcx
+	call %FUNCTION_emit_i32
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x04
+	jmp %EMIT_loop
+
+:RELOC_pc32_label
+	;; Cross-section PC32: emit %sym, advance 4.
+	push_rcx
+	call %FUNCTION_emit_label_ref
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x04
 	jmp %EMIT_loop
 :EMIT_loop_end
 
@@ -2029,6 +2082,64 @@
 ##   Mirrors python tools/elf64-to-m1.py: relocations emit `%<label>`
 ##   where <label> is the prefix-cleaned symbol name (no extra prefix).
 ## ===========================================================================
+## ===========================================================================
+## FUNCTION_emit_i32(rdi=value) — writes the low 32 bits of rdi as 4
+##   little-endian byte literals ('!0xHH !0xHH !0xHH !0xHH ') to the
+##   output fd.  Used for R_X86_64_PC32 self-text computed
+##   displacements.  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_i32
+	;; rcx = 4 (byte counter)
+	mov_rcx, %0x4
+:I32_loop
+	push_rdi
+	push_rcx
+	;; movzx edi, dil
+	!0x40 !0x0f !0xb6 !0xff
+	call %FUNCTION_emit_byte_hex
+	pop_rcx
+	pop_rdi
+	;; shr rdi, 8
+	!0x48 !0xc1 !0xef !0x08
+	;; dec rcx
+	!0x48 !0xff !0xc9
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	jne %I32_loop
+	ret
+
+## ===========================================================================
+## FUNCTION_emit_abs32_ref(rdi=name_ptr, rsi=skip_prefix) — writes
+##   "\n&<prefix><name>\n" to the output fd.  Used for R_X86_64_32 and
+##   R_X86_64_32S (4-byte absolute slot, the linker plugs in the
+##   address).  Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_abs32_ref
+	push_rdi
+	push_rsi
+	lea_rdi,[rip+DWORD] %DATA_abs_ref_prefix
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	;; skip_prefix?
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EA32_skip_prefix
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_write_stdout
+:EA32_skip_prefix
+	;; emit cleaned name (from [rsp+8])
+	!0x48 !0x8b !0x7c !0x24 !0x08
+	call %FUNCTION_emit_cleaned_name
+	;; emit "\n"
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x83 !0xc4 !0x10
+	ret
+
 ## ===========================================================================
 ## FUNCTION_emit_abs64_ref(rdi=name_ptr, rsi=skip_prefix) — writes
 ##   "\n&<prefix><name>\n!0x00 !0x00 !0x00 !0x00\n" to the output fd.
