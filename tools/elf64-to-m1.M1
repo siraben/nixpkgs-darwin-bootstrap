@@ -1169,7 +1169,7 @@
 	jne %LBL_next
 
 :LBL_synth_do_emit
-	;; rdi = strtab + st_name; rsi = delta; rdx = skip_prefix
+	;; rdi = strtab + st_name; rsi = delta; rdx = skip_prefix; rcx = sym_idx
 	;; mov eax, [r9]
 	!0x41 !0x8b !0x01
 	;; mov rdi, [rbp - 120]
@@ -1183,6 +1183,8 @@
 	!0xc1 !0xe8 !0x04
 	;; mov rdx, rax
 	!0x48 !0x89 !0xc2
+	;; mov rcx, r8   (sym_idx = loop counter)
+	!0x4c !0x89 !0xc1
 	;; push r8, r9 (save loop ctr & sym ptr)
 	!0x41 !0x50
 	!0x41 !0x51
@@ -1433,9 +1435,85 @@
 :DATA_lbl_done
 	pop_rcx
 
-	;; Per-byte relocation check on .rela.data (if present).  Mirrors the
-	;; .text RELOC_check_loop: scan rela_data entries linearly for an
-	;; r_offset == rcx; dispatch on r_type.
+	;; .rela.data-driven SYNTH label pre-pass.  For each reloc entry
+	;; whose target sym is in .data (shndx == data_idx) and target
+	;; offset (sym.value + r_addend) == rcx, emit a synth label
+	;; ':<prefix><name>[_<idx>]_plus_<rcx_hex>'.  Mirrors python's
+	;; pre-pass that builds labels[target_section][target_offset].
+	;; mov rax, [rbp - 224]   (rela_data_size)
+	!0x48 !0x8b !0x85 !0x20 !0xff !0xff !0xff
+	test_rax,rax
+	je %DSYNTH_done
+	push_rcx
+	;; xor r8, r8
+	!0x4d !0x31 !0xc0
+:DSYNTH_loop
+	;; rax = r8 * 24
+	!0x4c !0x89 !0xc0
+	!0x48 !0x6b !0xc0 !0x18
+	;; cmp rax, [rbp - 224]
+	!0x48 !0x3b !0x85 !0x20 !0xff !0xff !0xff
+	jge %DSYNTH_pop_done
+	;; rdx = rela_data_buf + offset
+	;; mov rdx, [rbp - 232]
+	!0x48 !0x8b !0x95 !0x18 !0xff !0xff !0xff
+	!0x48 !0x01 !0xc2
+	;; r_addend != 0?
+	;; mov rax, [rdx + 16]
+	!0x48 !0x8b !0x42 !0x10
+	test_rax,rax
+	je %DSYNTH_next
+	;; sym_idx = (rdx+8) >> 32
+	!0x48 !0x8b !0x42 !0x08
+	!0x48 !0xc1 !0xe8 !0x20
+	;; mov r11, rax   (sym_idx)
+	!0x49 !0x89 !0xc3
+	;; sym_entry = symtab + sym_idx*24
+	!0x48 !0x6b !0xc0 !0x18
+	;; mov r9, [rbp - 112]
+	!0x4c !0x8b !0x4d !0x90
+	!0x49 !0x01 !0xc1
+	;; sym.shndx == data_idx?
+	!0x41 !0x0f !0xb7 !0x41 !0x06
+	;; cmp rax, [rbp - 176]
+	!0x48 !0x3b !0x85 !0x50 !0xff !0xff !0xff
+	jne %DSYNTH_next
+	;; target = sym.value + r_addend; compare with rcx ([rsp])
+	;; mov rax, [r9 + 8]
+	!0x49 !0x8b !0x41 !0x08
+	;; add rax, [rdx + 16]
+	!0x48 !0x03 !0x42 !0x10
+	;; cmp rax, [rsp]
+	!0x48 !0x3b !0x04 !0x24
+	jne %DSYNTH_next
+	;; Match!  Emit synth label.
+	;; rdi = strtab + sym.name
+	!0x41 !0x8b !0x01
+	!0x48 !0x8b !0x7d !0x88
+	!0x48 !0x01 !0xc7
+	;; rsi = target_offset = rax = [rsp]
+	;; mov rsi, [rsp]
+	!0x48 !0x8b !0x34 !0x24
+	;; rdx = skip_prefix from bind
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	!0x48 !0x89 !0xc2
+	;; rcx = sym_idx = r11
+	!0x4c !0x89 !0xd9
+	;; push r8, r9
+	!0x41 !0x50
+	!0x41 !0x51
+	call %FUNCTION_emit_synth_label
+	!0x41 !0x59
+	!0x41 !0x58
+:DSYNTH_next
+	!0x49 !0xff !0xc0
+	jmp %DSYNTH_loop
+:DSYNTH_pop_done
+	pop_rcx
+:DSYNTH_done
+
+	;; Per-byte relocation EMISSION check on .rela.data.
 	;; mov rax, [rbp - 224]   (rela_data_size)
 	!0x48 !0x8b !0x85 !0x20 !0xff !0xff !0xff
 	test_rax,rax
@@ -2206,11 +2284,12 @@
 ##   Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_synth_label
-	;; Args: rdi=name, rsi=delta, rdx=skip_prefix.
+	;; Args: rdi=name, rsi=delta, rdx=skip_prefix, rcx=sym_idx.
+	push_rcx                                ; [rsp+24] = sym_idx
 	push_rdx                                ; [rsp+16] = skip_prefix
 	push_rsi                                ; [rsp+ 8] = delta
 	push_rdi                                ; [rsp+ 0] = name ptr
-	;; Emit "\n" so the label starts on a fresh line.
+	;; Emit "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
@@ -2232,6 +2311,16 @@
 	;; Emit cleaned name (from [rsp])
 	!0x48 !0x8b !0x3c !0x24
 	call %FUNCTION_emit_cleaned_name
+	;; If LOCAL (skip_prefix==0), append "_<sym_idx>"
+	!0x48 !0x8b !0x44 !0x24 !0x10
+	test_rax,rax
+	jne %ESL_no_idx
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x18                ; mov rdi, [rsp+24]
+	call %FUNCTION_emit_dec_lz
+:ESL_no_idx
 	;; Emit "_plus_"
 	lea_rdi,[rip+DWORD] %DATA_plus
 	mov_rsi, %0x06
@@ -2243,8 +2332,8 @@
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	;; add rsp, 24
-	!0x48 !0x83 !0xc4 !0x18
+	;; add rsp, 32
+	!0x48 !0x83 !0xc4 !0x20
 	ret
 
 ## ===========================================================================
