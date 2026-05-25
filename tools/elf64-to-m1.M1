@@ -74,7 +74,13 @@
 	;;   [rbp -192] = .bss        sh_size
 	;;   [rbp -200] = .bss        section index
 	;;   [rbp -208] = .bss        sh_addralign
+	;;   [rbp -216] = .rela.data  sh_offset
+	;;   [rbp -224] = .rela.data  sh_size
+	;;   [rbp -232] = .rela.data  buffer pointer
 	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
 	push_rax
 	push_rax
 	push_rax
@@ -609,7 +615,7 @@
 	call %FUNCTION_streq
 	!0x5f
 	!0x48 !0x85 !0xc0
-	je %SECTION_next
+	je %SECTION_check_rela_data
 	;; Found .bss: store size, idx, addralign.
 	!0x48 !0x8b !0x04 !0x24
 	!0x48 !0xc1 !0xe0 !0x06
@@ -626,6 +632,25 @@
 	!0x48 !0x8b !0x50 !0x30
 	;; mov [rbp - 208], rdx
 	!0x48 !0x89 !0x95 !0x30 !0xff !0xff !0xff
+	jmp %SECTION_next
+
+:SECTION_check_rela_data
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_rela_data
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_next
+	;; Found .rela.data: store offset & size.
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	!0x48 !0x8b !0x50 !0x18
+	;; mov [rbp - 216], rdx (disp32: -216 = 0xFFFFFF28)
+	!0x48 !0x89 !0x95 !0x28 !0xff !0xff !0xff
+	!0x48 !0x8b !0x50 !0x20
+	;; mov [rbp - 224], rdx (disp32: -224 = 0xFFFFFF20)
+	!0x48 !0x89 !0x95 !0x20 !0xff !0xff !0xff
 
 :SECTION_next
 	;; pop rcx (loop idx)
@@ -730,6 +755,22 @@
 	;; mov [rbp - 184], rax
 	!0x48 !0x89 !0x85 !0x48 !0xff !0xff !0xff
 :SKIP_DATA_LOAD
+
+	;; .rela.data (optional)
+	;; mov rax, [rbp - 224]
+	!0x48 !0x8b !0x85 !0x20 !0xff !0xff !0xff
+	test_rax,rax
+	je %SKIP_RELA_DATA_LOAD
+	;; mov rdi, [rbp - 216]
+	!0x48 !0x8b !0xbd !0x28 !0xff !0xff !0xff
+	;; mov rsi, [rbp - 224]
+	!0x48 !0x8b !0xb5 !0x20 !0xff !0xff !0xff
+	;; mov rdx, r12
+	!0x4c !0x89 !0xe2
+	call %FUNCTION_load_section
+	;; mov [rbp - 232], rax (disp32: -232 = 0xFFFFFF18)
+	!0x48 !0x89 !0x85 !0x18 !0xff !0xff !0xff
+:SKIP_RELA_DATA_LOAD
 
 	;; Sanity dump: print first u64 of .text contents.
 	lea_rdi,[rip+DWORD] %DATA_lbl_text_first
@@ -1066,11 +1107,14 @@
 	!0x48 !0x8b !0x7d !0x88
 	;; add rdi, rax
 	!0x48 !0x01 !0xc7
-	;; rsi = skip_prefix = (bind != 0): movzx eax, byte [r9+4]; shr eax, 4
+	;; rsi = skip_prefix = (bind != 0)
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
+	;; rdx = sym_idx = r8 (loop counter)
+	;; mov rdx, r8 (4C 89 C2)
+	!0x4c !0x89 !0xc2
 	;; push r8 (save loop ctr)
 	!0x41 !0x50
 	call %FUNCTION_emit_label_def
@@ -1094,16 +1138,27 @@
 	!0x49 !0x3b !0x51 !0x10
 	jge %LBL_next
 
-	;; Addend set: {1, 2} or (delta >= 8 and delta % 8 == 0)
+	;; Addend set:
+	;;   {1, 2, 0x40c, 0x4d0} ∪ range(8, min(size, 0x300), 8)
 	;; cmp rdx, 1
 	!0x48 !0x83 !0xfa !0x01
 	je %LBL_synth_do_emit
 	;; cmp rdx, 2
 	!0x48 !0x83 !0xfa !0x02
 	je %LBL_synth_do_emit
+	;; cmp rdx, 0x40c  (use 32-bit imm form)
+	!0x48 !0x81 !0xfa !0x0c !0x04 !0x00 !0x00
+	je %LBL_synth_do_emit
+	;; cmp rdx, 0x4d0
+	!0x48 !0x81 !0xfa !0xd0 !0x04 !0x00 !0x00
+	je %LBL_synth_do_emit
 	;; cmp rdx, 8
 	!0x48 !0x83 !0xfa !0x08
 	jl %LBL_next
+	;; delta >= 0x300 → skip 8-aligned synths
+	;; cmp rdx, 0x300
+	!0x48 !0x81 !0xfa !0x00 !0x03 !0x00 !0x00
+	jge %LBL_next
 	;; (delta & 7) == 0?
 	;; mov rax, rdx
 	!0x48 !0x89 !0xd0
@@ -1191,11 +1246,13 @@
 	;; Save r_type (low 32) and compute sym_index (high 32).
 	;; mov rax, [rdx + 8]
 	!0x48 !0x8b !0x42 !0x08
-	;; r8 = r_type = eax & 0xffffffff (low 32 bits, zero-extended)
-	;; mov r8d, eax  (4189C0)
+	;; mov r8d, eax  — r8 = r_type
 	!0x41 !0x89 !0xc0
 	;; sym_index = rax >> 32
 	!0x48 !0xc1 !0xe8 !0x20
+	;; Preserve sym_index in r11 for the suffix.
+	;; mov r11, rax  (4989C3)
+	!0x49 !0x89 !0xc3
 	;; sym_entry = symtab + sym_index * 24
 	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
 	;; mov r10, [rbp - 112]   (symtab_buf)
@@ -1233,7 +1290,9 @@
 	;; cmp r8d, 11  (R_X86_64_32S)
 	!0x41 !0x83 !0xf8 !0x0b
 	je %RELOC_emit_abs32
-	;; default: GOTPCREL family — emit %symbol_ref, advance 4
+	;; default: GOTPCREL family — emit %symbol_ref, advance 4.
+	;; mov rdx, r11  (sym_idx for LOCAL suffix)
+	!0x4c !0x89 !0xda
 	push_rcx
 	call %FUNCTION_emit_label_ref
 	pop_rcx
@@ -1242,7 +1301,8 @@
 	jmp %EMIT_loop
 
 :RELOC_emit_abs64
-	;; Emit "\n&<sym>\n!0x00 ×4\n" and skip 8 bytes.
+	;; mov rdx, r11
+	!0x4c !0x89 !0xda
 	push_rcx
 	call %FUNCTION_emit_abs64_ref
 	pop_rcx
@@ -1251,7 +1311,8 @@
 	jmp %EMIT_loop
 
 :RELOC_emit_abs32
-	;; Emit "\n&<sym>\n" and skip 4 bytes.
+	;; mov rdx, r11
+	!0x4c !0x89 !0xda
 	push_rcx
 	call %FUNCTION_emit_abs32_ref
 	pop_rcx
@@ -1285,6 +1346,8 @@
 
 :RELOC_pc32_label
 	;; Cross-section PC32: emit %sym, advance 4.
+	;; mov rdx, r11
+	!0x4c !0x89 !0xda
 	push_rcx
 	call %FUNCTION_emit_label_ref
 	pop_rcx
@@ -1356,6 +1419,8 @@
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc6
+	;; rdx = sym_idx = r8
+	!0x4c !0x89 !0xc2
 	;; push r8
 	!0x41 !0x50
 	call %FUNCTION_emit_label_def
@@ -1368,6 +1433,97 @@
 :DATA_lbl_done
 	pop_rcx
 
+	;; Per-byte relocation check on .rela.data (if present).  Mirrors the
+	;; .text RELOC_check_loop: scan rela_data entries linearly for an
+	;; r_offset == rcx; dispatch on r_type.
+	;; mov rax, [rbp - 224]   (rela_data_size)
+	!0x48 !0x8b !0x85 !0x20 !0xff !0xff !0xff
+	test_rax,rax
+	je %DATA_emit_raw
+
+	push_rcx
+	;; xor r9, r9   (reloc counter)
+	!0x4d !0x31 !0xc9
+:DRELOC_loop
+	;; mov rax, r9
+	!0x4c !0x89 !0xc8
+	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
+	;; cmp rax, [rbp - 224]
+	!0x48 !0x3b !0x85 !0x20 !0xff !0xff !0xff
+	jge %DRELOC_no_match
+	;; rdx = rela_data_buf + offset
+	;; mov rdx, [rbp - 232]
+	!0x48 !0x8b !0x95 !0x18 !0xff !0xff !0xff
+	!0x48 !0x01 !0xc2
+	;; r_offset == [rsp]? (saved rcx)
+	;; mov rax, [rdx]
+	!0x48 !0x8b !0x02
+	;; cmp rax, [rsp]
+	!0x48 !0x3b !0x04 !0x24
+	je %DRELOC_match
+	;; inc r9
+	!0x49 !0xff !0xc1
+	jmp %DRELOC_loop
+
+:DRELOC_no_match
+	pop_rcx
+	jmp %DATA_emit_raw
+
+:DRELOC_match
+	;; Extract r_type (low 32 of r_info at rdx+8) and sym_idx (high 32).
+	;; mov rax, [rdx + 8]
+	!0x48 !0x8b !0x42 !0x08
+	;; mov r8d, eax  (r_type)
+	!0x41 !0x89 !0xc0
+	!0x48 !0xc1 !0xe8 !0x20
+	;; mov r11, rax  (sym_idx)
+	!0x49 !0x89 !0xc3
+	;; sym_entry = symtab + sym_idx * 24
+	!0x48 !0x6b !0xc0 !0x18
+	;; mov r10, [rbp - 112]
+	!0x4c !0x8b !0x55 !0x90
+	!0x49 !0x01 !0xc2
+	;; rdi = strtab + st_name
+	!0x41 !0x8b !0x02
+	!0x48 !0x8b !0x7d !0x88
+	!0x48 !0x01 !0xc7
+	;; rsi = skip_prefix
+	!0x41 !0x0f !0xb6 !0x42 !0x04
+	!0xc1 !0xe8 !0x04
+	!0x48 !0x89 !0xc6
+	;; rdx = sym_idx = r11
+	!0x4c !0x89 !0xda
+	pop_rcx                                 ; rcx back
+
+	;; Dispatch
+	!0x41 !0x83 !0xf8 !0x01                 ; cmp r8d, 1 (R_X86_64_64)
+	je %DRELOC_emit_abs64
+	!0x41 !0x83 !0xf8 !0x0a                 ; cmp r8d, 10
+	je %DRELOC_emit_abs32
+	!0x41 !0x83 !0xf8 !0x0b                 ; cmp r8d, 11
+	je %DRELOC_emit_abs32
+	;; default: emit %label, advance 4
+	push_rcx
+	call %FUNCTION_emit_label_ref
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x04
+	jmp %DATA_emit_loop
+
+:DRELOC_emit_abs64
+	push_rcx
+	call %FUNCTION_emit_abs64_ref
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x08
+	jmp %DATA_emit_loop
+
+:DRELOC_emit_abs32
+	push_rcx
+	call %FUNCTION_emit_abs32_ref
+	pop_rcx
+	!0x48 !0x83 !0xc1 !0x04
+	jmp %DATA_emit_loop
+
+:DATA_emit_raw
 	;; Emit byte at .data + rcx
 	;; mov rdx, [rbp - 184]
 	!0x48 !0x8b !0x95 !0x48 !0xff !0xff !0xff
@@ -1489,6 +1645,8 @@
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc6
+	;; rdx = sym_idx = r8
+	!0x4c !0x89 !0xc2
 	!0x41 !0x50
 	call %FUNCTION_emit_label_def
 	!0x41 !0x58
@@ -1993,8 +2151,10 @@
 ##   Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_label_def
-	push_rdi                                ; [rsp+8] = name ptr (after rsi push)
-	push_rsi                                ; [rsp]   = skip_prefix
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	push_rdx                                ; [rsp+16] = sym_idx
+	push_rdi                                ; [rsp+ 8] = name
+	push_rsi                                ; [rsp+ 0] = skip_prefix
 	;; Emit "\n" first so the label always starts on a fresh line.
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
@@ -2018,12 +2178,24 @@
 	;; Emit cleaned name (saved at [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
+	;; If LOCAL (skip_prefix==0), append "_<sym_idx>" so per-object
+	;; locally-scoped symbols don't collide on combine.
+	!0x48 !0x8b !0x04 !0x24                  ; mov rax, [rsp]
+	test_rax,rax
+	jne %ELD_no_suffix
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; mov rdi, [rsp+16]   (sym_idx)
+	!0x48 !0x8b !0x7c !0x24 !0x10
+	call %FUNCTION_emit_dec_lz
+:ELD_no_suffix
 	;; Emit "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	;; add rsp, 16
-	!0x48 !0x83 !0xc4 !0x10
+	;; add rsp, 24
+	!0x48 !0x83 !0xc4 !0x18
 	ret
 
 ## ===========================================================================
@@ -2083,6 +2255,55 @@
 ##   where <label> is the prefix-cleaned symbol name (no extra prefix).
 ## ===========================================================================
 ## ===========================================================================
+## FUNCTION_emit_dec_lz(rdi=value) — writes value as decimal without
+##   leading zeros to the output fd.  Used for the python-style
+##   '_<sym_index>' suffix appended to LOCAL symbol labels.
+##   Clobbers rax/rcx/rdx/rdi/rsi.
+## ===========================================================================
+:FUNCTION_emit_dec_lz
+	;; sub rsp, 32
+	!0x48 !0x83 !0xec !0x20
+	;; rcx = rsp + 24  (write pointer, walks backward)
+	!0x48 !0x89 !0xe1
+	!0x48 !0x83 !0xc1 !0x18
+	;; rax = value
+	!0x48 !0x89 !0xf8
+	;; if zero, emit '0'
+	test_rax,rax
+	jne %DLZ_loop
+	!0x48 !0xff !0xc9                       ; dec rcx
+	!0xc6 !0x01 !0x30                       ; mov byte [rcx], '0'
+	jmp %DLZ_write
+:DLZ_loop
+	;; rdx = rax mod 10; rax = rax div 10
+	;; xor edx, edx
+	!0x31 !0xd2
+	;; mov rsi, 10
+	mov_rsi, %0xa
+	;; div rsi   (48 F7 F6)
+	!0x48 !0xf7 !0xf6
+	;; add dl, '0'
+	!0x80 !0xc2 !0x30
+	;; dec rcx
+	!0x48 !0xff !0xc9
+	;; mov [rcx], dl
+	!0x88 !0x11
+	;; test rax, rax
+	test_rax,rax
+	jne %DLZ_loop
+:DLZ_write
+	;; write(output_fd, rcx, (rsp+24) - rcx)
+	!0x48 !0x8b !0xbd !0x70 !0xff !0xff !0xff
+	!0x48 !0x89 !0xce
+	!0x48 !0x89 !0xe2
+	!0x48 !0x83 !0xc2 !0x18
+	!0x48 !0x29 !0xca
+	mov_rax, %0x2000004
+	syscall
+	!0x48 !0x83 !0xc4 !0x20
+	ret
+
+## ===========================================================================
 ## FUNCTION_emit_i32(rdi=value) — writes the low 32 bits of rdi as 4
 ##   little-endian byte literals ('!0xHH !0xHH !0xHH !0xHH ') to the
 ##   output fd.  Used for R_X86_64_PC32 self-text computed
@@ -2115,12 +2336,13 @@
 ##   address).  Clobbers rax/rcx/rdx/rdi/rsi.
 ## ===========================================================================
 :FUNCTION_emit_abs32_ref
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	push_rdx
 	push_rdi
 	push_rsi
 	lea_rdi,[rip+DWORD] %DATA_abs_ref_prefix
 	mov_rsi, %0x02
 	call %FUNCTION_write_stdout
-	;; skip_prefix?
 	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
 	jne %EA32_skip_prefix
@@ -2130,14 +2352,22 @@
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :EA32_skip_prefix
-	;; emit cleaned name (from [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
-	;; emit "\n"
+	;; LOCAL suffix
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EA32_no_suffix
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x10
+	call %FUNCTION_emit_dec_lz
+:EA32_no_suffix
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	!0x48 !0x83 !0xc4 !0x10
+	!0x48 !0x83 !0xc4 !0x18
 	ret
 
 ## ===========================================================================
@@ -2148,13 +2378,13 @@
 ##   Mirrors python emit_section's R_X86_64_64 branch.
 ## ===========================================================================
 :FUNCTION_emit_abs64_ref
-	push_rdi                                ; [rsp+8] = name
-	push_rsi                                ; [rsp]   = skip_prefix
-	;; Write "\n&"
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	push_rdx
+	push_rdi
+	push_rsi
 	lea_rdi,[rip+DWORD] %DATA_abs_ref_prefix
 	mov_rsi, %0x02
 	call %FUNCTION_write_stdout
-	;; skip_prefix?
 	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
 	jne %EAR_skip_prefix
@@ -2164,48 +2394,63 @@
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :EAR_skip_prefix
-	;; Emit cleaned name (from [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
-	;; Emit "\n!0x00 !0x00 !0x00 !0x00\n" (26 bytes)
+	;; LOCAL suffix
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EAR_no_suffix
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x10
+	call %FUNCTION_emit_dec_lz
+:EAR_no_suffix
 	lea_rdi,[rip+DWORD] %DATA_zero4
 	mov_rsi, %0x1a
 	call %FUNCTION_write_stdout
-	;; add rsp, 16
-	!0x48 !0x83 !0xc4 !0x10
+	!0x48 !0x83 !0xc4 !0x18
 	ret
 
 ## ===========================================================================
 ## FUNCTION_emit_label_ref(rdi=name_ptr, rsi=skip_prefix) — writes "\n%<name>"
 :FUNCTION_emit_label_ref
-	;; Args: rdi=name, rsi=skip_prefix.
-	push_rdi                                ; [rsp+8] = name
-	push_rsi                                ; [rsp]   = skip_prefix
+	;; Args: rdi=name, rsi=skip_prefix, rdx=sym_idx.
+	push_rdx                                ; [rsp+16] = sym_idx
+	push_rdi                                ; [rsp+ 8] = name
+	push_rsi                                ; [rsp+ 0] = skip_prefix
 	;; Write "\n%"
 	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
 	mov_rsi, %0x02
 	call %FUNCTION_write_stdout
 	;; skip_prefix?
-	!0x48 !0x8b !0x04 !0x24                      ; mov rax, [rsp]
+	!0x48 !0x8b !0x04 !0x24
 	test_rax,rax
 	jne %ELR_skip_prefix
-	;; Write prefix
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_strlen
 	!0x48 !0x89 !0xc6
 	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
 	call %FUNCTION_write_stdout
 :ELR_skip_prefix
-	;; Write cleaned name (from [rsp+8])
 	!0x48 !0x8b !0x7c !0x24 !0x08
 	call %FUNCTION_emit_cleaned_name
-	;; Write trailing "\n" so the next emit (label def or byte) doesn't
-	;; glue onto the symbol-reference token.
+	;; If LOCAL, append "_<sym_idx>".
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %ELR_no_suffix
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x10
+	call %FUNCTION_emit_dec_lz
+:ELR_no_suffix
+	;; Trailing "\n"
 	lea_rdi,[rip+DWORD] %DATA_newline
 	mov_rsi, %0x01
 	call %FUNCTION_write_stdout
-	;; add rsp, 16
-	!0x48 !0x83 !0xc4 !0x10
+	;; add rsp, 24
+	!0x48 !0x83 !0xc4 !0x18
 	ret
 
 ## ===========================================================================
@@ -2440,6 +2685,9 @@
 :DATA_name_bss
 	".bss"
 	!0x00
+:DATA_name_rela_data
+	".rela.data"
+	!0x00
 
 :DATA_msg_found_symtab
 	"  -> symtab    \n"
@@ -2471,6 +2719,8 @@
 	!0x0a !0x25                             ; "\n%"
 :DATA_abs_ref_prefix
 	!0x0a !0x26                             ; "\n&"
+:DATA_underscore
+	!0x5f                                   ; "_"
 :DATA_zero4
 	!0x0a
 	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20     ; "!0x00 "
