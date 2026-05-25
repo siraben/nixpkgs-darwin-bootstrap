@@ -9,15 +9,33 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
 
-          python3 ${root + "/tools/phase2-amd64-catm.py"} \
-            ${stage0Sources} \
-            ${phase2-hex2}/bin/hex2-darwin \
-            .
+          # Port upstream catm to Darwin via bash+sed+perl.
+          ${root + "/scripts/stage0/port-catm-darwin.sh"} ${stage0Sources} \
+            catm_AMD64_darwin_body.hex2
+
+          # Assemble header + body separately via phase2-hex2, then cat them
+          # and pad to data_end / linkedit_offset.  Mirrors what the removed
+          # tools/phase2-amd64-catm.py did (write_bytes(header + body) + pad).
+          ${phase2-hex2}/bin/hex2-darwin \
+            ${root + "/tools/templates/MACHO-amd64-catm-header.hex2"} \
+            header.bin
+          ${phase2-hex2}/bin/hex2-darwin catm_AMD64_darwin_body.hex2 body.bin
+          cat header.bin body.bin > catm-darwin
+
+          # Pad to data_end = text_size + data_size = 0x800000 + 0x100000 = 0x900000
+          # Then to linkedit_offset = same = 0x900000 (catm has small data_size)
+          dataEnd=9437184    # 0x900000
+          currentSize=$(stat -f%z catm-darwin 2>/dev/null || stat -c%s catm-darwin)
+          if [ "$currentSize" -lt "$dataEnd" ]; then
+            dd if=/dev/zero of=catm-darwin bs=1 count="$((dataEnd - currentSize))" \
+              seek="$currentSize" conv=notrunc 2>/dev/null
+          fi
+          chmod +x catm-darwin
 
           source ${darwin.signingUtils}
           sign catm-darwin
