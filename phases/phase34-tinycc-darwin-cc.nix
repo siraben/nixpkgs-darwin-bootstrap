@@ -47,7 +47,7 @@ with args;
           --replace-fail @AR@ ${cctools}/bin/ar \
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
           --replace-fail @PYTHON@ ${python3}/bin/python3 \
-          --replace-fail @ELF_TO_M1@ ${root + "/tools/elf64-to-m1.py"} \
+          --replace-fail @ELF_TO_M1@ ${phase26b-elf64-to-m1}/bin/elf64-to-m1 \
           --replace-fail @M1_TO_HEX2@ ${root + "/tools/m1-to-hex2.py"} \
           --replace-fail @HEX2@ ${phase10-hex2}/bin/hex2 \
           --replace-fail @MACHO@ $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2 \

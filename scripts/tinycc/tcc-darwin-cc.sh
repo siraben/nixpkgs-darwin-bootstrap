@@ -251,7 +251,7 @@ add_object_symbols() {
   local object="$1"
   local index="$2"
   local symbols="$tmp/object-$index.symbols"
-  @PYTHON@ @ELF_TO_M1@ --symbols "$object" > "$symbols"
+  @ELF_TO_M1@ --symbols "$object" > "$symbols"
   process_symbol_file "$symbols"
 }
 
@@ -271,7 +271,7 @@ prepare_archive_cache() {
       for member in "$cache_dir/extract"/*.o; do
         test -f "$member" || continue
         symbols="$cache_dir/symbols/member-$member_index.tsv"
-        @PYTHON@ @ELF_TO_M1@ --symbols "$member" > "$symbols"
+        @ELF_TO_M1@ --symbols "$member" > "$symbols"
         printf '%s\t%s\n' "$member_index" "$(basename "$member")" >> "$cache_dir/members.list"
         member_index=$((member_index + 1))
       done
@@ -312,7 +312,7 @@ add_selected_archive_member() {
 
   if [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; then
     if mkdir "$cache_dir/member-$member_index.lock" 2>/dev/null; then
-      @PYTHON@ @ELF_TO_M1@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
+      @ELF_TO_M1@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
       awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
       awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
       rm -f "$m1"
@@ -489,7 +489,7 @@ add_archives
 object_index=0
 for object in "${objects[@]}"; do
   m1="$tmp/object-$object_index.M1"
-  @PYTHON@ @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
+  @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
   code_files+=("$tmp/object-$object_index.code.M1")
