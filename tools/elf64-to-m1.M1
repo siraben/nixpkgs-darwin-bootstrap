@@ -1187,13 +1187,15 @@
 	jmp %EMIT_loop
 
 :RELOC_check_match
-	;; rdx points to the matched Elf64_Rela.  sym_index = high 32 of
-	;; (rdx + 8) (r_info).
+	;; rdx points to the matched Elf64_Rela.  r_info = (rdx+8).
+	;; Save r_type (low 32) and compute sym_index (high 32).
 	;; mov rax, [rdx + 8]
 	!0x48 !0x8b !0x42 !0x08
-	;; shr rax, 32
+	;; r8 = r_type = eax & 0xffffffff (low 32 bits, zero-extended)
+	;; mov r8d, eax  (4189C0)
+	!0x41 !0x89 !0xc0
+	;; sym_index = rax >> 32
 	!0x48 !0xc1 !0xe8 !0x20
-	;; rax = sym_index
 	;; sym_entry = symtab + sym_index * 24
 	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
 	;; mov r10, [rbp - 112]   (symtab_buf)
@@ -1209,20 +1211,31 @@
 	;; add rdi, rax
 	!0x48 !0x01 !0xc7
 
-	;; Emit "\n\t%<prefix?><name>".  rsi = skip_prefix = bind from r10.
-	;; movzx eax, byte [r10+4]
+	;; rsi = skip_prefix = bind from r10
 	!0x41 !0x0f !0xb6 !0x42 !0x04
-	;; shr eax, 4
 	!0xc1 !0xe8 !0x04
 	;; mov rsi, rax
 	!0x48 !0x89 !0xc6
+
+	;; Dispatch on r_type (in r8).
+	;; cmp r8d, 1   (R_X86_64_64)
+	!0x41 !0x83 !0xf8 !0x01
+	je %RELOC_emit_abs64
+	;; default: PC32/PLT32/GOTPCREL — emit %symbol_ref, advance 4
 	push_rcx
 	call %FUNCTION_emit_label_ref
 	pop_rcx
-
-	;; Advance rcx by 4 (skip the 32-bit relocation slot).
 	;; add rcx, 4
 	!0x48 !0x83 !0xc1 !0x04
+	jmp %EMIT_loop
+
+:RELOC_emit_abs64
+	;; Emit "\n&<sym>\n!0x00 ×4\n" and skip 8 bytes.
+	push_rcx
+	call %FUNCTION_emit_abs64_ref
+	pop_rcx
+	;; add rcx, 8
+	!0x48 !0x83 !0xc1 !0x08
 	jmp %EMIT_loop
 :EMIT_loop_end
 
@@ -2016,6 +2029,43 @@
 ##   Mirrors python tools/elf64-to-m1.py: relocations emit `%<label>`
 ##   where <label> is the prefix-cleaned symbol name (no extra prefix).
 ## ===========================================================================
+## ===========================================================================
+## FUNCTION_emit_abs64_ref(rdi=name_ptr, rsi=skip_prefix) — writes
+##   "\n&<prefix><name>\n!0x00 !0x00 !0x00 !0x00\n" to the output fd.
+##   M1's '&' is an absolute 32-bit address; the 4 trailing zero bytes
+##   form the upper half of the 8-byte slot that R_X86_64_64 occupies.
+##   Mirrors python emit_section's R_X86_64_64 branch.
+## ===========================================================================
+:FUNCTION_emit_abs64_ref
+	push_rdi                                ; [rsp+8] = name
+	push_rsi                                ; [rsp]   = skip_prefix
+	;; Write "\n&"
+	lea_rdi,[rip+DWORD] %DATA_abs_ref_prefix
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	;; skip_prefix?
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EAR_skip_prefix
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_write_stdout
+:EAR_skip_prefix
+	;; Emit cleaned name (from [rsp+8])
+	!0x48 !0x8b !0x7c !0x24 !0x08
+	call %FUNCTION_emit_cleaned_name
+	;; Emit "\n!0x00 !0x00 !0x00 !0x00\n" (26 bytes)
+	lea_rdi,[rip+DWORD] %DATA_zero4
+	mov_rsi, %0x1a
+	call %FUNCTION_write_stdout
+	;; add rsp, 16
+	!0x48 !0x83 !0xc4 !0x10
+	ret
+
+## ===========================================================================
+## FUNCTION_emit_label_ref(rdi=name_ptr, rsi=skip_prefix) — writes "\n%<name>"
 :FUNCTION_emit_label_ref
 	;; Args: rdi=name, rsi=skip_prefix.
 	push_rdi                                ; [rsp+8] = name
@@ -2308,6 +2358,15 @@
 	" "
 :DATA_label_ref_prefix
 	!0x0a !0x25                             ; "\n%"
+:DATA_abs_ref_prefix
+	!0x0a !0x26                             ; "\n&"
+:DATA_zero4
+	!0x0a
+	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20     ; "!0x00 "
+	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20
+	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20
+	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20
+	!0x0a
 :DATA_colon
 	!0x3a                                   ; ":"
 :DATA_empty_string
