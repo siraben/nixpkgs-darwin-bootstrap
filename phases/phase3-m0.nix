@@ -9,18 +9,30 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
 
-          python3 ${root + "/tools/phase3-amd64-m0.py"} ${stage0Sources} .
+          # MACHO-amd64-lowdata.hex2 is a deterministic Mach-O header — the
+          # constants (TEXT_SIZE, DATA_VMADDR, LINKEDIT layout, etc.) don't
+          # depend on any input.  Use the static committed snapshot in
+          # tree instead of regenerating via python.
+          cp ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} MACHO-amd64-lowdata.hex2
+
+          # Port upstream M0_AMD64.hex2 to Darwin via bash+sed+perl.
+          # Mirrors port_m0_source() from the (removed) python script.
+          ${root + "/scripts/stage0/port-m0-darwin.sh"} ${stage0Sources} \
+            M0_AMD64_darwin_body.hex2
+
           ${phase2-catm}/bin/catm-darwin M0-darwin.hex2 \
             MACHO-amd64-lowdata.hex2 \
             M0_AMD64_darwin_body.hex2
           ${phase2-hex2}/bin/hex2-darwin M0-darwin.hex2 M0-darwin
 
-          linkeditOffset="$(cat linkedit-offset)"
+          # linkedit-offset is a static constant: text_size + data_size
+          # = 0x800000 + 0x2000000 = 0x2800000 = 41943040.
+          linkeditOffset=41943040
           dd if=/dev/zero of=M0-darwin bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
           chmod +x M0-darwin
 
