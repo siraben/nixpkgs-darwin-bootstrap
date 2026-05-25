@@ -77,7 +77,9 @@
 	;;   [rbp -216] = .rela.data  sh_offset
 	;;   [rbp -224] = .rela.data  sh_size
 	;;   [rbp -232] = .rela.data  buffer pointer
+	;;   [rbp -240] = --symbols   mode flag (0 = convert, 1 = list symbols)
 	xor_eax,eax
+	push_rax
 	push_rax
 	push_rax
 	push_rax
@@ -147,27 +149,36 @@
 	;; mov rdi, rcx
 	!0x48 !0x89 !0xcf
 	lea_rsi,[rip+DWORD] %DATA_arg_prefix
-	;; push rbx, rcx
 	push_rbx
 	push_rcx
 	call %FUNCTION_streq
-	;; pop rcx, rbx
 	pop_rcx
 	pop_rbx
-	;; test rax, rax
 	!0x48 !0x85 !0xc0
-	je %ARGV_skip_flag
+	je %ARGV_check_symbols
 
 	;; --prefix: next argv slot is the value.
-	;; add rbx, 8 → argv[i+1]
 	!0x48 !0x83 !0xc3 !0x08
-	;; mov rcx, [rbx]
 	!0x48 !0x8b !0x0b
-	;; test rcx, rcx
 	!0x48 !0x85 !0xc9
 	je %ARGV_no_input
-	;; mov [rbp - 136], rcx     (disp32)
 	!0x48 !0x89 !0x8d !0x78 !0xff !0xff !0xff
+	jmp %ARGV_skip_flag
+
+:ARGV_check_symbols
+	;; mov rdi, rcx
+	!0x48 !0x89 !0xcf
+	lea_rsi,[rip+DWORD] %DATA_arg_symbols
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	pop_rcx
+	pop_rbx
+	!0x48 !0x85 !0xc0
+	je %ARGV_skip_flag
+	;; --symbols: set flag at [rbp - 240]
+	mov_rax, %0x1
+	!0x48 !0x89 !0x85 !0x10 !0xff !0xff !0xff
 
 :ARGV_skip_flag
 	;; advance past current arg (or past --prefix value)
@@ -771,6 +782,95 @@
 	;; mov [rbp - 232], rax (disp32: -232 = 0xFFFFFF18)
 	!0x48 !0x89 !0x85 !0x18 !0xff !0xff !0xff
 :SKIP_RELA_DATA_LOAD
+
+	;; If --symbols mode, walk symtab and emit "D\t<name>\n" / "U\t<name>\n"
+	;; for each non-LOCAL non-empty symbol, then exit 0.  This replaces
+	;; the python `elf64-to-m1.py --symbols` mode used by phase37 to
+	;; produce libgcc-symbols/*.tsv files.  Output is unsorted; the
+	;; caller pipes through `sort -u` for python-equivalent ordering.
+	;; mov rax, [rbp - 240]
+	!0x48 !0x8b !0x85 !0x10 !0xff !0xff !0xff
+	test_rax,rax
+	je %SKIP_SYMBOLS_MODE
+
+	xor_ecx,ecx
+:SYM_LIST_loop
+	;; rax = rcx * 24
+	!0x48 !0x6b !0xc1 !0x18
+	;; cmp rax, [rbp - 72]   (symtab_size)
+	!0x48 !0x3b !0x45 !0xb8
+	jge %SYM_LIST_done
+
+	;; rdx = symtab_buf + offset
+	!0x48 !0x8b !0x55 !0x90
+	!0x48 !0x01 !0xc2
+
+	;; bind != 0?
+	!0x0f !0xb6 !0x42 !0x04                 ; movzx eax, byte [rdx+4]
+	!0xc1 !0xe8 !0x04                        ; shr eax, 4
+	test_rax,rax
+	je %SYM_LIST_next
+
+	;; st_name != 0?
+	!0x8b !0x02                              ; mov eax, [rdx]
+	test_rax,rax
+	je %SYM_LIST_next
+
+	;; rdi = strtab + name
+	!0x48 !0x89 !0xc7                        ; mov rdi, rax (sym_name)
+	!0x48 !0x03 !0x7d !0x88                  ; add rdi, [rbp - 120]
+
+	;; shndx == 0 (UND)?
+	!0x0f !0xb7 !0x42 !0x06                  ; movzx eax, word [rdx+6]
+	test_rax,rax
+	je %SYM_LIST_emit_U
+
+	;; Defined: emit "D\t<name>\n"
+	push_rcx
+	push_rdi
+	lea_rdi,[rip+DWORD] %DATA_sym_D
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	;; mov rdi, [rsp]
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_write_stdout
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	pop_rdi
+	pop_rcx
+	jmp %SYM_LIST_next
+
+:SYM_LIST_emit_U
+	push_rcx
+	push_rdi
+	lea_rdi,[rip+DWORD] %DATA_sym_U
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0x3c !0x24
+	call %FUNCTION_write_stdout
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	pop_rdi
+	pop_rcx
+
+:SYM_LIST_next
+	;; inc rcx
+	!0x48 !0xff !0xc1
+	jmp %SYM_LIST_loop
+
+:SYM_LIST_done
+	xor_edi,edi
+	call %FUNCTION_exit
+
+:SKIP_SYMBOLS_MODE
 
 	;; Sanity dump: print first u64 of .text contents.
 	lea_rdi,[rip+DWORD] %DATA_lbl_text_first
@@ -3104,6 +3204,13 @@
 :DATA_arg_prefix
 	"--prefix"
 	!0x00
+:DATA_arg_symbols
+	"--symbols"
+	!0x00
+:DATA_sym_D
+	!0x44 !0x09                              ; "D\t"
+:DATA_sym_U
+	!0x55 !0x09                              ; "U\t"
 :DATA_plus
 	"_plus_"
 :DATA_elf_underscore

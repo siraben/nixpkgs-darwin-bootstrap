@@ -36,7 +36,7 @@ cp "$phase36/lib/gcc/$target/$gcc_version/libgcov.a" "$gcc_lib/libgcov.a"
 cp -R "$phase36/lib/gcc/$target/$gcc_version/libgcc-objects" "$gcc_lib/libgcc-objects"
 mkdir -p "$gcc_lib/libgcc-symbols"
 for object in "$gcc_lib/libgcc-objects"/*.o; do
-  "$python" "$elf_to_m1" --symbols "$object" > "$gcc_lib/libgcc-symbols/$(basename "$object").tsv"
+  "$elf_to_m1" --symbols "$object" 2>/dev/null | sort -u > "$gcc_lib/libgcc-symbols/$(basename "$object").tsv"
 done
 
 cat > "$out/bin/gcc46-bootstrap-as" <<EOF_AS
@@ -586,7 +586,7 @@ normalize_symbols() {
 add_object_symbols() {
   local object="\$1"
   local symbols="\$tmpdir/symbols-\${object##*/}.tsv"
-  "\$python" "\$elf_to_m1" --symbols "\$object" > "\$symbols"
+  "\$elf_to_m1" --symbols "\$object" 2>/dev/null | sort -u > "\$symbols"
   awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbols" >> "\$tmpdir/defined.raw"
   awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbols" >> "\$tmpdir/unresolved.raw"
   normalize_symbols

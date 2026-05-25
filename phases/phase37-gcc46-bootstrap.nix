@@ -7,8 +7,8 @@ with args;
           ${phase36-gcc46-libgcc} \
           ${phase34-tinycc-darwin-cc} \
           ${root + "/scripts/gcc46/phase36-bootstrap-as.awk"} \
-          ${python3}/bin/python3 \
-          ${root + "/tools/elf64-to-m1.py"} \
+          "" \
+          ${phase26b-elf64-to-m1}/bin/elf64-to-m1 \
           "$out" \
           ${gcc46Version}
       ''
