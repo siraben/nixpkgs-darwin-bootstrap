@@ -18,7 +18,7 @@ with args;
         test ! -s hello-c.stderr
         test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"
 
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix hello_ hello.o hello-object.M1
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix hello_ hello.o hello-object.M1
 
         cat > crt1-tcc-sysv.M1 <<'M1'
         :_start

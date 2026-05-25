@@ -10,11 +10,11 @@ with args;
           > tinycc-sysv-libc.stdout \
           2> tinycc-sysv-libc.stderr
 
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix tinycc_sysv_libc_ \
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
           tinycc-sysv-libc.o \
           tinycc-sysv-libc.M1
 
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix tcc_boot1_ \
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_boot1_ \
           ${phase32-tinycc-boot1-object-probe}/share/darwin-bootstrap/tcc-boot1.o \
           tcc-boot1.M1
 

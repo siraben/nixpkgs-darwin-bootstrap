@@ -10,7 +10,7 @@ with args;
           > tinycc-sysv-libc.stdout \
           2> tinycc-sysv-libc.stderr
 
-        ${python3}/bin/python3 ${root + "/tools/elf64-to-m1.py"} --prefix tinycc_sysv_libc_ \
+        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
           tinycc-sysv-libc.o \
           tinycc-sysv-libc.M1
 
