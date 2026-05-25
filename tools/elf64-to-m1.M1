@@ -1,67 +1,17 @@
 ## tools/elf64-to-m1.M1
 ##
 ## Hand-written x86_64 Darwin Mach-O implementation of the ELF→M1 converter.
-## Assembled through the stage0-derived M1+hex2 chain (phase26b builds this
-## file with no Python in its closure).  Replaces tools/elf64-to-m1.py.
-##
-## Usage:
-##   elf64-to-m1 [--prefix <P>] <input.o> [<output.M1>]   # convert
-##   elf64-to-m1 --symbols <input.o>                       # list D/U syms
-##
-## Modes:
-##   convert (default) — reads an ELF64 relocatable object and writes M1
-##     source mirroring the python emitter byte-for-byte: ':<prefix><name>'
-##     label definitions at each symbol's value, synthetic '_plus_<hex>'
-##     intermediates for GLOBAL/WEAK syms at addends {1, 2, 8..size step 8
-##     capped at 0x300, 0x40C, 0x4D0}, additional addend-driven synths from
-##     non-zero-effective-addend relocations in .rela.text / .rela.data,
-##     '!0xHH' byte literals, GOT-load mutation (mov→lea), symbol-reference
-##     emission ('%sym' / '&sym + 4 zero bytes' / computed PC32 displacement
-##     for self-text), :ELF_data/:HEX2_data section markers, .data + .bss
-##     emission with alignment padding.  Bind-aware --prefix application
-##     (LOCAL only) and the python label_name escape ('.LC0' → 'ELF__LC0',
-##     prepend 'L_' when first byte is a digit) are both implemented.
-##   --symbols — walks the symbol table, prints 'D\t<name>' for defined
-##     and 'U\t<name>' for undefined globals (one per line, unsorted).
-##     Callers pipe through 'sort -u' for python-equivalent ordering.
-##
-## Sections handled: .text, .rela.text, .symtab, .strtab, .data, .bss,
-##   .rela.data, .shstrtab.  Mandatory: .text + .symtab + .strtab.
-##
-## Relocations handled (per r_type):
-##   R_X86_64_64           (1)  → '&sym !0x00 !0x00 !0x00 !0x00', +8
-##   R_X86_64_PC32         (2)  → computed disp if same-section, else %sym, +4
-##   R_X86_64_PLT32        (4)  → same as PC32
-##   R_X86_64_GOTPCREL     (9)  → mov→lea mutation + %sym, +4
-##   R_X86_64_32           (10) → '&sym', +4
-##   R_X86_64_32S          (11) → '&sym', +4
-##   R_X86_64_GOTPCRELX    (41) → mov→lea + %sym
-##   R_X86_64_REX_GOTPCRELX(42) → mov→lea + %sym
+## Bootstraps through the existing M1+hex2 chain (no Python in this phase's
+## closure).  This is a work-in-progress: the helper layer (syscalls,
+## strings, simple I/O) is here; the actual ELF parser + M1 emitter is
+## stubbed.  Future iterations grow the parser body.
 ##
 ## Calling convention used internally:
 ##   System V amd64 — args in rdi/rsi/rdx/rcx/r8/r9; return in rax.
 ##   We preserve rbx/rbp/r12-r15 across calls.
 ##
-## Stack frame (rbp-relative):
-##   -8..-24  argc/argv/envp from LC_MAIN
-##   -32..-88 .text/.rela.text/.symtab/.strtab sh_offset+sh_size pairs
-##   -96..-120 mmap'd buffer pointers for the four mandatory sections
-##   -128     .text section index (st_shndx for label match)
-##   -136     --prefix pointer (empty string if absent)
-##   -144     output fd (1 by default, replaced if output path given)
-##   -152     output path (NULL if writing stdout)
-##   -160..-184 .data sh_offset/sh_size/section_index/buffer
-##   -192..-208 .bss sh_size/section_index/sh_addralign
-##   -216..-232 .rela.data sh_offset/sh_size/buffer
-##   -240     --symbols mode flag (1 = list, 0 = convert)
-##
-## Register usage in the main loop:
-##   r12 = input fd          r13 = ELF header buffer base
-##   r14 = .shstrtab buffer  r15 = e_shnum
-##   rbx = section header table buffer
-##
 ## ===========================================================================
-## ELF64 constants
+## ELF64 constants (referenced by future iterations)
 ## ===========================================================================
 ##  SHT_SYMTAB           = 2
 ##  SHT_RELA             = 4
