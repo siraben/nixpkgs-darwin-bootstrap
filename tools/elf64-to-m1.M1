@@ -71,7 +71,13 @@
 	;;   [rbp -168] = .data       sh_size
 	;;   [rbp -176] = .data       section index
 	;;   [rbp -184] = .data       buffer pointer
+	;;   [rbp -192] = .bss        sh_size
+	;;   [rbp -200] = .bss        section index
+	;;   [rbp -208] = .bss        sh_addralign
 	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
 	push_rax
 	push_rax
 	push_rax
@@ -580,7 +586,7 @@
 	call %FUNCTION_streq
 	!0x5f
 	!0x48 !0x85 !0xc0
-	je %SECTION_next
+	je %SECTION_check_bss
 	;; Found .data: store offset, size, and section index.
 	!0x48 !0x8b !0x04 !0x24
 	!0x48 !0xc1 !0xe0 !0x06
@@ -595,6 +601,31 @@
 	!0x48 !0x8b !0x04 !0x24
 	;; mov [rbp - 176], rax
 	!0x48 !0x89 !0x85 !0x50 !0xff !0xff !0xff
+	jmp %SECTION_next
+
+:SECTION_check_bss
+	!0x57
+	lea_rsi,[rip+DWORD] %DATA_name_bss
+	call %FUNCTION_streq
+	!0x5f
+	!0x48 !0x85 !0xc0
+	je %SECTION_next
+	;; Found .bss: store size, idx, addralign.
+	!0x48 !0x8b !0x04 !0x24
+	!0x48 !0xc1 !0xe0 !0x06
+	!0x48 !0x01 !0xd8
+	;; mov rdx, [rax + 32]   sh_size
+	!0x48 !0x8b !0x50 !0x20
+	;; mov [rbp - 192], rdx
+	!0x48 !0x89 !0x95 !0x40 !0xff !0xff !0xff
+	;; Section idx (re-load saved rcx since rax holds section hdr ptr)
+	!0x48 !0x8b !0x14 !0x24
+	;; mov [rbp - 200], rdx
+	!0x48 !0x89 !0x95 !0x38 !0xff !0xff !0xff
+	;; mov rdx, [rax + 48]   sh_addralign
+	!0x48 !0x8b !0x50 !0x30
+	;; mov [rbp - 208], rdx
+	!0x48 !0x89 !0x95 !0x30 !0xff !0xff !0xff
 
 :SECTION_next
 	;; pop rcx (loop idx)
@@ -1286,6 +1317,133 @@
 	jmp %DATA_emit_loop
 :DATA_emit_done
 :DATA_skip_emit
+
+	;; ---------------------------------------------------------------
+	;; Emit .bss section, if present.  Layout: insert padding zero bytes
+	;; so that the start of .bss aligns to bss_addralign relative to
+	;; the start of .data, then for each .bss byte position emit any
+	;; label definitions whose value matches, then emit '!0x00'.
+	;; Mirrors python emit_section + the align(data_size, bss_align)
+	;; padding pass in convert().
+	;; ---------------------------------------------------------------
+	;; mov rax, [rbp - 192]   ; bss_size
+	!0x48 !0x8b !0x85 !0x40 !0xff !0xff !0xff
+	test_rax,rax
+	je %BSS_skip_emit
+
+	;; Compute alignment padding from .data size to next bss_align boundary.
+	;; padding = ((data_size + bss_align - 1) & ~(bss_align - 1)) - data_size
+	;; mov rax, [rbp - 168]    ; data_size
+	!0x48 !0x8b !0x85 !0x58 !0xff !0xff !0xff
+	;; mov rdx, [rbp - 208]    ; bss_align
+	!0x48 !0x8b !0x95 !0x30 !0xff !0xff !0xff
+	;; If bss_align is 0 (no .bss explicitly aligned) skip padding.
+	;; test rdx, rdx  (4885D2)
+	!0x48 !0x85 !0xd2
+	je %BSS_no_padding
+
+	;; rcx = rdx - 1   (mask)
+	;; mov rcx, rdx
+	!0x48 !0x89 !0xd1
+	;; dec rcx
+	!0x48 !0xff !0xc9
+	;; aligned = (data_size + mask) & ~mask
+	;; mov rdx, rax            ; rdx = data_size (preserve)
+	!0x48 !0x89 !0xc2
+	;; add rax, rcx            ; rax = data_size + mask
+	!0x48 !0x01 !0xc8
+	;; not rcx                  ; rcx = ~mask
+	!0x48 !0xf7 !0xd1
+	;; and rax, rcx             ; rax = aligned
+	!0x48 !0x21 !0xc8
+	;; sub rax, rdx             ; rax = padding count
+	!0x48 !0x29 !0xd0
+	jmp %BSS_emit_padding
+
+:BSS_no_padding
+	xor_eax,eax
+
+:BSS_emit_padding
+	;; rax = number of zero padding bytes to emit.
+	;; for (i = 0; i < rax; i++) emit_byte_hex(0)
+	;; mov rcx, rax
+	!0x48 !0x89 !0xc1
+	;; test rcx, rcx  (4885C9)
+	!0x48 !0x85 !0xc9
+	je %BSS_walk_init
+:BSS_pad_loop
+	push_rcx
+	xor_edi,edi
+	call %FUNCTION_emit_byte_hex
+	pop_rcx
+	;; dec rcx
+	!0x48 !0xff !0xc9
+	;; test rcx, rcx
+	!0x48 !0x85 !0xc9
+	jne %BSS_pad_loop
+
+:BSS_walk_init
+	;; Walk .bss byte positions.  For each, emit labels and a zero.
+	xor_ecx,ecx
+:BSS_emit_loop
+	;; cmp rcx, [rbp - 192]   ; bss_size
+	!0x48 !0x3b !0x8d !0x40 !0xff !0xff !0xff
+	jge %BSS_emit_done
+
+	;; Per-byte label-definition pass on .bss.
+	push_rcx
+	;; xor r8, r8
+	!0x4d !0x31 !0xc0
+:BSS_lbl_loop
+	!0x4c !0x89 !0xc0
+	!0x48 !0x6b !0xc0 !0x18
+	;; cmp rax, [rbp - 72]  (symtab_size)
+	!0x48 !0x3b !0x45 !0xb8
+	jge %BSS_lbl_done
+
+	!0x4c !0x8b !0x4d !0x90
+	!0x49 !0x01 !0xc1
+
+	;; shndx == bss_idx?
+	!0x41 !0x0f !0xb7 !0x41 !0x06
+	;; cmp rax, [rbp - 200]   (bss_idx)
+	!0x48 !0x3b !0x85 !0x38 !0xff !0xff !0xff
+	jne %BSS_lbl_next
+
+	!0x49 !0x8b !0x41 !0x08
+	!0x48 !0x3b !0x04 !0x24
+	jne %BSS_lbl_next
+
+	!0x41 !0x8b !0x01
+	!0x48 !0x85 !0xc0
+	je %BSS_lbl_next
+
+	!0x48 !0x8b !0x7d !0x88
+	!0x48 !0x01 !0xc7
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	!0x48 !0x89 !0xc6
+	!0x41 !0x50
+	call %FUNCTION_emit_label_def
+	!0x41 !0x58
+
+:BSS_lbl_next
+	!0x49 !0xff !0xc0
+	jmp %BSS_lbl_loop
+:BSS_lbl_done
+	pop_rcx
+
+	;; Emit a zero byte.
+	xor_edi,edi
+	push_rcx
+	call %FUNCTION_emit_byte_hex
+	pop_rcx
+
+	;; inc rcx
+	!0x48 !0xff !0xc1
+	jmp %BSS_emit_loop
+:BSS_emit_done
+:BSS_skip_emit
 
 	;; Sanity: only .text/.symtab/.strtab are mandatory.  .rela.text is
 	;; optional — tcc-emitted objects (and other simple inputs) may have
@@ -2117,6 +2275,9 @@
 	!0x00
 :DATA_name_data
 	".data"
+	!0x00
+:DATA_name_bss
+	".bss"
 	!0x00
 
 :DATA_msg_found_symtab
