@@ -9,7 +9,7 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
@@ -42,7 +42,7 @@ with args;
             ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             M2-0.hex2
           ${phase2-hex2}/bin/hex2-darwin M2-0-0.hex2 M2-darwin
-          perl ${root + "/scripts/stage0/phase5-amd64-m2.pl"} patch M2-0.hex2 M2-darwin
+          ${phase11e-macho-patcher-early}/bin/macho-patcher m2-segments M2-0.hex2 M2-darwin
 
           linkeditOffset="$((0x800000 + 0x2000000))"
           dd if=/dev/zero of=M2-darwin bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

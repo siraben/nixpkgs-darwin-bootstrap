@@ -81,6 +81,7 @@
           phase11b-m1-to-hex2 = bootstrap.phase11b-m1-to-hex2;
           phase11c-hex2-data-relocs = bootstrap.phase11c-hex2-data-relocs;
           phase11d-cc-arch-helper = bootstrap.phase11d-cc-arch-helper;
+          phase11e-macho-patcher-early = bootstrap.phase11e-macho-patcher-early;
           phase42-gcc10-source = bootstrap.phase42-gcc10-source;
           phase43-gcc-latest-source = bootstrap.phase43-gcc-latest-source;
           gcc46-darwin-bootstrap-src = bootstrap.gcc46DarwinBootstrapSrc;
