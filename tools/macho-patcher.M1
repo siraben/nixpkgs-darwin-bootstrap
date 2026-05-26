@@ -446,18 +446,25 @@
 	mov_rsi, %0x03
 	call %FUNCTION_write_stderr
 
-	;; memcpy(binary + 0x800000, binary + r12, r13)
-	!0x4c !0x8b !0x75 !0xa8                 ; mov r14, [rbp - 88]
+	;; memmove(binary + 0x800000, binary + r12, r13) — BACKWARD copy.
+	;; dst (binary+0x800000) > src (binary+r12), so ranges overlap.
+	;; Forward byte-copy would overwrite unread source bytes once the
+	;; write cursor passes the source start (matches python's slice-
+	;; assignment semantics which copies via a temporary).
+	!0x4c !0x8b !0x75 !0xa8                 ; mov r14, [rbp - 88]  src_base
 	!0x4d !0x01 !0xe6                       ; add r14, r12
-	!0x4c !0x8b !0x7d !0xa8                 ; mov r15, [rbp - 88]
+	!0x4c !0x8b !0x7d !0xa8                 ; mov r15, [rbp - 88]  dst_base
 	!0x49 !0x81 !0xc7 !0x00 !0x00 !0x80 !0x00
-	!0x48 !0x31 !0xdb                       ; xor rbx, rbx
+	;; rbx = r13 - 1 (start from end)
+	!0x4c !0x89 !0xeb                       ; mov rbx, r13
+	!0x48 !0xff !0xcb                       ; dec rbx
 :COPY_loop
-	!0x4c !0x39 !0xeb
-	jge %COPY_done
+	;; if rbx < 0, done
+	!0x48 !0x83 !0xfb !0x00
+	jl %COPY_done
 	!0x41 !0x0f !0xb6 !0x04 !0x1e           ; movzx eax, byte [r14+rbx]
 	!0x41 !0x88 !0x04 !0x1f                 ; mov [r15+rbx], al
-	!0x48 !0xff !0xc3
+	!0x48 !0xff !0xcb                       ; dec rbx
 	jmp %COPY_loop
 :COPY_done
 	;; DBG: C. copy done
