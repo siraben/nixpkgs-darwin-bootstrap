@@ -259,38 +259,33 @@ void write_binary(char* path, int len)
 	fclose(f);
 }
 
-/* Find first occurrence of (mod-rm-anchored) opcode prefix in bytes[0..bin_size). */
-int find_pattern(int oplen, int* op_bytes)
+/* Find first occurrence of opcode prefix (op0, op1, op2-or-negative-for-2-byte). */
+int find_pattern(int op0, int op1, int op2)
 {
+	int oplen;
 	int i;
-	int j;
-	int ok;
+	if(op2 < 0) oplen = 2;
+	else oplen = 3;
 	i = 0;
 	while(i + oplen <= bin_size)
 	{
-		ok = 1;
-		j = 0;
-		while(j < oplen)
+		if((bytes[i] & 0xFF) == op0 && (bytes[i + 1] & 0xFF) == op1)
 		{
-			if((bytes[i + j] & 0xFF) != op_bytes[j]) { ok = 0; break; }
-			j = j + 1;
+			if(oplen == 2) return i;
+			if((bytes[i + 2] & 0xFF) == op2) return i;
 		}
-		if(ok) return i;
 		i = i + 1;
 	}
 	return -1;
 }
 
-/* RIP-rel32 patch loop: find every occurrence of op (len chars), read
- * the disp32 that follows, compute target = next_instr + disp.  If
- * target lies in [static_vm, static_vm + data_length), rewrite the
- * disp32 to point at data_vm + (target - static_vm). */
-void patch_rel32(int oplen, int* op_bytes, int static_vm, int data_vm, int data_length)
+/* RIP-rel32 patch loop.  op2 < 0 means 2-byte opcode (88 05 / 8a 05). */
+void patch_rel32(int op0, int op1, int op2, int static_vm, int data_vm, int data_length)
 {
+	int oplen;
 	int start;
 	int i;
-	int j;
-	int ok;
+	int matched;
 	int disp_pos;
 	int next_instr;
 	int b0;
@@ -301,24 +296,31 @@ void patch_rel32(int oplen, int* op_bytes, int static_vm, int data_vm, int data_
 	int target;
 	int new_target;
 	int new_disp;
+	if(op2 < 0) oplen = 2;
+	else oplen = 3;
 	start = 0;
 	while(start + oplen <= bin_size)
 	{
-		ok = 0;
+		matched = 0;
 		i = start;
 		while(i + oplen <= bin_size)
 		{
-			j = 0;
-			ok = 1;
-			while(j < oplen)
+			if((bytes[i] & 0xFF) == op0 && (bytes[i + 1] & 0xFF) == op1)
 			{
-				if((bytes[i + j] & 0xFF) != op_bytes[j]) { ok = 0; break; }
-				j = j + 1;
+				if(oplen == 2)
+				{
+					matched = 1;
+					break;
+				}
+				if((bytes[i + 2] & 0xFF) == op2)
+				{
+					matched = 1;
+					break;
+				}
 			}
-			if(ok) break;
 			i = i + 1;
 		}
-		if(!ok) return;
+		if(!matched) return;
 		disp_pos = i + oplen;
 		if(disp_pos + 4 > bin_size) return;
 		next_instr = BASE + disp_pos + 4;
@@ -342,9 +344,27 @@ void patch_rel32(int oplen, int* op_bytes, int static_vm, int data_vm, int data_
 	}
 }
 
+/* Find the 4-byte marker \x53 \x48 \x8d \x05 (push rbx; lea rax,[rip+...]). */
+int find_fix_types_marker(void)
+{
+	int i;
+	i = 0;
+	while(i + 4 <= bin_size)
+	{
+		if((bytes[i] & 0xFF) == 0x53 &&
+		   (bytes[i + 1] & 0xFF) == 0x48 &&
+		   (bytes[i + 2] & 0xFF) == 0x8d &&
+		   (bytes[i + 3] & 0xFF) == 0x05)
+		{
+			return i;
+		}
+		i = i + 1;
+	}
+	return -1;
+}
+
 void patch_binary(char* source_path, char* binary_path)
 {
-	int marker_op[4];
 	int marker;
 	int lea_position;
 	int next_instr;
@@ -362,12 +382,7 @@ void patch_binary(char* source_path, char* binary_path)
 	(void)source_path;
 	bin_size = load_binary(binary_path);
 
-	/* fix_types marker: \x53 \x48 \x8d \x05  (push rbx; lea rax,[rip+...]). */
-	marker_op[0] = 0x53;
-	marker_op[1] = 0x48;
-	marker_op[2] = 0x8d;
-	marker_op[3] = 0x05;
-	marker = find_pattern(4, marker_op);
+	marker = find_fix_types_marker();
 	if(marker < 0) { fputs("fix_types marker not found\n", stderr); exit(1); }
 
 	lea_position = marker + 1;
@@ -393,26 +408,23 @@ void patch_binary(char* source_path, char* binary_path)
 		i = i - 1;
 	}
 
-	/* 16 opcode patterns from perl. */
-	{
-		int op[3];
-		op[0] = 0x48; op[1] = 0x8d; op[2] = 0x05;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8d; op[2] = 0x1d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8d; op[2] = 0x0d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8d; op[2] = 0x15;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8d; op[2] = 0x35;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8b; op[2] = 0x05;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8b; op[2] = 0x1d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8b; op[2] = 0x0d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8b; op[2] = 0x15;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x8b; op[2] = 0x35;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x89; op[2] = 0x05;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x89; op[2] = 0x1d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x89; op[2] = 0x0d;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x48; op[1] = 0x89; op[2] = 0x15;  patch_rel32(3, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x88; op[1] = 0x05;                patch_rel32(2, op, static_vm, DATA_VM, static_length);
-		op[0] = 0x8a; op[1] = 0x05;                patch_rel32(2, op, static_vm, DATA_VM, static_length);
-	}
+	/* 16 opcode patterns from perl, dispatched by op-byte triples. */
+	patch_rel32(0x48, 0x8d, 0x05, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8d, 0x1d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8d, 0x0d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8d, 0x15, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8d, 0x35, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8b, 0x05, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8b, 0x1d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8b, 0x0d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8b, 0x15, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x8b, 0x35, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x89, 0x05, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x89, 0x1d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x89, 0x0d, static_vm, DATA_VM, static_length);
+	patch_rel32(0x48, 0x89, 0x15, static_vm, DATA_VM, static_length);
+	patch_rel32(0x88, 0x05, -1,   static_vm, DATA_VM, static_length);
+	patch_rel32(0x8a, 0x05, -1,   static_vm, DATA_VM, static_length);
 
 	write_binary(binary_path, total_size);
 }
