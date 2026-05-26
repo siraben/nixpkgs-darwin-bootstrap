@@ -15,7 +15,6 @@ with args;
         export SDKROOT=$GCC_MODERN_SDK_PATH
         export GCC_MODERN_TARGETS=all-gcc
         export GCC_MODERN_COMPILER_ONLY=1
-        export BOOTSTRAP_MAKE=${gnumake}/bin/make
         ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
           ${phase42-gcc10-source} \
           ${phase44-gcc46-cxx-bootstrap} \

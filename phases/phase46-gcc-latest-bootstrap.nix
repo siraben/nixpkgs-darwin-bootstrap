@@ -28,7 +28,6 @@ with args;
         ## use in phase47's wrapper for the build-machine genmatch path
         ## or fix the float128 mismatch. Until that's resolved, phase46
         ## stays compiler-only.
-        export BOOTSTRAP_MAKE=${gnumake}/bin/make
         ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
           ${phase43-gcc-latest-source} \
           ${phase45-gcc10-bootstrap} \
