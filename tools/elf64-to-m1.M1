@@ -1764,6 +1764,111 @@
 	pop_rcx
 :DSYNTH_done
 
+	;; ---------------------------------------------------------------
+	;; BLANKET SYNTH labels for non-LOCAL .data symbols.  Mirrors python's
+	;; `addends = {1,2} | range(8, min(size, 0x300), 8) | {0x40C, 0x4D0}`
+	;; pre-pass: for every non-LOCAL defined .data symbol with size > 0,
+	;; emit `:<prefix><name>_plus_<delta_hex>` at each byte offset whose
+	;; delta from the symbol's start is in that set.  Used by callers
+	;; that reference into the middle of a data table (e.g. libgcc/
+	;; libiberty's c_global_trees+28).  Python registers these labels
+	;; up-front so any `&name_plus_28` reference resolves at hex2 link
+	;; time.  The earlier per-byte DSYNTH only covers addends actually
+	;; used by THIS .o's own .rela.text / .rela.data — not enough when
+	;; OTHER .o files reference into us.
+	;; ---------------------------------------------------------------
+	push_rcx
+	;; xor r8, r8   (sym loop index)
+	!0x4d !0x31 !0xc0
+:DBSYN_loop
+	;; rax = r8 * 24
+	!0x4c !0x89 !0xc0                       ; mov rax, r8
+	!0x48 !0x6b !0xc0 !0x18                 ; imul rax, rax, 24
+	;; cmp rax, [rbp - 72]  (symtab_size)
+	!0x48 !0x3b !0x45 !0xb8
+	jge %DBSYN_done
+	;; r9 = symtab_buf + rax
+	!0x4c !0x8b !0x4d !0x90                 ; mov r9, [rbp-112]
+	!0x49 !0x01 !0xc1                       ; add r9, rax
+	;; sym.shndx == data_idx?
+	!0x41 !0x0f !0xb7 !0x41 !0x06           ; movzx eax, word [r9+6]
+	!0x48 !0x3b !0x85 !0x50 !0xff !0xff !0xff
+	jne %DBSYN_next
+	;; bind != 0 (non-LOCAL)?
+	!0x41 !0x0f !0xb6 !0x41 !0x04           ; movzx eax, byte [r9+4]
+	!0xc1 !0xe8 !0x04                       ; shr eax, 4
+	test_rax,rax
+	je %DBSYN_next
+	;; name != 0?
+	!0x41 !0x8b !0x01                       ; mov eax, [r9]
+	test_rax,rax
+	je %DBSYN_next
+	;; delta = current rcx ([rsp]) - sym.value ([r9+8])
+	!0x48 !0x8b !0x3c !0x24                 ; mov rdi, [rsp]
+	!0x49 !0x2b !0x79 !0x08                 ; sub rdi, [r9+8]
+	;; delta == 0? skip (handled by DATA_lbl_loop)
+	!0x48 !0x85 !0xff                       ; test rdi, rdi
+	je %DBSYN_next
+	;; Unsigned cmp delta vs sym.size — skip if delta >= size (catches
+	;; negative delta as huge-unsigned too).
+	!0x49 !0x3b !0x79 !0x10                 ; cmp rdi, [r9+16]
+	;; jae rel32 → 0x0f 0x83 imm32
+	!0x0f !0x83 %DBSYN_next
+	;; --- Check delta against the blanket addend set ---
+	;; delta == 1?
+	!0x48 !0x83 !0xff !0x01                 ; cmp rdi, 1
+	je %DBSYN_emit
+	;; delta == 2?
+	!0x48 !0x83 !0xff !0x02
+	je %DBSYN_emit
+	;; delta == 0x40C?
+	!0x48 !0x81 !0xff !0x0c !0x04 !0x00 !0x00
+	je %DBSYN_emit
+	;; delta == 0x4D0?
+	!0x48 !0x81 !0xff !0xd0 !0x04 !0x00 !0x00
+	je %DBSYN_emit
+	;; (delta % 8 == 0) AND (8 <= delta < 0x300)?
+	;; rax = rdi
+	!0x48 !0x89 !0xf8                       ; mov rax, rdi
+	!0x48 !0x83 !0xe0 !0x07                 ; and rax, 7
+	test_rax,rax
+	jne %DBSYN_next
+	;; cmp rdi, 8 ; jb %DBSYN_next  → 0x0f 0x82 rel32
+	!0x48 !0x83 !0xff !0x08
+	!0x0f !0x82 %DBSYN_next
+	;; cmp rdi, 0x300 ; jae %DBSYN_next
+	!0x48 !0x81 !0xff !0x00 !0x03 !0x00 !0x00
+	!0x0f !0x83 %DBSYN_next
+	;; Fallthrough → emit.
+:DBSYN_emit
+	;; emit_synth_label(rdi=name_ptr, rsi=delta, rdx=skip_prefix=1, rcx=sym_idx)
+	push_rdi                                ; [rsp] = delta (saved)
+	;; rdi = strtab_buf + sym.name
+	!0x41 !0x8b !0x01                       ; mov eax, [r9]
+	!0x48 !0x8b !0x7d !0x88                 ; mov rdi, [rbp-120]
+	!0x48 !0x01 !0xc7                       ; add rdi, rax
+	;; rsi = delta (from saved slot)
+	!0x48 !0x8b !0x34 !0x24
+	;; rdx = bind (already non-zero, used as skip_prefix flag)
+	!0x41 !0x0f !0xb6 !0x41 !0x04
+	!0xc1 !0xe8 !0x04
+	!0x48 !0x89 !0xc2
+	;; rcx = sym_idx = r8
+	!0x4c !0x89 !0xc1
+	!0x41 !0x50                              ; push r8
+	!0x41 !0x51                              ; push r9
+	call %FUNCTION_emit_synth_label
+	!0x41 !0x59                              ; pop r9
+	!0x41 !0x58                              ; pop r8
+	;; drop the saved-delta slot
+	!0x48 !0x83 !0xc4 !0x08
+:DBSYN_next
+	;; inc r8
+	!0x49 !0xff !0xc0
+	jmp %DBSYN_loop
+:DBSYN_done
+	pop_rcx
+
 	;; Per-byte relocation EMISSION check on .rela.data.
 	;; mov rax, [rbp - 224]   (rela_data_size)
 	!0x48 !0x8b !0x85 !0x20 !0xff !0xff !0xff

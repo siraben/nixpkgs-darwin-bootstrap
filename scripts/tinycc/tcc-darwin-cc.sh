@@ -312,12 +312,7 @@ add_selected_archive_member() {
 
   if [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; then
     if mkdir "$cache_dir/member-$member_index.lock" 2>/dev/null; then
-      ## NOTE: AR archive members need blanket synth labels (name_plus_N at
-      ## offsets 1, 2, 8, 16, 24, ..., size, 0x40C, 0x4D0) so cross-member
-      ## references resolve at link time.  M1 elf64-to-m1 doesn't yet emit
-      ## these (see todos task: 'elf64-to-m1.M1 emit blanket synth labels');
-      ## use the python emitter here as a tactical fallback.
-      @PYTHON@ @ELF_TO_M1_PY@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
+      @ELF_TO_M1@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
       awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
       awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
       rm -f "$m1"
@@ -494,11 +489,7 @@ add_archives
 object_index=0
 for object in "${objects[@]}"; do
   m1="$tmp/object-$object_index.M1"
-  ## Same blanket synth-label gap as the archive-member path above: M1
-  ## elf64-to-m1 doesn't emit name_plus_N labels at fixed addends so a
-  ## cross-object reference to e.g. c_global_trees_plus_28 can't resolve.
-  ## Fall back to python until elf64-to-m1.M1 implements the pre-pass.
-  @PYTHON@ @ELF_TO_M1_PY@ --prefix "obj_$object_index"_ "$object" "$m1"
+  @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
   code_files+=("$tmp/object-$object_index.code.M1")
