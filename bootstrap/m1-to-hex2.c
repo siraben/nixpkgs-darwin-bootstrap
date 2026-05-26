@@ -39,6 +39,11 @@ int n_aligns;
 FILE* outfp;
 int address;
 
+/* Per-line scratch buffers — global to avoid large stack allocations,
+ * which M2-Planet's runtime doesn't reliably support. */
+char line[MAX_LINE];
+char tok[MAX_TOKEN];
+
 int hex_digit_value(char c)
 {
 	if(c >= '0' && c <= '9') return c - '0';
@@ -201,8 +206,6 @@ void emit_token(char* tok, int len)
 void process_file(char* path)
 {
 	FILE* in;
-	char line[MAX_LINE];
-	char tok[MAX_TOKEN];
 	int line_len;
 	int c;
 	int i;
