@@ -1,0 +1,117 @@
+## tools/macho-patcher.M1
+##
+## Hand-written x86_64 Darwin Mach-O implementation of the generic post-
+## hex2 Mach-O patcher.  Assembled through the stage0-derived M1+hex2
+## chain (phase26c builds this file with no Python in its closure).
+## Replaces tools/phase5-amd64-m2.py (14 callers) and
+## tools/hex2-data-relocs.py (4 callers).
+##
+## Usage:
+##   macho-patcher m2-segments <source.hex2> <binary>
+##     Mirror of phase5-amd64-m2.py: read the hex2 source to find the
+##     first ':ELF_data' / ':HEX2_data' / ':GLOBAL_*' / ':STRING_*' /
+##     ':_string_*' label; compute static_file_offset = 0x400 + that
+##     offset; pad binary to DATA_FILE_OFFSET=0x800000 if needed; copy
+##     binary[static_file_offset .. EOF] to binary[DATA_FILE_OFFSET ..];
+##     walk binary for RIP-rel32 opcodes (lea/mov/etc — 34 patterns);
+##     for each disp targeting [static_vm .. static_vm+static_length),
+##     recompute the disp so it targets DATA_VM=0xE00000 instead.
+##
+##   macho-patcher data-relocs <source.hex2> <binary>
+##     Mirror of hex2-data-relocs.py: parse hex2 source for labels and
+##     % / & relocation references; copy static data segment to
+##     DATA_FILE_OFFSET; patch each relocation site with the correct
+##     4-byte displacement (relative for %, absolute for &).
+##
+## Calling convention used internally:
+##   System V amd64 — args in rdi/rsi/rdx/rcx/r8/r9; return in rax.
+##   We preserve rbx/rbp/r12-r15 across calls.
+##
+## ===========================================================================
+## Constants (matching the python tools' hardcoded values)
+## ===========================================================================
+##   BASE            = 0x600000  — Mach-O __TEXT vmaddr
+##   ENTRY_OFFSET    = 0x400     — text segment data starts at file offset 0x400
+##   DATA_FILE_OFFSET= 0x800000  — __DATA segment file offset (= TEXT_SIZE)
+##   DATA_VM         = 0xE00000  — __DATA vmaddr
+##
+## ===========================================================================
+## Darwin amd64 syscall numbers (0x02000000 syscall-class bit)
+## ===========================================================================
+## SYS_exit  = 0x02000001
+## SYS_read  = 0x02000003
+## SYS_write = 0x02000004
+## SYS_open  = 0x02000005
+## SYS_close = 0x02000006
+## SYS_lseek = 0x020000c7
+## SYS_mmap  = 0x020000c5
+## SYS_pwrite= 0x020000ce  (write at offset — useful for in-place file patch)
+## SYS_pread = 0x020000099
+
+## ===========================================================================
+## ENTRY POINT — work-in-progress.  Initial drop: argv dispatch + helpers.
+## Mode handlers and the actual patching loops are added in subsequent
+## commits.
+## ===========================================================================
+:_start
+	mov_rbp,rsp
+	push_rdi                                ; [rbp - 8]  = argc
+	push_rsi                                ; [rbp - 16] = argv
+	push_rdx                                ; [rbp - 24] = envp
+
+	;; Slot allocation — extended as the parser/patcher iterates.
+	;;   [rbp - 32]  mode flag: 1=m2-segments, 2=data-relocs
+	;;   [rbp - 40]  source path
+	;;   [rbp - 48]  binary path
+	;;   [rbp - 56]  source fd
+	;;   [rbp - 64]  binary fd
+	;;   [rbp - 72]  source mmap base
+	;;   [rbp - 80]  source size
+	;;   [rbp - 88]  binary mmap base
+	;;   [rbp - 96]  binary size
+	;;   [rbp - 104] first static-data offset (within hex2 byte stream)
+	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+
+	;; Print "macho-patcher: not yet implemented\n" and exit 0 as a
+	;; placeholder until subsequent commits land the parser + patcher.
+	lea_rdi,[rip+DWORD] %DATA_msg_notimpl
+	mov_rsi, %0x24                          ; 36 bytes
+	call %FUNCTION_write_stderr
+	xor_edi,edi
+	call %FUNCTION_exit
+
+## ===========================================================================
+## FUNCTION_exit(rdi=status) — Darwin exit(status)
+## ===========================================================================
+:FUNCTION_exit
+	mov_rax, %0x2000001                      ; SYS_exit
+	syscall
+
+## ===========================================================================
+## FUNCTION_write_stderr(rdi=buf, rsi=len) — write to fd 2; returns nbytes.
+## ===========================================================================
+:FUNCTION_write_stderr
+	;; mov rdx, rsi
+	!0x48 !0x89 !0xf2
+	;; mov rsi, rdi
+	!0x48 !0x89 !0xfe
+	mov_rdi, %0x2
+	mov_rax, %0x2000004
+	syscall
+	ret
+
+## ===========================================================================
+## DATA
+## ===========================================================================
+:DATA_msg_notimpl
+	"macho-patcher: not yet implemented\n"

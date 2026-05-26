@@ -77,6 +77,7 @@
           phase26d-bootstrap-mpfr = bootstrap.phase26d-bootstrap-mpfr;
           phase26e-bootstrap-mpc = bootstrap.phase26e-bootstrap-mpc;
           phase26f-bootstrap-isl = bootstrap.phase26f-bootstrap-isl;
+          phase26g-macho-patcher = bootstrap.phase26g-macho-patcher;
           phase42-gcc10-source = bootstrap.phase42-gcc10-source;
           phase43-gcc-latest-source = bootstrap.phase43-gcc-latest-source;
           gcc46-darwin-bootstrap-src = bootstrap.gcc46DarwinBootstrapSrc;
