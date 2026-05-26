@@ -204,8 +204,119 @@ void emit_token(char* tok, int len)
 	while(i < len) { fputc(tok[i], outfp); i = i + 1; }
 }
 
-/* Process a single input file. */
+/* Process a single input file.  Streams tokens directly from the file
+ * without buffering whole lines (some inputs have multi-MB lines of
+ * '00' padding tokens, which the earlier whole-line buffer truncated).
+ * State machine over fgetc(): accumulate non-whitespace into tok[],
+ * flush on whitespace; newline also ends the line group. */
 void process_file(char* path)
+{
+	FILE* in;
+	int c;
+	int tok_len;
+	int line_has_token;          /* 1 once we've emitted a token on this line */
+	int target;
+
+	in = fopen(path, "r");
+	if(in == NULL)
+	{
+		fputs("cannot open input file: ", stderr);
+		fputs(path, stderr);
+		fputc('\n', stderr);
+		exit(1);
+	}
+
+	tok_len = 0;
+	line_has_token = 0;
+	c = fgetc(in);
+	while(c != -1)
+	{
+		if(c == ' ' || c == '\t')
+		{
+			/* Whitespace: flush current token if any, then continue. */
+			if(tok_len > 0)
+			{
+				tok[tok_len] = 0;
+				if(tok[0] == ':')
+				{
+					target = align_lookup(tok + 1);
+					if(target > 0)
+					{
+						if(line_has_token) fputc('\n', outfp);
+						write_padding(target - 1);
+						line_has_token = 0;
+					}
+				}
+				if(line_has_token) fputc(' ', outfp);
+				emit_token(tok, tok_len);
+				address = address + translated_width(tok);
+				line_has_token = 1;
+				tok_len = 0;
+			}
+		}
+		else if(c == '\n')
+		{
+			/* End of line: flush last token, then newline. */
+			if(tok_len > 0)
+			{
+				tok[tok_len] = 0;
+				if(tok[0] == ':')
+				{
+					target = align_lookup(tok + 1);
+					if(target > 0)
+					{
+						if(line_has_token) fputc('\n', outfp);
+						write_padding(target - 1);
+						line_has_token = 0;
+					}
+				}
+				if(line_has_token) fputc(' ', outfp);
+				emit_token(tok, tok_len);
+				address = address + translated_width(tok);
+				line_has_token = 1;
+				tok_len = 0;
+			}
+			fputc('\n', outfp);
+			line_has_token = 0;
+		}
+		else
+		{
+			/* Token character. */
+			if(tok_len < MAX_TOKEN - 1)
+			{
+				tok[tok_len] = c;
+				tok_len = tok_len + 1;
+			}
+		}
+		c = fgetc(in);
+	}
+	/* End of file — flush trailing token. */
+	if(tok_len > 0)
+	{
+		tok[tok_len] = 0;
+		if(tok[0] == ':')
+		{
+			target = align_lookup(tok + 1);
+			if(target > 0)
+			{
+				if(line_has_token) fputc('\n', outfp);
+				write_padding(target - 1);
+				line_has_token = 0;
+			}
+		}
+		if(line_has_token) fputc(' ', outfp);
+		emit_token(tok, tok_len);
+		address = address + translated_width(tok);
+		line_has_token = 1;
+		fputc('\n', outfp);
+	}
+	fclose(in);
+}
+
+/* Dead code below kept in #if 0 to preserve original tokenizer for
+ * reference until the new streaming version is fully verified. */
+#if 0
+void process_file_unused_old(char* path)
 {
 	FILE* in;
 	int line_len;
@@ -246,57 +357,6 @@ void process_file(char* path)
 				{
 					tok_len = 0;
 					while(line[i] != 0 && line[i] != ' ' && line[i] != '\t')
-					{
-						tok[tok_len] = line[i];
-						tok_len = tok_len + 1;
-						i = i + 1;
-					}
-					tok[tok_len] = 0;
-					/* :LABEL with align target → emit padding + label. */
-					if(tok_len > 0 && tok[0] == ':')
-					{
-						target = align_lookup(tok + 1);
-						if(target > 0)
-						{
-							if(!first_token) fputc('\n', outfp);
-							write_padding(target - 1);
-							first_token = 1;
-						}
-					}
-					if(!first_token) fputc(' ', outfp);
-					emit_token(tok, tok_len);
-					address = address + translated_width(tok);
-					first_token = 0;
-					/* Skip whitespace before next token. */
-					while(line[i] == ' ' || line[i] == '\t') i = i + 1;
-				}
-				fputc('\n', outfp);
-			}
-			line_len = 0;
-		}
-		else
-		{
-			if(line_len < MAX_LINE - 1)
-			{
-				line[line_len] = c;
-				line_len = line_len + 1;
-			}
-		}
-		c = fgetc(in);
-	}
-	/* Last line might not end with newline. */
-	if(line_len > 0)
-	{
-		line[line_len] = 0;
-		i = 0;
-		while(line[i] == ' ' || line[i] == '\t') i = i + 1;
-		if(line[i] != 0)
-		{
-			first_token = 1;
-			while(line[i] != 0)
-			{
-				tok_len = 0;
-				while(line[i] != 0 && line[i] != ' ' && line[i] != '\t')
 				{
 					tok[tok_len] = line[i];
 					tok_len = tok_len + 1;
@@ -324,6 +384,7 @@ void process_file(char* path)
 	}
 	fclose(in);
 }
+#endif
 
 int streq(char* a, char* b)
 {
