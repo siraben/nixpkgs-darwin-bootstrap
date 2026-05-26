@@ -249,11 +249,177 @@
 	mov_rax, %0x2000003
 	syscall
 
-	;; Files loaded.  Print summary + exit 0 placeholder.  The
-	;; patcher dispatch + hex2 parser land in subsequent commits.
-	lea_rdi,[rip+DWORD] %DATA_msg_loaded
-	mov_rsi, %0x1a                          ; 26 bytes "files loaded; ...\n"
+	;; ---------------------------------------------------------------
+	;; Hex2 source parser: scan source buffer for the first static-data
+	;; label (':ELF_data', ':HEX2_data', ':GLOBAL_*', ':STRING_*',
+	;; ':_string_*').  Records its byte position (within the binary's
+	;; emitted hex2 bytes) into [rbp - 104].
+	;;
+	;; State machine:
+	;;   rbx = source pointer (walks)
+	;;   r12 = end of source (= source_buf + source_size)
+	;;   r13 = current byte offset within emitted binary (running tally)
+	;;   r14 = current token start ptr (within source)
+	;;   r15 = (unused — was end-of-line marker)
+	;; ---------------------------------------------------------------
+	;; mov rbx, [rbp - 72]   (source buffer)
+	!0x48 !0x8b !0x5d !0xb8
+	;; r12 = rbx + source_size
+	;; mov r12, rbx
+	!0x49 !0x89 !0xdc
+	;; add r12, [rbp - 80]
+	!0x4c !0x03 !0x65 !0xb0
+	;; r13 = 0 (binary offset)
+	;; xor r13, r13
+	!0x4d !0x31 !0xed
+	;; r14 = 0 (no token in progress)
+	;; xor r14, r14
+	!0x4d !0x31 !0xf6
+	;; static_offset = -1 (sentinel; we look for first match)
+	;; mov rax, -1   (48 C7 C0 FF FF FF FF)
+	!0x48 !0xc7 !0xc0 !0xff !0xff !0xff !0xff
+	;; mov [rbp - 104], rax
+	!0x48 !0x89 !0x45 !0x98
+
+:HEX2_scan_loop
+	;; if rbx >= r12, end of source
+	;; cmp rbx, r12
+	!0x4c !0x39 !0xe3
+	jge %HEX2_scan_done
+
+	;; movzx eax, byte [rbx]
+	!0x0f !0xb6 !0x03
+
+	;; '#' (0x23) starts a comment
+	;; cmp al, 0x23
+	!0x3c !0x23
+	je %HEX2_skip_comment
+
+	;; '\n' (0x0a) ends a line (also finalizes any in-progress token)
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	je %HEX2_finalize_token
+
+	;; ' '(0x20), '\t'(0x09): whitespace, finalizes token
+	;; cmp al, 0x20
+	!0x3c !0x20
+	je %HEX2_finalize_token
+	;; cmp al, 0x09
+	!0x3c !0x09
+	je %HEX2_finalize_token
+
+	;; Non-whitespace, non-comment: token character.  If r14==0, start
+	;; new token at rbx.
+	;; test r14, r14
+	!0x4d !0x85 !0xf6
+	jne %HEX2_advance
+	;; mov r14, rbx
+	!0x49 !0x89 !0xde
+
+:HEX2_advance
+	;; inc rbx
+	!0x48 !0xff !0xc3
+	jmp %HEX2_scan_loop
+
+:HEX2_skip_comment
+	;; Walk rbx forward until '\n' or end
+	;; inc rbx
+	!0x48 !0xff !0xc3
+	;; cmp rbx, r12
+	!0x4c !0x39 !0xe3
+	jge %HEX2_scan_done
+	;; movzx eax, byte [rbx]
+	!0x0f !0xb6 !0x03
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	jne %HEX2_skip_comment
+	;; fall through to finalize (newline)
+
+:HEX2_finalize_token
+	;; If no token in progress, just advance.
+	;; test r14, r14
+	!0x4d !0x85 !0xf6
+	je %HEX2_advance
+
+	;; Token is [r14 .. rbx).  rdi = r14 (start), rsi = rbx - r14 (len).
+	;; mov rdi, r14
+	!0x4c !0x89 !0xf7
+	;; mov rsi, rbx
+	!0x48 !0x89 !0xde
+	;; sub rsi, r14
+	!0x4c !0x29 !0xf6
+
+	;; Check for ':' label (byte at r14)
+	;; movzx eax, byte [r14]
+	!0x41 !0x0f !0xb6 !0x06
+	;; cmp al, 0x3a
+	!0x3c !0x3a
+	je %HEX2_token_label
+
+	;; Not a label: compute width and add to r13.
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	;; rdi=token ptr, rsi=token len already set
+	call %FUNCTION_token_width
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	;; add r13, rax
+	!0x49 !0x01 !0xc5
+	;; reset r14
+	;; xor r14, r14
+	!0x4d !0x31 !0xf6
+	jmp %HEX2_advance
+
+:HEX2_token_label
+	;; If we've already recorded a static_offset, just skip.
+	;; mov rax, [rbp - 104]
+	!0x48 !0x8b !0x45 !0x98
+	;; cmp rax, -1   (sentinel; not yet recorded)
+	!0x48 !0x83 !0xf8 !0xff
+	jne %HEX2_token_label_done
+
+	;; Check if this label matches a static marker.  rdi=token ptr (incl ':').
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	;; rdi already = r14 = token ptr; rsi = len
+	;; mov rdi, r14
+	!0x4c !0x89 !0xf7
+	;; mov rsi, rbx
+	!0x48 !0x89 !0xde
+	!0x4c !0x29 !0xf6
+	call %FUNCTION_is_static_label
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	;; test rax, rax — 1 if match
+	!0x48 !0x85 !0xc0
+	je %HEX2_token_label_done
+	;; Record static_offset = r13
+	;; mov [rbp - 104], r13
+	!0x4c !0x89 !0x6d !0x98
+
+:HEX2_token_label_done
+	;; Label doesn't add to binary offset.  Reset r14.
+	!0x4d !0x31 !0xf6
+	jmp %HEX2_advance
+
+:HEX2_scan_done
+
+	;; Print summary: "static_offset: <hex>\n"
+	lea_rdi,[rip+DWORD] %DATA_msg_static_offset
+	mov_rsi, %0x10                          ; 16 bytes
 	call %FUNCTION_write_stderr
+	;; mov rdi, [rbp - 104]
+	!0x48 !0x8b !0x7d !0x98
+	call %FUNCTION_print_hex64
+
 	xor_edi,edi
 	call %FUNCTION_exit
 
@@ -365,6 +531,184 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_token_width(rdi=ptr, rsi=len) — return hex2 token width in rax.
+##   '!' prefix → 1 byte;  '@'/'$' → 2 bytes;  '%'/'&' → 4 bytes;
+##   raw hex digits (even-length) → len/2 bytes;  unknown → 0.
+##   Comments after '#' have already been stripped by the scanner.
+## ===========================================================================
+:FUNCTION_token_width
+	;; test rsi, rsi → empty token returns 0
+	!0x48 !0x85 !0xf6
+	je %TW_zero
+	;; movzx eax, byte [rdi]
+	!0x0f !0xb6 !0x07
+	;; cmp al, 0x21 ('!')
+	!0x3c !0x21
+	je %TW_one
+	;; cmp al, 0x40 ('@')
+	!0x3c !0x40
+	je %TW_two
+	;; cmp al, 0x24 ('$')
+	!0x3c !0x24
+	je %TW_two
+	;; cmp al, 0x25 ('%')
+	!0x3c !0x25
+	je %TW_four
+	;; cmp al, 0x26 ('&')
+	!0x3c !0x26
+	je %TW_four
+	;; Default: raw hex pair sequence, width = len / 2 (if even length
+	;; and all hex digits — we trust the input here)
+	;; mov rax, rsi
+	!0x48 !0x89 !0xf0
+	;; shr rax, 1
+	!0x48 !0xd1 !0xe8
+	ret
+:TW_one
+	mov_rax, %0x1
+	ret
+:TW_two
+	mov_rax, %0x2
+	ret
+:TW_four
+	mov_rax, %0x4
+	ret
+:TW_zero
+	xor_eax,eax
+	ret
+
+## ===========================================================================
+## FUNCTION_is_static_label(rdi=ptr, rsi=len) — return 1 in rax if the
+##   token (which starts with ':') is one of the static-data markers:
+##   ':ELF_data', ':HEX2_data', or starts with ':GLOBAL_'/':STRING_'/
+##   ':_string_'.  Returns 0 otherwise.
+## ===========================================================================
+:FUNCTION_is_static_label
+	;; Check ':ELF_data' (9 chars)
+	;; cmp rsi, 9
+	!0x48 !0x83 !0xfe !0x09
+	jne %ISL_skip_elf
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_elf_data
+	call %FUNCTION_streq9
+	pop_rdi
+	;; test rax, rax
+	!0x48 !0x85 !0xc0
+	jne %ISL_yes
+:ISL_skip_elf
+	;; Check ':HEX2_data' (10 chars)
+	!0x48 !0x83 !0xfe !0x0a
+	jne %ISL_skip_hex2
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_hex2_data
+	call %FUNCTION_streq10
+	pop_rdi
+	!0x48 !0x85 !0xc0
+	jne %ISL_yes
+:ISL_skip_hex2
+	;; Check prefix ':GLOBAL_' (8 chars)
+	;; cmp rsi, 8
+	!0x48 !0x83 !0xfe !0x08
+	jl %ISL_no
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_global
+	call %FUNCTION_streq8
+	pop_rdi
+	!0x48 !0x85 !0xc0
+	jne %ISL_yes
+	;; Check prefix ':STRING_' (8 chars)
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_string
+	call %FUNCTION_streq8
+	pop_rdi
+	!0x48 !0x85 !0xc0
+	jne %ISL_yes
+	;; Check prefix ':_string_' (9 chars)
+	;; cmp rsi, 9
+	!0x48 !0x83 !0xfe !0x09
+	jl %ISL_no
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_under_string
+	call %FUNCTION_streq9
+	pop_rdi
+	!0x48 !0x85 !0xc0
+	jne %ISL_yes
+:ISL_no
+	xor_eax,eax
+	ret
+:ISL_yes
+	mov_rax, %0x1
+	ret
+
+## ===========================================================================
+## FUNCTION_streq8/9/10(rdi=a, rsi=b) — return 1 in rax if first N bytes equal.
+## ===========================================================================
+:FUNCTION_streq8
+	mov_rcx, %0x8
+	jmp %STREQN_loop
+:FUNCTION_streq9
+	mov_rcx, %0x9
+	jmp %STREQN_loop
+:FUNCTION_streq10
+	mov_rcx, %0xa
+:STREQN_loop
+	!0x0f !0xb6 !0x07                       ; movzx eax, byte [rdi]
+	!0x0f !0xb6 !0x16                       ; movzx edx, byte [rsi]
+	!0x38 !0xd0                              ; cmp al, dl
+	jne %STREQN_no
+	!0x48 !0xff !0xc7                        ; inc rdi
+	!0x48 !0xff !0xc6                        ; inc rsi
+	!0x48 !0xff !0xc9                        ; dec rcx
+	!0x48 !0x85 !0xc9                        ; test rcx, rcx
+	jne %STREQN_loop
+	mov_rax, %0x1
+	ret
+:STREQN_no
+	xor_eax,eax
+	ret
+
+## ===========================================================================
+## FUNCTION_print_hex64(rdi=val) — prints val as 16 hex digits + "\n"
+##   to stderr.  Mirrors elf64-to-m1.M1's helper.
+## ===========================================================================
+:FUNCTION_print_hex64
+	;; sub rsp, 32
+	!0x48 !0x83 !0xec !0x20
+	;; mov rsi, rsp
+	!0x48 !0x89 !0xe6
+	mov_rcx, %0x10
+:PHEX_loop
+	;; rol rdi, 4
+	!0x48 !0xc1 !0xc7 !0x04
+	;; mov al, dil
+	!0x40 !0x88 !0xf8
+	;; and al, 0x0f
+	!0x24 !0x0f
+	;; cmp al, 0x0a
+	!0x3c !0x0a
+	jl %PHEX_digit
+	;; add al, 0x57
+	!0x04 !0x57
+	jmp %PHEX_emit
+:PHEX_digit
+	!0x04 !0x30
+:PHEX_emit
+	!0x88 !0x06
+	!0x48 !0xff !0xc6
+	!0x48 !0xff !0xc9
+	!0x48 !0x85 !0xc9
+	jne %PHEX_loop
+	;; mov byte [rsi], 0x0a
+	!0xc6 !0x06 !0x0a
+	mov_rdi, %0x2
+	!0x48 !0x89 !0xe6
+	mov_rdx, %0x11
+	mov_rax, %0x2000004
+	syscall
+	!0x48 !0x83 !0xc4 !0x20
+	ret
+
+## ===========================================================================
 ## DATA
 ## ===========================================================================
 :DATA_msg_notimpl
@@ -380,4 +724,21 @@
 	!0x00
 :DATA_mode_relocs
 	"data-relocs"
+	!0x00
+:DATA_msg_static_offset
+	"static_offset: "
+:DATA_lbl_elf_data
+	":ELF_data"
+	!0x00
+:DATA_lbl_hex2_data
+	":HEX2_data"
+	!0x00
+:DATA_lbl_global
+	":GLOBAL_"
+	!0x00
+:DATA_lbl_string
+	":STRING_"
+	!0x00
+:DATA_lbl_under_string
+	":_string_"
 	!0x00
