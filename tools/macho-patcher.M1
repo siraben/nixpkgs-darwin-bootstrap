@@ -65,11 +65,12 @@
 	;;   [rbp - 48]  binary path
 	;;   [rbp - 56]  source fd
 	;;   [rbp - 64]  binary fd
-	;;   [rbp - 72]  source mmap base
+	;;   [rbp - 72]  source buffer (mmap'd)
 	;;   [rbp - 80]  source size
-	;;   [rbp - 88]  binary mmap base
+	;;   [rbp - 88]  binary buffer (mmap'd)
 	;;   [rbp - 96]  binary size
 	;;   [rbp - 104] first static-data offset (within hex2 byte stream)
+	;;   [rbp - 112] binary capacity (mmap'd region size)
 	xor_eax,eax
 	push_rax
 	push_rax
@@ -81,13 +82,193 @@
 	push_rax
 	push_rax
 	push_rax
+	push_rax
 
-	;; Print "macho-patcher: not yet implemented\n" and exit 0 as a
-	;; placeholder until subsequent commits land the parser + patcher.
-	lea_rdi,[rip+DWORD] %DATA_msg_notimpl
-	mov_rsi, %0x24                          ; 36 bytes
+	;; Walk argv looking for 3 positionals: mode source binary.
+	;; argv is at [rbp - 16]; argv[0] is program name, argv[1+] are real.
+	call %FUNCTION_argv                     ; rax = argv
+	;; rbx = argv pointer
+	!0x48 !0x89 !0xc3
+	;; rbx += 8 → argv[1]
+	!0x48 !0x83 !0xc3 !0x08
+
+	;; Read mode arg (argv[1])
+	;; mov rcx, [rbx]
+	!0x48 !0x8b !0x0b
+	!0x48 !0x85 !0xc9
+	je %ARGV_usage
+	;; Compare to "m2-segments" first
+	;; mov rdi, rcx
+	!0x48 !0x89 !0xcf
+	lea_rsi,[rip+DWORD] %DATA_mode_m2
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	pop_rcx
+	pop_rbx
+	test_rax,rax
+	je %ARGV_check_relocs
+	;; mode = 1 (m2-segments)
+	mov_rax, %0x1
+	;; mov [rbp - 32], rax
+	!0x48 !0x89 !0x45 !0xe0
+	jmp %ARGV_parse_paths
+
+:ARGV_check_relocs
+	;; mov rdi, rcx
+	!0x48 !0x89 !0xcf
+	lea_rsi,[rip+DWORD] %DATA_mode_relocs
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	pop_rcx
+	pop_rbx
+	test_rax,rax
+	je %ARGV_usage
+	mov_rax, %0x2
+	!0x48 !0x89 !0x45 !0xe0
+
+:ARGV_parse_paths
+	;; advance rbx to argv[2]
+	!0x48 !0x83 !0xc3 !0x08
+	;; mov rcx, [rbx]
+	!0x48 !0x8b !0x0b
+	!0x48 !0x85 !0xc9
+	je %ARGV_usage
+	;; mov [rbp - 40], rcx
+	!0x48 !0x89 !0x4d !0xd8
+	;; advance to argv[3]
+	!0x48 !0x83 !0xc3 !0x08
+	;; mov rcx, [rbx]
+	!0x48 !0x8b !0x0b
+	!0x48 !0x85 !0xc9
+	je %ARGV_usage
+	;; mov [rbp - 48], rcx
+	!0x48 !0x89 !0x4d !0xd0
+
+	;; Open source file read-only, store fd in [rbp - 56]
+	;; mov rdi, [rbp - 40]
+	!0x48 !0x8b !0x7d !0xd8
+	call %FUNCTION_open_ro
+	;; test rax, rax — negative on error
+	test_rax,rax
+	jl %ARGV_open_failed
+	;; mov [rbp - 56], rax
+	!0x48 !0x89 !0x45 !0xc8
+
+	;; Source size = lseek(fd, 0, SEEK_END)
+	;; mov rdi, rax
+	!0x48 !0x89 !0xc7
+	xor_esi,esi
+	mov_rdx, %0x2                            ; SEEK_END
+	mov_rax, %0x20000c7
+	syscall
+	;; mov [rbp - 80], rax (source size)
+	!0x48 !0x89 !0x45 !0xb0
+
+	;; lseek back to 0
+	;; mov rdi, [rbp - 56]
+	!0x48 !0x8b !0x7d !0xc8
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, %0x20000c7
+	syscall
+
+	;; mmap_anon(source_size + 0x1000)
+	;; mov rdi, [rbp - 80]
+	!0x48 !0x8b !0x7d !0xb0
+	;; add rdi, 0x1000
+	!0x48 !0x81 !0xc7 !0x00 !0x10 !0x00 !0x00
+	call %FUNCTION_mmap_anon
+	;; mov [rbp - 72], rax (source buffer)
+	!0x48 !0x89 !0x45 !0xb8
+
+	;; read(fd, buf, source_size)
+	;; mov rdi, [rbp - 56]
+	!0x48 !0x8b !0x7d !0xc8
+	;; mov rsi, rax (buf)
+	!0x48 !0x89 !0xc6
+	;; mov rdx, [rbp - 80]
+	!0x48 !0x8b !0x55 !0xb0
+	mov_rax, %0x2000003
+	syscall
+
+	;; Close source fd (we have it in memory now)
+	;; mov rdi, [rbp - 56]
+	!0x48 !0x8b !0x7d !0xc8
+	mov_rax, %0x2000006
+	syscall
+
+	;; Open binary file read-write
+	;; mov rdi, [rbp - 48]
+	!0x48 !0x8b !0x7d !0xd0
+	call %FUNCTION_open_rw
+	test_rax,rax
+	jl %ARGV_open_failed
+	;; mov [rbp - 64], rax
+	!0x48 !0x89 !0x45 !0xc0
+
+	;; Binary size = lseek(fd, 0, SEEK_END)
+	!0x48 !0x89 !0xc7
+	xor_esi,esi
+	mov_rdx, %0x2
+	mov_rax, %0x20000c7
+	syscall
+	;; mov [rbp - 96], rax
+	!0x48 !0x89 !0x45 !0xa0
+
+	;; lseek back to 0
+	!0x48 !0x8b !0x7d !0xc0
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, %0x20000c7
+	syscall
+
+	;; mmap_anon(binary_size + 0x1000000 — overallocate for padding+copy)
+	;; mov rdi, [rbp - 96]
+	!0x48 !0x8b !0x7d !0xa0
+	;; add rdi, 0x1000000 (16 MB extra for static-data copy + RIP-rel pads)
+	!0x48 !0x81 !0xc7 !0x00 !0x00 !0x00 !0x01
+	call %FUNCTION_mmap_anon
+	;; mov [rbp - 88], rax (binary buffer)
+	!0x48 !0x89 !0x45 !0xa8
+	;; capacity = the alloc size — re-save (we'll need to know capacity
+	;; vs current bytes-used)
+	;; mov rdi, [rbp - 96]
+	!0x48 !0x8b !0x7d !0xa0
+	;; add rdi, 0x1000000
+	!0x48 !0x81 !0xc7 !0x00 !0x00 !0x00 !0x01
+	;; mov [rbp - 112], rdi
+	!0x48 !0x89 !0x7d !0x90
+
+	;; read(fd, binary_buf, binary_size)
+	!0x48 !0x8b !0x7d !0xc0
+	!0x48 !0x89 !0xc6
+	;; mov rdx, [rbp - 96]
+	!0x48 !0x8b !0x55 !0xa0
+	mov_rax, %0x2000003
+	syscall
+
+	;; Files loaded.  Print summary + exit 0 placeholder.  The
+	;; patcher dispatch + hex2 parser land in subsequent commits.
+	lea_rdi,[rip+DWORD] %DATA_msg_loaded
+	mov_rsi, %0x1a                          ; 26 bytes "files loaded; ...\n"
 	call %FUNCTION_write_stderr
 	xor_edi,edi
+	call %FUNCTION_exit
+
+:ARGV_open_failed
+	lea_rdi,[rip+DWORD] %DATA_msg_open_failed
+	mov_rsi, %0x16                          ; 22 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, %0x2
+	call %FUNCTION_exit
+
+:ARGV_usage
+	lea_rdi,[rip+DWORD] %DATA_msg_usage
+	mov_rsi, %0x40                          ; 64 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, %0x40
 	call %FUNCTION_exit
 
 ## ===========================================================================
@@ -111,7 +292,92 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_argv() — returns argv (char**) in rax  (from [rbp - 16] slot)
+## ===========================================================================
+:FUNCTION_argv
+	;; mov rax, [rbp - 16]
+	!0x48 !0x8b !0x45 !0xf0
+	ret
+
+## ===========================================================================
+## FUNCTION_streq(rdi=a, rsi=b) — returns 1 in rax if NUL-terminated strs eq.
+## ===========================================================================
+:FUNCTION_streq
+:STREQ_loop
+	;; movzx eax, byte [rdi]
+	!0x0f !0xb6 !0x07
+	;; movzx edx, byte [rsi]
+	!0x0f !0xb6 !0x16
+	;; cmp al, dl
+	!0x38 !0xd0
+	jne %STREQ_diff
+	test_rax,rax
+	je %STREQ_eq
+	;; inc rdi, inc rsi
+	!0x48 !0xff !0xc7
+	!0x48 !0xff !0xc6
+	jmp %STREQ_loop
+:STREQ_diff
+	xor_eax,eax
+	ret
+:STREQ_eq
+	mov_rax, %0x1
+	ret
+
+## ===========================================================================
+## FUNCTION_open_ro(rdi=path) — open(path, O_RDONLY); returns fd in rax.
+## ===========================================================================
+:FUNCTION_open_ro
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, %0x2000005
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_open_rw(rdi=path) — open(path, O_RDWR=2, mode 0644); fd in rax.
+## ===========================================================================
+:FUNCTION_open_rw
+	mov_rsi, %0x2                            ; O_RDWR
+	mov_rdx, %0x1a4                          ; 0644
+	mov_rax, %0x2000005
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_mmap_anon(rdi=len) — anonymous mmap; returns base ptr in rax.
+##   addr=0, prot=PROT_READ|PROT_WRITE=3, flags=MAP_PRIVATE|MAP_ANON=0x1002,
+##   fd=-1, offset=0
+## ===========================================================================
+:FUNCTION_mmap_anon
+	;; mov rsi, rdi   (size)
+	!0x48 !0x89 !0xfe
+	xor_edi,edi
+	mov_rdx, %0x3
+	;; mov r10, 0x1002
+	!0x49 !0xc7 !0xc2 !0x02 !0x10 !0x00 !0x00
+	;; mov r8, -1
+	!0x49 !0xc7 !0xc0 !0xff !0xff !0xff !0xff
+	;; xor r9, r9
+	!0x4d !0x31 !0xc9
+	mov_rax, %0x20000c5
+	syscall
+	ret
+
+## ===========================================================================
 ## DATA
 ## ===========================================================================
 :DATA_msg_notimpl
 	"macho-patcher: not yet implemented\n"
+:DATA_msg_loaded
+	"macho-patcher: files loaded\n"
+:DATA_msg_usage
+	"usage: macho-patcher (m2-segments|data-relocs) <source.hex2> <binary>\n"
+:DATA_msg_open_failed
+	"open failed (errno)\n"
+:DATA_mode_m2
+	"m2-segments"
+	!0x00
+:DATA_mode_relocs
+	"data-relocs"
+	!0x00
