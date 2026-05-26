@@ -15,7 +15,8 @@ with args;
       runCommand "darwin-minimal-bootstrap-phase44-gcc-${gcc46Version}-cxx-amd64" {
         nativeBuildInputs = [ perl ];
       } ''
-        GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
+        BOOTSTRAP_MAKE=${gnumake}/bin/make \
+          GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
           BOOTSTRAP_JOBS=$NIX_BUILD_CORES \
           GCC46_BOOTSTRAP_HOST_CC_SOURCES=1 \
           GCC46_BOOTSTRAP_AS=${darwin.binutils-unwrapped}/bin/as \
