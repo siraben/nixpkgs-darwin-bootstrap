@@ -1,7 +1,9 @@
 args:
 with args;
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase39-gnumake-${gnumakeVersion}-amd64" { } ''
+      runCommand "darwin-minimal-bootstrap-phase39-gnumake-${gnumakeVersion}-amd64" {
+        nativeBuildInputs = [ perl ];
+      } ''
         mkdir -p $out/bin $out/share/darwin-bootstrap
 
         tar -xzf ${gnumakeTarball}
@@ -29,7 +31,7 @@ with args;
           --replace-fail '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
         substituteInPlace src/main.c \
           --replace-fail "  /* Set up 'MAKEFLAGS' again for the normal targets.  */" "skip_bootstrap_remake_makefiles: /* Set up 'MAKEFLAGS' again for the normal targets.  */"
-        ${python3}/bin/python3 ${root + "/scripts/gnumake/phase39-patch-job.py"}
+        bash ${root + "/scripts/gnumake/phase39-patch-job.sh"}
         substituteInPlace src/misc.c \
           --replace-fail "if (*mktemp (path) == '\\0')" 'if (!strcmp (mktemp (path), ""))'
         substituteInPlace src/misc.c \

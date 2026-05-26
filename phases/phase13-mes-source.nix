@@ -11,6 +11,8 @@ with args;
         dontBuild = true;
         dontFixup = true;
 
+        nativeBuildInputs = [ perl ];
+
         installPhase = ''
           runHook preInstall
 
@@ -23,7 +25,7 @@ with args;
           cp $out/include/darwin/x86_64/kernel-stat.h $out/include/arch/kernel-stat.h
           cp $out/include/darwin/x86_64/signal.h $out/include/arch/signal.h
           cp $out/include/darwin/x86_64/syscall.h $out/include/arch/syscall.h
-          ${python3}/bin/python3 ${root + "/scripts/mes/phase13-patch-assert-fail.py"}
+          bash ${root + "/scripts/mes/phase13-patch-assert-fail.sh"}
 
           cat > $out/share/darwin-bootstrap/darwin-mes-next.txt <<'EOF'
           This is the Darwin Mes source-prep checkpoint.
