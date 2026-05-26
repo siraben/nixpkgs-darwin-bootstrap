@@ -1,7 +1,9 @@
 args:
 with args;
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase30-tinycc-self-link-candidate-amd64" { } ''
+      runCommand "darwin-minimal-bootstrap-phase30-tinycc-self-link-candidate-amd64" {
+        nativeBuildInputs = [ perl ];
+      } ''
         mkdir -p $out/bin $out/share/darwin-bootstrap
 
         ${phase23-tinycc-mescc-link-probe}/bin/tcc -c \
@@ -64,7 +66,7 @@ with args;
           -f tcc-self.hex2 \
           -o tcc-self
 
-        ${python3}/bin/python3 ${root + "/tools/hex2-data-relocs.py"} patch tcc-self.hex2 tcc-self
+        perl ${root + "/scripts/stage0/hex2-data-relocs.pl"} patch tcc-self.hex2 tcc-self
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=tcc-self bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

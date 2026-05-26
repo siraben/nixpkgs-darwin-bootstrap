@@ -9,18 +9,18 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
 
           ${phase3-m0}/bin/M0-darwin ${stage0Sources}/AMD64/cc_amd64.M1 cc_arch-0-linux.hex2
-          python3 ${root + "/tools/phase4-amd64-cc-arch.py"} port cc_arch-0-linux.hex2 cc_arch-0.hex2
+          perl ${root + "/scripts/stage0/phase4-amd64-cc-arch.pl"} port cc_arch-0-linux.hex2 cc_arch-0.hex2
           ${phase2-catm}/bin/catm-darwin cc_arch.hex2 \
             ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             cc_arch-0.hex2
           ${phase2-hex2}/bin/hex2-darwin cc_arch.hex2 cc_arch-darwin
-          python3 ${root + "/tools/phase4-amd64-cc-arch.py"} patch cc_arch-0.hex2 cc_arch-darwin
+          perl ${root + "/scripts/stage0/phase4-amd64-cc-arch.pl"} patch cc_arch-0.hex2 cc_arch-darwin
 
           linkeditOffset="$((0x800000 + 0x2000000))"
           dd if=/dev/zero of=cc_arch-darwin bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
