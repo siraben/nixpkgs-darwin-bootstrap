@@ -67,7 +67,7 @@ with args;
         dontUnpack = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
@@ -75,7 +75,7 @@ with args;
           awk 'seen { print } /^#:ELF_text/ { seen = 1 }' \
             ${stage0Sources}/AArch64/hex1_AArch64.hex0 > hex1-body.hex0
 
-          python3 ${root + "/scripts/stage0/phase1-aarch64-hex1-darwin.py"}
+          bash ${root + "/scripts/stage0/phase1-aarch64-hex1-darwin.sh"}
 
           grep -v '^:' ${root + "/M2libc"}/aarch64/MACHO-aarch64.hex2 > hex1-darwin.hex0
           cat hex1-body.hex0 >> hex1-darwin.hex0

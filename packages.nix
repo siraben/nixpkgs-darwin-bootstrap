@@ -8,7 +8,6 @@
   lib,
   minimal-bootstrap-sources,
   perl,
-  python3,
   stdenv,
   runCommand,
 }:
@@ -345,7 +344,7 @@ let
 
   phaseContext = {
     root = ./.;
-    inherit apple-sdk darwin cctools fetchurl gnumake lib minimal-bootstrap-sources perl python3;
+    inherit apple-sdk darwin cctools fetchurl gnumake lib minimal-bootstrap-sources perl;
     inherit stdenv runCommand hostPlatform supportedSystems arch source;
     inherit stage0-posix stage0Sources mesVersion mesTarball gcc46Version gcc46Tarball;
     inherit gcc46GmpTarball gcc46MpfrTarball gcc46MpcTarball gcc10Version gcc10Tarball gcc10GmpVersion;
