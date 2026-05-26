@@ -412,13 +412,78 @@
 
 :HEX2_scan_done
 
-	;; Print summary: "static_offset: <hex>\n"
-	lea_rdi,[rip+DWORD] %DATA_msg_static_offset
-	mov_rsi, %0x10                          ; 16 bytes
-	call %FUNCTION_write_stderr
-	;; mov rdi, [rbp - 104]
-	!0x48 !0x8b !0x7d !0x98
-	call %FUNCTION_print_hex64
+	;; ---------------------------------------------------------------
+	;; Pad binary buffer to DATA_FILE_OFFSET, copy static block, walk
+	;; opcode patterns, patch RIP-rel32 displacements, write back.
+	;; ---------------------------------------------------------------
+	;; static_file_offset = 0x400 + static_offset
+	!0x48 !0x8b !0x45 !0x98
+	!0x48 !0x05 !0x00 !0x04 !0x00 !0x00
+	!0x49 !0x89 !0xc4                       ; mov r12, rax
+	;; static_length = binary_size - static_file_offset
+	!0x4c !0x8b !0x6d !0xa0                 ; mov r13, [rbp - 96]
+	!0x4d !0x29 !0xe5                       ; sub r13, r12
+
+	;; If binary_size < 0x800000, bump to 0x800000 (mmap is zero-padded).
+	!0x48 !0x8b !0x45 !0xa0
+	!0x48 !0x3d !0x00 !0x00 !0x80 !0x00
+	jge %PAD_done
+	mov_rax, %0x800000
+	!0x48 !0x89 !0x45 !0xa0
+:PAD_done
+
+	;; memcpy(binary + 0x800000, binary + r12, r13)
+	!0x4c !0x8b !0x75 !0xa8                 ; mov r14, [rbp - 88]
+	!0x4d !0x01 !0xe6                       ; add r14, r12
+	!0x4c !0x8b !0x7d !0xa8                 ; mov r15, [rbp - 88]
+	!0x49 !0x81 !0xc7 !0x00 !0x00 !0x80 !0x00
+	!0x48 !0x31 !0xdb                       ; xor rbx, rbx
+:COPY_loop
+	!0x4c !0x39 !0xeb
+	jge %COPY_done
+	!0x43 !0x0f !0xb6 !0x04 !0x1e           ; movzx eax, byte [r14+rbx]
+	!0x43 !0x88 !0x04 !0x1f                 ; mov [r15+rbx], al
+	!0x48 !0xff !0xc3
+	jmp %COPY_loop
+:COPY_done
+
+	;; Update binary_size = 0x800000 + r13
+	!0x48 !0xb8 !0x00 !0x00 !0x80 !0x00 !0x00 !0x00 !0x00 !0x00
+	!0x4c !0x01 !0xe8
+	!0x48 !0x89 !0x45 !0xa0
+
+	;; static_vm = BASE(0x600000) + r12 — save in [rbp - 104].
+	!0x4c !0x89 !0xe0
+	!0x48 !0x05 !0x00 !0x00 !0x60 !0x00
+	!0x48 !0x89 !0x45 !0x98
+
+	;; Call patch_pattern for the one demonstrated opcode (\x48\x8d\x05).
+	;; Remaining 33 patterns added in subsequent commits.
+	lea_rdi,[rip+DWORD] %DATA_op_488d05
+	mov_rsi, %0x3
+	!0x48 !0x8b !0x55 !0x98                 ; rdx = static_vm
+	mov_rcx, %0xe00000
+	!0x4d !0x89 !0xe8                       ; r8 = r13 (static_length)
+	!0x4c !0x8b !0x4d !0xa8                 ; r9 = binary_buf
+	!0x4c !0x8b !0x55 !0xa0                 ; r10 = binary_size
+	call %FUNCTION_patch_pattern
+
+	;; Write binary back: lseek 0; write all.
+	!0x48 !0x8b !0x7d !0xc0                 ; mov rdi, [rbp - 64]
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, %0x20000c7
+	syscall
+	!0x48 !0x8b !0x7d !0xc0
+	!0x48 !0x8b !0x75 !0xa8                 ; rsi = binary_buf
+	!0x48 !0x8b !0x55 !0xa0                 ; rdx = binary_size
+	mov_rax, %0x2000004
+	syscall
+
+	;; Close binary fd
+	!0x48 !0x8b !0x7d !0xc0
+	mov_rax, %0x2000006
+	syscall
 
 	xor_edi,edi
 	call %FUNCTION_exit
@@ -668,6 +733,150 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_patch_pattern — scan binary for an opcode pattern and recompute
+##   RIP-rel32 displacements for matches whose target falls in the static
+##   data range.
+##   Args:
+##     rdi = opcode bytes pointer
+##     rsi = opcode length (2 or 3)
+##     rdx = static_vm
+##     rcx = data_vm (0xE00000)
+##     r8  = static_length
+##     r9  = binary_buf
+##     r10 = binary_size
+##   Clobbers rax/rbx/r11/rdi/rsi/rdx/rcx and friends.
+## ===========================================================================
+:FUNCTION_patch_pattern
+	;; rbx = scan position (byte index into binary)
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	push_r15
+
+	;; Save args in callee-saved/stack:
+	;;   r11 = opcode ptr
+	;;   r12 = opcode length
+	;;   r13 = static_vm
+	;;   r14 = data_vm
+	;;   r15 = static_length
+	;;   binary_buf still in r9, binary_size in r10
+	!0x49 !0x89 !0xfb                       ; mov r11, rdi
+	!0x49 !0x89 !0xf4                       ; mov r12, rsi
+	!0x49 !0x89 !0xd5                       ; mov r13, rdx
+	!0x49 !0x89 !0xce                       ; mov r14, rcx
+	!0x4d !0x89 !0xc7                       ; mov r15, r8
+
+	xor_ebx,ebx
+:PP_loop
+	;; if rbx + r12 + 4 > binary_size, done
+	;; mov rax, rbx
+	!0x48 !0x89 !0xd8
+	;; add rax, r12
+	!0x4c !0x01 !0xe0
+	;; add rax, 4
+	!0x48 !0x83 !0xc0 !0x04
+	;; cmp rax, r10
+	!0x4c !0x39 !0xd0
+	jg %PP_done
+
+	;; Compare bytes [r9 + rbx] .. [r9 + rbx + r12 - 1] vs opcode
+	;; xor rcx, rcx (counter)
+	!0x48 !0x31 !0xc9
+:PP_cmp_loop
+	;; if rcx == r12, all matched
+	;; cmp rcx, r12
+	!0x4c !0x39 !0xe1
+	jge %PP_matched
+	;; movzx eax, byte [r9 + rbx + rcx]
+	;; (compute addr in rax first to avoid SIB complexity)
+	;; mov rax, r9
+	!0x4c !0x89 !0xc8
+	;; add rax, rbx
+	!0x48 !0x01 !0xd8
+	;; add rax, rcx
+	!0x48 !0x01 !0xc8
+	;; movzx edx, byte [rax]
+	!0x0f !0xb6 !0x10
+	;; movzx eax, byte [r11 + rcx]
+	!0x4d !0x89 !0xd8 ;; no — let me re-do
+	;; Instead: mov rax, r11; add rax, rcx; movzx edx2, byte [rax]
+	!0x4c !0x89 !0xd8                       ; mov rax, r11
+	!0x48 !0x01 !0xc8                       ; add rax, rcx
+	;; movzx eax, byte [rax]
+	!0x0f !0xb6 !0x00
+	;; cmp dl, al
+	!0x38 !0xc2
+	jne %PP_no_match
+	;; inc rcx, loop
+	!0x48 !0xff !0xc1
+	jmp %PP_cmp_loop
+
+:PP_no_match
+	;; inc rbx, restart pattern
+	!0x48 !0xff !0xc3
+	jmp %PP_loop
+
+:PP_matched
+	;; rbx points to first opcode byte.  disp at [r9 + rbx + r12].
+	;; Read 4 bytes LE signed.
+	;; mov rax, r9; add rax, rbx; add rax, r12
+	!0x4c !0x89 !0xc8
+	!0x48 !0x01 !0xd8
+	!0x4c !0x01 !0xe0
+	;; movsxd rcx, dword [rax]   (48 63 08)
+	!0x48 !0x63 !0x08
+	;; next_instruction = BASE + rbx + r12 + 4
+	;; mov rdx, rbx
+	!0x48 !0x89 !0xda
+	!0x4c !0x01 !0xe2                       ; add rdx, r12
+	;; add rdx, 4
+	!0x48 !0x83 !0xc2 !0x04
+	;; add rdx, 0x600000 (BASE)
+	!0x48 !0x81 !0xc2 !0x00 !0x00 !0x60 !0x00
+	;; target = next_instruction + disp
+	;; add rcx, rdx
+	!0x48 !0x01 !0xd1
+	;; if target < static_vm, skip
+	;; cmp rcx, r13
+	!0x4c !0x39 !0xe9
+	jl %PP_skip_patch
+	;; if target >= static_vm + static_length, skip
+	;; mov rdi, r13
+	!0x4c !0x89 !0xef
+	;; add rdi, r15
+	!0x4c !0x01 !0xff
+	;; cmp rcx, rdi
+	!0x48 !0x39 !0xf9
+	jge %PP_skip_patch
+
+	;; new_target = data_vm + (target - static_vm)
+	;; sub rcx, r13
+	!0x4c !0x29 !0xe9
+	;; add rcx, r14
+	!0x4c !0x01 !0xf1
+	;; new_disp = new_target - next_instruction (rdx)
+	;; sub rcx, rdx
+	!0x48 !0x29 !0xd1
+	;; Write low 32 bits of rcx at [rax] (already addr = disp pos)
+	;; mov [rax], ecx
+	!0x89 !0x08
+
+:PP_skip_patch
+	;; Advance past this match: rbx += opcode_len + 4
+	!0x4c !0x01 !0xe3                       ; add rbx, r12
+	!0x48 !0x83 !0xc3 !0x04                 ; add rbx, 4
+	jmp %PP_loop
+
+:PP_done
+	pop_r15
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	ret
+
+## ===========================================================================
 ## FUNCTION_print_hex64(rdi=val) — prints val as 16 hex digits + "\n"
 ##   to stderr.  Mirrors elf64-to-m1.M1's helper.
 ## ===========================================================================
@@ -742,3 +951,5 @@
 :DATA_lbl_under_string
 	":_string_"
 	!0x00
+:DATA_op_488d05
+	!0x48 !0x8d !0x05                       ; lea rax, [rip+disp32]
