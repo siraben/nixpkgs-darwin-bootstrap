@@ -26,23 +26,25 @@
 #define MAX_TOKEN 1024
 #define MAX_TOKENS_PER_LINE 256
 
-/* Globals: argv-parsed state. */
+/* Globals: argv-parsed state.  M2-Planet's codegen for global arrays of
+ * pointers is unreliable on Darwin Mach-O, so use heap-allocated tables
+ * via calloc — same pattern upstream stage0 mescc-tools/Kaem uses. */
 int base_address;
-char* files[MAX_FILES];
+char** files;
 int nfiles;
 char* output_path;
-char* align_names[MAX_ALIGN_LABELS];
-int align_values[MAX_ALIGN_LABELS];
+char** align_names;
+int* align_values;
 int n_aligns;
 
 /* Output state. */
 FILE* outfp;
 int address;
 
-/* Per-line scratch buffers — global to avoid large stack allocations,
- * which M2-Planet's runtime doesn't reliably support. */
-char line[MAX_LINE];
-char tok[MAX_TOKEN];
+/* Per-line scratch buffers — heap-allocated via calloc since M2-Planet
+ * codegen for global char[] storage is also unreliable. */
+char* line;
+char* tok;
 
 int hex_digit_value(char c)
 {
@@ -345,6 +347,11 @@ int main(int argc, char** argv)
 	nfiles = 0;
 	output_path = NULL;
 	n_aligns = 0;
+	files = calloc(MAX_FILES, sizeof(char*));
+	align_names = calloc(MAX_ALIGN_LABELS, sizeof(char*));
+	align_values = calloc(MAX_ALIGN_LABELS, sizeof(int));
+	line = calloc(MAX_LINE, sizeof(char));
+	tok = calloc(MAX_TOKEN, sizeof(char));
 
 	i = 1;
 	while(i < argc)
