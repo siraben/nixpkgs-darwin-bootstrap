@@ -7,9 +7,7 @@ with args;
       objectProbe,
     }:
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-link-candidate-amd64" {
-        nativeBuildInputs = [ perl ];
-      } ''
+      runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-link-candidate-amd64" { } ''
         mkdir -p $out/bin $out/share/darwin-bootstrap
 
         ${compiler} -c \
@@ -76,7 +74,7 @@ with args;
           -f ${boot}.hex2 \
           -o ${boot}
 
-        perl ${root + "/scripts/stage0/hex2-data-relocs.pl"} patch ${boot}.hex2 ${boot}
+        ${phase11c-hex2-data-relocs}/bin/hex2-data-relocs patch ${boot}.hex2 ${boot}
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=${boot} bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

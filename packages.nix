@@ -390,6 +390,7 @@ let
     phase26f-bootstrap-isl = import ./phases/phase26f-bootstrap-isl.nix (phaseContext // phaseDefs);
     phase26g-macho-patcher = import ./phases/phase26g-macho-patcher.nix (phaseContext // phaseDefs);
     phase11b-m1-to-hex2 = import ./phases/phase11b-m1-to-hex2.nix (phaseContext // phaseDefs);
+    phase11c-hex2-data-relocs = import ./phases/phase11c-hex2-data-relocs.nix (phaseContext // phaseDefs);
     phase42-gcc10-source = import ./phases/phase42-gcc10-source.nix (phaseContext // phaseDefs);
     phase43-gcc-latest-source = import ./phases/phase43-gcc-latest-source.nix (phaseContext // phaseDefs);
     gcc46DarwinBootstrapSrc = import ./phases/gcc46DarwinBootstrapSrc.nix (phaseContext // phaseDefs);
@@ -454,6 +455,7 @@ let
     phase26f-bootstrap-isl
     phase26g-macho-patcher
     phase11b-m1-to-hex2
+    phase11c-hex2-data-relocs
     phase42-gcc10-source
     phase43-gcc-latest-source
     gcc46DarwinBootstrapSrc
@@ -612,6 +614,7 @@ in
     phase26f-bootstrap-isl
     phase26g-macho-patcher
     phase11b-m1-to-hex2
+    phase11c-hex2-data-relocs
     phase42-gcc10-source
     phase43-gcc-latest-source
     gcc46DarwinBootstrapSrc

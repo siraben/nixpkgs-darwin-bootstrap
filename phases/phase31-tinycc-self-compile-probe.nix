@@ -1,9 +1,7 @@
 args:
 with args;
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase31-tinycc-self-compile-probe-amd64" {
-        nativeBuildInputs = [ perl ];
-      } ''
+      runCommand "darwin-minimal-bootstrap-phase31-tinycc-self-compile-probe-amd64" { } ''
         mkdir -p $out/share/darwin-bootstrap
 
         cat > hello.c <<'C'
@@ -61,7 +59,7 @@ with args;
           -f hello.hex2 \
           -o hello
 
-        perl ${root + "/scripts/stage0/hex2-data-relocs.pl"} patch hello.hex2 hello
+        ${phase11c-hex2-data-relocs}/bin/hex2-data-relocs patch hello.hex2 hello
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=hello bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
