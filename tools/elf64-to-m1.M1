@@ -922,7 +922,15 @@
 
 :SKIP_SYMBOLS_MODE
 
-	;; Sanity dump: print first u64 of .text contents.
+	;; Sanity dump: print first u64 of .text contents.  Guard against
+	;; empty .text sections (e.g. libiberty/safe-ctype.o, whose .text is
+	;; size=0 because all of its symbols sit in .data); load_section
+	;; returns an invalid buffer for size=0, so dereferencing it would
+	;; segfault.  Check size first ([rbp-40] = .text size).
+	;; mov rax, [rbp - 40]
+	!0x48 !0x8b !0x45 !0xd8
+	test_rax,rax
+	je %SKIP_TEXT_DUMP
 	lea_rdi,[rip+DWORD] %DATA_lbl_text_first
 	mov_rsi, %0x0c                          ; "text[0..7]: "
 	call %FUNCTION_write_stderr
@@ -931,6 +939,7 @@
 	;; mov rdi, [rdi]        ; first 8 bytes
 	!0x48 !0x8b !0x3f
 	call %FUNCTION_print_hex64
+:SKIP_TEXT_DUMP
 
 	;; ---------------------------------------------------------------
 	;; Walk symbol table: each Elf64_Sym is 24 bytes:
