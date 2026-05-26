@@ -11,6 +11,15 @@ with args;
 
         nativeBuildInputs = [ perl ];
 
+        ## NOTE: phase11d-cc-arch-helper is the M2-Planet C version of
+        ## scripts/stage0/phase4-amd64-cc-arch.pl and is byte-identical
+        ## to the perl on real cc_arch-0-linux.hex2 + cc_arch-darwin
+        ## inputs (verified, see bootstrap/phase4-amd64-cc-arch.c).  It
+        ## CAN'T be used here though: phase11d → phase5-m2 → phase4-
+        ## cc-arch → phase11d would be a Nix-eval cycle.  Breaking the
+        ## cycle needs either pre-porting cc_arch-0.hex2 into the tree
+        ## (60KB committed) or rewriting the helper in hex0/M0-only so
+        ## it can be assembled before phase5-m2 exists.
         buildPhase = ''
           runHook preBuild
 
