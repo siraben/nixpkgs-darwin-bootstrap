@@ -21,7 +21,7 @@ with args;
           -f mes.hex2 \
           -o mes-m2
 
-        ${python3}/bin/python3 ${root + "/tools/phase5-amd64-m2.py"} patch mes.hex2 mes-m2
+        ${phase26g-macho-patcher}/bin/macho-patcher m2-segments mes.hex2 mes-m2
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=mes-m2 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

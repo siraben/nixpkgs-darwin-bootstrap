@@ -112,7 +112,7 @@ with args;
           -f puts-smoke.hex2 \
           -o puts-smoke
 
-        ${python3}/bin/python3 ${root + "/tools/phase5-amd64-m2.py"} patch puts-smoke.hex2 puts-smoke
+        ${phase26g-macho-patcher}/bin/macho-patcher m2-segments puts-smoke.hex2 puts-smoke
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=puts-smoke bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

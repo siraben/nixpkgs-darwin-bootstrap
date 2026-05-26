@@ -49,7 +49,7 @@ with args;
           -f tcc.hex2 \
           -o tcc
 
-        ${python3}/bin/python3 ${root + "/tools/phase5-amd64-m2.py"} patch tcc.hex2 tcc
+        ${phase26g-macho-patcher}/bin/macho-patcher m2-segments tcc.hex2 tcc
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=tcc bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

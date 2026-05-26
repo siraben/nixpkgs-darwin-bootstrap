@@ -82,7 +82,7 @@ with args;
           -f hello.hex2 \
           -o hello
 
-        ${python3}/bin/python3 ${root + "/tools/phase5-amd64-m2.py"} patch hello.hex2 hello
+        ${phase26g-macho-patcher}/bin/macho-patcher m2-segments hello.hex2 hello
 
         linkeditOffset="$((0x800000 + 0x2000000))"
         dd if=/dev/zero of=hello bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

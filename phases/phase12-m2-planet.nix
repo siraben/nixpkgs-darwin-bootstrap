@@ -9,7 +9,7 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
@@ -61,7 +61,7 @@ with args;
             -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             -f M2-Planet.hex2 \
             -o M2-Planet
-          python3 ${root + "/tools/phase5-amd64-m2.py"} patch M2-Planet.hex2 M2-Planet
+          ${phase26g-macho-patcher}/bin/macho-patcher m2-segments M2-Planet.hex2 M2-Planet
 
           linkeditOffset="$((0x800000 + 0x2000000))"
           dd if=/dev/zero of=M2-Planet bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

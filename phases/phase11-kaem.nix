@@ -9,7 +9,7 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
@@ -55,7 +55,7 @@ with args;
             -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             -f kaem.hex2 \
             -o kaem
-          python3 ${root + "/tools/phase5-amd64-m2.py"} patch kaem.hex2 kaem
+          ${phase26g-macho-patcher}/bin/macho-patcher m2-segments kaem.hex2 kaem
 
           linkeditOffset="$((0x800000 + 0x2000000))"
           dd if=/dev/zero of=kaem bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
