@@ -411,6 +411,10 @@
 	jmp %HEX2_advance
 
 :HEX2_scan_done
+	;; DBG: A. scan done
+	lea_rdi,[rip+DWORD] %DATA_dbg_a
+	mov_rsi, %0x03
+	call %FUNCTION_write_stderr
 
 	;; ---------------------------------------------------------------
 	;; Pad binary buffer to DATA_FILE_OFFSET, copy static block, walk
@@ -431,6 +435,10 @@
 	mov_rax, %0x800000
 	!0x48 !0x89 !0x45 !0xa0
 :PAD_done
+	;; DBG: B. pad done
+	lea_rdi,[rip+DWORD] %DATA_dbg_b
+	mov_rsi, %0x03
+	call %FUNCTION_write_stderr
 
 	;; memcpy(binary + 0x800000, binary + r12, r13)
 	!0x4c !0x8b !0x75 !0xa8                 ; mov r14, [rbp - 88]
@@ -446,6 +454,10 @@
 	!0x48 !0xff !0xc3
 	jmp %COPY_loop
 :COPY_done
+	;; DBG: C. copy done
+	lea_rdi,[rip+DWORD] %DATA_dbg_c
+	mov_rsi, %0x03
+	call %FUNCTION_write_stderr
 
 	;; Update binary_size = 0x800000 + r13
 	!0x48 !0xb8 !0x00 !0x00 !0x80 !0x00 !0x00 !0x00 !0x00 !0x00
@@ -467,6 +479,10 @@
 	!0x4c !0x8b !0x4d !0xa8                 ; r9 = binary_buf
 	!0x4c !0x8b !0x55 !0xa0                 ; r10 = binary_size
 	call %FUNCTION_patch_pattern
+	;; DBG: D. patch done
+	lea_rdi,[rip+DWORD] %DATA_dbg_d
+	mov_rsi, %0x03
+	call %FUNCTION_write_stderr
 
 	;; Write binary back: lseek 0; write all.
 	!0x48 !0x8b !0x7d !0xc0                 ; mov rdi, [rbp - 64]
@@ -957,3 +973,11 @@
 	"binary_size: "
 :DATA_msg_lseek
 	"lseek: "
+:DATA_dbg_a
+	"A\n "
+:DATA_dbg_b
+	"B\n "
+:DATA_dbg_c
+	"C\n "
+:DATA_dbg_d
+	"D\n "
