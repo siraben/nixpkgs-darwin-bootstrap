@@ -4,7 +4,7 @@ set -euo pipefail
 phase35=$1
 phase34=$2
 cctools=$3
-python=$4
+perl=$4
 helper=$5
 awk_filter=$6
 out=$7
@@ -24,7 +24,7 @@ cp -R "$phase35/share/darwin-bootstrap/work/src" work/src
 cp -R "$phase35/share/darwin-bootstrap/work/build" work/build
 chmod -R u+w work
 
-"$python" "$helper" --root "$PWD" --phase34 "$phase34"
+"$perl" "$helper" --root "$PWD" --phase34 "$phase34"
 
 export CC="$phase34/bin/tcc-darwin-cc"
 export CPP="$CC -E"
