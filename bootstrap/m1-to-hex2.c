@@ -182,23 +182,23 @@ int translated_width(char* tok)
 	return 1;
 }
 
-/* If tok matches '!0xXX' (5 chars), emit XX (upper-case) and return 1.
- * Otherwise emit tok verbatim. */
+/* If tok matches '!0xXX' (5 chars), strip the '!0x' prefix and emit the
+ * remaining two chars uppercased — matches perl/python which trust the
+ * token shape without re-validating the hex digits.  Otherwise emit
+ * the token verbatim. */
 void emit_token(char* tok, int len)
 {
 	int i;
-	int hi;
-	int lo;
+	char c;
 	if(len == 5 && tok[0] == '!' && tok[1] == '0' && tok[2] == 'x')
 	{
-		hi = hex_digit_value(tok[3]);
-		lo = hex_digit_value(tok[4]);
-		if(hi >= 0 && lo >= 0)
-		{
-			fputc(hex_char(hi), outfp);
-			fputc(hex_char(lo), outfp);
-			return;
-		}
+		c = tok[3];
+		if(c >= 'a' && c <= 'z') c = c - 'a' + 'A';
+		fputc(c, outfp);
+		c = tok[4];
+		if(c >= 'a' && c <= 'z') c = c - 'a' + 'A';
+		fputc(c, outfp);
+		return;
 	}
 	i = 0;
 	while(i < len) { fputc(tok[i], outfp); i = i + 1; }

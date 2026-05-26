@@ -508,7 +508,7 @@ done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
 } > "$tmp/combined.M1"
 
-@M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
+@PERL@ @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
 @HEX2@ --architecture amd64 --little-endian --base-address 0x600000 \
   -f @MACHO@ -f "$tmp/combined.hex2" -o "$out"
 # The @MACHO@ template (MACHO-amd64-largedata.hex2) already has the

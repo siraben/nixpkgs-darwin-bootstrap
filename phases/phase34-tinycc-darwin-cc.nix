@@ -46,8 +46,9 @@ with args;
           --replace-fail @TCC@ ${phase38-tinycc-boot3-link-candidate}/bin/tcc-boot3-candidate \
           --replace-fail @AR@ ${cctools}/bin/ar \
           --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
+          --replace-fail @PERL@ ${perl}/bin/perl \
           --replace-fail @ELF_TO_M1@ ${phase26b-elf64-to-m1}/bin/elf64-to-m1 \
-          --replace-fail @M1_TO_HEX2@ ${phase11b-m1-to-hex2}/bin/m1-to-hex2 \
+          --replace-fail @M1_TO_HEX2@ ${root + "/scripts/stage0/m1-to-hex2.pl"} \
           --replace-fail @HEX2@ ${phase10-hex2}/bin/hex2 \
           --replace-fail @MACHO@ $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2 \
           --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \
