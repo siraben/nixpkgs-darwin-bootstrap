@@ -22,7 +22,11 @@ let
         ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
           > configure.stdout \
           2> configure.stderr
-        ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
+        ## phase39-gnumake segfaults inside GNU Hello's Automake-generated
+        ## recipe graph (same limitation noted in todos.md).  Use nixpkgs
+        ## gnumake here until phase39 is promoted; same approach phase44-47
+        ## take for the GCC chain.
+        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
           > make.stdout \
           2> make.stderr
 
