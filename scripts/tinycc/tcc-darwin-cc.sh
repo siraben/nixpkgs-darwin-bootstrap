@@ -494,7 +494,11 @@ add_archives
 object_index=0
 for object in "${objects[@]}"; do
   m1="$tmp/object-$object_index.M1"
-  @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
+  ## Same blanket synth-label gap as the archive-member path above: M1
+  ## elf64-to-m1 doesn't emit name_plus_N labels at fixed addends so a
+  ## cross-object reference to e.g. c_global_trees_plus_28 can't resolve.
+  ## Fall back to python until elf64-to-m1.M1 implements the pre-pass.
+  @PYTHON@ @ELF_TO_M1_PY@ --prefix "obj_$object_index"_ "$object" "$m1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
   code_files+=("$tmp/object-$object_index.code.M1")
