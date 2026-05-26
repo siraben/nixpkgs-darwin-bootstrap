@@ -1,14 +1,16 @@
 args:
 with args;
     if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase35-gcc-${gcc46Version}-all-gcc-amd64" { } ''
+      runCommand "darwin-minimal-bootstrap-phase35-gcc-${gcc46Version}-all-gcc-amd64" {
+        nativeBuildInputs = [ perl ];
+      } ''
         mkdir -p src build $out/bin $out/share/darwin-bootstrap
         cp -R ${gcc46DarwinBootstrapSrc}/. src/
         chmod -R u+w src
         sed -i \
           's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = ${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap|' \
           src/gcc/Makefile.in
-        ${python3}/bin/python3 ${root + "/scripts/gcc46/phase35-prepare-source.py"}
+        bash ${root + "/scripts/gcc46/phase35-prepare-source.sh"}
 
         export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
         export CPP="$CC -E"
