@@ -953,3 +953,7 @@
 	!0x00
 :DATA_op_488d05
 	!0x48 !0x8d !0x05                       ; lea rax, [rip+disp32]
+:DATA_msg_binsize
+	"binary_size: "
+:DATA_msg_lseek
+	"lseek: "
