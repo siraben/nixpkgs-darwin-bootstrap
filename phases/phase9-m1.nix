@@ -9,7 +9,7 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
@@ -53,7 +53,7 @@ with args;
             -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             -f M1-macro-1.hex2 \
             -o M1
-          python3 ${root + "/tools/phase5-amd64-m2.py"} patch M1-macro-1.hex2 M1
+          perl ${root + "/scripts/stage0/phase5-amd64-m2.pl"} patch M1-macro-1.hex2 M1
 
           linkeditOffset="$((0x800000 + 0x2000000))"
           dd if=/dev/zero of=M1 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
