@@ -9,12 +9,12 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ python3 ];
+        nativeBuildInputs = [ perl ];
 
         buildPhase = ''
           runHook preBuild
 
-          python3 ${root + "/tools/phase2-amd64-hex2.py"} \
+          perl ${root + "/scripts/stage0/phase2-amd64-hex2.pl"} \
             ${stage0Sources} \
             ${phase1-hex1}/bin/hex1-darwin \
             .
