@@ -9,15 +9,24 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
 
-          perl ${root + "/scripts/stage0/phase1-amd64-hex1.pl"} \
-            ${stage0Sources} \
-            ${hex0}/bin/hex0 \
-            .
+          ## Assemble the committed hand-rolled hex0 source for the
+          ## Darwin-ported hex1 binary.  See hex0/sources/hex1_AMD64_darwin.hex0
+          ## for sections (Mach-O header, ported body with disps baked
+          ## in, EINTR retry stub).  Build-time has no perl/awk/python.
+          ${hex0}/bin/hex0 \
+            ${root + "/hex0/sources/hex1_AMD64_darwin.hex0"} \
+            hex1-darwin
+
+          ## Pad to LINKEDIT offset (file offset 0x1000000 = 16777216).
+          ## hex0 emitted only the meaningful 0xE0C bytes; the OS expects
+          ## file content up through the __LINKEDIT vmaddr.
+          dd if=/dev/zero of=hex1-darwin bs=1 count=1 seek=16777215 conv=notrunc
+          chmod +x hex1-darwin
 
           source ${darwin.signingUtils}
           sign hex1-darwin
@@ -50,7 +59,8 @@ with args;
         installPhase = ''
           runHook preInstall
           install -Dm755 hex1-darwin $out/bin/hex1-darwin
-          install -Dm644 hex1_AMD64_darwin_body.hex0 $out/share/darwin-bootstrap/hex1_AMD64_darwin_body.hex0
+          install -Dm644 ${root + "/hex0/sources/hex1_AMD64_darwin.hex0"} \
+            $out/share/darwin-bootstrap/hex1_AMD64_darwin.hex0
           runHook postInstall
         '';
 
