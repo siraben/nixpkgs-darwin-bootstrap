@@ -1,5 +1,9 @@
-args:
-with args;
+{
+  phase23-tinycc-mescc-link-probe,
+  phase24-tinycc-compile-probe,
+  runCommand,
+  ...
+}:
 runCommand "phase24-tinycc-compile-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 

@@ -1,5 +1,11 @@
-args:
-with args;
+{
+  phase13-mes-source,
+  phase30-tinycc-self-link-candidate,
+  phase32-tinycc-boot1-object-probe,
+  runCommand,
+  tinyccMesSrc,
+  ...
+}:
 runCommand "phase32-tinycc-boot1-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 

@@ -1,5 +1,17 @@
-args:
-with args;
+{
+  darwin,
+  mkDarwin,
+  phase11e-macho-patcher-early,
+  phase2-catm,
+  phase2-hex2,
+  phase3-m0,
+  phase4-cc-arch,
+  phase5-m2,
+  root,
+  source,
+  stage0Sources,
+  ...
+}:
 mkDarwin {
   pname = "phase5-m2";
   buildPhase = ''

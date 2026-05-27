@@ -1,5 +1,16 @@
-args:
-with args;
+{
+  darwin,
+  phase10-hex2,
+  phase23-tinycc-mescc-link-probe,
+  phase26b-elf64-to-m1,
+  phase26g-macho-patcher,
+  phase29-tinycc-sysv-libc-probe,
+  phase3-m0,
+  phase9-m1,
+  runCommand,
+  source,
+  ...
+}:
 runCommand "phase29-tinycc-sysv-libc-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 

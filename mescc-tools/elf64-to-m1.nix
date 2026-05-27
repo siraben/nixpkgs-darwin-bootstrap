@@ -1,5 +1,11 @@
-args:
-with args;
+{
+  phase10-hex2,
+  phase26b-elf64-to-m1,
+  phase9-m1,
+  root,
+  runCommand,
+  ...
+}:
 runCommand "phase26b-elf64-to-m1" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 

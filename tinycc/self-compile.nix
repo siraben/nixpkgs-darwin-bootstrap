@@ -1,5 +1,16 @@
-args:
-with args;
+{
+  darwin,
+  phase10-hex2,
+  phase11c-hex2-data-relocs,
+  phase26b-elf64-to-m1,
+  phase3-m0,
+  phase30-tinycc-self-link-candidate,
+  phase31-tinycc-self-compile-probe,
+  phase9-m1,
+  runCommand,
+  source,
+  ...
+}:
 runCommand "phase31-tinycc-self-compile-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 

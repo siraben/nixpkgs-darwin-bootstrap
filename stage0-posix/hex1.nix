@@ -1,5 +1,15 @@
-args:
-with args;
+{
+  darwin,
+  hex0,
+  hostPlatform,
+  mkDarwin,
+  perl,
+  phase1-hex1,
+  root,
+  source,
+  stage0Sources,
+  ...
+}:
     if hostPlatform.isx86_64 then
       mkDarwin {
         pname = "phase1-hex1";

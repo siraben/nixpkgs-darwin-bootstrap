@@ -1,5 +1,13 @@
-args:
-with args;
+{
+  cctools,
+  gcc46Version,
+  perl,
+  phase34-tinycc-darwin-cc,
+  phase35-gcc46-all-gcc,
+  root,
+  runCommand,
+  ...
+}:
 runCommand "phase36-gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''

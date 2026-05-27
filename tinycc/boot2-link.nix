@@ -1,5 +1,9 @@
-args:
-with args;
+{
+  phase33-tinycc-boot1-link-candidate,
+  phase35-tinycc-boot2-object-probe,
+  tinyccSelfLinkCandidate,
+  ...
+}:
 tinyccSelfLinkCandidate {
     phase = "phase36";
     boot = "tcc-boot2";

@@ -1,5 +1,17 @@
-args:
-with args;
+{
+  gcc10GmpTarball,
+  gcc10GmpVersion,
+  gcc10Tarball,
+  gcc10Version,
+  gccModernIslTarball,
+  gccModernIslVersion,
+  gccModernMpcTarball,
+  gccModernMpcVersion,
+  gccModernMpfrTarball,
+  gccModernMpfrVersion,
+  runCommand,
+  ...
+}:
     runCommand "phase42-gcc-${gcc10Version}-source" { } ''
       mkdir -p work $out
       cd work

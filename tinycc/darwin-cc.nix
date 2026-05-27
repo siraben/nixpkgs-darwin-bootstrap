@@ -1,5 +1,18 @@
-args:
-with args;
+{
+  cctools,
+  darwin,
+  phase10-hex2,
+  phase11b-m1-to-hex2,
+  phase26b-elf64-to-m1,
+  phase3-m0,
+  phase30-tinycc-self-link-candidate,
+  phase34-tinycc-darwin-cc,
+  phase38-tinycc-boot3-link-candidate,
+  root,
+  runCommand,
+  stdenv,
+  ...
+}:
 runCommand "phase34-tinycc-darwin-cc" { } ''
   mkdir -p $out/bin $out/include/tcc-darwin-bootstrap/sys $out/share/darwin-bootstrap
 

@@ -18,8 +18,22 @@
 ## Verified: the resulting binary is byte-identical to the regular
 ## phase26g-macho-patcher build (which uses phase9-m1 + phase10-hex2,
 ## requires phase5-m2 → phase4-cc-arch — the cycle this phase avoids).
-args:
-with args;
+{
+  mkDarwin,
+  perl,
+  phase10-hex2,
+  phase11e-macho-patcher-early,
+  phase2-catm,
+  phase2-hex2,
+  phase26g-macho-patcher,
+  phase3-m0,
+  phase4-cc-arch,
+  phase5-m2,
+  phase9-m1,
+  root,
+  source,
+  ...
+}:
 mkDarwin {
   pname = "phase11e-macho-patcher-early";
   buildPhase = ''

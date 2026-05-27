@@ -1,5 +1,21 @@
-args:
-with args;
+{
+  cctools,
+  darwin,
+  gccLatestVersion,
+  gnumake,
+  perl,
+  phase26c-bootstrap-gmp,
+  phase26d-bootstrap-mpfr,
+  phase26e-bootstrap-mpc,
+  phase26f-bootstrap-isl,
+  phase39-gnumake,
+  phase43-gcc-latest-source,
+  phase46-gcc-latest-bootstrap,
+  root,
+  runCommand,
+  stdenv,
+  ...
+}:
 runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''

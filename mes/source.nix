@@ -1,5 +1,19 @@
-args:
-with args;
+{
+  arch,
+  darwin,
+  lib,
+  mesDarwinConfigH,
+  mesTarball,
+  mesVersion,
+  mkDarwin,
+  perl,
+  phase10-hex2,
+  phase11-kaem,
+  phase13-mes-source,
+  root,
+  source,
+  ...
+}:
 mkDarwin {
   pname = "phase13-mes-source";
   version = mesVersion;

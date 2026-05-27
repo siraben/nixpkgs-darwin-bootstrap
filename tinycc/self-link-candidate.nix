@@ -1,5 +1,16 @@
-args:
-with args;
+{
+  darwin,
+  lib,
+  phase10-hex2,
+  phase11c-hex2-data-relocs,
+  phase26b-elf64-to-m1,
+  phase3-m0,
+  phase9-m1,
+  root,
+  runCommand,
+  source,
+  ...
+}:
     {
       phase,
       boot,

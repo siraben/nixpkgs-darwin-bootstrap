@@ -1,5 +1,12 @@
-args:
-with args;
+{
+  gcc46GmpTarball,
+  gcc46MpcTarball,
+  gcc46MpfrTarball,
+  gcc46Tarball,
+  gcc46Version,
+  runCommand,
+  ...
+}:
     runCommand "phase26-gcc-${gcc46Version}-source" { } ''
       mkdir -p work $out
       cd work

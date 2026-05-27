@@ -1,5 +1,12 @@
-args:
-with args;
+{
+  darwin,
+  lib,
+  phase12-m2-planet,
+  phase13-mes-source,
+  phase14-mes-m2-probe,
+  runCommand,
+  ...
+}:
 runCommand "phase14-mes-m2-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 

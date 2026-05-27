@@ -1,5 +1,18 @@
-args:
-with args;
+{
+  darwin,
+  mkDarwin,
+  perl,
+  phase11e-macho-patcher-early,
+  phase2-catm,
+  phase2-hex2,
+  phase3-m0,
+  phase4-cc-arch,
+  phase5-m2,
+  root,
+  source,
+  stage0Sources,
+  ...
+}:
 mkDarwin {
   pname = "phase4-cc-arch";
   ## phase4-amd64-cc-arch.pl's patch mode replaced by

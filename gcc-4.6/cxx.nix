@@ -9,8 +9,23 @@
 ## via task #11) until phase37 is sped up or replaced. The split env
 ## GCC46_BOOTSTRAP_HOST_CC_GENERATED from commit 820dba7 stands ready for
 ## incremental shortcut reduction once the speed problem is solved.
-args:
-with args;
+{
+  apple-sdk,
+  cctools,
+  darwin,
+  gcc46Version,
+  gnumake,
+  perl,
+  phase34-tinycc-darwin-cc,
+  phase35-gcc46-all-gcc,
+  phase37-gcc46-bootstrap,
+  phase39-gnumake,
+  root,
+  runCommand,
+  source,
+  stdenv,
+  ...
+}:
 runCommand "phase44-gcc-${gcc46Version}-cxx" {
   nativeBuildInputs = [ perl ];
 } ''

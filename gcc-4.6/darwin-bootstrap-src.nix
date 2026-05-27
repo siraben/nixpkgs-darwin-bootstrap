@@ -1,5 +1,10 @@
-args:
-with args;
+{
+  gcc46Version,
+  phase26-gcc46-source,
+  root,
+  runCommand,
+  ...
+}:
     runCommand "gcc-${gcc46Version}-darwin-bootstrap-source" { } ''
       mkdir -p $out
       cp -R ${phase26-gcc46-source}/. $out/

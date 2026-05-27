@@ -1,5 +1,14 @@
-args:
-with args;
+{
+  darwin,
+  mkDarwin,
+  perl,
+  phase2-catm,
+  phase2-hex2,
+  root,
+  source,
+  stage0Sources,
+  ...
+}:
 mkDarwin {
   pname = "phase2-catm";
 

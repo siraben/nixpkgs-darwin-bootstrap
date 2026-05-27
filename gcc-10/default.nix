@@ -1,5 +1,18 @@
-args:
-with args;
+{
+  cctools,
+  darwin,
+  gcc10Version,
+  gnumake,
+  perl,
+  phase34-tinycc-darwin-cc,
+  phase39-gnumake,
+  phase42-gcc10-source,
+  phase44-gcc46-cxx-bootstrap,
+  root,
+  runCommand,
+  stdenv,
+  ...
+}:
 runCommand "phase45-gcc-${gcc10Version}" {
   nativeBuildInputs = [ perl ];
 } ''

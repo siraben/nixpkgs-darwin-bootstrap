@@ -1,5 +1,15 @@
-args:
-with args;
+{
+  darwin,
+  mkDarwin,
+  perl,
+  phase2-catm,
+  phase2-hex2,
+  phase3-m0,
+  root,
+  source,
+  stage0Sources,
+  ...
+}:
 mkDarwin {
   pname = "phase3-m0";
   buildPhase = ''

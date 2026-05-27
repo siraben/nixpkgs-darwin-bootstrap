@@ -1,5 +1,17 @@
-args:
-with args;
+{
+  gccLatestGmpTarball,
+  gccLatestGmpVersion,
+  gccLatestTarball,
+  gccLatestVersion,
+  gccModernIslTarball,
+  gccModernIslVersion,
+  gccModernMpcTarball,
+  gccModernMpcVersion,
+  gccModernMpfrTarball,
+  gccModernMpfrVersion,
+  runCommand,
+  ...
+}:
     runCommand "phase43-gcc-${gccLatestVersion}-source" { } ''
       mkdir -p work $out
       cd work
