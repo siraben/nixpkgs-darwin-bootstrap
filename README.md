@@ -5,48 +5,67 @@ Standalone Darwin minimal-bootstrap experiments for reproducing the Linux
 
 ## Current state
 
-The active, runnable bootstrap path is `x86_64-darwin`/amd64. The Nixified
+The active, runnable bootstrap path is `x86_64-darwin`/amd64.  The Nixified
 chain reaches a strict self-hosted modern GCC handoff whose GCC source version
-is matched to nixpkgs `gcc_latest.version` (`15.2.0` with the current lock).
+is matched to nixpkgs `gcc_latest.version` (`15.2.0` with the current lock),
+and verifies a `gnu-hello-hash-comparison` output at the baseline
+`5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`.
+
+The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
+layout: 12 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
+`mescc-libc/`, `tinycc/`, `gnumake/`, `gnupatch/`, `coreutils/`,
+`bootstrap-deps/`, `gcc-4.6/`, `gcc-10/`, `gcc-latest/`) totalling ~75 .nix
+files.  Each derivation uses a shared `utils.nix:mkDarwin` helper that bakes
+in `dontUnpack`/`dontStrip`/`strictDeps`/version/platforms defaults; smoke
+tests live in `checkPhase`; every file declares its dependencies explicitly
+in nixpkgs-callPackage style.
 
 The implemented amd64 chain is:
 
-1. Raw Darwin/Mach-O seeds: syscall hello probes, a hand-assembled `hex0`, Mach-O
-   `hex2` templates using `LC_MAIN`, `/usr/lib/dyld`, and `libSystem`.
-2. Stage0 tools: signed `hex1`, `hex2`, `catm`, `M0`, `cc_arch`, `M2`,
-   `blood-macho`, `M1`, full `hex2`, `kaem`, and full `M2-Planet`.
-3. Mes/TinyCC probes: Darwin MesCC library probes, TinyCC MesCC/M1/link probes,
-   and `phase34-tinycc-darwin-cc` as the C compiler boundary for GCC work.
-4. GCC 4.6: `phase35`/`phase36` build the C frontend and libgcc boundary;
-   `phase44-gcc46-cxx-bootstrap` packages a GCC 4.6.4 C/C++ handoff with
-   `libgcc`, `libstdc++`, Mach-O assembler/linker wrappers, and smoke tests.
-5. Modern GCC: `phase45-gcc10-bootstrap` builds a compiler-only GCC 10.4.0
-   handoff; `phase46-gcc-latest-bootstrap` builds the nixpkgs-matched
-   `gcc_latest`; `phase47-gcc-latest-strict-bootstrap` rebuilds that same GCC
-   with the wrapper host shortcuts disabled.
-6. Package proof: GNU Hello 2.12.2 builds and runs with the phase46 handoff,
-   the strict phase47 handoff, and a nixpkgs `gcc_latest` reference; the
-   `gnu-hello-hash-comparison` output records the hashes and equality checks.
+1. Raw Darwin/Mach-O seeds: syscall hello probes, a hand-assembled `hex0`,
+   Mach-O `hex2` templates using `LC_MAIN`, `/usr/lib/dyld`, and `libSystem`.
+2. Stage0 tools (`stage0-posix/`): signed `hex1`, `hex2`, `catm`, `M0`,
+   `cc_arch`, `M2`, `blood-macho`, `M1`, full `hex2`, `kaem`.  `hex1` and
+   `hex2` are assembled from hand-rolled `hex0/sources/*.hex0` files — no
+   perl/awk at build time for the stage0 chain.
+3. Mes / mescc-libc / TinyCC: `mes/m2`, the `mescc-libc/*` probes, and the
+   `tinycc/*` boot-cycle culminate in `tinycc/darwin-cc` (the working TCC
+   used by every downstream GCC build).
+4. GCC 4.6 (`gcc-4.6/`): source, all-gcc frontend, libgcc, the bootstrap
+   handoff, and `cxx` (C/C++ packaging).  Currently uses `stdenv.cc.cc/clang`
+   as bootstrap-host CC because the bootstrapped TCC takes >20h to self-host
+   GCC 4.6's frontend.
+5. Modern GCC (`gcc-10/`, `gcc-latest/`): `gcc-10/default.nix` builds a
+   compiler-only GCC 10.4.0 handoff; `gcc-latest/default.nix` builds the
+   nixpkgs-matched `gcc_latest`; `gcc-latest/strict.nix` rebuilds that same
+   GCC with the wrapper host shortcuts disabled.
+6. Package proof: GNU Hello 2.12.2 builds and runs with the `gcc-latest`
+   bootstrap and strict handoffs, alongside a nixpkgs `gcc_latest` reference
+   for comparison; the `gnu-hello-hash-comparison` output records all three
+   hashes and the equality checks.
 
 ## Known impurity boundaries
 
 - The Darwin executable path intentionally links against the platform
   `libSystem`/dyld ABI and ad-hoc signs generated Mach-O binaries through
   nixpkgs `darwin.signingUtils`.
-- GCC phases still use the local Command Line Tools SDK at
-  `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk` and Apple `/usr/bin`
-  assembler/linker/compiler tools at selected bootstrap boundaries.
-- Phase44, phase45, and phase46 use host compiler/linker shortcuts for bootstrap-host
-  GCC sources, generated sources, support libraries, and configure probes.
-  Phase47 is the stricter replay with `GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0`,
-  but it is still a compiler-only handoff, not a complete Darwin `stdenv.cc`.
-- `phase39-gnumake` exists and passes a recipe-execution smoke test, but the
-  GCC and GNU Hello formalizations still use nixpkgs `gnumake`. A direct
-  phase39 GNU Hello build currently segfaults while evaluating Automake's
-  generated makefiles, so this is not yet a promoted bootstrap make boundary.
-- The modern GCC packages carry a staged, patched bootstrap sysroot and wrapper
-  metadata sufficient for the current proofs; they are not yet a full nixpkgs
-  compiler/runtime/bintools closure.
+- GCC phases use the macOS SDK headers and Apple `as`/`ld`/`cc` tools at
+  selected bootstrap boundaries.  Those are store-pinned (`${apple-sdk}`,
+  `${cctools}`, `${darwin.binutils-unwrapped}`) rather than referenced
+  through `/usr/bin` or the Command Line Tools install dir — no hardcoded
+  paths in any .nix file.  Pinning the SDK headers themselves to a Nix
+  fetch (rather than the system MacOSX.sdk store path) remains a future
+  hardening step.
+- `gcc-4.6/cxx`, `gcc-10`, `gcc-latest`, and `gcc-latest/strict` use the
+  host clang (`${stdenv.cc.cc}/bin/clang`) as bootstrap-host CC for GCC
+  source compilation.  Removing this shortcut needs the bootstrapped TCC
+  to converge in finite time on the GCC 4.6 frontend.
+- `phase39-gnumake` exists and passes a recipe-execution smoke test, but
+  GCC and GNU Hello still use nixpkgs `gnumake`: a direct phase39 GNU
+  Hello build segfaults while evaluating Automake-generated makefiles.
+- The modern GCC packages carry a staged, patched bootstrap sysroot and
+  wrapper metadata sufficient for the current proofs; they are not yet a
+  full nixpkgs compiler/runtime/bintools closure.
 
 ## Key commands
 
@@ -54,21 +73,47 @@ On an `x86_64-darwin` builder:
 
 ```sh
 nix build .#hex0
-nix build .#phase12-m2-planet
-nix build .#phase44-gcc46-cxx-bootstrap
-nix build .#phase45-gcc10-bootstrap
-nix build .#phase46-gcc-latest-bootstrap
-nix build .#phase47-gcc-latest-strict-bootstrap
-nix build .#gnu-hello-hash-comparison
+nix build .#default                       # = gcc-latest strict bootstrap
+nix build .#gnu-hello-hash-comparison     # verify against baseline hash
 nix flake check
+```
+
+Outputs are exposed under both nixpkgs-style per-directory names and
+legacy `phaseN-` aliases — pick whichever fits your scripts:
+
+```sh
+nix build .#"stage0-posix/kaem"           # = .#phase11-kaem
+nix build .#"mescc-tools/macho-patcher"   # = .#phase26g-macho-patcher
+nix build .#"mes/m2"                      # = .#phase16-mes-m2
+nix build .#"tinycc/darwin-cc"            # = .#phase34-tinycc-darwin-cc
+nix build .#"gcc-4.6/bootstrap"           # = .#phase37-gcc46-bootstrap
+nix build .#"gcc-latest/strict"           # = .#phase47-gcc-latest-strict-bootstrap
 ```
 
 From another Darwin host, select the amd64 package set explicitly when needed:
 
 ```sh
-nix build .#packages.x86_64-darwin.phase47-gcc-latest-strict-bootstrap
+nix build .#packages.x86_64-darwin."gcc-latest/strict"
 nix build .#packages.x86_64-darwin.gnu-hello-hash-comparison
 ```
+
+## Maintainer scripts
+
+The bootstrap consumes only committed source files; helper scripts under
+`scripts/` regenerate the derived inputs when their upstream sources change:
+
+- `scripts/stage0/regen-hex0-sources.sh` — regenerates
+  `hex0/sources/hex{1,2}_AMD64_darwin.hex0` from the legacy perl helpers
+  kept at `scripts/stage0/legacy/`.
+- `scripts/stage0/regen-preported.sh` — regenerates the committed
+  `M2libc/amd64/{catm,M0,cc_arch-0}_AMD64_darwin*.hex2` and
+  `tools/macho-patcher-m0.M1` from the awk port scripts in `scripts/stage0/`.
+- `scripts/refactor/*.py` — the one-shot tools used to do the
+  nixpkgs-style layout refactor (drop dead aarch64 branches, hoist smoke
+  tests into checkPhase, convert headers to explicit-args).  Kept for
+  future similar passes.
+
+Build-time has zero perl/awk/python for `stage0-posix/` (phases 1-11).
 
 ## aarch64 status
 
