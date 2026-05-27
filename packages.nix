@@ -243,59 +243,10 @@ let
     '';
   };
 
-  raw-syscall-hello = stdenv.mkDerivation {
-    pname = "darwin-minimal-bootstrap-raw-syscall-hello";
-    version = "0-unstable-2026-05-07";
-
-    dontUnpack = true;
-    strictDeps = true;
-
-    buildPhase = ''
-      runHook preBuild
-      $CC ${source} -o raw-syscall-hello
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      install -Dm755 raw-syscall-hello $out/bin/raw-syscall-hello
-      runHook postInstall
-    '';
-
-    meta = {
-      description = "Darwin raw-syscall Mach-O smoke binary for minimal bootstrap experiments";
-      teams = [ lib.teams.minimal-bootstrap ];
-      platforms = supportedSystems;
-    };
-
-    passthru.tests = tests;
-  };
-
-  raw-syscall-hello-unsigned = stdenv.mkDerivation {
-    pname = "darwin-minimal-bootstrap-raw-syscall-hello-unsigned";
-    version = "0-unstable-2026-05-07";
-
-    dontUnpack = true;
-    strictDeps = true;
-
-    buildPhase = ''
-      runHook preBuild
-      $CC ${source} -Wl,-no_adhoc_codesign -o raw-syscall-hello
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-      install -Dm755 raw-syscall-hello $out/bin/raw-syscall-hello
-      runHook postInstall
-    '';
-
-    meta = {
-      description = "Unsigned Darwin raw-syscall Mach-O smoke binary for signing bootstrap experiments";
-      teams = [ lib.teams.minimal-bootstrap ];
-      platforms = supportedSystems;
-    };
-  };
+  inherit (import ./hello { inherit lib stdenv supportedSystems source tests; })
+    raw-syscall-hello
+    raw-syscall-hello-unsigned
+    ;
 
   utils = import ./utils.nix { inherit stdenv lib; };
 
