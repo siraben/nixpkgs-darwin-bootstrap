@@ -1,4 +1,5 @@
 {
+  apple-sdk,
   cctools,
   darwin,
   gccLatestVersion,
@@ -19,7 +20,7 @@
 runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''
-  export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+  export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
   export GCC_MODERN_EXTERNAL_GMP=${phase26c-bootstrap-gmp}
   export GCC_MODERN_EXTERNAL_MPFR=${phase26d-bootstrap-mpfr}
   export GCC_MODERN_EXTERNAL_MPC=${phase26e-bootstrap-mpc}

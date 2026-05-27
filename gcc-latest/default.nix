@@ -1,4 +1,5 @@
 {
+  apple-sdk,
   cctools,
   darwin,
   gccLatestVersion,
@@ -17,7 +18,7 @@
 runCommand "phase46-gcc-${gccLatestVersion}" {
   nativeBuildInputs = [ perl ];
 } ''
-  export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+  export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
   ## phase46 keeps in-tree gmp/mpfr/mpc/isl: it's the compiler used
   ## to build phase26c-f, so we can't reference them here without a
   ## cycle. phase47 strict consumes external libs (the goal lands
