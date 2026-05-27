@@ -356,18 +356,18 @@ let
   };
 
   phaseDefs = rec {
-    phase1-hex1 = import ./phases/phase1-hex1.nix (phaseContext // phaseDefs);
-    phase2-hex2 = import ./phases/phase2-hex2.nix (phaseContext // phaseDefs);
-    phase2-catm = import ./phases/phase2-catm.nix (phaseContext // phaseDefs);
-    phase3-m0 = import ./phases/phase3-m0.nix (phaseContext // phaseDefs);
-    phase4-cc-arch = import ./phases/phase4-cc-arch.nix (phaseContext // phaseDefs);
-    phase5-m2 = import ./phases/phase5-m2.nix (phaseContext // phaseDefs);
-    phase6-blood-macho-0 = import ./phases/phase6-blood-macho-0.nix (phaseContext // phaseDefs);
-    phase7-m1-0 = import ./phases/phase7-m1-0.nix (phaseContext // phaseDefs);
-    phase8-hex2-1 = import ./phases/phase8-hex2-1.nix (phaseContext // phaseDefs);
-    phase9-m1 = import ./phases/phase9-m1.nix (phaseContext // phaseDefs);
-    phase10-hex2 = import ./phases/phase10-hex2.nix (phaseContext // phaseDefs);
-    phase11-kaem = import ./phases/phase11-kaem.nix (phaseContext // phaseDefs);
+    phase1-hex1 = import ./stage0-posix/hex1.nix (phaseContext // phaseDefs);
+    phase2-hex2 = import ./stage0-posix/hex2.nix (phaseContext // phaseDefs);
+    phase2-catm = import ./stage0-posix/catm.nix (phaseContext // phaseDefs);
+    phase3-m0 = import ./stage0-posix/m0.nix (phaseContext // phaseDefs);
+    phase4-cc-arch = import ./stage0-posix/cc-arch.nix (phaseContext // phaseDefs);
+    phase5-m2 = import ./stage0-posix/m2-planet.nix (phaseContext // phaseDefs);
+    phase6-blood-macho-0 = import ./stage0-posix/blood-elf-macho.nix (phaseContext // phaseDefs);
+    phase7-m1-0 = import ./stage0-posix/M1-0.nix (phaseContext // phaseDefs);
+    phase8-hex2-1 = import ./stage0-posix/hex2-1.nix (phaseContext // phaseDefs);
+    phase9-m1 = import ./stage0-posix/M1.nix (phaseContext // phaseDefs);
+    phase10-hex2 = import ./stage0-posix/hex2-linker.nix (phaseContext // phaseDefs);
+    phase11-kaem = import ./stage0-posix/kaem.nix (phaseContext // phaseDefs);
     phase12-m2-planet = import ./phases/phase12-m2-planet.nix (phaseContext // phaseDefs);
     phase13-mes-source = import ./phases/phase13-mes-source.nix (phaseContext // phaseDefs);
     phase14-mes-m2-probe = import ./phases/phase14-mes-m2-probe.nix (phaseContext // phaseDefs);
