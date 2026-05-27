@@ -1,0 +1,5 @@
+This is the Darwin Mes source-prep checkpoint.
+Next steps:
+- port Mes include/linux and lib/linux references to Darwin;
+- add Darwin crt1, syscall, signal, stat, and setjmp support;
+- build mes-m2 with phase11-kaem, phase9-M1, and phase10-hex2.

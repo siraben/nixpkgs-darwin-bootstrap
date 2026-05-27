@@ -1,7 +1,6 @@
 {
   darwin,
   mkDarwin,
-  perl,
   phase2-catm,
   phase2-hex2,
   root,

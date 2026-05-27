@@ -12,8 +12,7 @@ runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
   tar -xzf ${gnupatchTarball}
   cd patch-${gnupatchVersion}
 
-  cat > config.h <<'H'
-  H
+  : > config.h
 
   export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
   export CFLAGS="-I. -DNULL=0 -DHAVE_DECL_GETENV -DHAVE_DECL_MALLOC -DHAVE_DIRENT_H -DHAVE_LIMITS_H -DHAVE_GETEUID -DHAVE_MKTEMP -DPACKAGE_BUGREPORT= -Ded_PROGRAM=\"/nullop\" -Dmbstate_t=int -DRETSIGTYPE=int -DHAVE_MKDIR -DHAVE_RMDIR -DHAVE_FCNTL_H -DPACKAGE_NAME=\"patch\" -DPACKAGE_VERSION=\"${gnupatchVersion}\" -DHAVE_MALLOC -DHAVE_REALLOC -DSTDC_HEADERS -DHAVE_STRING_H -DHAVE_STDLIB_H -DHAVE_VPRINTF"

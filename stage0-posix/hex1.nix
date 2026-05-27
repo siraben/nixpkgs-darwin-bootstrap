@@ -3,7 +3,6 @@
   hex0,
   hostPlatform,
   mkDarwin,
-  perl,
   phase1-hex1,
   root,
   source,
@@ -104,13 +103,8 @@
           install -Dm755 hex1-darwin $out/bin/hex1-darwin
           install -Dm644 hex1-darwin.hex0 $out/share/darwin-bootstrap/hex1_AArch64_darwin.hex0
           install -Dm644 hex1-body.hex0 $out/share/darwin-bootstrap/hex1_AArch64_darwin_body.hex0
-          cat > $out/share/darwin-bootstrap/README <<'EOF'
-          This is the signed Darwin phase-1 hex1 candidate generated from
-          upstream AArch64/hex1_AArch64.hex0 with syscall, LC_MAIN argv, and
-          Mach-O header adaptations. It builds and signs, but is not promoted to
-          the trusted chain until its ELF-era writable data model is fully
-          replaced.
-          EOF
+          install -Dm644 ${root + "/stage0-posix/fixtures/hex1-darwin-readme.txt"} \
+            $out/share/darwin-bootstrap/README
           runHook postInstall
         '';
 

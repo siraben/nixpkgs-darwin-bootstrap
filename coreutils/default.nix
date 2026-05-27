@@ -22,8 +22,7 @@ runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
     ${phase40-gnupatch}/bin/patch -Np0 -i "$patch_file"
   done
 
-  cat > config.h <<'H'
-  H
+  : > config.h
   cp lib/fnmatch_.h lib/fnmatch.h
   substituteInPlace lib/fnmatch.h \
     --replace-fail '# if !defined _POSIX_C_SOURCE || _POSIX_C_SOURCE < 2 || defined _GNU_SOURCE' '# if 1'

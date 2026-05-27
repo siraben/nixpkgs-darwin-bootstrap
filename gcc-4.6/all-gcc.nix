@@ -42,60 +42,7 @@
 
         cd build
         mkdir -p gcc
-        cat > gcc/config.cache <<'CACHE'
-        ac_cv_func_getrlimit=''${ac_cv_func_getrlimit=no}
-        ac_cv_func_setrlimit=''${ac_cv_func_setrlimit=no}
-        ac_cv_func_getrusage=''${ac_cv_func_getrusage=no}
-        ac_cv_func_times=''${ac_cv_func_times=no}
-        ac_cv_func_clock=''${ac_cv_func_clock=no}
-        ac_cv_func_kill=''${ac_cv_func_kill=no}
-        ac_cv_func_gettimeofday=''${ac_cv_func_gettimeofday=no}
-        ac_cv_func_fork=''${ac_cv_func_fork=no}
-        ac_cv_func_fork_works=''${ac_cv_func_fork_works=no}
-        ac_cv_func_vfork=''${ac_cv_func_vfork=no}
-        ac_cv_func_vfork_works=''${ac_cv_func_vfork_works=no}
-        ac_cv_func_mmap=''${ac_cv_func_mmap=no}
-        ac_cv_func_mbstowcs=''${ac_cv_func_mbstowcs=no}
-        ac_cv_func_wcswidth=''${ac_cv_func_wcswidth=no}
-        ac_cv_func_getchar_unlocked=''${ac_cv_func_getchar_unlocked=no}
-        ac_cv_func_getc_unlocked=''${ac_cv_func_getc_unlocked=no}
-        ac_cv_func_putchar_unlocked=''${ac_cv_func_putchar_unlocked=no}
-        ac_cv_func_putc_unlocked=''${ac_cv_func_putc_unlocked=no}
-        ac_cv_func_clearerr_unlocked=''${ac_cv_func_clearerr_unlocked=no}
-        ac_cv_func_feof_unlocked=''${ac_cv_func_feof_unlocked=no}
-        ac_cv_func_ferror_unlocked=''${ac_cv_func_ferror_unlocked=no}
-        ac_cv_func_fflush_unlocked=''${ac_cv_func_fflush_unlocked=no}
-        ac_cv_func_fgetc_unlocked=''${ac_cv_func_fgetc_unlocked=no}
-        ac_cv_func_fgets_unlocked=''${ac_cv_func_fgets_unlocked=no}
-        ac_cv_func_fileno_unlocked=''${ac_cv_func_fileno_unlocked=no}
-        ac_cv_func_fprintf_unlocked=''${ac_cv_func_fprintf_unlocked=no}
-        ac_cv_func_fputc_unlocked=''${ac_cv_func_fputc_unlocked=no}
-        ac_cv_func_fputs_unlocked=''${ac_cv_func_fputs_unlocked=no}
-        ac_cv_func_fread_unlocked=''${ac_cv_func_fread_unlocked=no}
-        ac_cv_func_fwrite_unlocked=''${ac_cv_func_fwrite_unlocked=no}
-        ac_cv_have_decl_getrlimit=''${ac_cv_have_decl_getrlimit=no}
-        ac_cv_have_decl_setrlimit=''${ac_cv_have_decl_setrlimit=no}
-        ac_cv_have_decl_getrusage=''${ac_cv_have_decl_getrusage=no}
-        ac_cv_have_decl_times=''${ac_cv_have_decl_times=no}
-        ac_cv_have_decl_clock=''${ac_cv_have_decl_clock=no}
-        ac_cv_have_decl_gettimeofday=''${ac_cv_have_decl_gettimeofday=no}
-        ac_cv_have_decl_clearerr_unlocked=''${ac_cv_have_decl_clearerr_unlocked=no}
-        ac_cv_have_decl_feof_unlocked=''${ac_cv_have_decl_feof_unlocked=no}
-        ac_cv_have_decl_ferror_unlocked=''${ac_cv_have_decl_ferror_unlocked=no}
-        ac_cv_have_decl_fflush_unlocked=''${ac_cv_have_decl_fflush_unlocked=no}
-        ac_cv_have_decl_fgetc_unlocked=''${ac_cv_have_decl_fgetc_unlocked=no}
-        ac_cv_have_decl_fgets_unlocked=''${ac_cv_have_decl_fgets_unlocked=no}
-        ac_cv_have_decl_fileno_unlocked=''${ac_cv_have_decl_fileno_unlocked=no}
-        ac_cv_have_decl_fprintf_unlocked=''${ac_cv_have_decl_fprintf_unlocked=no}
-        ac_cv_have_decl_fputc_unlocked=''${ac_cv_have_decl_fputc_unlocked=no}
-        ac_cv_have_decl_fputs_unlocked=''${ac_cv_have_decl_fputs_unlocked=no}
-        ac_cv_have_decl_fread_unlocked=''${ac_cv_have_decl_fread_unlocked=no}
-        ac_cv_have_decl_fwrite_unlocked=''${ac_cv_have_decl_fwrite_unlocked=no}
-        ac_cv_have_decl_getchar_unlocked=''${ac_cv_have_decl_getchar_unlocked=no}
-        ac_cv_have_decl_getc_unlocked=''${ac_cv_have_decl_getc_unlocked=no}
-        ac_cv_have_decl_putchar_unlocked=''${ac_cv_have_decl_putchar_unlocked=no}
-        ac_cv_have_decl_putc_unlocked=''${ac_cv_have_decl_putc_unlocked=no}
-CACHE
+        install -m644 ${root + "/gcc-4.6/fixtures/all-gcc-gcc-config.cache"} gcc/config.cache
         for f in getenv atol asprintf sbrk abort atof getcwd getwd \
           strsignal strstr strverscmp errno snprintf vsnprintf vasprintf \
           malloc realloc calloc free basename getopt clock getpagesize \
@@ -107,27 +54,11 @@ CACHE
         done
         for d in libiberty build-x86_64-apple-darwin/libiberty; do
           mkdir -p "$d"
-          cat > "$d/config.cache" <<'CACHE'
-        ac_cv_sizeof_int=''${ac_cv_sizeof_int=4}
-        ac_cv_sizeof_long=''${ac_cv_sizeof_long=8}
-        ac_cv_sizeof_long_long=''${ac_cv_sizeof_long_long=8}
-        ac_cv_sizeof_short=''${ac_cv_sizeof_short=2}
-        ac_cv_sizeof_void_p=''${ac_cv_sizeof_void_p=8}
-        ac_cv_type_intptr_t=''${ac_cv_type_intptr_t=yes}
-        ac_cv_type_uintptr_t=''${ac_cv_type_uintptr_t=yes}
-        ac_cv_type_intmax_t=''${ac_cv_type_intmax_t=yes}
-        ac_cv_type_uintmax_t=''${ac_cv_type_uintmax_t=yes}
-        ac_cv_func_getpagesize=''${ac_cv_func_getpagesize=no}
-        ac_cv_func_mmap=''${ac_cv_func_mmap=no}
-        ac_cv_func_getrlimit=''${ac_cv_func_getrlimit=no}
-        ac_cv_func_setrlimit=''${ac_cv_func_setrlimit=no}
-CACHE
+          install -m644 ${root + "/gcc-4.6/fixtures/all-gcc-libiberty-config.cache"} "$d/config.cache"
         done
         for d in mpfr mpc; do
           mkdir -p "$d"
-          cat > "$d/config.cache" <<'CACHE'
-        ac_cv_lib_gmp___gmpz_init=''${ac_cv_lib_gmp___gmpz_init=yes}
-CACHE
+          install -m644 ${root + "/gcc-4.6/fixtures/all-gcc-mpfr-config.cache"} "$d/config.cache"
         done
         ../src/configure \
           --prefix=$out \

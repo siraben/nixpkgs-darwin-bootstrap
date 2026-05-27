@@ -1,7 +1,6 @@
 {
   darwin,
   mkDarwin,
-  perl,
   phase11e-macho-patcher-early,
   phase2-catm,
   phase2-hex2,

@@ -2,7 +2,6 @@
   darwin,
   hex0,
   mkDarwin,
-  perl,
   phase2-hex2,
   root,
   source,

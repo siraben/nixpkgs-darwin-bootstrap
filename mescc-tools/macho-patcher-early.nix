@@ -20,16 +20,12 @@
 ## requires phase5-m2 → phase4-cc-arch — the cycle this phase avoids).
 {
   mkDarwin,
-  perl,
   phase10-hex2,
   phase11e-macho-patcher-early,
   phase2-catm,
   phase2-hex2,
-  phase26g-macho-patcher,
   phase3-m0,
-  phase4-cc-arch,
   phase5-m2,
-  phase9-m1,
   root,
   source,
   ...

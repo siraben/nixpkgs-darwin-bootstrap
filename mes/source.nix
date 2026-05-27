@@ -7,8 +7,6 @@
   mesVersion,
   mkDarwin,
   perl,
-  phase10-hex2,
-  phase11-kaem,
   phase13-mes-source,
   root,
   source,
@@ -40,13 +38,8 @@ mkDarwin {
     cp $out/include/darwin/x86_64/syscall.h $out/include/arch/syscall.h
     bash ${root + "/scripts/mes/phase13-patch-assert-fail.sh"}
 
-    cat > $out/share/darwin-bootstrap/darwin-mes-next.txt <<'EOF'
-    This is the Darwin Mes source-prep checkpoint.
-    Next steps:
-    - port Mes include/linux and lib/linux references to Darwin;
-    - add Darwin crt1, syscall, signal, stat, and setjmp support;
-    - build mes-m2 with phase11-kaem, phase9-M1, and phase10-hex2.
-    EOF
+    install -Dm644 ${root + "/mes/fixtures/darwin-mes-next.txt"} \
+      $out/share/darwin-bootstrap/darwin-mes-next.txt
 
     test -f $out/kaem.x86_64
     test -f $out/scripts/mescc.scm.in

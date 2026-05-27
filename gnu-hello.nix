@@ -1,5 +1,15 @@
-args:
-with args;
+{
+  cctools,
+  gcc_latest,
+  gnuHelloTarball,
+  gnuHelloVersion,
+  gnumake,
+  hostPlatform,
+  phase46-gcc-latest-bootstrap,
+  phase47-gcc-latest-strict-bootstrap,
+  runCommand,
+  ...
+}:
 let
   buildWithBootstrapGcc =
     name: compiler:

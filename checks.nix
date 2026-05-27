@@ -1,5 +1,20 @@
-args:
-with args;
+{
+  arch,
+  darwin,
+  gnu-hello-hash-comparison,
+  hex0,
+  hostPlatform,
+  lib,
+  phase37-gcc46-bootstrap,
+  raw-syscall-hello,
+  raw-syscall-hello-unsigned,
+  root,
+  runCommand,
+  stage0-posix,
+  stage0Sources,
+  stdenv,
+  ...
+}:
 {
   hex0-converts-hex = runCommand "hex0-converts-hex" { } ''
     cp ${root + "/fixtures/checks-input.hex0"} input.hex0
