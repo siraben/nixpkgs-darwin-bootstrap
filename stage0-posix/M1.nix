@@ -7,9 +7,6 @@ stdenv.mkDerivation {
   dontUnpack = true;
   dontStrip = true;
   strictDeps = true;
-
-  nativeBuildInputs = [ ];
-
   buildPhase = ''
     runHook preBuild
 

@@ -7,9 +7,6 @@ stdenv.mkDerivation {
   dontUnpack = true;
   dontStrip = true;
   strictDeps = true;
-
-  nativeBuildInputs = [ ];
-
   ## phase4-amd64-cc-arch.pl's patch mode replaced by
   ## phase11e-macho-patcher-early (m2-segments mode).  The
   ## pre-ported cc_arch-0-darwin.hex2 source has `:ELF_data`

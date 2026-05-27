@@ -8,9 +8,6 @@ with args;
         dontUnpack = true;
         dontStrip = true;
         strictDeps = true;
-
-        nativeBuildInputs = [ ];
-
         buildPhase = ''
           runHook preBuild
 
@@ -76,9 +73,6 @@ with args;
 
         dontUnpack = true;
         strictDeps = true;
-
-        nativeBuildInputs = [ ];
-
         buildPhase = ''
           runHook preBuild
 
