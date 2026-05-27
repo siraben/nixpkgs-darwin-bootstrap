@@ -24,7 +24,10 @@ with args;
           runHook preBuild
 
           ${phase3-m0}/bin/M0-darwin ${stage0Sources}/AMD64/cc_amd64.M1 cc_arch-0-linux.hex2
-          perl ${root + "/scripts/stage0/phase4-amd64-cc-arch.pl"} port cc_arch-0-linux.hex2 cc_arch-0.hex2
+          ## port mode: pure POSIX awk, byte-identical to the prior
+          ## `perl phase4-amd64-cc-arch.pl port` step.
+          awk -f ${root + "/scripts/stage0/port-cc-arch-darwin.awk"} \
+            cc_arch-0-linux.hex2 > cc_arch-0.hex2
           ${phase2-catm}/bin/catm-darwin cc_arch.hex2 \
             ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             cc_arch-0.hex2
