@@ -26,7 +26,7 @@ let
         ];
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-0000000000000000000000000000000000000000000=";
+        outputHash = "sha256-RmNIZjcPcq0JYXP6htCFmNQUGuJanG+vX3F6xoSOUAY=";
       }
     else
       null;
@@ -57,6 +57,11 @@ mkDarwin {
     install -Dm755 M0-darwin $out/bin/M0-darwin
     install -Dm644 ${root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2"} \
       $out/share/darwin-bootstrap/M0_AMD64_darwin_combined.hex2
+    ## Downstream phases (cc-arch, blood-elf-macho, M1, hex2-1, M2) read
+    ## the MACHO template from $out/share to catm in front of their .hex2
+    ## bodies, so keep it shipped here.
+    install -Dm644 ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} \
+      $out/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
     runHook postInstall
   '';
 
