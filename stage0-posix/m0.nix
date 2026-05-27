@@ -1,44 +1,44 @@
+## phase3-m0 — seed-built Darwin Mach-O M0 assembler.
+##
+## Built by feeding the pre-concatenated, pre-padded hex2 source
+## (`hex0/sources/m0/M0_AMD64_darwin_combined.hex2`) directly to the
+## seed-built hex2 binary used as `derivation.builder`.  No catm, no
+## dd, no codesign: padding and concatenation are baked into the
+## source.
 {
-  darwin,
+  hostPlatform,
   mkDarwin,
-  phase2-catm,
   phase2-hex2,
-  phase3-m0,
   root,
-  source,
-  stage0Sources,
   ...
 }:
+
+let
+  m0-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "phase3-m0-raw";
+        system = "x86_64-darwin";
+        builder = phase2-hex2.hex2-raw;
+        args = [
+          (root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-0000000000000000000000000000000000000000000=";
+      }
+    else
+      null;
+in
+
 mkDarwin {
   pname = "phase3-m0";
+  version = "0-unstable-2026-05-27";
+
   buildPhase = ''
     runHook preBuild
-
-    # MACHO-amd64-lowdata.hex2 is a deterministic Mach-O header — the
-    # constants (TEXT_SIZE, DATA_VMADDR, LINKEDIT layout, etc.) don't
-    # depend on any input.  Use the static committed snapshot in
-    # tree.
-    cp ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} MACHO-amd64-lowdata.hex2
-
-    # Use the committed pre-ported Darwin source.  Maintainer
-    # regenerates via scripts/stage0/regen-preported.sh whenever
-    # stage0Sources is bumped; build-time has no awk/perl/python.
-    cp ${root + "/M2libc/amd64/M0_AMD64_darwin_body.hex2"} M0_AMD64_darwin_body.hex2
-
-    ${phase2-catm}/bin/catm-darwin M0-darwin.hex2 \
-      MACHO-amd64-lowdata.hex2 \
-      M0_AMD64_darwin_body.hex2
-    ${phase2-hex2}/bin/hex2-darwin M0-darwin.hex2 M0-darwin
-
-    # linkedit-offset is a static constant: text_size + data_size
-    # = 0x800000 + 0x2000000 = 0x2800000 = 41943040.
-    linkeditOffset=41943040
-    dd if=/dev/zero of=M0-darwin bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
-    chmod +x M0-darwin
-
-    source ${darwin.signingUtils}
-    sign M0-darwin
-
+    install -m755 ${m0-raw} M0-darwin
     runHook postBuild
   '';
 
@@ -55,13 +55,14 @@ mkDarwin {
   installPhase = ''
     runHook preInstall
     install -Dm755 M0-darwin $out/bin/M0-darwin
-    install -Dm644 M0-darwin.hex2 $out/share/darwin-bootstrap/M0-darwin.hex2
-    install -Dm644 M0_AMD64_darwin_body.hex2 $out/share/darwin-bootstrap/M0_AMD64_darwin_body.hex2
-    install -Dm644 MACHO-amd64-lowdata.hex2 $out/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
+    install -Dm644 ${root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2"} \
+      $out/share/darwin-bootstrap/M0_AMD64_darwin_combined.hex2
     runHook postInstall
   '';
 
+  passthru = { inherit m0-raw; };
+
   meta = {
-    description = "Runnable signed Darwin Mach-O phase-3 AMD64 M0";
+    description = "Seed-built Darwin Mach-O phase-3 AMD64 M0 (no clang in trust path)";
   };
 }
