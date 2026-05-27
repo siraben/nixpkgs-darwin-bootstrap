@@ -3,6 +3,7 @@
   gnupatchVersion,
   gnupatchTarball,
   phase34-tinycc-darwin-cc,
+  root,
   ...
 }:
 runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
@@ -29,13 +30,7 @@ runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
   ./patch --version > patch-version.stdout 2> patch-version.stderr
   grep -q 'patch ${gnupatchVersion}' patch-version.stdout
   printf 'a\n' > patch-smoke-file
-  cat > patch-smoke.diff <<'P'
-  --- patch-smoke-file
-  +++ patch-smoke-file
-  @@ -1 +1 @@
-  -a
-  +b
-  P
+  cp ${root + "/gnupatch/fixtures/default-patch-smoke.diff"} patch-smoke.diff
   ./patch -p0 -i patch-smoke.diff > patch-smoke.stdout 2> patch-smoke.stderr
   grep -q '^b$' patch-smoke-file
 

@@ -34,15 +34,7 @@ runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
     ${objectProbe}/share/darwin-bootstrap/${boot}.o \
     ${boot}.M1
 
-  cat > crt1-tcc-sysv.M1 <<'M1'
-  :_start
-  !0x48 !0x83 !0xe4 !0xf0
-  !0xe8 %main
-  !0x48 !0x89 !0xc7
-  !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
-  !0x0f !0x05
-  M1
-
+  cp ${root + "/tinycc/fixtures/self-link-candidate-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   emit_code() {
     awk '
       /^:ELF_data$/ { data = 1; next }
@@ -98,9 +90,7 @@ runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
   grep -q '0.9.28-darwin-bootstrap' ${boot}-version.stdout
   test ! -s ${boot}-version.stderr
 
-  cat > hello.c <<'C'
-  int main(void) { return 42; }
-  C
+  cp ${root + "/tinycc/fixtures/self-link-candidate-hello.c"} hello.c
   ./${boot} -c hello.c -o hello.o > hello-c.stdout 2> hello-c.stderr
   printf '0\n' > hello-c.status
   test "$(od -An -tx1 -N4 hello.o | tr -d ' \n')" = "7f454c46"

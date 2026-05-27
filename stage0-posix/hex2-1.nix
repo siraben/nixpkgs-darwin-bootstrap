@@ -75,12 +75,7 @@ mkDarwin {
     cat help.stdout help.stderr > help.combined
     grep -q 'Usage:' help.combined
 
-    cat > mini.hex2 <<'HEX2'
-    :FUNCTION_main
-    48 C7 C0 00 00 00 00
-    C3
-    :ELF_data
-    HEX2
+    cp ${root + "/stage0-posix/fixtures/hex2-1-mini.hex2"} mini.hex2
     ./hex2-1 \
       --architecture amd64 \
       --little-endian \

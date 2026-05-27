@@ -1,0 +1,5 @@
+--- patch-smoke-file
++++ patch-smoke-file
+@@ -1 +1 @@
+-a
++b

@@ -13,6 +13,7 @@
 }:
 
 let
+  root = ./.;
   hostPlatform = stdenv.hostPlatform;
 
   supportedSystems = [
@@ -125,7 +126,7 @@ let
     : > config.h
   '';
 
-  hex0 = import ./stage0-posix/hex0.nix { inherit lib stdenv supportedSystems tests; };
+  hex0 = import ./stage0-posix/hex0.nix { inherit lib root stdenv supportedSystems tests; };
 
   m2libc-darwin = runCommand "darwin-minimal-bootstrap-m2libc" { } ''
     mkdir -p $out
@@ -140,7 +141,7 @@ let
   utils = import ./utils.nix { inherit stdenv lib; };
 
   phaseContext = {
-    root = ./.;
+    inherit root;
     inherit (utils) mkDarwin;
     inherit apple-sdk darwin cctools fetchurl gnumake lib minimal-bootstrap-sources perl;
     inherit stdenv runCommand hostPlatform supportedSystems arch source;

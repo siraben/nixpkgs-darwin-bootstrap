@@ -26,15 +26,7 @@ runCommand "phase30-tinycc-self-link-candidate" { } ''
     tinycc-sysv-libc.o \
     tinycc-sysv-libc.M1
 
-  cat > crt1-tcc-sysv.M1 <<'M1'
-  :_start
-  !0x48 !0x83 !0xe4 !0xf0
-  !0xe8 %main
-  !0x48 !0x89 !0xc7
-  !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
-  !0x0f !0x05
-  M1
-
+  cp ${root + "/tinycc/fixtures/self-link-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   emit_code() {
     awk '
       /^:ELF_data$/ { data = 1; next }

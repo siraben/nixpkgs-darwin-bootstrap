@@ -8,17 +8,14 @@
   phase31-tinycc-self-compile-probe,
   phase9-m1,
   runCommand,
+  root,
   source,
   ...
 }:
 runCommand "phase31-tinycc-self-compile-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
-  cat > hello.c <<'C'
-  int answer(void) { return 42; }
-  int main(void) { return answer(); }
-  C
-
+  cp ${root + "/tinycc/fixtures/self-compile-hello.c"} hello.c
   ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate \
     -c hello.c -o hello.o \
     > hello-c.stdout \
@@ -30,15 +27,7 @@ runCommand "phase31-tinycc-self-compile-probe" { } ''
 
   ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix hello_ hello.o hello-object.M1
 
-  cat > crt1-tcc-sysv.M1 <<'M1'
-  :_start
-  !0x48 !0x83 !0xe4 !0xf0
-  !0xe8 %main
-  !0x48 !0x89 !0xc7
-  !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
-  !0x0f !0x05
-  M1
-
+  cp ${root + "/tinycc/fixtures/self-compile-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   {
     cat crt1-tcc-sysv.M1
     awk '

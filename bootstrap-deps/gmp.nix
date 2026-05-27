@@ -7,6 +7,7 @@
   gccLatestGmpVersion,
   gccLatestGmpTarball,
   phase46-gcc-latest-bootstrap,
+  root,
   ...
 }:
 ##
@@ -107,17 +108,7 @@ runCommand "phase26c-gmp-${version}" {
 
   ## Smoke: compile and link a trivial GMP user
   cd $TMPDIR
-  cat > smoke.c <<'C'
-  #include <gmp.h>
-  int main(void) {
-    mpz_t a;
-    mpz_init(a);
-    mpz_set_ui(a, 42);
-    unsigned long v = mpz_get_ui(a);
-    mpz_clear(a);
-    return v == 42 ? 0 : 1;
-  }
-  C
+  cp ${root + "/bootstrap-deps/fixtures/gmp-smoke.c"} smoke.c
   "$compiler/bin/gcc" -isysroot $sdk -I $out/include smoke.c \
     $out/lib/libgmp.a -Wl,-syslibroot,$sdk -lSystem -o smoke
   ./smoke

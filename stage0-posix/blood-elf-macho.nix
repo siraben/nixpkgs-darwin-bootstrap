@@ -55,11 +55,7 @@ mkDarwin {
   doCheck = true;
   checkPhase = ''
     runHook preCheck
-    cat > mini.M1 <<'M1'
-    :FUNCTION_main
-    RET R15
-    :ELF_data
-    M1
+    cp ${root + "/stage0-posix/fixtures/blood-elf-macho-mini.M1"} mini.M1
     ./blood-macho-0 --64 --little-endian -f mini.M1 -o footer.M1
     grep -q ':ELF_section_headers' footer.M1
     runHook postCheck

@@ -1,0 +1,3 @@
+:FUNCTION_main
+RET R15
+:ELF_data

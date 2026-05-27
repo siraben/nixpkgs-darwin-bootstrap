@@ -173,9 +173,7 @@ CACHE
         test -x gcc/cc1
         ./gcc/xgcc -B"$PWD/gcc/" --version > $out/share/darwin-bootstrap/xgcc-version.stdout
 
-        cat > xgcc-smoke.c <<'C'
-        int main(void) { return 42; }
-C
+        cp ${root + "/gcc-4.6/fixtures/all-gcc-xgcc-smoke.c"} xgcc-smoke.c
         rm -f gccdump.s
         ./gcc/xgcc -B"$PWD/gcc/" -S xgcc-smoke.c -o xgcc-smoke.s \
           > $out/share/darwin-bootstrap/xgcc-smoke.stdout \

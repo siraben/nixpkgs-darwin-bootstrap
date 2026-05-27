@@ -82,9 +82,7 @@ mkDarwin {
     ./M2-Planet --help > help.stdout 2> help.stderr
     grep -q 'Usage: M2-Planet' help.stdout
 
-    cat > trivial.c <<'C'
-    int main(){return 0;}
-    C
+    cp ${root + "/mes/fixtures/m2-planet-trivial.c"} trivial.c
     ./M2-Planet -f trivial.c -o trivial.M1
     grep -q ':FUNCTION_main' trivial.M1
     runHook postCheck

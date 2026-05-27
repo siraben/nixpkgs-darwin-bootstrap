@@ -1,0 +1,4 @@
+:FUNCTION_main
+48 C7 C0 00 00 00 00
+C3
+:ELF_data

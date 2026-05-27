@@ -2,9 +2,7 @@ args:
 with args;
 {
   hex0-converts-hex = runCommand "hex0-converts-hex" { } ''
-    cat > input.hex0 <<'HEX'
-      68 65 6c 6c 6f 0a ; hello newline
-    HEX
+    cp ${root + "/fixtures/checks-input.hex0"} input.hex0
     ${hex0}/bin/hex0 input.hex0 output
     test "$(cat output)" = "hello"
     ${hex0}/bin/hex0 ${hex0}/share/darwin-bootstrap/hex0-amd64-darwin.hex0 hex0-self
@@ -99,22 +97,7 @@ with args;
         ${stage0Sources}/mescc-tools/hex2.c
 
       ${lib.optionalString hostPlatform.isAarch64 ''
-        cat > hello.hex2 <<'HEX2'
-        :_start
-        20 00 80 d2
-        01 00 00 90
-        21 b0 0b 91
-        a2 01 80 d2
-        90 00 80 d2
-        01 10 00 d4
-        00 00 80 d2
-        30 00 80 d2
-        01 10 00 d4
-        :message
-        68 65 6c 6c 6f 20 64 61 72 77 69 6e 0a
-        :ELF_end
-        HEX2
-
+        cp ${root + "/fixtures/checks-hello.hex2"} hello.hex2
         ./hex2 --architecture aarch64 --little-endian \
           --base-address 0x100000000 \
           -f ${./M2libc + "/aarch64/MACHO-aarch64.hex2"} \

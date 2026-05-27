@@ -8,6 +8,7 @@
   gccModernMpfrTarball,
   phase26c-bootstrap-gmp,
   phase46-gcc-latest-bootstrap,
+  root,
   ...
 }:
 let
@@ -61,17 +62,7 @@ runCommand "phase26d-mpfr-${version}" {
   test -f $out/lib/libmpfr.a
 
   cd $TMPDIR
-  cat > smoke.c <<'C'
-  #include <mpfr.h>
-  int main(void) {
-    mpfr_t x;
-    mpfr_init2(x, 53);
-    mpfr_set_d(x, 1.5, MPFR_RNDN);
-    double v = mpfr_get_d(x, MPFR_RNDN);
-    mpfr_clear(x);
-    return (v == 1.5) ? 0 : 1;
-  }
-  C
+  cp ${root + "/bootstrap-deps/fixtures/mpfr-smoke.c"} smoke.c
   "$compiler/bin/gcc" -isysroot $sdk -I $out/include -I $gmp/include smoke.c \
     $out/lib/libmpfr.a $gmp/lib/libgmp.a -Wl,-syslibroot,$sdk -lSystem -o smoke
   ./smoke

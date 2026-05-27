@@ -10,6 +10,7 @@
   phase16-mes-m2,
   phase9-m1,
   runCommand,
+  root,
   ...
 }:
 runCommand "phase16-mes-m2" { } ''
@@ -26,10 +27,7 @@ runCommand "phase16-mes-m2" { } ''
     ${phase13-mes-source}/scripts/mescc.scm.in > $out/bin/mescc.scm
   chmod 444 $out/bin/mescc.scm
 
-  cat > trivial.c <<'EOF'
-  int main () { return 0; }
-  EOF
-
+  cp ${root + "/mes/fixtures/m2-trivial.c"} trivial.c
   mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
 
   MES_PREFIX=${phase13-mes-source} \

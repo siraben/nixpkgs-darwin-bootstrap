@@ -9,6 +9,7 @@
   phase26c-bootstrap-gmp,
   phase26d-bootstrap-mpfr,
   phase46-gcc-latest-bootstrap,
+  root,
   ...
 }:
 let
@@ -63,16 +64,7 @@ runCommand "phase26e-mpc-${version}" {
   test -f $out/lib/libmpc.a
 
   cd $TMPDIR
-  cat > smoke.c <<'C'
-  #include <mpc.h>
-  int main(void) {
-    mpc_t z;
-    mpc_init2(z, 53);
-    mpc_set_d_d(z, 1.0, 2.0, MPC_RNDNN);
-    mpc_clear(z);
-    return 0;
-  }
-  C
+  cp ${root + "/bootstrap-deps/fixtures/mpc-smoke.c"} smoke.c
   "$compiler/bin/gcc" -isysroot $sdk \
     -I $out/include -I $mpfr/include -I $gmp/include smoke.c \
     $out/lib/libmpc.a $mpfr/lib/libmpfr.a $gmp/lib/libgmp.a \

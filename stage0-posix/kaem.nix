@@ -77,9 +77,7 @@ mkDarwin {
     cat help.stdout help.stderr > help.combined
     grep -q 'Usage:' help.combined
 
-    cat > smoke.kaem <<'KAEM'
-    echo hello
-    KAEM
+    cp ${root + "/stage0-posix/fixtures/kaem-smoke.kaem"} smoke.kaem
     output="$(./kaem --init-mode -f smoke.kaem)"
     test "$output" = "hello"
     runHook postCheck

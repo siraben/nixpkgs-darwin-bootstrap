@@ -69,22 +69,15 @@
           ## expected hex2 output by hand.  (Initial bring-up used a
           ## perl reference but the algorithm is fully byte-verified
           ## on real inputs across the chain now.)
-          cat > smoke.M1 <<'M1'
-          :foo
-          !0x48 !0x31 !0xc0
-          :bar
-          !0x90
-M1
+          cp ${root + "/mescc-tools/fixtures/m1-to-hex2-smoke.M1"} smoke.M1
           ./m1-to-hex2 --architecture amd64 --little-endian \
             --base-address 0x600400 -f smoke.M1 -o smoke.hex2
 
-          cat > smoke.expected <<'EOF'
-          :foo 48 31 C0 :bar 90
-          EOF
+          cp ${root + "/mescc-tools/fixtures/m1-to-hex2-smoke.expected"} smoke.expected
           grep -q ':foo' smoke.hex2
           grep -q ':bar' smoke.hex2
           grep -q '48 31 C0' smoke.hex2
-          grep -q ' 90$' smoke.hex2
+          grep -q '^90$' smoke.hex2
 
           runHook postBuild
         '';

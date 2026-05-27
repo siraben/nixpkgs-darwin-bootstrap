@@ -75,11 +75,7 @@ mkDarwin {
     cat help.stdout help.stderr > help.combined
     grep -q 'Usage:' help.combined
 
-    cat > mini.M1 <<'M1SRC'
-    DEFINE RET C3
-    :foo
-    RET
-    M1SRC
+    cp ${root + "/stage0-posix/fixtures/M1-mini.M1"} mini.M1
     ./M1 --architecture amd64 --little-endian -f mini.M1 -o mini.hex2
     grep -q ':foo' mini.hex2
     grep -q 'C3' mini.hex2

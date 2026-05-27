@@ -34,18 +34,12 @@ mkDarwin {
   doCheck = true;
   checkPhase = ''
     runHook preCheck
-    cat > labels.hex2 <<'HEX2'
-    :hello
-    48 69 0a
-    HEX2
+    cp ${root + "/stage0-posix/fixtures/hex2-labels.hex2"} labels.hex2
     printf 'Hi\n' > expected
     ./hex2-darwin labels.hex2 labels-output
     cmp expected labels-output
 
-    cat > pointer.hex2 <<'HEX2'
-    :s
-    %s
-    HEX2
+    cp ${root + "/stage0-posix/fixtures/hex2-pointer.hex2"} pointer.hex2
     printf '\xfc\xff\xff\xff' > pointer-expected
     ./hex2-darwin pointer.hex2 pointer-output
     cmp pointer-expected pointer-output

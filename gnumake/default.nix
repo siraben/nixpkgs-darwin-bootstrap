@@ -65,18 +65,7 @@ runCommand "phase39-gnumake-${gnumakeVersion}" {
   ./make --version > make-version.stdout 2> make-version.stderr
   grep -q 'GNU Make' make-version.stdout
   test ! -s make-version.stderr
-  cat > bootstrap-smoke.mk <<'MK'
-  .RECIPEPREFIX := >
-  all: serial parallel
-  serial:
-  >@printf 'serial\n' > serial.out
-  parallel: a b
-  >@cat a.out b.out > parallel.out
-  a:
-  >@printf 'a\n' > a.out
-  b:
-  >@printf 'b\n' > b.out
-  MK
+  cp ${root + "/gnumake/fixtures/default-bootstrap-smoke.mk"} bootstrap-smoke.mk
   MAKEFLAGS= ./make -j2 -f bootstrap-smoke.mk > make-smoke.stdout 2> make-smoke.stderr
   grep -q serial serial.out
   grep -q a parallel.out

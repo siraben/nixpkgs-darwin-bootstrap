@@ -8,17 +8,14 @@
   phase3-m0,
   phase9-m1,
   runCommand,
+  root,
   source,
   ...
 }:
 runCommand "phase27-tinycc-elf-to-macho-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
-  cat > hello.c <<'C'
-  int answer(void) { return 42; }
-  int main(void) { return answer(); }
-  C
-
+  cp ${root + "/tinycc/fixtures/elf-to-macho-hello.c"} hello.c
   ${phase23-tinycc-mescc-link-probe}/bin/tcc -c hello.c -o hello.o \
     > hello-c.stdout \
     2> hello-c.stderr
@@ -28,15 +25,7 @@ runCommand "phase27-tinycc-elf-to-macho-probe" { } ''
 
   ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix hello_ hello.o hello-object.M1
 
-  cat > crt1-tcc-sysv.M1 <<'M1'
-  :_start
-  !0x48 !0x83 !0xe4 !0xf0
-  !0xe8 %main
-  !0x48 !0x89 !0xc7
-  !0x48 !0xc7 !0xc0 !0x01 !0x00 !0x00 !0x02
-  !0x0f !0x05
-  M1
-
+  cp ${root + "/tinycc/fixtures/elf-to-macho-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   {
     cat crt1-tcc-sysv.M1
     awk '

@@ -40,24 +40,16 @@
         doCheck = true;
         checkPhase = ''
           runHook preCheck
-          cat > input.hex1 <<'HEX1'
-          48 69 0a
-          HEX1
+          cp ${root + "/stage0-posix/fixtures/hex1-input.hex1"} input.hex1
           printf 'Hi\n' > expected
           ./hex1-darwin input.hex1 output
           cmp expected output
 
-          cat > labels.hex1 <<'HEX1'
-          :s
-          48 69 0a
-          HEX1
+          cp ${root + "/stage0-posix/fixtures/hex1-labels.hex1"} labels.hex1
           ./hex1-darwin labels.hex1 labels-output
           cmp expected labels-output
 
-          cat > pointer.hex1 <<'HEX1'
-          :s
-          %s
-          HEX1
+          cp ${root + "/stage0-posix/fixtures/hex1-pointer.hex1"} pointer.hex1
           printf '\xfc\xff\xff\xff' > pointer-expected
           ./hex1-darwin pointer.hex1 pointer-output
           cmp pointer-expected pointer-output

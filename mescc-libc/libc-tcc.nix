@@ -9,6 +9,7 @@
   phase22-mescc-libc-tcc-probe,
   phase9-m1,
   runCommand,
+  root,
   source,
   ...
 }:
@@ -30,12 +31,7 @@ runCommand "phase22-mescc-libc-tcc-probe" { } ''
       ${phase16-mes-m2}/bin/mes-m2 --no-auto-compile -e main ${phase16-mes-m2}/bin/mescc.scm -- "$@"
   }
 
-  cat > config.sh <<'EOF'
-  mes_cpu=x86_64
-  mes_kernel=linux
-  compiler=mescc
-  mes_libc=mes
-  EOF
+  cp ${root + "/mescc-libc/fixtures/libc-tcc-config.sh"} config.sh
   . ./config.sh
   . ${phase13-mes-source}/build-aux/configure-lib.sh
 

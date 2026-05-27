@@ -11,6 +11,7 @@
   phase3-m0,
   phase9-m1,
   runCommand,
+  root,
   source,
   ...
 }:
@@ -54,10 +55,7 @@ runCommand "phase18-mescc-libc-mini-probe" { } ''
   compile_m1 ${phase13-mes-source}/lib/string/strlen.c m1/strlen.M1
   compile_m1 ${phase13-mes-source}/lib/mes/write.c m1/write.M1
 
-  cat > puts-smoke.c <<'EOF'
-  int puts (char const *s);
-  int main () { puts ("libc-mini"); return 0; }
-  EOF
+  cp ${root + "/mescc-libc/fixtures/libc-mini-puts-smoke.c"} puts-smoke.c
   compile_m1 puts-smoke.c puts-smoke.M1
 
   for file in m1/*.M1; do

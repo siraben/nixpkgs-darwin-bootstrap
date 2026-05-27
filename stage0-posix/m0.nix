@@ -46,16 +46,8 @@ mkDarwin {
   doCheck = true;
   checkPhase = ''
     runHook preCheck
-    cat > smoke.M1 <<'M1'
-    :foo
-    "AB"
-    '43 00'
-    M1
-    cat > expected <<'HEX2'
-    :foo
-    414200
-    43 00
-    HEX2
+    cp ${root + "/stage0-posix/fixtures/m0-smoke.M1"} smoke.M1
+    cp ${root + "/stage0-posix/fixtures/m0-expected"} expected
     ./M0-darwin smoke.M1 smoke.hex2
     cmp expected smoke.hex2
     runHook postCheck

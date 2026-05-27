@@ -1,0 +1,3 @@
+DEFINE RET C3
+:foo
+RET

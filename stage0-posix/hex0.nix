@@ -13,6 +13,7 @@
 ##     `tests` argument to expose `nix build .#hex0.tests.converts-hex`.
 {
   lib,
+  root,
   stdenv,
   supportedSystems,
   tests,
@@ -34,10 +35,7 @@ stdenv.mkDerivation {
     ./hex0 hex0-amd64-darwin.hex0 hex0-self
     cmp hex0 hex0-self
 
-    cat > smoke.hex0 <<'HEX'
-      # whitespace, comments, and mixed-case nybbles are intentional
-      48 65 6c 6c 6F 0a ; Hello newline
-    HEX
+    cp ${root + "/stage0-posix/fixtures/hex0-smoke.hex0"} smoke.hex0
     ./hex0 smoke.hex0 smoke.out
     printf 'Hello\n' > smoke.expected
     cmp smoke.expected smoke.out
