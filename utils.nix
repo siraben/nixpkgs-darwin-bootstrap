@@ -23,7 +23,11 @@ rec {
     stdenv.mkDerivation (
       {
         version = "0-unstable-2026-05-07";
-        dontUnpack = true;
+        ## dontUnpack defaults to true (most stage0 derivations have no
+        ## src — they cp from committed hex0/hex2 sources).  When a
+        ## caller passes `src = ...;`, the default is false so stdenv's
+        ## unpackPhase runs normally.
+        dontUnpack = !(attrs ? src);
         dontStrip = true;
         strictDeps = true;
       }
