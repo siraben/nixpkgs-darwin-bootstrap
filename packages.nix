@@ -519,66 +519,7 @@ let
     phase46-gcc-latest-bootstrap
     phase47-gcc-latest-strict-bootstrap
     ;
-  tinycc-m2-negative-probe =
-    if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-tinycc-m2-negative-probe-amd64" { } ''
-        set +e
-        ${phase12-m2-planet}/bin/M2-Planet \
-          --architecture amd64 \
-          -I ${tinyccBootstrappableSrc} \
-          -I ${tinyccBootstrappableSrc}/include \
-          -D float=int \
-          -D double=long \
-          -D BOOTSTRAP=1 \
-          -D HAVE_LONG_LONG=1 \
-          -D TCC_TARGET_X86_64=1 \
-          -D LDOUBLE_SIZE=8 \
-          -D CONFIG_TCCBOOT=1 \
-          -D CONFIG_TCC_STATIC=1 \
-          -D CONFIG_USE_LIBGCC=1 \
-          -D TCC_MES_LIBC=1 \
-          -D TCC_VERSION=\"0.9.28-bootstrap\" \
-          -f ${stage0Sources}/M2libc/sys/types.h \
-          -f ${stage0Sources}/M2libc/stddef.h \
-          -f ${stage0Sources}/M2libc/stdint.h \
-          -f ${stage0Sources}/M2libc/sys/utsname.h \
-          -f ${./M2libc/amd64/Darwin/unistd.c} \
-          -f ${./M2libc/amd64/Darwin/fcntl.c} \
-          -f ${stage0Sources}/M2libc/fcntl.c \
-          -f ${./M2libc/amd64/Darwin/sys/stat.c} \
-          -f ${stage0Sources}/M2libc/ctype.c \
-          -f ${stage0Sources}/M2libc/stdlib.c \
-          -f ${stage0Sources}/M2libc/string.c \
-          -f ${stage0Sources}/M2libc/stdarg.h \
-          -f ${stage0Sources}/M2libc/stdio.h \
-          -f ${stage0Sources}/M2libc/stdio.c \
-          -f ${stage0Sources}/M2libc/bootstrappable.c \
-          -f ${tinyccBootstrappableSrc}/elf.h \
-          -f ${tinyccBootstrappableSrc}/libtcc.h \
-          -f ${tinyccBootstrappableSrc}/tcc.h \
-          -f ${tinyccBootstrappableSrc}/tccpp.c \
-          -f ${tinyccBootstrappableSrc}/tccgen.c \
-          -f ${tinyccBootstrappableSrc}/tccelf.c \
-          -f ${tinyccBootstrappableSrc}/tccrun.c \
-          -f ${tinyccBootstrappableSrc}/x86_64-gen.c \
-          -f ${tinyccBootstrappableSrc}/x86_64-link.c \
-          -f ${tinyccBootstrappableSrc}/i386-asm.c \
-          -f ${tinyccBootstrappableSrc}/tccasm.c \
-          -f ${tinyccBootstrappableSrc}/libtcc.c \
-          -f ${tinyccBootstrappableSrc}/tcctools.c \
-          -f ${tinyccBootstrappableSrc}/tcc.c \
-          -o tcc.M1 > tcc-m2.stdout 2> tcc-m2.stderr
-        status="$?"
-        set -e
-
-        test "$status" -ne 0
-        grep -q "Invalid token '(' used in constant_expression_term" tcc-m2.stderr
-
-        mkdir -p $out/share/darwin-bootstrap
-        cp tcc-m2.stdout tcc-m2.stderr $out/share/darwin-bootstrap/
-      ''
-    else
-      null;
+  tinycc-m2-negative-probe = import ./tinycc/m2-negative-probe.nix (phaseContext // phaseDefs);
 
   gnuHello = import ./gnu-hello.nix (
     phaseContext
