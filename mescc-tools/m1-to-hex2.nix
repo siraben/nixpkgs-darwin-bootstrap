@@ -1,12 +1,7 @@
 args:
 with args;
-      stdenv.mkDerivation {
+      mkDarwin {
         pname = "phase11b-m1-to-hex2";
-        version = "0-unstable-2026-05-07";
-
-        dontUnpack = true;
-        dontStrip = true;
-        strictDeps = true;
         buildPhase = ''
           runHook preBuild
 
@@ -93,6 +88,5 @@ M1
 
         meta = {
           description = "Stage0-faithful Darwin Mach-O m1-to-hex2 translator (M2-Planet C build)";
-          platforms = [ "x86_64-darwin" ];
         };
       }

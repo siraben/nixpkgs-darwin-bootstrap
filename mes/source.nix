@@ -1,6 +1,6 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase13-mes-source";
   version = mesVersion;
 
@@ -49,6 +49,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Prepared GNU Mes source tree for the Darwin bootstrap path";
-    platforms = [ "x86_64-darwin" ];
   };
 }

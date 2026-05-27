@@ -1,12 +1,7 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase11-kaem";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -83,6 +78,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Signed Darwin Mach-O phase-11 AMD64 kaem shell";
-    platforms = [ "x86_64-darwin" ];
   };
 }

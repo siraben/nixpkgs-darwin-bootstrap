@@ -342,8 +342,11 @@ let
     };
   };
 
+  utils = import ./utils.nix { inherit stdenv lib; };
+
   phaseContext = {
     root = ./.;
+    inherit (utils) mkDarwin;
     inherit apple-sdk darwin cctools fetchurl gnumake lib minimal-bootstrap-sources perl;
     inherit stdenv runCommand hostPlatform supportedSystems arch source;
     inherit stage0-posix stage0Sources mesVersion mesTarball gcc46Version gcc46Tarball;

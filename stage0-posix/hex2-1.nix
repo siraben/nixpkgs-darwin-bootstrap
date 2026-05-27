@@ -1,12 +1,7 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase8-hex2-1";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -89,6 +84,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Signed Darwin Mach-O phase-8 AMD64 hex2 linker";
-    platforms = [ "x86_64-darwin" ];
   };
 }

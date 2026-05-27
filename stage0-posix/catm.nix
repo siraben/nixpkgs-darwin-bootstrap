@@ -1,12 +1,8 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase2-catm";
-  version = "0-unstable-2026-05-07";
 
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 

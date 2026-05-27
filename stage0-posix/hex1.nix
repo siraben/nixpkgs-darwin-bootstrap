@@ -1,13 +1,9 @@
 args:
 with args;
     if hostPlatform.isx86_64 then
-      stdenv.mkDerivation {
+      mkDarwin {
         pname = "phase1-hex1";
         version = "0-unstable-2026-05-07.1";
-
-        dontUnpack = true;
-        dontStrip = true;
-        strictDeps = true;
         buildPhase = ''
           runHook preBuild
 
@@ -63,16 +59,11 @@ with args;
 
         meta = {
           description = "Runnable signed Darwin Mach-O phase-1 AMD64 hex1";
-          platforms = [ "x86_64-darwin" ];
         };
       }
     else if hostPlatform.isAarch64 then
-      stdenv.mkDerivation {
+      mkDarwin {
         pname = "phase1-hex1";
-        version = "0-unstable-2026-05-07";
-
-        dontUnpack = true;
-        strictDeps = true;
         buildPhase = ''
           runHook preBuild
 

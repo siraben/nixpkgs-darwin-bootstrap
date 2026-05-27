@@ -1,12 +1,7 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase6-blood-macho-0";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -63,6 +58,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Signed Darwin Mach-O phase-6 AMD64 blood footer generator";
-    platforms = [ "x86_64-darwin" ];
   };
 }

@@ -1,12 +1,7 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase11c-hex2-data-relocs";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -63,6 +58,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Stage0-faithful Darwin Mach-O hex2-data-relocs patcher (M2-Planet C build)";
-    platforms = [ "x86_64-darwin" ];
   };
 }

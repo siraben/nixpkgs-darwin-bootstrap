@@ -20,13 +20,8 @@
 ## requires phase5-m2 → phase4-cc-arch — the cycle this phase avoids).
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase11e-macho-patcher-early";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -72,6 +67,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Darwin Mach-O macho-patcher (m2-segments mode), assembled via M0+phase2-hex2 — bypasses phase5-m2 dependency cycle";
-    platforms = [ "x86_64-darwin" ];
   };
 }

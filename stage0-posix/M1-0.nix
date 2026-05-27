@@ -1,12 +1,7 @@
 args:
 with args;
-stdenv.mkDerivation {
+mkDarwin {
   pname = "phase7-m1-0";
-  version = "0-unstable-2026-05-07";
-
-  dontUnpack = true;
-  dontStrip = true;
-  strictDeps = true;
   buildPhase = ''
     runHook preBuild
 
@@ -67,6 +62,5 @@ stdenv.mkDerivation {
 
   meta = {
     description = "Signed Darwin Mach-O phase-7 AMD64 M1 macro assembler";
-    platforms = [ "x86_64-darwin" ];
   };
 }
