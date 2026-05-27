@@ -9,7 +9,7 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
@@ -17,13 +17,13 @@ with args;
           # MACHO-amd64-lowdata.hex2 is a deterministic Mach-O header — the
           # constants (TEXT_SIZE, DATA_VMADDR, LINKEDIT layout, etc.) don't
           # depend on any input.  Use the static committed snapshot in
-          # tree instead of regenerating via python.
+          # tree.
           cp ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} MACHO-amd64-lowdata.hex2
 
-          # Port upstream M0_AMD64.hex2 to Darwin via bash+sed+perl.
-          # Mirrors port_m0_source() from the (removed) python script.
-          ${root + "/scripts/stage0/port-m0-darwin.sh"} ${stage0Sources} \
-            M0_AMD64_darwin_body.hex2
+          # Use the committed pre-ported Darwin source.  Maintainer
+          # regenerates via scripts/stage0/regen-preported.sh whenever
+          # stage0Sources is bumped; build-time has no awk/perl/python.
+          cp ${root + "/M2libc/amd64/M0_AMD64_darwin_body.hex2"} M0_AMD64_darwin_body.hex2
 
           ${phase2-catm}/bin/catm-darwin M0-darwin.hex2 \
             MACHO-amd64-lowdata.hex2 \

@@ -3,15 +3,15 @@
 ## unlocks replacing scripts/stage0/phase5-amd64-m2.pl in phases 5-10.
 ##
 ## How it works:
-##   1. Transform tools/macho-patcher.M1's M1-specific raw-byte syntax
-##      into M0-friendly macro references:
-##        !0xXX             → BYTE_XX
-##        %0xNNN            → BYTE_BB BYTE_AA BYTE_NN BYTE_00  (LE bytes)
-##      (perl one-liner.  M0 only supports DEFINE-name → bytes; the
-##      `!`/`%0xNNN` syntactic shorthands are M1 extensions.)
-##   2. Concatenate amd64_defs.M1 + amd64_byte_defs.M1 + transformed
-##      source via phase2-catm, run phase3-m0 to expand DEFINEs into
-##      hex2 token stream.
+##   1. Use tools/macho-patcher-m0.M1 — the committed M0-friendly form of
+##      tools/macho-patcher.M1 (canonical source uses M1-only `!0xXX`/
+##      `%0xNNN` shortcuts; the M0-form expands them to BYTE_XX macros
+##      from amd64_byte_defs.M1).  Maintainer regenerates the M0-form
+##      via scripts/stage0/regen-preported.sh whenever macho-patcher.M1
+##      changes.  Build-time has no awk/perl/python here.
+##   2. Concatenate amd64_defs.M1 + amd64_byte_defs.M1 + M0-form via
+##      phase2-catm, run phase3-m0 to expand DEFINEs into hex2 token
+##      stream.
 ##   3. Link via phase2-hex2 against M2libc/amd64/MACHO-amd64.hex2
 ##      template, pad to linkedit offset, install unsigned.
 ##
@@ -29,25 +29,22 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
 
-          ## Transform M1 → M0 source: !0xXX → BYTE_XX, %0xNNN → 4 BYTE_*.
-          perl -pe '
-            s/!0x([0-9a-fA-F])([0-9a-fA-F])/sprintf("BYTE_%s%s", uc($1), uc($2))/ge;
-            s{%0x([0-9a-fA-F]+)}{
-              my $v = hex($1);
-              sprintf("BYTE_%02X BYTE_%02X BYTE_%02X BYTE_%02X",
-                $v & 0xFF, ($v >> 8) & 0xFF, ($v >> 16) & 0xFF, ($v >> 24) & 0xFF)
-            }ge;
-          ' ${root + "/tools/macho-patcher.M1"} > macho-patcher-m0.M1
+          ## Use the committed M0-form of macho-patcher (canonical source
+          ## tools/macho-patcher.M1 uses M1-only `!0xXX`/`%0xNNN` shortcuts
+          ## that M0 doesn't parse; the M0-form expands them to BYTE_XX
+          ## macros from amd64_byte_defs.M1).  Maintainer regenerates via
+          ## scripts/stage0/regen-preported.sh whenever macho-patcher.M1
+          ## changes; build-time has no awk/perl/python here.
 
           ${phase2-catm}/bin/catm-darwin combined.M0 \
             ${root + "/M2libc/amd64/amd64_defs.M1"} \
             ${root + "/M2libc/amd64/amd64_byte_defs.M1"} \
-            macho-patcher-m0.M1
+            ${root + "/tools/macho-patcher-m0.M1"}
 
           ${phase3-m0}/bin/M0-darwin combined.M0 combined.hex2
 
@@ -72,7 +69,6 @@ with args;
         installPhase = ''
           runHook preInstall
           install -Dm755 macho-patcher $out/bin/macho-patcher
-          install -Dm644 macho-patcher-m0.M1 $out/share/darwin-bootstrap/macho-patcher-m0.M1
           install -Dm644 combined.M0 $out/share/darwin-bootstrap/combined.M0
           install -Dm644 combined.hex2 $out/share/darwin-bootstrap/combined.hex2
           runHook postInstall

@@ -23,11 +23,11 @@ with args;
         buildPhase = ''
           runHook preBuild
 
-          ${phase3-m0}/bin/M0-darwin ${stage0Sources}/AMD64/cc_amd64.M1 cc_arch-0-linux.hex2
-          ## port mode: pure POSIX awk, byte-identical to the prior
-          ## `perl phase4-amd64-cc-arch.pl port` step.
-          awk -f ${root + "/scripts/stage0/port-cc-arch-darwin.awk"} \
-            cc_arch-0-linux.hex2 > cc_arch-0.hex2
+          # Use the committed pre-ported Darwin source (cc_amd64.M1 →
+          # M0 expand → port).  Maintainer regenerates via
+          # scripts/stage0/regen-preported.sh whenever stage0Sources is
+          # bumped; build-time has no awk/perl/python for port step.
+          cp ${root + "/M2libc/amd64/cc_arch-0-darwin.hex2"} cc_arch-0.hex2
           ${phase2-catm}/bin/catm-darwin cc_arch.hex2 \
             ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
             cc_arch-0.hex2

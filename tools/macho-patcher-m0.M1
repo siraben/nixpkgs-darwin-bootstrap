@@ -1,0 +1,1089 @@
+## tools/macho-patcher.M1
+##
+## Hand-written x86_64 Darwin Mach-O implementation of the generic post-
+## hex2 Mach-O patcher.  Assembled through the stage0-derived M1+hex2
+## chain (phase26c builds this file with no Python in its closure).
+## Replaces tools/phase5-amd64-m2.py (14 callers) and
+## tools/hex2-data-relocs.py (4 callers).
+##
+## Usage:
+##   macho-patcher m2-segments <source.hex2> <binary>
+##     Mirror of phase5-amd64-m2.py: read the hex2 source to find the
+##     first ':ELF_data' / ':HEX2_data' / ':GLOBAL_*' / ':STRING_*' /
+##     ':_string_*' label; compute static_file_offset = 0x400 + that
+##     offset; pad binary to DATA_FILE_OFFSET=0x800000 if needed; copy
+##     binary[static_file_offset .. EOF] to binary[DATA_FILE_OFFSET ..];
+##     walk binary for RIP-rel32 opcodes (lea/mov/etc — 34 patterns);
+##     for each disp targeting [static_vm .. static_vm+static_length),
+##     recompute the disp so it targets DATA_VM=0xE00000 instead.
+##
+##   macho-patcher data-relocs <source.hex2> <binary>
+##     Mirror of hex2-data-relocs.py: parse hex2 source for labels and
+##     % / & relocation references; copy static data segment to
+##     DATA_FILE_OFFSET; patch each relocation site with the correct
+##     4-byte displacement (relative for %, absolute for &).
+##
+## Calling convention used internally:
+##   System V amd64 — args in rdi/rsi/rdx/rcx/r8/r9; return in rax.
+##   We preserve rbx/rbp/r12-r15 across calls.
+##
+## ===========================================================================
+## Constants (matching the python tools' hardcoded values)
+## ===========================================================================
+##   BASE            = 0x600000  — Mach-O __TEXT vmaddr
+##   ENTRY_OFFSET    = 0x400     — text segment data starts at file offset 0x400
+##   DATA_FILE_OFFSET= 0x800000  — __DATA segment file offset (= TEXT_SIZE)
+##   DATA_VM         = 0xE00000  — __DATA vmaddr
+##
+## ===========================================================================
+## Darwin amd64 syscall numbers (0x02000000 syscall-class bit)
+## ===========================================================================
+## SYS_exit  = 0x02000001
+## SYS_read  = 0x02000003
+## SYS_write = 0x02000004
+## SYS_open  = 0x02000005
+## SYS_close = 0x02000006
+## SYS_lseek = 0x020000c7
+## SYS_mmap  = 0x020000c5
+## SYS_pwrite= 0x020000ce  (write at offset — useful for in-place file patch)
+## SYS_pread = 0x020000099
+
+## ===========================================================================
+## ENTRY POINT — work-in-progress.  Initial drop: argv dispatch + helpers.
+## Mode handlers and the actual patching loops are added in subsequent
+## commits.
+## ===========================================================================
+:_start
+	mov_rbp,rsp
+	push_rdi                                ; [rbp - 8]  = argc
+	push_rsi                                ; [rbp - 16] = argv
+	push_rdx                                ; [rbp - 24] = envp
+
+	;; Slot allocation — extended as the parser/patcher iterates.
+	;;   [rbp - 32]  mode flag: 1=m2-segments, 2=data-relocs
+	;;   [rbp - 40]  source path
+	;;   [rbp - 48]  binary path
+	;;   [rbp - 56]  source fd
+	;;   [rbp - 64]  binary fd
+	;;   [rbp - 72]  source buffer (mmap'd)
+	;;   [rbp - 80]  source size
+	;;   [rbp - 88]  binary buffer (mmap'd)
+	;;   [rbp - 96]  binary size
+	;;   [rbp - 104] first static-data offset (within hex2 byte stream)
+	;;   [rbp - 112] binary capacity (mmap'd region size)
+	xor_eax,eax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+	push_rax
+
+	;; Walk argv looking for 3 positionals: mode source binary.
+	;; argv is at [rbp - 16]; argv[0] is program name, argv[1+] are real.
+	call %FUNCTION_argv                     ; rax = argv
+	;; rbx = argv pointer
+	BYTE_48 BYTE_89 BYTE_C3
+	;; rbx += 8 → argv[1]
+	BYTE_48 BYTE_83 BYTE_C3 BYTE_08
+
+	;; Read mode arg (argv[1])
+	;; mov rcx, [rbx]
+	BYTE_48 BYTE_8B BYTE_0B
+	BYTE_48 BYTE_85 BYTE_C9
+	je %ARGV_usage
+	;; Compare to "m2-segments" first
+	;; mov rdi, rcx
+	BYTE_48 BYTE_89 BYTE_CF
+	lea_rsi,[rip+DWORD] %DATA_mode_m2
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	pop_rcx
+	pop_rbx
+	test_rax,rax
+	je %ARGV_check_relocs
+	;; mode = 1 (m2-segments)
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_00
+	;; mov [rbp - 32], rax
+	BYTE_48 BYTE_89 BYTE_45 BYTE_E0
+	jmp %ARGV_parse_paths
+
+:ARGV_check_relocs
+	;; mov rdi, rcx
+	BYTE_48 BYTE_89 BYTE_CF
+	lea_rsi,[rip+DWORD] %DATA_mode_relocs
+	push_rbx
+	push_rcx
+	call %FUNCTION_streq
+	pop_rcx
+	pop_rbx
+	test_rax,rax
+	je %ARGV_usage
+	mov_rax, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	BYTE_48 BYTE_89 BYTE_45 BYTE_E0
+
+:ARGV_parse_paths
+	;; advance rbx to argv[2]
+	BYTE_48 BYTE_83 BYTE_C3 BYTE_08
+	;; mov rcx, [rbx]
+	BYTE_48 BYTE_8B BYTE_0B
+	BYTE_48 BYTE_85 BYTE_C9
+	je %ARGV_usage
+	;; mov [rbp - 40], rcx
+	BYTE_48 BYTE_89 BYTE_4D BYTE_D8
+	;; advance to argv[3]
+	BYTE_48 BYTE_83 BYTE_C3 BYTE_08
+	;; mov rcx, [rbx]
+	BYTE_48 BYTE_8B BYTE_0B
+	BYTE_48 BYTE_85 BYTE_C9
+	je %ARGV_usage
+	;; mov [rbp - 48], rcx
+	BYTE_48 BYTE_89 BYTE_4D BYTE_D0
+
+	;; Open source file read-only, store fd in [rbp - 56]
+	;; mov rdi, [rbp - 40]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_D8
+	call %FUNCTION_open_ro
+	;; test rax, rax — negative on error
+	test_rax,rax
+	jl %ARGV_open_failed
+	;; mov [rbp - 56], rax
+	BYTE_48 BYTE_89 BYTE_45 BYTE_C8
+
+	;; Source size = lseek(fd, 0, SEEK_END)
+	;; mov rdi, rax
+	BYTE_48 BYTE_89 BYTE_C7
+	xor_esi,esi
+	mov_rdx, BYTE_02 BYTE_00 BYTE_00 BYTE_00                            ; SEEK_END
+	mov_rax, BYTE_C7 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	;; mov [rbp - 80], rax (source size)
+	BYTE_48 BYTE_89 BYTE_45 BYTE_B0
+
+	;; lseek back to 0
+	;; mov rdi, [rbp - 56]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C8
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, BYTE_C7 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; mmap_anon(source_size + 0x1000)
+	;; mov rdi, [rbp - 80]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_B0
+	;; add rdi, 0x1000
+	BYTE_48 BYTE_81 BYTE_C7 BYTE_00 BYTE_10 BYTE_00 BYTE_00
+	call %FUNCTION_mmap_anon
+	;; mov [rbp - 72], rax (source buffer)
+	BYTE_48 BYTE_89 BYTE_45 BYTE_B8
+
+	;; read(fd, buf, source_size)
+	;; mov rdi, [rbp - 56]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C8
+	;; mov rsi, rax (buf)
+	BYTE_48 BYTE_89 BYTE_C6
+	;; mov rdx, [rbp - 80]
+	BYTE_48 BYTE_8B BYTE_55 BYTE_B0
+	mov_rax, BYTE_03 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; Close source fd (we have it in memory now)
+	;; mov rdi, [rbp - 56]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C8
+	mov_rax, BYTE_06 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; Open binary file read-write
+	;; mov rdi, [rbp - 48]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_D0
+	call %FUNCTION_open_rw
+	test_rax,rax
+	jl %ARGV_open_failed
+	;; mov [rbp - 64], rax
+	BYTE_48 BYTE_89 BYTE_45 BYTE_C0
+
+	;; Binary size = lseek(fd, 0, SEEK_END)
+	BYTE_48 BYTE_89 BYTE_C7
+	xor_esi,esi
+	mov_rdx, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	mov_rax, BYTE_C7 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	;; mov [rbp - 96], rax
+	BYTE_48 BYTE_89 BYTE_45 BYTE_A0
+
+	;; lseek back to 0
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C0
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, BYTE_C7 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; mmap_anon(binary_size + 0x1000000 — overallocate for padding+copy)
+	;; mov rdi, [rbp - 96]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_A0
+	;; add rdi, 0x1000000 (16 MB extra for static-data copy + RIP-rel pads)
+	BYTE_48 BYTE_81 BYTE_C7 BYTE_00 BYTE_00 BYTE_00 BYTE_01
+	call %FUNCTION_mmap_anon
+	;; mov [rbp - 88], rax (binary buffer)
+	BYTE_48 BYTE_89 BYTE_45 BYTE_A8
+	;; DBG: print mmap result
+	lea_rdi,[rip+DWORD] %DATA_dbg_mmap
+	mov_rsi, BYTE_06 BYTE_00 BYTE_00 BYTE_00
+	push_rax
+	call %FUNCTION_write_stderr
+	pop_rdi
+	call %FUNCTION_print_hex64
+	;; capacity = the alloc size — re-save (we'll need to know capacity
+	;; vs current bytes-used)
+	;; mov rdi, [rbp - 96]
+	BYTE_48 BYTE_8B BYTE_7D BYTE_A0
+	;; add rdi, 0x1000000
+	BYTE_48 BYTE_81 BYTE_C7 BYTE_00 BYTE_00 BYTE_00 BYTE_01
+	;; mov [rbp - 112], rdi
+	BYTE_48 BYTE_89 BYTE_7D BYTE_90
+
+	;; read(fd, binary_buf, binary_size)
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C0                 ; mov rdi, [rbp - 64] (fd)
+	BYTE_48 BYTE_8B BYTE_75 BYTE_A8                 ; mov rsi, [rbp - 88] (buf — rax got clobbered by debug)
+	BYTE_48 BYTE_8B BYTE_55 BYTE_A0                 ; mov rdx, [rbp - 96] (size)
+	mov_rax, BYTE_03 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; ---------------------------------------------------------------
+	;; Hex2 source parser: scan source buffer for the first static-data
+	;; label (':ELF_data', ':HEX2_data', ':GLOBAL_*', ':STRING_*',
+	;; ':_string_*').  Records its byte position (within the binary's
+	;; emitted hex2 bytes) into [rbp - 104].
+	;;
+	;; State machine:
+	;;   rbx = source pointer (walks)
+	;;   r12 = end of source (= source_buf + source_size)
+	;;   r13 = current byte offset within emitted binary (running tally)
+	;;   r14 = current token start ptr (within source)
+	;;   r15 = (unused — was end-of-line marker)
+	;; ---------------------------------------------------------------
+	;; mov rbx, [rbp - 72]   (source buffer)
+	BYTE_48 BYTE_8B BYTE_5D BYTE_B8
+	;; r12 = rbx + source_size
+	;; mov r12, rbx
+	BYTE_49 BYTE_89 BYTE_DC
+	;; add r12, [rbp - 80]
+	BYTE_4C BYTE_03 BYTE_65 BYTE_B0
+	;; r13 = 0 (binary offset)
+	;; xor r13, r13
+	BYTE_4D BYTE_31 BYTE_ED
+	;; r14 = 0 (no token in progress)
+	;; xor r14, r14
+	BYTE_4D BYTE_31 BYTE_F6
+	;; static_offset = -1 (sentinel; we look for first match)
+	;; mov rax, -1   (48 C7 C0 FF FF FF FF)
+	BYTE_48 BYTE_C7 BYTE_C0 BYTE_FF BYTE_FF BYTE_FF BYTE_FF
+	;; mov [rbp - 104], rax
+	BYTE_48 BYTE_89 BYTE_45 BYTE_98
+
+:HEX2_scan_loop
+	;; if rbx >= r12, end of source
+	;; cmp rbx, r12
+	BYTE_4C BYTE_39 BYTE_E3
+	jge %HEX2_scan_done
+
+	;; movzx eax, byte [rbx]
+	BYTE_0F BYTE_B6 BYTE_03
+
+	;; '#' (0x23) starts a comment
+	;; cmp al, 0x23
+	BYTE_3C BYTE_23
+	je %HEX2_skip_comment
+
+	;; '\n' (0x0a) ends a line (also finalizes any in-progress token)
+	;; cmp al, 0x0a
+	BYTE_3C BYTE_0A
+	je %HEX2_finalize_token
+
+	;; ' '(0x20), '\t'(0x09): whitespace, finalizes token
+	;; cmp al, 0x20
+	BYTE_3C BYTE_20
+	je %HEX2_finalize_token
+	;; cmp al, 0x09
+	BYTE_3C BYTE_09
+	je %HEX2_finalize_token
+
+	;; Non-whitespace, non-comment: token character.  If r14==0, start
+	;; new token at rbx.
+	;; test r14, r14
+	BYTE_4D BYTE_85 BYTE_F6
+	jne %HEX2_advance
+	;; mov r14, rbx
+	BYTE_49 BYTE_89 BYTE_DE
+
+:HEX2_advance
+	;; inc rbx
+	BYTE_48 BYTE_FF BYTE_C3
+	jmp %HEX2_scan_loop
+
+:HEX2_skip_comment
+	;; Walk rbx forward until '\n' or end
+	;; inc rbx
+	BYTE_48 BYTE_FF BYTE_C3
+	;; cmp rbx, r12
+	BYTE_4C BYTE_39 BYTE_E3
+	jge %HEX2_scan_done
+	;; movzx eax, byte [rbx]
+	BYTE_0F BYTE_B6 BYTE_03
+	;; cmp al, 0x0a
+	BYTE_3C BYTE_0A
+	jne %HEX2_skip_comment
+	;; fall through to finalize (newline)
+
+:HEX2_finalize_token
+	;; If no token in progress, just advance.
+	;; test r14, r14
+	BYTE_4D BYTE_85 BYTE_F6
+	je %HEX2_advance
+
+	;; Token is [r14 .. rbx).  rdi = r14 (start), rsi = rbx - r14 (len).
+	;; mov rdi, r14
+	BYTE_4C BYTE_89 BYTE_F7
+	;; mov rsi, rbx
+	BYTE_48 BYTE_89 BYTE_DE
+	;; sub rsi, r14
+	BYTE_4C BYTE_29 BYTE_F6
+
+	;; Check for ':' label (byte at r14)
+	;; movzx eax, byte [r14]
+	BYTE_41 BYTE_0F BYTE_B6 BYTE_06
+	;; cmp al, 0x3a
+	BYTE_3C BYTE_3A
+	je %HEX2_token_label
+
+	;; Not a label: compute width and add to r13.
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	;; rdi=token ptr, rsi=token len already set
+	call %FUNCTION_token_width
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	;; add r13, rax
+	BYTE_49 BYTE_01 BYTE_C5
+	;; reset r14
+	;; xor r14, r14
+	BYTE_4D BYTE_31 BYTE_F6
+	jmp %HEX2_advance
+
+:HEX2_token_label
+	;; If we've already recorded a static_offset, just skip.
+	;; mov rax, [rbp - 104]
+	BYTE_48 BYTE_8B BYTE_45 BYTE_98
+	;; cmp rax, -1   (sentinel; not yet recorded)
+	BYTE_48 BYTE_83 BYTE_F8 BYTE_FF
+	jne %HEX2_token_label_done
+
+	;; Check if this label matches a static marker.  rdi=token ptr (incl ':').
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	;; rdi already = r14 = token ptr; rsi = len
+	;; mov rdi, r14
+	BYTE_4C BYTE_89 BYTE_F7
+	;; mov rsi, rbx
+	BYTE_48 BYTE_89 BYTE_DE
+	BYTE_4C BYTE_29 BYTE_F6
+	call %FUNCTION_is_static_label
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	;; test rax, rax — 1 if match
+	BYTE_48 BYTE_85 BYTE_C0
+	je %HEX2_token_label_done
+	;; Record static_offset = r13
+	;; mov [rbp - 104], r13
+	BYTE_4C BYTE_89 BYTE_6D BYTE_98
+
+:HEX2_token_label_done
+	;; Label doesn't add to binary offset.  Reset r14.
+	BYTE_4D BYTE_31 BYTE_F6
+	jmp %HEX2_advance
+
+:HEX2_scan_done
+	;; DBG: A. scan done
+	lea_rdi,[rip+DWORD] %DATA_dbg_a
+	mov_rsi, BYTE_03 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_write_stderr
+
+	;; ---------------------------------------------------------------
+	;; Pad binary buffer to DATA_FILE_OFFSET, copy static block, walk
+	;; opcode patterns, patch RIP-rel32 displacements, write back.
+	;; ---------------------------------------------------------------
+	;; static_file_offset = 0x400 + static_offset
+	BYTE_48 BYTE_8B BYTE_45 BYTE_98
+	BYTE_48 BYTE_05 BYTE_00 BYTE_04 BYTE_00 BYTE_00
+	BYTE_49 BYTE_89 BYTE_C4                       ; mov r12, rax
+	;; static_length = binary_size - static_file_offset
+	BYTE_4C BYTE_8B BYTE_6D BYTE_A0                 ; mov r13, [rbp - 96]
+	BYTE_4D BYTE_29 BYTE_E5                       ; sub r13, r12
+
+	;; If binary_size < 0x800000, bump to 0x800000 (mmap is zero-padded).
+	BYTE_48 BYTE_8B BYTE_45 BYTE_A0
+	BYTE_48 BYTE_3D BYTE_00 BYTE_00 BYTE_80 BYTE_00
+	jge %PAD_done
+	mov_rax, BYTE_00 BYTE_00 BYTE_80 BYTE_00
+	BYTE_48 BYTE_89 BYTE_45 BYTE_A0
+:PAD_done
+	;; DBG: B. pad done
+	lea_rdi,[rip+DWORD] %DATA_dbg_b
+	mov_rsi, BYTE_03 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_write_stderr
+
+	;; memmove(binary + 0x800000, binary + r12, r13) — BACKWARD copy.
+	;; dst (binary+0x800000) > src (binary+r12), so ranges overlap.
+	;; Forward byte-copy would overwrite unread source bytes once the
+	;; write cursor passes the source start (matches python's slice-
+	;; assignment semantics which copies via a temporary).
+	BYTE_4C BYTE_8B BYTE_75 BYTE_A8                 ; mov r14, [rbp - 88]  src_base
+	BYTE_4D BYTE_01 BYTE_E6                       ; add r14, r12
+	BYTE_4C BYTE_8B BYTE_7D BYTE_A8                 ; mov r15, [rbp - 88]  dst_base
+	BYTE_49 BYTE_81 BYTE_C7 BYTE_00 BYTE_00 BYTE_80 BYTE_00
+	;; rbx = r13 - 1 (start from end)
+	BYTE_4C BYTE_89 BYTE_EB                       ; mov rbx, r13
+	BYTE_48 BYTE_FF BYTE_CB                       ; dec rbx
+:COPY_loop
+	;; if rbx < 0, done
+	BYTE_48 BYTE_83 BYTE_FB BYTE_00
+	jl %COPY_done
+	BYTE_41 BYTE_0F BYTE_B6 BYTE_04 BYTE_1E           ; movzx eax, byte [r14+rbx]
+	BYTE_41 BYTE_88 BYTE_04 BYTE_1F                 ; mov [r15+rbx], al
+	BYTE_48 BYTE_FF BYTE_CB                       ; dec rbx
+	jmp %COPY_loop
+:COPY_done
+	;; DBG: C. copy done
+	lea_rdi,[rip+DWORD] %DATA_dbg_c
+	mov_rsi, BYTE_03 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_write_stderr
+
+	;; Update binary_size = 0x800000 + r13
+	BYTE_48 BYTE_B8 BYTE_00 BYTE_00 BYTE_80 BYTE_00 BYTE_00 BYTE_00 BYTE_00 BYTE_00
+	BYTE_4C BYTE_01 BYTE_E8
+	BYTE_48 BYTE_89 BYTE_45 BYTE_A0
+
+	;; static_vm = BASE(0x600000) + r12 — save in [rbp - 104].
+	BYTE_4C BYTE_89 BYTE_E0
+	BYTE_48 BYTE_05 BYTE_00 BYTE_00 BYTE_60 BYTE_00
+	BYTE_48 BYTE_89 BYTE_45 BYTE_98
+
+	;; Iterate over DATA_opcode_table.  Each entry is 4 bytes:
+	;;   [0..3] opcode bytes (left-padded with zeros for 2-byte ops)
+	;;   We track length separately via the 2nd table DATA_opcode_lens.
+	;; rbx = table index (0..31)
+	;; xor rbx, rbx
+	BYTE_48 BYTE_31 BYTE_DB
+:OPTAB_loop
+	;; if rbx >= 32, done
+	;; cmp rbx, 32
+	BYTE_48 BYTE_83 BYTE_FB BYTE_20
+	jge %OPTAB_done
+
+	;; opcode_ptr = DATA_opcode_table + rbx*4
+	lea_rax,[rip+DWORD] %DATA_opcode_table
+	;; mov rcx, rbx
+	BYTE_48 BYTE_89 BYTE_D9
+	;; shl rcx, 2 (×4)
+	BYTE_48 BYTE_C1 BYTE_E1 BYTE_02
+	;; add rax, rcx
+	BYTE_48 BYTE_01 BYTE_C8
+	;; rdi = opcode_ptr
+	BYTE_48 BYTE_89 BYTE_C7
+
+	;; opcode_len = DATA_opcode_lens[rbx]
+	lea_rax,[rip+DWORD] %DATA_opcode_lens
+	;; add rax, rbx
+	BYTE_48 BYTE_01 BYTE_D8
+	;; movzx eax, byte [rax]
+	BYTE_0F BYTE_B6 BYTE_00
+	;; mov rsi, rax
+	BYTE_48 BYTE_89 BYTE_C6
+
+	;; For 2-byte opcodes, the table entry has the opcode in bytes [2..3]
+	;; (padded with zeros).  Adjust rdi to point at the actual opcode
+	;; start: if length == 2, rdi += 2; if length == 3, rdi unchanged.
+	;; cmp rsi, 3
+	BYTE_48 BYTE_83 BYTE_FE BYTE_03
+	je %OPTAB_no_adjust
+	;; rdi += (4 - rsi) — actually just +2 for the 2-byte case
+	;; add rdi, 2
+	BYTE_48 BYTE_83 BYTE_C7 BYTE_02
+:OPTAB_no_adjust
+
+	;; Prepare other args
+	BYTE_48 BYTE_8B BYTE_55 BYTE_98                 ; rdx = static_vm
+	mov_rcx, BYTE_00 BYTE_00 BYTE_E0 BYTE_00                       ; rcx = data_vm
+	BYTE_4D BYTE_89 BYTE_E8                       ; r8 = r13 (static_length)
+	BYTE_4C BYTE_8B BYTE_4D BYTE_A8                 ; r9 = binary_buf
+	BYTE_4C BYTE_8B BYTE_55 BYTE_A0                 ; r10 = binary_size
+
+	push_rbx
+	call %FUNCTION_patch_pattern
+	pop_rbx
+
+	;; inc rbx, loop
+	BYTE_48 BYTE_FF BYTE_C3
+	jmp %OPTAB_loop
+:OPTAB_done
+	;; DBG: D. patch done
+	lea_rdi,[rip+DWORD] %DATA_dbg_d
+	mov_rsi, BYTE_03 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_write_stderr
+
+	;; Write binary back: lseek 0; write all.
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C0                 ; mov rdi, [rbp - 64]
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, BYTE_C7 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C0
+	BYTE_48 BYTE_8B BYTE_75 BYTE_A8                 ; rsi = binary_buf
+	BYTE_48 BYTE_8B BYTE_55 BYTE_A0                 ; rdx = binary_size
+	mov_rax, BYTE_04 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	;; Close binary fd
+	BYTE_48 BYTE_8B BYTE_7D BYTE_C0
+	mov_rax, BYTE_06 BYTE_00 BYTE_00 BYTE_02
+	syscall
+
+	xor_edi,edi
+	call %FUNCTION_exit
+
+:ARGV_open_failed
+	lea_rdi,[rip+DWORD] %DATA_msg_open_failed
+	mov_rsi, BYTE_16 BYTE_00 BYTE_00 BYTE_00                          ; 22 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_exit
+
+:ARGV_usage
+	lea_rdi,[rip+DWORD] %DATA_msg_usage
+	mov_rsi, BYTE_40 BYTE_00 BYTE_00 BYTE_00                          ; 64 bytes
+	call %FUNCTION_write_stderr
+	mov_rdi, BYTE_40 BYTE_00 BYTE_00 BYTE_00
+	call %FUNCTION_exit
+
+## ===========================================================================
+## FUNCTION_exit(rdi=status) — Darwin exit(status)
+## ===========================================================================
+:FUNCTION_exit
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_02                      ; SYS_exit
+	syscall
+
+## ===========================================================================
+## FUNCTION_write_stderr(rdi=buf, rsi=len) — write to fd 2; returns nbytes.
+## ===========================================================================
+:FUNCTION_write_stderr
+	;; mov rdx, rsi
+	BYTE_48 BYTE_89 BYTE_F2
+	;; mov rsi, rdi
+	BYTE_48 BYTE_89 BYTE_FE
+	mov_rdi, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	mov_rax, BYTE_04 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_argv() — returns argv (char**) in rax  (from [rbp - 16] slot)
+## ===========================================================================
+:FUNCTION_argv
+	;; mov rax, [rbp - 16]
+	BYTE_48 BYTE_8B BYTE_45 BYTE_F0
+	ret
+
+## ===========================================================================
+## FUNCTION_streq(rdi=a, rsi=b) — returns 1 in rax if NUL-terminated strs eq.
+## ===========================================================================
+:FUNCTION_streq
+:STREQ_loop
+	;; movzx eax, byte [rdi]
+	BYTE_0F BYTE_B6 BYTE_07
+	;; movzx edx, byte [rsi]
+	BYTE_0F BYTE_B6 BYTE_16
+	;; cmp al, dl
+	BYTE_38 BYTE_D0
+	jne %STREQ_diff
+	test_rax,rax
+	je %STREQ_eq
+	;; inc rdi, inc rsi
+	BYTE_48 BYTE_FF BYTE_C7
+	BYTE_48 BYTE_FF BYTE_C6
+	jmp %STREQ_loop
+:STREQ_diff
+	xor_eax,eax
+	ret
+:STREQ_eq
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_00
+	ret
+
+## ===========================================================================
+## FUNCTION_open_ro(rdi=path) — open(path, O_RDONLY); returns fd in rax.
+## ===========================================================================
+:FUNCTION_open_ro
+	xor_esi,esi
+	xor_edx,edx
+	mov_rax, BYTE_05 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_open_rw(rdi=path) — open(path, O_RDWR=2, mode 0644); fd in rax.
+## ===========================================================================
+:FUNCTION_open_rw
+	mov_rsi, BYTE_02 BYTE_00 BYTE_00 BYTE_00                            ; O_RDWR
+	mov_rdx, BYTE_A4 BYTE_01 BYTE_00 BYTE_00                          ; 0644
+	mov_rax, BYTE_05 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_mmap_anon(rdi=len) — anonymous mmap; returns base ptr in rax.
+##   addr=0, prot=PROT_READ|PROT_WRITE=3, flags=MAP_PRIVATE|MAP_ANON=0x1002,
+##   fd=-1, offset=0
+## ===========================================================================
+:FUNCTION_mmap_anon
+	;; mov rsi, rdi   (size)
+	BYTE_48 BYTE_89 BYTE_FE
+	xor_edi,edi
+	mov_rdx, BYTE_03 BYTE_00 BYTE_00 BYTE_00
+	;; mov r10, 0x1002
+	BYTE_49 BYTE_C7 BYTE_C2 BYTE_02 BYTE_10 BYTE_00 BYTE_00
+	;; mov r8, -1
+	BYTE_49 BYTE_C7 BYTE_C0 BYTE_FF BYTE_FF BYTE_FF BYTE_FF
+	;; xor r9, r9
+	BYTE_4D BYTE_31 BYTE_C9
+	mov_rax, BYTE_C5 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	ret
+
+## ===========================================================================
+## FUNCTION_token_width(rdi=ptr, rsi=len) — return hex2 token width in rax.
+##   '!' prefix → 1 byte;  '@'/'$' → 2 bytes;  '%'/'&' → 4 bytes;
+##   raw hex digits (even-length) → len/2 bytes;  unknown → 0.
+##   Comments after '#' have already been stripped by the scanner.
+## ===========================================================================
+:FUNCTION_token_width
+	;; test rsi, rsi → empty token returns 0
+	BYTE_48 BYTE_85 BYTE_F6
+	je %TW_zero
+	;; movzx eax, byte [rdi]
+	BYTE_0F BYTE_B6 BYTE_07
+	;; cmp al, 0x21 ('!')
+	BYTE_3C BYTE_21
+	je %TW_one
+	;; cmp al, 0x40 ('@')
+	BYTE_3C BYTE_40
+	je %TW_two
+	;; cmp al, 0x24 ('$')
+	BYTE_3C BYTE_24
+	je %TW_two
+	;; cmp al, 0x25 ('%')
+	BYTE_3C BYTE_25
+	je %TW_four
+	;; cmp al, 0x26 ('&')
+	BYTE_3C BYTE_26
+	je %TW_four
+	;; Default: raw hex pair sequence, width = len / 2 (if even length
+	;; and all hex digits — we trust the input here)
+	;; mov rax, rsi
+	BYTE_48 BYTE_89 BYTE_F0
+	;; shr rax, 1
+	BYTE_48 BYTE_D1 BYTE_E8
+	ret
+:TW_one
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_00
+	ret
+:TW_two
+	mov_rax, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	ret
+:TW_four
+	mov_rax, BYTE_04 BYTE_00 BYTE_00 BYTE_00
+	ret
+:TW_zero
+	xor_eax,eax
+	ret
+
+## ===========================================================================
+## FUNCTION_is_static_label(rdi=ptr, rsi=len) — return 1 in rax if the
+##   token (which starts with ':') is one of the static-data markers:
+##   ':ELF_data', ':HEX2_data', or starts with ':GLOBAL_'/':STRING_'/
+##   ':_string_'.  Returns 0 otherwise.
+## ===========================================================================
+:FUNCTION_is_static_label
+	;; Check ':ELF_data' (9 chars)
+	;; cmp rsi, 9
+	BYTE_48 BYTE_83 BYTE_FE BYTE_09
+	jne %ISL_skip_elf
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_elf_data
+	call %FUNCTION_streq9
+	pop_rdi
+	;; test rax, rax
+	BYTE_48 BYTE_85 BYTE_C0
+	jne %ISL_yes
+:ISL_skip_elf
+	;; Check ':HEX2_data' (10 chars)
+	BYTE_48 BYTE_83 BYTE_FE BYTE_0A
+	jne %ISL_skip_hex2
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_hex2_data
+	call %FUNCTION_streq10
+	pop_rdi
+	BYTE_48 BYTE_85 BYTE_C0
+	jne %ISL_yes
+:ISL_skip_hex2
+	;; Check prefix ':GLOBAL_' (8 chars)
+	;; cmp rsi, 8
+	BYTE_48 BYTE_83 BYTE_FE BYTE_08
+	jl %ISL_no
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_global
+	call %FUNCTION_streq8
+	pop_rdi
+	BYTE_48 BYTE_85 BYTE_C0
+	jne %ISL_yes
+	;; Check prefix ':STRING_' (8 chars)
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_string
+	call %FUNCTION_streq8
+	pop_rdi
+	BYTE_48 BYTE_85 BYTE_C0
+	jne %ISL_yes
+	;; Check prefix ':_string_' (9 chars)
+	;; cmp rsi, 9
+	BYTE_48 BYTE_83 BYTE_FE BYTE_09
+	jl %ISL_no
+	push_rdi
+	lea_rsi,[rip+DWORD] %DATA_lbl_under_string
+	call %FUNCTION_streq9
+	pop_rdi
+	BYTE_48 BYTE_85 BYTE_C0
+	jne %ISL_yes
+:ISL_no
+	xor_eax,eax
+	ret
+:ISL_yes
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_00
+	ret
+
+## ===========================================================================
+## FUNCTION_streq8/9/10(rdi=a, rsi=b) — return 1 in rax if first N bytes equal.
+## ===========================================================================
+:FUNCTION_streq8
+	mov_rcx, BYTE_08 BYTE_00 BYTE_00 BYTE_00
+	jmp %STREQN_loop
+:FUNCTION_streq9
+	mov_rcx, BYTE_09 BYTE_00 BYTE_00 BYTE_00
+	jmp %STREQN_loop
+:FUNCTION_streq10
+	mov_rcx, BYTE_0A BYTE_00 BYTE_00 BYTE_00
+:STREQN_loop
+	BYTE_0F BYTE_B6 BYTE_07                       ; movzx eax, byte [rdi]
+	BYTE_0F BYTE_B6 BYTE_16                       ; movzx edx, byte [rsi]
+	BYTE_38 BYTE_D0                              ; cmp al, dl
+	jne %STREQN_no
+	BYTE_48 BYTE_FF BYTE_C7                        ; inc rdi
+	BYTE_48 BYTE_FF BYTE_C6                        ; inc rsi
+	BYTE_48 BYTE_FF BYTE_C9                        ; dec rcx
+	BYTE_48 BYTE_85 BYTE_C9                        ; test rcx, rcx
+	jne %STREQN_loop
+	mov_rax, BYTE_01 BYTE_00 BYTE_00 BYTE_00
+	ret
+:STREQN_no
+	xor_eax,eax
+	ret
+
+## ===========================================================================
+## FUNCTION_patch_pattern — scan binary for an opcode pattern and recompute
+##   RIP-rel32 displacements for matches whose target falls in the static
+##   data range.
+##   Args:
+##     rdi = opcode bytes pointer
+##     rsi = opcode length (2 or 3)
+##     rdx = static_vm
+##     rcx = data_vm (0xE00000)
+##     r8  = static_length
+##     r9  = binary_buf
+##     r10 = binary_size
+##   Clobbers rax/rbx/r11/rdi/rsi/rdx/rcx and friends.
+## ===========================================================================
+:FUNCTION_patch_pattern
+	;; rbx = scan position (byte index into binary)
+	push_rbx
+	push_r12
+	push_r13
+	push_r14
+	push_r15
+
+	;; Save args in callee-saved/stack:
+	;;   r11 = opcode ptr
+	;;   r12 = opcode length
+	;;   r13 = static_vm
+	;;   r14 = data_vm
+	;;   r15 = static_length
+	;;   binary_buf still in r9, binary_size in r10
+	BYTE_49 BYTE_89 BYTE_FB                       ; mov r11, rdi
+	BYTE_49 BYTE_89 BYTE_F4                       ; mov r12, rsi
+	BYTE_49 BYTE_89 BYTE_D5                       ; mov r13, rdx
+	BYTE_49 BYTE_89 BYTE_CE                       ; mov r14, rcx
+	BYTE_4D BYTE_89 BYTE_C7                       ; mov r15, r8
+
+	xor_ebx,ebx
+:PP_loop
+	;; if rbx + r12 + 4 > binary_size, done
+	;; mov rax, rbx
+	BYTE_48 BYTE_89 BYTE_D8
+	;; add rax, r12
+	BYTE_4C BYTE_01 BYTE_E0
+	;; add rax, 4
+	BYTE_48 BYTE_83 BYTE_C0 BYTE_04
+	;; cmp rax, r10
+	BYTE_4C BYTE_39 BYTE_D0
+	jg %PP_done
+
+	;; Compare bytes [r9 + rbx] .. [r9 + rbx + r12 - 1] vs opcode
+	;; xor rcx, rcx (counter)
+	BYTE_48 BYTE_31 BYTE_C9
+:PP_cmp_loop
+	;; if rcx == r12, all matched
+	;; cmp rcx, r12
+	BYTE_4C BYTE_39 BYTE_E1
+	jge %PP_matched
+	;; movzx eax, byte [r9 + rbx + rcx]
+	;; (compute addr in rax first to avoid SIB complexity)
+	;; mov rax, r9
+	BYTE_4C BYTE_89 BYTE_C8
+	;; add rax, rbx
+	BYTE_48 BYTE_01 BYTE_D8
+	;; add rax, rcx
+	BYTE_48 BYTE_01 BYTE_C8
+	;; movzx edx, byte [rax]
+	BYTE_0F BYTE_B6 BYTE_10
+	;; movzx eax, byte [r11 + rcx]
+	BYTE_4D BYTE_89 BYTE_D8 ;; no — let me re-do
+	;; Instead: mov rax, r11; add rax, rcx; movzx edx2, byte [rax]
+	BYTE_4C BYTE_89 BYTE_D8                       ; mov rax, r11
+	BYTE_48 BYTE_01 BYTE_C8                       ; add rax, rcx
+	;; movzx eax, byte [rax]
+	BYTE_0F BYTE_B6 BYTE_00
+	;; cmp dl, al
+	BYTE_38 BYTE_C2
+	jne %PP_no_match
+	;; inc rcx, loop
+	BYTE_48 BYTE_FF BYTE_C1
+	jmp %PP_cmp_loop
+
+:PP_no_match
+	;; inc rbx, restart pattern
+	BYTE_48 BYTE_FF BYTE_C3
+	jmp %PP_loop
+
+:PP_matched
+	;; rbx points to first opcode byte.  disp at [r9 + rbx + r12].
+	;; Read 4 bytes LE signed.
+	;; mov rax, r9; add rax, rbx; add rax, r12
+	BYTE_4C BYTE_89 BYTE_C8
+	BYTE_48 BYTE_01 BYTE_D8
+	BYTE_4C BYTE_01 BYTE_E0
+	;; movsxd rcx, dword [rax]   (48 63 08)
+	BYTE_48 BYTE_63 BYTE_08
+	;; next_instruction = BASE + rbx + r12 + 4
+	;; mov rdx, rbx
+	BYTE_48 BYTE_89 BYTE_DA
+	BYTE_4C BYTE_01 BYTE_E2                       ; add rdx, r12
+	;; add rdx, 4
+	BYTE_48 BYTE_83 BYTE_C2 BYTE_04
+	;; add rdx, 0x600000 (BASE)
+	BYTE_48 BYTE_81 BYTE_C2 BYTE_00 BYTE_00 BYTE_60 BYTE_00
+	;; target = next_instruction + disp
+	;; add rcx, rdx
+	BYTE_48 BYTE_01 BYTE_D1
+	;; if target < static_vm, skip
+	;; cmp rcx, r13
+	BYTE_4C BYTE_39 BYTE_E9
+	jl %PP_skip_patch
+	;; if target >= static_vm + static_length, skip
+	;; mov rdi, r13
+	BYTE_4C BYTE_89 BYTE_EF
+	;; add rdi, r15
+	BYTE_4C BYTE_01 BYTE_FF
+	;; cmp rcx, rdi
+	BYTE_48 BYTE_39 BYTE_F9
+	jge %PP_skip_patch
+
+	;; new_target = data_vm + (target - static_vm)
+	;; sub rcx, r13
+	BYTE_4C BYTE_29 BYTE_E9
+	;; add rcx, r14
+	BYTE_4C BYTE_01 BYTE_F1
+	;; new_disp = new_target - next_instruction (rdx)
+	;; sub rcx, rdx
+	BYTE_48 BYTE_29 BYTE_D1
+	;; Write low 32 bits of rcx at [rax] (already addr = disp pos)
+	;; mov [rax], ecx
+	BYTE_89 BYTE_08
+
+:PP_skip_patch
+	;; Advance past this match: rbx += opcode_len + 4
+	BYTE_4C BYTE_01 BYTE_E3                       ; add rbx, r12
+	BYTE_48 BYTE_83 BYTE_C3 BYTE_04                 ; add rbx, 4
+	jmp %PP_loop
+
+:PP_done
+	pop_r15
+	pop_r14
+	pop_r13
+	pop_r12
+	pop_rbx
+	ret
+
+## ===========================================================================
+## FUNCTION_print_hex64(rdi=val) — prints val as 16 hex digits + "\n"
+##   to stderr.  Mirrors elf64-to-m1.M1's helper.
+## ===========================================================================
+:FUNCTION_print_hex64
+	;; sub rsp, 32
+	BYTE_48 BYTE_83 BYTE_EC BYTE_20
+	;; mov rsi, rsp
+	BYTE_48 BYTE_89 BYTE_E6
+	mov_rcx, BYTE_10 BYTE_00 BYTE_00 BYTE_00
+:PHEX_loop
+	;; rol rdi, 4
+	BYTE_48 BYTE_C1 BYTE_C7 BYTE_04
+	;; mov al, dil
+	BYTE_40 BYTE_88 BYTE_F8
+	;; and al, 0x0f
+	BYTE_24 BYTE_0F
+	;; cmp al, 0x0a
+	BYTE_3C BYTE_0A
+	jl %PHEX_digit
+	;; add al, 0x57
+	BYTE_04 BYTE_57
+	jmp %PHEX_emit
+:PHEX_digit
+	BYTE_04 BYTE_30
+:PHEX_emit
+	BYTE_88 BYTE_06
+	BYTE_48 BYTE_FF BYTE_C6
+	BYTE_48 BYTE_FF BYTE_C9
+	BYTE_48 BYTE_85 BYTE_C9
+	jne %PHEX_loop
+	;; mov byte [rsi], 0x0a
+	BYTE_C6 BYTE_06 BYTE_0A
+	mov_rdi, BYTE_02 BYTE_00 BYTE_00 BYTE_00
+	BYTE_48 BYTE_89 BYTE_E6
+	mov_rdx, BYTE_11 BYTE_00 BYTE_00 BYTE_00
+	mov_rax, BYTE_04 BYTE_00 BYTE_00 BYTE_02
+	syscall
+	BYTE_48 BYTE_83 BYTE_C4 BYTE_20
+	ret
+
+## ===========================================================================
+## DATA
+## ===========================================================================
+:DATA_msg_notimpl
+	"macho-patcher: not yet implemented\n"
+:DATA_msg_loaded
+	"macho-patcher: files loaded\n"
+:DATA_msg_usage
+	"usage: macho-patcher (m2-segments|data-relocs) <source.hex2> <binary>\n"
+:DATA_msg_open_failed
+	"open failed (errno)\n"
+:DATA_mode_m2
+	"m2-segments"
+	BYTE_00
+:DATA_mode_relocs
+	"data-relocs"
+	BYTE_00
+:DATA_msg_static_offset
+	"static_offset: "
+:DATA_lbl_elf_data
+	":ELF_data"
+	BYTE_00
+:DATA_lbl_hex2_data
+	":HEX2_data"
+	BYTE_00
+:DATA_lbl_global
+	":GLOBAL_"
+	BYTE_00
+:DATA_lbl_string
+	":STRING_"
+	BYTE_00
+:DATA_lbl_under_string
+	":_string_"
+	BYTE_00
+:DATA_op_488d05
+	BYTE_48 BYTE_8D BYTE_05                       ; lea rax, [rip+disp32]
+
+## Opcode table — 32 entries × 4 bytes each (3-byte opcodes use bytes
+## [0..2] + 1 zero pad; 2-byte opcodes use bytes [2..3] + 2 zero pads).
+## Order matches tools/phase5-amd64-m2.py's patch_binary opcode list.
+:DATA_opcode_table
+	BYTE_48 BYTE_8D BYTE_05 BYTE_00   ; lea rax, [rip+disp]
+	BYTE_48 BYTE_8D BYTE_1D BYTE_00   ; lea rbx
+	BYTE_48 BYTE_8D BYTE_0D BYTE_00   ; lea rcx
+	BYTE_48 BYTE_8D BYTE_15 BYTE_00   ; lea rdx
+	BYTE_48 BYTE_8D BYTE_35 BYTE_00   ; lea rsi
+	BYTE_48 BYTE_8D BYTE_3D BYTE_00   ; lea rdi
+	BYTE_4C BYTE_8D BYTE_05 BYTE_00   ; lea r8
+	BYTE_4C BYTE_8D BYTE_0D BYTE_00   ; lea r9
+	BYTE_4C BYTE_8D BYTE_15 BYTE_00   ; lea r10
+	BYTE_4C BYTE_8D BYTE_1D BYTE_00   ; lea r11
+	BYTE_48 BYTE_8B BYTE_05 BYTE_00   ; mov rax, [rip+disp]
+	BYTE_48 BYTE_8B BYTE_1D BYTE_00   ; mov rbx
+	BYTE_48 BYTE_8B BYTE_0D BYTE_00   ; mov rcx
+	BYTE_48 BYTE_8B BYTE_15 BYTE_00   ; mov rdx
+	BYTE_48 BYTE_8B BYTE_35 BYTE_00   ; mov rsi
+	BYTE_48 BYTE_8B BYTE_3D BYTE_00   ; mov rdi
+	BYTE_4C BYTE_8B BYTE_05 BYTE_00   ; mov r8
+	BYTE_4C BYTE_8B BYTE_0D BYTE_00   ; mov r9
+	BYTE_4C BYTE_8B BYTE_15 BYTE_00   ; mov r10
+	BYTE_4C BYTE_8B BYTE_1D BYTE_00   ; mov r11
+	BYTE_48 BYTE_89 BYTE_05 BYTE_00   ; mov [rip+disp], rax
+	BYTE_48 BYTE_89 BYTE_1D BYTE_00   ; mov [rip+disp], rbx
+	BYTE_48 BYTE_89 BYTE_0D BYTE_00   ; mov [rip+disp], rcx
+	BYTE_48 BYTE_89 BYTE_15 BYTE_00   ; mov [rip+disp], rdx
+	BYTE_48 BYTE_89 BYTE_35 BYTE_00   ; mov [rip+disp], rsi
+	BYTE_48 BYTE_89 BYTE_3D BYTE_00   ; mov [rip+disp], rdi
+	BYTE_4C BYTE_89 BYTE_05 BYTE_00   ; mov [rip+disp], r8
+	BYTE_4C BYTE_89 BYTE_0D BYTE_00   ; mov [rip+disp], r9
+	BYTE_4C BYTE_89 BYTE_15 BYTE_00   ; mov [rip+disp], r10
+	BYTE_4C BYTE_89 BYTE_1D BYTE_00   ; mov [rip+disp], r11
+	BYTE_00 BYTE_00 BYTE_88 BYTE_05   ; mov [rip+disp], al  (2-byte: bytes [2..3])
+	BYTE_00 BYTE_00 BYTE_8A BYTE_05   ; mov al, [rip+disp]  (2-byte: bytes [2..3])
+
+:DATA_opcode_lens
+	BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03
+	BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03
+	BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03 BYTE_03
+	BYTE_02 BYTE_02
+:DATA_msg_binsize
+	"binary_size: "
+:DATA_msg_lseek
+	"lseek: "
+:DATA_dbg_a
+	"A\n "
+:DATA_dbg_b
+	"B\n "
+:DATA_dbg_c
+	"C\n "
+:DATA_dbg_d
+	"D\n "
+:DATA_dbg_mmap
+	"mmap: "

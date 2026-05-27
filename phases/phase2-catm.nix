@@ -9,14 +9,15 @@ with args;
         dontStrip = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
 
-          # Port upstream catm to Darwin via bash+sed+perl.
-          ${root + "/scripts/stage0/port-catm-darwin.sh"} ${stage0Sources} \
-            catm_AMD64_darwin_body.hex2
+          # Use the committed pre-ported Darwin source.  Maintainer
+          # regenerates via scripts/stage0/regen-preported.sh whenever
+          # stage0Sources is bumped; build-time has no awk/perl/python.
+          cp ${root + "/M2libc/amd64/catm_AMD64_darwin_body.hex2"} catm_AMD64_darwin_body.hex2
 
           # Assemble header + body separately via phase2-hex2, then cat them
           # and pad to data_end / linkedit_offset.  Mirrors what the removed
