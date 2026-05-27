@@ -1,6 +1,5 @@
 args:
 with args;
-    if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-phase35-gcc-${gcc46Version}-all-gcc-amd64" {
         nativeBuildInputs = [ perl ];
       } ''
@@ -184,5 +183,3 @@ C
         cp -R src $out/share/darwin-bootstrap/work/src
         cp -R build $out/share/darwin-bootstrap/work/build
       ''
-    else
-      null

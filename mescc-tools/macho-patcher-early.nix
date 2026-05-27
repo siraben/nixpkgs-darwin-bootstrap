@@ -20,64 +20,61 @@
 ## requires phase5-m2 → phase4-cc-arch — the cycle this phase avoids).
 args:
 with args;
-    if hostPlatform.isx86_64 then
-      stdenv.mkDerivation {
-        pname = "darwin-minimal-bootstrap-phase11e-macho-patcher-early-amd64";
-        version = "0-unstable-2026-05-07";
+stdenv.mkDerivation {
+  pname = "darwin-minimal-bootstrap-phase11e-macho-patcher-early-amd64";
+  version = "0-unstable-2026-05-07";
 
-        dontUnpack = true;
-        dontStrip = true;
-        strictDeps = true;
+  dontUnpack = true;
+  dontStrip = true;
+  strictDeps = true;
 
-        nativeBuildInputs = [ ];
+  nativeBuildInputs = [ ];
 
-        buildPhase = ''
-          runHook preBuild
+  buildPhase = ''
+    runHook preBuild
 
-          ## Use the committed M0-form of macho-patcher (canonical source
-          ## tools/macho-patcher.M1 uses M1-only `!0xXX`/`%0xNNN` shortcuts
-          ## that M0 doesn't parse; the M0-form expands them to BYTE_XX
-          ## macros from amd64_byte_defs.M1).  Maintainer regenerates via
-          ## scripts/stage0/regen-preported.sh whenever macho-patcher.M1
-          ## changes; build-time has no awk/perl/python here.
+    ## Use the committed M0-form of macho-patcher (canonical source
+    ## tools/macho-patcher.M1 uses M1-only `!0xXX`/`%0xNNN` shortcuts
+    ## that M0 doesn't parse; the M0-form expands them to BYTE_XX
+    ## macros from amd64_byte_defs.M1).  Maintainer regenerates via
+    ## scripts/stage0/regen-preported.sh whenever macho-patcher.M1
+    ## changes; build-time has no awk/perl/python here.
 
-          ${phase2-catm}/bin/catm-darwin combined.M0 \
-            ${root + "/M2libc/amd64/amd64_defs.M1"} \
-            ${root + "/M2libc/amd64/amd64_byte_defs.M1"} \
-            ${root + "/tools/macho-patcher-m0.M1"}
+    ${phase2-catm}/bin/catm-darwin combined.M0 \
+      ${root + "/M2libc/amd64/amd64_defs.M1"} \
+      ${root + "/M2libc/amd64/amd64_byte_defs.M1"} \
+      ${root + "/tools/macho-patcher-m0.M1"}
 
-          ${phase3-m0}/bin/M0-darwin combined.M0 combined.hex2
+    ${phase3-m0}/bin/M0-darwin combined.M0 combined.hex2
 
-          ## phase2-hex2-darwin takes positional args only (no -f, no
-          ## --base-address) — pre-concatenate template + body with catm.
-          ## MACHO-amd64.hex2 already encodes base=0x1000000 inline; no
-          ## flag needed.  Verified byte-identical to phase26g output
-          ## (which uses phase10-hex2 -f -f --base-address 0x1000000).
-          ${phase2-catm}/bin/catm-darwin final.hex2 \
-            ${root + "/M2libc/amd64/MACHO-amd64.hex2"} \
-            combined.hex2
+    ## phase2-hex2-darwin takes positional args only (no -f, no
+    ## --base-address) — pre-concatenate template + body with catm.
+    ## MACHO-amd64.hex2 already encodes base=0x1000000 inline; no
+    ## flag needed.  Verified byte-identical to phase26g output
+    ## (which uses phase10-hex2 -f -f --base-address 0x1000000).
+    ${phase2-catm}/bin/catm-darwin final.hex2 \
+      ${root + "/M2libc/amd64/MACHO-amd64.hex2"} \
+      combined.hex2
 
-          ${phase2-hex2}/bin/hex2-darwin final.hex2 macho-patcher
+    ${phase2-hex2}/bin/hex2-darwin final.hex2 macho-patcher
 
-          linkeditOffset="$((0x800000 + 0x2000000))"
-          dd if=/dev/zero of=macho-patcher bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
-          chmod +x macho-patcher
+    linkeditOffset="$((0x800000 + 0x2000000))"
+    dd if=/dev/zero of=macho-patcher bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+    chmod +x macho-patcher
 
-          runHook postBuild
-        '';
+    runHook postBuild
+  '';
 
-        installPhase = ''
-          runHook preInstall
-          install -Dm755 macho-patcher $out/bin/macho-patcher
-          install -Dm644 combined.M0 $out/share/darwin-bootstrap/combined.M0
-          install -Dm644 combined.hex2 $out/share/darwin-bootstrap/combined.hex2
-          runHook postInstall
-        '';
+  installPhase = ''
+    runHook preInstall
+    install -Dm755 macho-patcher $out/bin/macho-patcher
+    install -Dm644 combined.M0 $out/share/darwin-bootstrap/combined.M0
+    install -Dm644 combined.hex2 $out/share/darwin-bootstrap/combined.hex2
+    runHook postInstall
+  '';
 
-        meta = {
-          description = "Darwin Mach-O macho-patcher (m2-segments mode), assembled via M0+phase2-hex2 — bypasses phase5-m2 dependency cycle";
-          platforms = [ "x86_64-darwin" ];
-        };
-      }
-    else
-      null
+  meta = {
+    description = "Darwin Mach-O macho-patcher (m2-segments mode), assembled via M0+phase2-hex2 — bypasses phase5-m2 dependency cycle";
+    platforms = [ "x86_64-darwin" ];
+  };
+}

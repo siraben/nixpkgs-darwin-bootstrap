@@ -1,6 +1,5 @@
 args:
 with args;
-    if hostPlatform.isx86_64 then
       stdenv.mkDerivation {
         pname = "darwin-minimal-bootstrap-phase11b-m1-to-hex2-amd64";
         version = "0-unstable-2026-05-07";
@@ -100,5 +99,3 @@ M1
           platforms = [ "x86_64-darwin" ];
         };
       }
-    else
-      null

@@ -1,28 +1,25 @@
 args:
 with args;
-    if hostPlatform.isx86_64 then
-      runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
-        mkdir -p $out/share/darwin-bootstrap
+runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
+  mkdir -p $out/share/darwin-bootstrap
 
-        ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \
-          ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
-          tcc-from-elf.M1
+  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \
+    ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
+    tcc-from-elf.M1
 
-        grep -q '^:main$' tcc-from-elf.M1
-        grep -q '^:tcc_new$' tcc-from-elf.M1
-        grep -q '^%memcpy$' tcc-from-elf.M1
-        grep -q '^%vsnprintf$' tcc-from-elf.M1
-        grep -q '^:ELF_data$' tcc-from-elf.M1
+  grep -q '^:main$' tcc-from-elf.M1
+  grep -q '^:tcc_new$' tcc-from-elf.M1
+  grep -q '^%memcpy$' tcc-from-elf.M1
+  grep -q '^%vsnprintf$' tcc-from-elf.M1
+  grep -q '^:ELF_data$' tcc-from-elf.M1
 
-        ${phase9-m1}/bin/M1 \
-          --architecture amd64 \
-          --little-endian \
-          -f tcc-from-elf.M1 \
-          -o tcc-from-elf.hex2
+  ${phase9-m1}/bin/M1 \
+    --architecture amd64 \
+    --little-endian \
+    -f tcc-from-elf.M1 \
+    -o tcc-from-elf.hex2
 
-        test -s tcc-from-elf.hex2
+  test -s tcc-from-elf.hex2
 
-        cp tcc-from-elf.M1 tcc-from-elf.hex2 $out/share/darwin-bootstrap/
-      ''
-    else
-      null
+  cp tcc-from-elf.M1 tcc-from-elf.hex2 $out/share/darwin-bootstrap/
+''
