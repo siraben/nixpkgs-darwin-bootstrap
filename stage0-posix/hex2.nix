@@ -1,32 +1,43 @@
+## phase2-hex2 — seed-built Darwin Mach-O hex2 linker.
+##
+## Built purely by hex0 acting as `derivation.builder`.  Padding to the
+## LINKEDIT vmaddr (0x1800000) is baked directly into
+## hex0/sources/hex2_AMD64_darwin.hex0, so no post-process dd is needed
+## and the output runs unsigned in the Nix sandbox on x86_64.
 {
-  darwin,
   hex0,
+  hostPlatform,
   mkDarwin,
-  phase2-hex2,
   root,
-  source,
   ...
 }:
+
+let
+  hex2-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "phase2-hex2-raw";
+        system = "x86_64-darwin";
+        builder = hex0.hex0-raw;
+        args = [
+          (root + "/hex0/sources/hex2_AMD64_darwin.hex0")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-uRpXlPsIo5ONkwyBAKMOv1tamZYuOCwcYZypykDD9Ec=";
+      }
+    else
+      null;
+in
+
 mkDarwin {
   pname = "phase2-hex2";
+  version = "0-unstable-2026-05-27";
+
   buildPhase = ''
     runHook preBuild
-
-    ## Assemble the committed hand-rolled hex0 source for the
-    ## Darwin-ported hex2 linker.  See hex0/sources/hex2_AMD64_darwin.hex0
-    ## for sections (Mach-O header with __DATA size 0x1000000,
-    ## ported body with disps baked in).  Build-time: no perl/awk.
-    ${hex0}/bin/hex0 \
-      ${root + "/hex0/sources/hex2_AMD64_darwin.hex0"} \
-      hex2-darwin
-
-    ## Pad to LINKEDIT offset (file offset 0x1800000 = 25165824).
-    dd if=/dev/zero of=hex2-darwin bs=1 count=1 seek=25165823 conv=notrunc
-    chmod +x hex2-darwin
-
-    source ${darwin.signingUtils}
-    sign hex2-darwin
-
+    install -m755 ${hex2-raw} hex2-darwin
     runHook postBuild
   '';
 
@@ -53,7 +64,9 @@ mkDarwin {
     runHook postInstall
   '';
 
+  passthru = { inherit hex2-raw; };
+
   meta = {
-    description = "Runnable signed Darwin Mach-O phase-2 AMD64 hex2";
+    description = "Seed-built Darwin Mach-O phase-2 AMD64 hex2 (no clang in trust path)";
   };
 }

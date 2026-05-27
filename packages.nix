@@ -126,7 +126,7 @@ let
     : > config.h
   '';
 
-  hex0 = import ./stage0-posix/hex0.nix { inherit lib root stdenv supportedSystems tests; };
+  hex0 = import ./stage0-posix/hex0.nix { inherit hostPlatform lib root stdenv supportedSystems tests; };
 
   m2libc-darwin = runCommand "darwin-minimal-bootstrap-m2libc" { } ''
     mkdir -p $out
@@ -168,7 +168,6 @@ let
 
   phaseDefs = {
     ## stage0-posix — hex0 through kaem (phases 1-11)
-    hex0-from-seed               = callPhase ./stage0-posix/hex0-from-seed.nix;
     phase1-hex1                  = callPhase ./stage0-posix/hex1.nix;
     phase2-hex2                  = callPhase ./stage0-posix/hex2.nix;
     phase2-catm                  = callPhase ./stage0-posix/catm.nix;

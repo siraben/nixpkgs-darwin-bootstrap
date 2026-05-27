@@ -1,26 +1,50 @@
 ## hex0 — the Darwin-bootstrap seed assembler.
 ##
-## The smallest tool in the chain.  Builds from hand-written hex0
-## source (hex0/hex0-amd64-darwin.hex0 + a 100-line C materializer
-## that bootstraps it via $CC).  Once compiled, hex0 self-hosts: it
-## re-assembles itself from its own .hex0 source and the build verifies
-## byte-identity (`cmp hex0 hex0-self`).
+## The smallest tool in the chain.  Built by a 4 KB committed Mach-O
+## seed (`hex0/seed/hex0-amd64-darwin`) acting as the Nix `builder`.  No
+## stdenv, no clang, no bootstrap-tools is involved in producing the
+## hex0 binary itself.
 ##
-## Notes:
-##   - Not wrapped by mkDarwin because it's the only stage0 phase that
-##     needs an actual src (hex0/ directory) and stdenv's unpackPhase.
-##   - passthru.tests reaches into the top-level tests scope via the
-##     `tests` argument to expose `nix build .#hex0.tests.converts-hex`.
+## The seed is verified self-hosting: feeding the seed back its own
+## .hex0 source produces a byte-identical seed (outputHash pins this).
+##
+## We then wrap the raw-output hex0 derivation in a small stdenv layer
+## that installs the binary at $out/bin/hex0 and ships the source
+## under $out/share/darwin-bootstrap so existing downstream phases that
+## use `${hex0}/bin/hex0` and `${hex0}/share/...` keep resolving.  The
+## stdenv wrapper does NOT recompile hex0; it only copies bytes.
 {
+  hostPlatform,
   lib,
   root,
   stdenv,
   supportedSystems,
   tests,
 }:
+
+let
+  ## --- raw seed-as-builder hex0 (no stdenv) ---
+  hex0-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "hex0-raw";
+        system = "x86_64-darwin";
+        builder = root + "/hex0/seed/hex0-amd64-darwin";
+        args = [
+          (root + "/hex0/hex0-amd64-darwin.hex0")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-HPEKGGeQG+NhM+CL6HIOVSBnmb6oXbPEpOXo4ftqyGk=";
+      }
+    else
+      null;
+in
+
 stdenv.mkDerivation {
   pname = "hex0";
-  version = "0-unstable-2026-05-17";
+  version = "0-unstable-2026-05-27";
 
   src = ../hex0;
   strictDeps = true;
@@ -28,10 +52,9 @@ stdenv.mkDerivation {
 
   buildPhase = ''
     runHook preBuild
-    $CC $CFLAGS -o hex0-materializer hex0.c
-    ./hex0-materializer hex0-amd64-darwin.hex0 hex0
-    chmod +x hex0
 
+    ## Take the seed-built hex0 verbatim (no compilation here).
+    install -m755 ${hex0-raw} hex0
     ./hex0 hex0-amd64-darwin.hex0 hex0-self
     cmp hex0 hex0-self
 
@@ -52,12 +75,15 @@ stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Darwin hex0 assembler for minimal bootstrap experiments";
+    description = "Darwin hex0 assembler (seed-built, no clang in trust path)";
     teams = [ lib.teams.minimal-bootstrap ];
     platforms = supportedSystems;
   };
 
-  passthru.tests = {
-    converts-hex = tests.hex0-converts-hex;
+  passthru = {
+    inherit hex0-raw;
+    tests = {
+      converts-hex = tests.hex0-converts-hex;
+    };
   };
 }
