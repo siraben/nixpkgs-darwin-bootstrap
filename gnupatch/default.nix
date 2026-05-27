@@ -1,5 +1,10 @@
-args:
-with args;
+{
+  runCommand,
+  gnupatchVersion,
+  gnupatchTarball,
+  phase34-tinycc-darwin-cc,
+  ...
+}:
 runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 

@@ -1,5 +1,17 @@
-args:
-with args;
+{
+  runCommand,
+  lib,
+  source,
+  cctools,
+  coreutilsVersion,
+  coreutilsTarball,
+  coreutilsMakefile,
+  coreutilsPatches,
+  phase34-tinycc-darwin-cc,
+  phase39-gnumake,
+  phase40-gnupatch,
+  ...
+}:
 runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 

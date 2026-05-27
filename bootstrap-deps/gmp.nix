@@ -1,5 +1,14 @@
-args:
-with args;
+{
+  runCommand,
+  perl,
+  apple-sdk,
+  cctools,
+  gnumake,
+  gccLatestGmpVersion,
+  gccLatestGmpTarball,
+  phase46-gcc-latest-bootstrap,
+  ...
+}:
 ##
 ## WIP — task #12 first attempt.
 ##

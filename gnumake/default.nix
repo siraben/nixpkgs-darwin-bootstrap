@@ -1,5 +1,12 @@
-args:
-with args;
+{
+  runCommand,
+  perl,
+  root,
+  gnumakeVersion,
+  gnumakeTarball,
+  phase34-tinycc-darwin-cc,
+  ...
+}:
 runCommand "phase39-gnumake-${gnumakeVersion}" {
   nativeBuildInputs = [ perl ];
 } ''

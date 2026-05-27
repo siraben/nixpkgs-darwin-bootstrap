@@ -1,5 +1,16 @@
-args:
-with args;
+{
+  runCommand,
+  perl,
+  apple-sdk,
+  cctools,
+  gnumake,
+  gccModernMpcVersion,
+  gccModernMpcTarball,
+  phase26c-bootstrap-gmp,
+  phase26d-bootstrap-mpfr,
+  phase46-gcc-latest-bootstrap,
+  ...
+}:
 let
   version = gccModernMpcVersion;
   tarball = gccModernMpcTarball;
