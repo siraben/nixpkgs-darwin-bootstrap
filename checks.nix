@@ -1,7 +1,7 @@
 args:
 with args;
 {
-  hex0-converts-hex = runCommand "darwin-minimal-bootstrap-hex0-converts-hex" { } ''
+  hex0-converts-hex = runCommand "hex0-converts-hex" { } ''
     cat > input.hex0 <<'HEX'
       68 65 6c 6c 6f 0a ; hello newline
     HEX
@@ -12,13 +12,13 @@ with args;
     mkdir $out
   '';
 
-  raw-syscall-hello-runs = runCommand "darwin-minimal-bootstrap-raw-syscall-hello-runs" { } ''
+  raw-syscall-hello-runs = runCommand "raw-syscall-hello-runs" { } ''
     output="$(${raw-syscall-hello}/bin/raw-syscall-hello)"
     test "$output" = "hello darwin"
     mkdir $out
   '';
 
-  xcode-signing-bridge = runCommand "darwin-minimal-bootstrap-xcode-signing-bridge" { } ''
+  xcode-signing-bridge = runCommand "xcode-signing-bridge" { } ''
     source ${darwin.signingUtils}
 
     cp ${raw-syscall-hello-unsigned}/bin/raw-syscall-hello ./raw-syscall-hello
@@ -30,11 +30,124 @@ with args;
     mkdir $out
   '';
 
-  m2libc-darwin-smoke = m2libcDarwinSmoke;
+  ## Confirm M2libc/{amd64,aarch64} are properly ported to Darwin syscalls.
+  ## Pure grep-based check; fast.
+  m2libc-darwin-smoke = runCommand "m2libc-darwin-smoke" { } ''
+    for source in ${./M2libc + "/aarch64/Darwin/bootstrap.c"} ${./M2libc + "/aarch64/libc-core-Darwin.M1"}; do
+      if grep -q 'mov_x8,' "$source"; then
+        echo "$source still uses the Linux aarch64 syscall register" >&2
+        exit 1
+      fi
+    done
 
-  macho-template-hello-runs = machoTemplateHelloRuns;
+    if grep -q 'ldr_x0,\[x18\]' ${./M2libc + "/aarch64/libc-core-Darwin.M1"}; then
+      echo "aarch64 Darwin startup still reads argc from the Linux initial stack" >&2
+      exit 1
+    fi
+    grep -q 'mov_x14,x0' ${./M2libc + "/aarch64/libc-core-Darwin.M1"}
+    grep -q 'mov_x15,x1' ${./M2libc + "/aarch64/libc-core-Darwin.M1"}
+    grep -q 'DEFINE svc_0 011000d4' ${./M2libc + "/aarch64/aarch64_defs.M1"}
 
-  stage0-posix-phase-graph = runCommand "darwin-minimal-bootstrap-stage0-posix-phase-graph" { } ''
+    for source in ${./M2libc + "/amd64/Darwin/bootstrap.c"} ${./M2libc + "/amd64/libc-core-Darwin.M1"}; do
+      if grep -q 'mov_rax, %0x3C\|mov_rax, %[0-9][^x]' "$source"; then
+        echo "$source still uses an unclassified Linux syscall number" >&2
+        exit 1
+      fi
+    done
+
+    for token in \
+      'mov_x16,1' \
+      'mov_x16,3' \
+      'mov_x16,4' \
+      'mov_x16,5' \
+      'mov_x16,6' \
+      'mov_x16,17'
+    do
+      grep -q "DEFINE $token " ${./M2libc + "/aarch64/aarch64_defs.M1"}
+    done
+
+    for source in \
+      ${./M2libc + "/aarch64/MACHO-aarch64.hex2"} \
+      ${./M2libc + "/amd64/MACHO-amd64.hex2"}
+    do
+      grep -q ':MACHO_base' "$source"
+      grep -q ':MACHO_text' "$source"
+      grep -q '2f 75 73 72 2f 6c 69 62' "$source"
+      grep -q '6c 69 62 53 79 73 74' "$source"
+    done
+
+    mkdir $out
+  '';
+
+  ## Build a tiny hello world via the MACHO-${arch}.hex2 template + the
+  ## C hex2 linker from upstream stage0, sign it, and run it.  Verifies
+  ## that our committed Mach-O templates are still well-formed Mach-O
+  ## that LC_MAIN can launch.
+  macho-template-hello-runs = stdenv.mkDerivation {
+    name = "macho-template-hello-runs";
+
+    dontUnpack = true;
+    strictDeps = true;
+
+    buildPhase = ''
+      runHook preBuild
+
+      $CC -I${stage0Sources} -o hex2 \
+        ${stage0Sources}/M2libc/bootstrappable.c \
+        ${stage0Sources}/mescc-tools/hex2_linker.c \
+        ${stage0Sources}/mescc-tools/hex2_word.c \
+        ${stage0Sources}/mescc-tools/hex2.c
+
+      ${lib.optionalString hostPlatform.isAarch64 ''
+        cat > hello.hex2 <<'HEX2'
+        :_start
+        20 00 80 d2
+        01 00 00 90
+        21 b0 0b 91
+        a2 01 80 d2
+        90 00 80 d2
+        01 10 00 d4
+        00 00 80 d2
+        30 00 80 d2
+        01 10 00 d4
+        :message
+        68 65 6c 6c 6f 20 64 61 72 77 69 6e 0a
+        :ELF_end
+        HEX2
+
+        ./hex2 --architecture aarch64 --little-endian \
+          --base-address 0x100000000 \
+          -f ${./M2libc + "/aarch64/MACHO-aarch64.hex2"} \
+          -f hello.hex2 \
+          -o hello
+
+        currentSize="$(wc -c < hello | tr -d ' ')"
+        if [ "$currentSize" -gt 16777216 ]; then
+          echo "Mach-O template __LINKEDIT offset is before end of text" >&2
+          exit 1
+        fi
+
+        dd if=/dev/zero of=hello bs=1 count=1 seek=16777215 conv=notrunc
+        chmod +x hello
+
+        source ${darwin.signingUtils}
+        sign hello
+
+        output="$(./hello)"
+        test "$output" = "hello darwin"
+      ''}
+
+      runHook postBuild
+    '';
+
+    installPhase = ''
+      runHook preInstall
+      mkdir $out
+      runHook postInstall
+    '';
+  };
+
+  stage0-posix-phase-graph = runCommand "stage0-posix-phase-graph" { } ''
     test ${lib.escapeShellArg (toString stage0-posix.sameLengthAsLinuxMesccToolsBoot)} = 1
     test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 3
     test ${lib.escapeShellArg stage0-posix.m2libcOS} = Darwin
