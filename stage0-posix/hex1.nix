@@ -24,6 +24,12 @@ with args;
           source ${darwin.signingUtils}
           sign hex1-darwin
 
+          runHook postBuild
+        '';
+
+        doCheck = true;
+        checkPhase = ''
+          runHook preCheck
           cat > input.hex1 <<'HEX1'
           48 69 0a
           HEX1
@@ -45,8 +51,7 @@ with args;
           printf '\xfc\xff\xff\xff' > pointer-expected
           ./hex1-darwin pointer.hex1 pointer-output
           cmp pointer-expected pointer-output
-
-          runHook postBuild
+          runHook postCheck
         '';
 
         installPhase = ''

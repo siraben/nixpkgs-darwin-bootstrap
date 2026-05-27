@@ -42,6 +42,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign M2-darwin
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     set +e
     ./M2-darwin > no-input.stdout 2> no-input.stderr
     status="$?"
@@ -57,8 +63,7 @@ mkDarwin {
     C
     ./M2-darwin -f trivial.c -o trivial.M1
     grep -q ':FUNCTION_main' trivial.M1
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

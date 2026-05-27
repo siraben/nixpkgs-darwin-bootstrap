@@ -61,6 +61,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign M2-Planet
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     ./M2-Planet --help > help.stdout 2> help.stderr
     grep -q 'Usage: M2-Planet' help.stdout
 
@@ -69,8 +75,7 @@ mkDarwin {
     C
     ./M2-Planet -f trivial.c -o trivial.M1
     grep -q ':FUNCTION_main' trivial.M1
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

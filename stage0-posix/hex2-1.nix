@@ -52,6 +52,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign hex2-1
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     ./hex2-1 --help > help.stdout 2> help.stderr
     cat help.stdout help.stderr > help.combined
     grep -q 'Usage:' help.combined
@@ -70,8 +76,7 @@ mkDarwin {
       -f mini.hex2 \
       -o mini
     test -s mini
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

@@ -55,6 +55,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign kaem
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     ./kaem --help > help.stdout 2> help.stderr
     cat help.stdout help.stderr > help.combined
     grep -q 'Usage:' help.combined
@@ -64,8 +70,7 @@ mkDarwin {
     KAEM
     output="$(./kaem --init-mode -f smoke.kaem)"
     test "$output" = "hello"
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

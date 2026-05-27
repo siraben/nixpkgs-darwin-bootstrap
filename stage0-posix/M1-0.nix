@@ -37,6 +37,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign M1-0
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     ./M1-0 --help > help.stdout 2> help.stderr
     grep -q 'Usage:' help.stderr
 
@@ -48,8 +54,7 @@ mkDarwin {
     ./M1-0 --architecture amd64 --little-endian -f mini.M1 -o mini.hex2
     grep -q ':foo' mini.hex2
     grep -q 'C3' mini.hex2
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

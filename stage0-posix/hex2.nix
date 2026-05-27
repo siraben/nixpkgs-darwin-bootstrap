@@ -20,6 +20,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign hex2-darwin
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     cat > labels.hex2 <<'HEX2'
     :hello
     48 69 0a
@@ -35,8 +41,7 @@ mkDarwin {
     printf '\xfc\xff\xff\xff' > pointer-expected
     ./hex2-darwin pointer.hex2 pointer-output
     cmp pointer-expected pointer-output
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

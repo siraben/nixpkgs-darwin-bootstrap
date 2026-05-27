@@ -33,13 +33,18 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign catm-darwin
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     printf foo > a
     printf bar > b
     printf foobar > expected
     ./catm-darwin output a b
     cmp expected output
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''

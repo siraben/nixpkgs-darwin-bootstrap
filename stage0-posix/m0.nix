@@ -30,6 +30,12 @@ mkDarwin {
     source ${darwin.signingUtils}
     sign M0-darwin
 
+    runHook postBuild
+  '';
+
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
     cat > smoke.M1 <<'M1'
     :foo
     "AB"
@@ -42,8 +48,7 @@ mkDarwin {
     HEX2
     ./M0-darwin smoke.M1 smoke.hex2
     cmp expected smoke.hex2
-
-    runHook postBuild
+    runHook postCheck
   '';
 
   installPhase = ''
