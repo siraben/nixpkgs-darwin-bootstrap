@@ -453,72 +453,6 @@ let
     phase47-gcc-latest-strict-bootstrap = import ./gcc-latest/strict.nix (phaseContext // phaseDefs);
   };
 
-  inherit (phaseDefs)
-    phase1-hex1
-    phase2-hex2
-    phase2-catm
-    phase3-m0
-    phase4-cc-arch
-    phase5-m2
-    phase6-blood-macho-0
-    phase7-m1-0
-    phase8-hex2-1
-    phase9-m1
-    phase10-hex2
-    phase11-kaem
-    phase12-m2-planet
-    phase13-mes-source
-    phase14-mes-m2-probe
-    phase15-mes-macho-link-probe
-    phase16-mes-m2
-    phase17-mescc-macho-probe
-    phase18-mescc-libc-mini-probe
-    phase19-tinycc-mescc-m1-probe
-    phase20-mescc-libmescc-probe
-    phase21-mescc-libc-probe
-    phase22-mescc-libc-tcc-probe
-    phase23-tinycc-mescc-link-probe
-    phase24-tinycc-compile-probe
-    phase25-tinycc-self-object-probe
-    phase26-gcc46-source
-    phase26b-elf64-to-m1
-    phase26c-bootstrap-gmp
-    phase26d-bootstrap-mpfr
-    phase26e-bootstrap-mpc
-    phase26f-bootstrap-isl
-    phase26g-macho-patcher
-    phase11b-m1-to-hex2
-    phase11c-hex2-data-relocs
-    phase11d-cc-arch-helper
-    phase11e-macho-patcher-early
-    phase42-gcc10-source
-    phase43-gcc-latest-source
-    gcc46DarwinBootstrapSrc
-    phase35-gcc46-all-gcc
-    phase36-gcc46-libgcc
-    phase37-gcc46-bootstrap
-    phase27-tinycc-elf-to-macho-probe
-    phase28-tinycc-self-m1-probe
-    phase29-tinycc-sysv-libc-probe
-    phase30-tinycc-self-link-candidate
-    phase31-tinycc-self-compile-probe
-    phase32-tinycc-boot1-object-probe
-    phase33-tinycc-boot1-link-candidate
-    tinyccSelfObjectProbe
-    tinyccSelfLinkCandidate
-    phase35-tinycc-boot2-object-probe
-    phase36-tinycc-boot2-link-candidate
-    phase37-tinycc-boot3-object-probe
-    phase38-tinycc-boot3-link-candidate
-    phase34-tinycc-darwin-cc
-    phase39-gnumake
-    phase40-gnupatch
-    phase41-coreutils
-    phase44-gcc46-cxx-bootstrap
-    phase45-gcc10-bootstrap
-    phase46-gcc-latest-bootstrap
-    phase47-gcc-latest-strict-bootstrap
-    ;
   tinycc-m2-negative-probe = import ./tinycc/m2-negative-probe.nix (phaseContext // phaseDefs);
 
   gnuHello = import ./gnu-hello.nix (
@@ -548,7 +482,9 @@ let
       ;
   });
 in
-{
+## Splat all phase derivations + gnu-hello outputs into the returned set,
+## plus the few attrs that aren't part of phaseDefs/gnuHello.
+phaseDefs // gnuHello // {
   inherit
     hex0
     m2libc-darwin
@@ -556,72 +492,6 @@ in
     supportedSystems
     raw-syscall-hello
     raw-syscall-hello-unsigned
-    phase1-hex1
-    phase2-hex2
-    phase2-catm
-    phase3-m0
-    phase4-cc-arch
-    phase5-m2
-    phase6-blood-macho-0
-    phase7-m1-0
-    phase8-hex2-1
-    phase9-m1
-    phase10-hex2
-    phase11-kaem
-    phase12-m2-planet
-    phase13-mes-source
-    phase14-mes-m2-probe
-    phase15-mes-macho-link-probe
-    phase16-mes-m2
-    phase17-mescc-macho-probe
-    phase18-mescc-libc-mini-probe
-    phase19-tinycc-mescc-m1-probe
-    phase20-mescc-libmescc-probe
-    phase21-mescc-libc-probe
-    phase22-mescc-libc-tcc-probe
-    phase23-tinycc-mescc-link-probe
-    phase24-tinycc-compile-probe
-    phase25-tinycc-self-object-probe
-    phase26-gcc46-source
-    phase26b-elf64-to-m1
-    phase26c-bootstrap-gmp
-    phase26d-bootstrap-mpfr
-    phase26e-bootstrap-mpc
-    phase26f-bootstrap-isl
-    phase26g-macho-patcher
-    phase11b-m1-to-hex2
-    phase11c-hex2-data-relocs
-    phase11d-cc-arch-helper
-    phase11e-macho-patcher-early
-    phase42-gcc10-source
-    phase43-gcc-latest-source
-    gcc46DarwinBootstrapSrc
-    phase35-gcc46-all-gcc
-    phase36-gcc46-libgcc
-    phase37-gcc46-bootstrap
-    phase27-tinycc-elf-to-macho-probe
-    phase28-tinycc-self-m1-probe
-    phase29-tinycc-sysv-libc-probe
-    phase30-tinycc-self-link-candidate
-    phase31-tinycc-self-compile-probe
-    phase32-tinycc-boot1-object-probe
-    phase33-tinycc-boot1-link-candidate
-    phase34-tinycc-darwin-cc
-    phase35-tinycc-boot2-object-probe
-    phase36-tinycc-boot2-link-candidate
-    phase37-tinycc-boot3-object-probe
-    phase38-tinycc-boot3-link-candidate
-    phase39-gnumake
-    phase40-gnupatch
-    phase41-coreutils
-    phase44-gcc46-cxx-bootstrap
-    phase45-gcc10-bootstrap
-    phase46-gcc-latest-bootstrap
-    phase47-gcc-latest-strict-bootstrap
-    gnu-hello-gcc-latest-bootstrap
-    gnu-hello-gcc-latest-strict
-    gnu-hello-nixpkgs-gcc-latest
-    gnu-hello-hash-comparison
     tinycc-m2-negative-probe
     tinyccBootstrappableSrc
     tinyccMesSrc
