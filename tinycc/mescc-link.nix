@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase23-tinycc-mescc-link-probe-amd64" { } ''
+runCommand "phase23-tinycc-mescc-link-probe" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   split_m1() {

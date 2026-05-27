@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase47-gcc-${gccLatestVersion}-strict-amd64" {
+runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk

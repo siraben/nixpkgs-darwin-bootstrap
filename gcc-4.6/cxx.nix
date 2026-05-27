@@ -11,7 +11,7 @@
 ## incremental shortcut reduction once the speed problem is solved.
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase44-gcc-${gcc46Version}-cxx-amd64" {
+runCommand "phase44-gcc-${gcc46Version}-cxx" {
   nativeBuildInputs = [ perl ];
 } ''
   BOOTSTRAP_MAKE=${gnumake}/bin/make \

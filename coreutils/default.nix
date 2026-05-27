@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase41-coreutils-${coreutilsVersion}-amd64" { } ''
+runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   tar -xzf ${coreutilsTarball}

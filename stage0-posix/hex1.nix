@@ -2,7 +2,7 @@ args:
 with args;
     if hostPlatform.isx86_64 then
       stdenv.mkDerivation {
-        pname = "darwin-minimal-bootstrap-phase1-hex1-amd64";
+        pname = "phase1-hex1";
         version = "0-unstable-2026-05-07.1";
 
         dontUnpack = true;
@@ -68,7 +68,7 @@ with args;
       }
     else if hostPlatform.isAarch64 then
       stdenv.mkDerivation {
-        pname = "darwin-minimal-bootstrap-phase1-hex1";
+        pname = "phase1-hex1";
         version = "0-unstable-2026-05-07";
 
         dontUnpack = true;

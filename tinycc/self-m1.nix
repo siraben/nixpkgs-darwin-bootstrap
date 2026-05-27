@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase28-tinycc-self-m1-probe-amd64" { } ''
+runCommand "phase28-tinycc-self-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \

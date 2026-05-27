@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase19-tinycc-mescc-m1-probe-amd64" { } ''
+runCommand "phase19-tinycc-mescc-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module

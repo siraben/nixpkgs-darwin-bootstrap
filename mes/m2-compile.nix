@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase14-mes-m2-probe-amd64" { } ''
+runCommand "phase14-mes-m2-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   # Stop Mes' bootstrap script immediately after the first M2-Planet

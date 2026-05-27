@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase30-tinycc-self-link-candidate-amd64" { } ''
+runCommand "phase30-tinycc-self-link-candidate" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ${phase23-tinycc-mescc-link-probe}/bin/tcc -c \

@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase26b-elf64-to-m1-amd64" { } ''
+runCommand "phase26b-elf64-to-m1" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ## Assemble the hand-written ELF→M1 converter through the existing

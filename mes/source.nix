@@ -1,7 +1,7 @@
 args:
 with args;
 stdenv.mkDerivation {
-  pname = "darwin-minimal-bootstrap-phase13-mes-source";
+  pname = "phase13-mes-source";
   version = mesVersion;
 
   src = mesTarball;

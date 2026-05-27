@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase16-mes-m2-amd64" { } ''
+runCommand "phase16-mes-m2" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   cp ${phase15-mes-macho-link-probe}/share/darwin-bootstrap/mes-m2 $out/bin/mes-m2

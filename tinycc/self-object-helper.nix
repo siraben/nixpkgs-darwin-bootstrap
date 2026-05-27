@@ -5,7 +5,7 @@ with args;
       boot,
       compiler,
     }:
-runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-object-probe-amd64" { } ''
+runCommand "${phase}-tinycc-${boot}-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
   cp -R ${phase13-mes-source}/include/. include/

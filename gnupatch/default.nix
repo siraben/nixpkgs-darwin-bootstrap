@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase40-gnupatch-${gnupatchVersion}-amd64" { } ''
+runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   tar -xzf ${gnupatchTarball}

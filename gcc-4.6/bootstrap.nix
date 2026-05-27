@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase37-gcc-${gcc46Version}-bootstrap-amd64" { } ''
+runCommand "phase37-gcc-${gcc46Version}-bootstrap" { } ''
   ${root + "/scripts/gcc46/phase37-driver.sh"} \
     ${phase35-gcc46-all-gcc} \
     ${phase36-gcc46-libgcc} \

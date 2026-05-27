@@ -31,7 +31,7 @@ let
   version = gccLatestGmpVersion;
   tarball = gccLatestGmpTarball;
 in
-runCommand "darwin-minimal-bootstrap-phase26c-gmp-${version}-amd64" {
+runCommand "phase26c-gmp-${version}" {
   nativeBuildInputs = [ perl ];
 } ''
   mkdir -p work $out/share/darwin-bootstrap

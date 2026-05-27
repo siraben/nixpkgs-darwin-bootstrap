@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase27-tinycc-elf-to-macho-probe-amd64" { } ''
+runCommand "phase27-tinycc-elf-to-macho-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   cat > hello.c <<'C'

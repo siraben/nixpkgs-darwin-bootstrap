@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase26c-macho-patcher-amd64" { } ''
+runCommand "phase26c-macho-patcher" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ## Assemble the hand-written generic Mach-O patcher through the

@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase36-gcc-${gcc46Version}-libgcc-amd64" {
+runCommand "phase36-gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''
   ${root + "/scripts/gcc46/phase36-libgcc.sh"} \

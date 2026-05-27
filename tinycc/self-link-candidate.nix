@@ -6,7 +6,7 @@ with args;
       compiler,
       objectProbe,
     }:
-runCommand "darwin-minimal-bootstrap-${phase}-tinycc-${boot}-link-candidate-amd64" { } ''
+runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ${compiler} -c \

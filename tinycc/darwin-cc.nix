@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64" { } ''
+runCommand "phase34-tinycc-darwin-cc" { } ''
   mkdir -p $out/bin $out/include/tcc-darwin-bootstrap/sys $out/share/darwin-bootstrap
 
   cp -R ${root + "/bootstrap/headers/tcc-darwin-bootstrap"}/. \

@@ -1,7 +1,7 @@
 args:
 with args;
 stdenv.mkDerivation {
-  pname = "darwin-minimal-bootstrap-phase4-cc-arch-amd64";
+  pname = "phase4-cc-arch";
   version = "0-unstable-2026-05-07";
 
   dontUnpack = true;

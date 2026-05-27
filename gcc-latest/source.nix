@@ -1,6 +1,6 @@
 args:
 with args;
-    runCommand "darwin-minimal-bootstrap-phase43-gcc-${gccLatestVersion}-source" { } ''
+    runCommand "phase43-gcc-${gccLatestVersion}-source" { } ''
       mkdir -p work $out
       cd work
 

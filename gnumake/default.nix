@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase39-gnumake-${gnumakeVersion}-amd64" {
+runCommand "phase39-gnumake-${gnumakeVersion}" {
   nativeBuildInputs = [ perl ];
 } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap

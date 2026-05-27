@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase17-mescc-macho-probe-amd64" { } ''
+runCommand "phase17-mescc-macho-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   sed '/^<$/d' ${phase16-mes-m2}/share/darwin-bootstrap/trivial.M1 > trivial.M1

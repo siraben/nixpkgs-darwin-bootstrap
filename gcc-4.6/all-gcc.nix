@@ -1,6 +1,6 @@
 args:
 with args;
-      runCommand "darwin-minimal-bootstrap-phase35-gcc-${gcc46Version}-all-gcc-amd64" {
+      runCommand "phase35-gcc-${gcc46Version}-all-gcc" {
         nativeBuildInputs = [ perl ];
       } ''
         mkdir -p src build $out/bin $out/share/darwin-bootstrap

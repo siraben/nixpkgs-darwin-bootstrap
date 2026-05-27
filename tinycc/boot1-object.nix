@@ -1,6 +1,6 @@
 args:
 with args;
-runCommand "darwin-minimal-bootstrap-phase32-tinycc-boot1-object-probe-amd64" { } ''
+runCommand "phase32-tinycc-boot1-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
   cp -R ${phase13-mes-source}/include/. include/
