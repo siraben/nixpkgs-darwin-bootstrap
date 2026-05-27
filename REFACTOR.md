@@ -116,24 +116,59 @@ These are validation-only and not load-bearing for the final chain:
 - phase37-tinycc-boot3-object-probe → checks.nix
 - tinyccBootstrappableSrc, tinyccMesSrc → into tinycc/sources
 
-## Migration order
+## Migration order — DONE
 
-Smallest-blast-radius first:
-1. **stage0-posix/** (phases 1-11) — DONE (commit 7ee5640)
+File-rename pass (the big visible win):
+1. **stage0-posix/** (phases 1-11) — DONE
 2. **mescc-tools/** (11b, 11c, 11d, 11e, 26b, 26g) — DONE
-3. **mes/** (12, 13, 14, 15, 16) — DONE (probes 14/15 turned out to be load-bearing build steps; renamed without "probe")
+3. **mes/** (12-16) — DONE
 4. **mescc-libc/** (17-22) — DONE
-5. **tinycc/** (23-25, 27-38, plus tinyccSelf* helpers) — DONE
-6. **gnumake/, gnupatch/, coreutils/** (39, 40, 41) — DONE
+5. **tinycc/** (23-25, 27-38 + helpers) — DONE
+6. **gnumake/, gnupatch/, coreutils/** (39-41) — DONE
 7. **bootstrap-deps/** (26c-f) — DONE
 8. **gcc-4.6/** (26, 35-37, 44) — DONE
 9. **gcc-10/** (42, 45) — DONE
 10. **gcc-latest/** (43, 46, 47) — DONE
-11. **default.nix** rewrite with `lib.makeScope` — NEXT
-12. **flake.nix** update exposes new semantic names — NEXT
-13. **checks.nix** absorb purely-validation probes — NEXT
-14. Rename phaseN-* variables to semantic names + update cross-refs — FINAL
-15. Verify gnu-hello-hash-comparison ends at `5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`
+
+Inside-file cleanups:
+11. **packages.nix** — phaseDefs grouped by directory with comments — DONE
+12. **flake.nix** — added semantic per-directory output names alongside legacy phaseN- aliases — DONE
+13. Drop dead `if isx86_64 then ... else null` wrapper — DONE (54 files, -83 lines)
+14. Drop empty `nativeBuildInputs = [ ];` — DONE (17 files, -54 lines)
+15. Strip `darwin-minimal-bootstrap-…-amd64` pname prefix/suffix — DONE (60 files)
+16. Extract `mkDarwin` helper for shared mkDerivation defaults (version + dontUnpack/Strip/strictDeps + meta.platforms) — DONE (-101 lines)
+17. Hoist smoke tests from buildPhase into `checkPhase` — DONE (12 files)
+
+## Deferred
+
+18. Explicit args (callPackage style) + `lib.makeScope newScope` — DEFERRED.
+    The current `args: with args; ...` pattern with a rec block works fine.
+    Switching to explicit `{a, b, c, ...}: ...` headers would require every
+    .nix file to precisely enumerate its dependencies; with callPackage's
+    lib.functionArgs filtering, missing a ref causes eval errors at use site
+    rather than at definition site.  A full sweep across 60 files is a
+    multi-day refactor and offers mainly cosmetic improvement (the current
+    structure is functionally equivalent to lib.makeScope).
+
+## Verification
+
+The chain still produces the baseline gnu-hello SHA256
+`5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`.
+phase11-kaem (`3b1d3ff0…`), phase10-hex2 (`8c8b68fe…`), phase11e-macho-
+patcher-early (`6112ffa7…`), phase2-catm (`7b546d62…`), phase3-m0
+(`b7f00604…`), and phase4-cc-arch (`4f1ca350…`) are all byte-identical to
+their pre-refactor builds.  drv paths change (pname strip + mkDarwin
+default insertion), but binary contents are unchanged.
+
+## Maintainer scripts
+
+Saved under `scripts/refactor/`:
+- `drop-isx86-wrapper.py` — strips `if isx86_64 then ... else null` wrappers
+- `extract-smoke.py` — hoists buildPhase smoke tests into checkPhase
+
+Plus the stage0 maintenance scripts under `scripts/stage0/`:
+- `regen-hex0-sources.sh` — regenerates `hex0/sources/hex{1,2}_AMD64_darwin.hex0`
+- `regen-preported.sh` — regenerates `M2libc/amd64/*_darwin*.hex2` and `tools/macho-patcher-m0.M1`
 
 ## Naming convention
 
