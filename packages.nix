@@ -368,11 +368,11 @@ let
     phase9-m1 = import ./stage0-posix/M1.nix (phaseContext // phaseDefs);
     phase10-hex2 = import ./stage0-posix/hex2-linker.nix (phaseContext // phaseDefs);
     phase11-kaem = import ./stage0-posix/kaem.nix (phaseContext // phaseDefs);
-    phase12-m2-planet = import ./phases/phase12-m2-planet.nix (phaseContext // phaseDefs);
-    phase13-mes-source = import ./phases/phase13-mes-source.nix (phaseContext // phaseDefs);
-    phase14-mes-m2-probe = import ./phases/phase14-mes-m2-probe.nix (phaseContext // phaseDefs);
-    phase15-mes-macho-link-probe = import ./phases/phase15-mes-macho-link-probe.nix (phaseContext // phaseDefs);
-    phase16-mes-m2 = import ./phases/phase16-mes-m2.nix (phaseContext // phaseDefs);
+    phase12-m2-planet = import ./mes/m2-planet.nix (phaseContext // phaseDefs);
+    phase13-mes-source = import ./mes/source.nix (phaseContext // phaseDefs);
+    phase14-mes-m2-probe = import ./mes/m2-compile.nix (phaseContext // phaseDefs);
+    phase15-mes-macho-link-probe = import ./mes/m2-link.nix (phaseContext // phaseDefs);
+    phase16-mes-m2 = import ./mes/m2.nix (phaseContext // phaseDefs);
     phase17-mescc-macho-probe = import ./phases/phase17-mescc-macho-probe.nix (phaseContext // phaseDefs);
     phase18-mescc-libc-mini-probe = import ./phases/phase18-mescc-libc-mini-probe.nix (phaseContext // phaseDefs);
     phase19-tinycc-mescc-m1-probe = import ./phases/phase19-tinycc-mescc-m1-probe.nix (phaseContext // phaseDefs);
