@@ -55,5 +55,14 @@ END {
         ":match\n53\n51\n52\n4889C1\n4889DA\n:match_Loop\n",
         ":match\n53\n51\n52\n4889C1\n4889DA\n4881F9\n00100000\n0F8C\n%match_False\n4881FA\n00100000\n0F8C\n%match_False\n:match_Loop\n")
 
+    ## Inject :ELF_data label right before :prim_types (the first static
+    ## data label) so macho-patcher m2-segments mode finds the static-
+    ## block start.  Without this, m2-segments scans the source for one
+    ## of `:ELF_data`/`:HEX2_data`/`:GLOBAL_*`/`:STRING_*`/`:_string_*`
+    ## and bails when it finds none in cc_arch's lowercase label scheme.
+    ## With the label in place, m2-segments produces byte-identical
+    ## output to the prior `perl phase4-amd64-cc-arch.pl patch` step.
+    buf = replace_once(buf, ":prim_types\n", ":ELF_data\n:prim_types\n")
+
     printf "%s", buf
 }

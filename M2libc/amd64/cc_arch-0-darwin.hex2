@@ -5245,6 +5245,7 @@ E8
 2500
 :underline
 5F00
+:ELF_data
 :prim_types
 :type_void
 %type_int>type_void
