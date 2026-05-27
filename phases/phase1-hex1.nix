@@ -77,7 +77,7 @@ with args;
         dontUnpack = true;
         strictDeps = true;
 
-        nativeBuildInputs = [ perl ];
+        nativeBuildInputs = [ ];
 
         buildPhase = ''
           runHook preBuild
