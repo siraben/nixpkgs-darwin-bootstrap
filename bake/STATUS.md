@@ -362,3 +362,39 @@ than "macros").
 3. Identify the self-recursing function + its termination guard; check
    whether tcc miscompiles that comparison (compare codegen vs a
    reference) and patch make or the codegen.
+
+## Sharper evidence: recursive-variable expansion, MAKEINFO compounds
+
+Reproduced the crash standalone in build/ (`make all-libiberty`),
+even with NO extra command-line vars.  The failing rule is
+`Makefile:9580 all-libiberty`, whose recipe spawns a child make for
+libiberty; the CHILD make SIGSEGVs (stack overflow).
+
+Critical tell: across recursion levels the child's MAKEINFO grows:
+* level 1: `MAKEINFO=true --split-size=5000000`
+* level 2: `MAKEINFO=true --split-size=5000000 --split-size=5000000`
+* level 3: `... --split-size=5000000 --split-size=5000000 --split-size=5000000`
+
+i.e. a recursively-expanded make variable is being re-appended /
+re-expanded on each level instead of staying fixed.  Combined with the
+self-recursion stack overflow at make+0x64C022, this strongly points
+to GNU Make's recursive *variable expansion*
+(`variable_expand_string`/`recursively_expand`) entering an unbounded
+self-reference under our tcc-built make — NOT pattern_search.
+
+Note: `make all` run *directly inside* libiberty/ works (exit 0); only
+the parent-spawned child (inheriting MAKEFLAGS/MAKEOVERRIDES + the
+gcc top Makefile's variable graph) loops.  So the trigger is the
+inherited variable state, expanded by the gcc Makefile's machinery.
+
+### Refined NEXT TASK (#72)
+1. Symbolize make (build with -g + keep symtab, or build a vmaddr→name
+   map) to confirm make+0x64C022 is in variable.c/expand.c.
+2. Run the failing child libiberty make with `--debug=v` to see which
+   variable expands without terminating.
+3. Inspect that variable's recursion guard in
+   recursively_expand_for_file / reference_variable; check for a
+   tcc-miscompiled comparison (e.g. the `v->expanding` reentrancy flag
+   used to detect self-reference).  The `expanding` guard is the prime
+   suspect — if tcc miscompiles its set/clear/test, self-reference
+   detection fails → infinite recursion.
