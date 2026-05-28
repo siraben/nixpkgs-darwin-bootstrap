@@ -41,7 +41,9 @@ NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
 ## Install the wrapper script with placeholders substituted.
 ## Use bash because the script uses arrays.
 cp "$SOURCES/tcc-darwin/tcc-darwin-cc.sh" "$out/bin/tcc-darwin-cc"
-chmod +w "$out/bin/tcc-darwin-cc"
+## Must be executable: the gcc-4.6 bootstrap `as` shim invokes this
+## copy in tcc-darwin-cc-root/bin directly (not the one in target/bin).
+chmod 755 "$out/bin/tcc-darwin-cc"
 sed -i.bak \
     -e 's|^set -euo pipefail$|set -eo pipefail|' \
     -e "s|@SHELL@|/bin/bash|g" \
