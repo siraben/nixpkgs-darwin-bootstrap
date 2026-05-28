@@ -398,3 +398,35 @@ inherited variable state, expanded by the gcc Makefile's machinery.
    used to detect self-reference).  The `expanding` guard is the prime
    suspect — if tcc miscompiles its set/clear/test, self-reference
    detection fails → infinite recursion.
+
+## CORRECTION: crash is at target consideration (implicit-rule search), not var expansion
+
+Ran the failing child libiberty make with `--debug=v`.  It crashes
+immediately after:
+  `Considering target file 'all'.`
+  ` File 'all' does not exist.`
+— i.e. during target/prerequisite + implicit-rule consideration for
+the `all` target, BEFORE any deep recursive variable expansion.  So
+the MAKEINFO `--split-size` compounding was a red herring (normal gcc
+flag passing); the loop is back in the implicit-rule / pattern_search
+path (consistent with the make+0x64C022 self-recursion).
+
+Crucial differentiator:
+* `make all` run directly in libiberty/ → exit 0 (no crash).
+* The parent-spawned child `make <~150 BASE_FLAGS_TO_PASS vars> all`
+  in libiberty/ → SIGSEGV considering 'all'.
+So the trigger is the large inherited COMMAND-LINE VARIABLE set
+changing how make considers/searches rules for 'all'.  (Synthetic
+200-var tests did NOT trigger it, so it's specific vars/values, likely
+ones that define or perturb suffix/pattern rules, e.g. the *_FOR_TARGET
+or STAGE*_CFLAGS entries, or a value containing characters that make
+treats as a rule.)
+
+### NEXT TASK (#72) — concrete bisection
+1. cd into a clean libiberty/, run `make <BASE_FLAGS_TO_PASS> all`
+   verbatim → confirm standalone reproduction.
+2. Bisect the ~150 command-line vars (binary search) to the minimal
+   set that triggers the crash considering 'all'.
+3. With the offending var(s) known, inspect pattern_search /
+   try_implicit_rule for why that var's value causes unbounded
+   recursion; compare tcc codegen of the recursion guard vs reference.
