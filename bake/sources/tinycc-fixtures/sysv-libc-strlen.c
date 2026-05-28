@@ -1,0 +1,1 @@
+../../../tinycc/fixtures/sysv-libc-strlen.c
