@@ -11,7 +11,8 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
 → tcc → tcc-self → tcc-boot1 → tcc-boot2 → tcc-boot3
 → tcc-darwin-cc (native Darwin C compiler)
 → gnumake (GNU Make 4.4.1)
-→ gcc-4.6 source + patches → all-gcc (BLOCKED — see below)
+→ gcc-4.6 source + patches → all-gcc (libiberty blocker fixed —
+  see "ROOT CAUSE FOUND AND FIXED" below)
 ```
 
 ## Working binaries (target/bin/)
@@ -464,3 +465,69 @@ Open question for the fix:
    without bound (infinite) or hits a huge finite number (stack size).
 3. If infinite: find the guard that fails (compare tcc codegen vs ref).
    If deep-finite: reduce frame size or raise stack.
+
+## ✅ ROOT CAUSE FOUND AND FIXED (definitive)
+
+The crash was **not** in make at all — not pattern_search, not implicit
+rules, not macro evaluation. All earlier hypotheses above are
+superseded.
+
+**The bug: four 64-bit int↔float conversion helpers in our tcc libc
+(`bootstrap/tinycc-sysv-libc.c`) recursed into themselves forever.**
+
+Original (broken) definitions:
+```c
+double __floatundidf(unsigned long x) { return (double)x; }
+long double __floatundixf(unsigned long x) { return (long double)x; }
+unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
+unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
+```
+A `(double)(unsigned long)` cast is *lowered by tcc into a call to
+`__floatundidf`* — so the body of `__floatundidf` called
+`__floatundidf`, with no base case. Confirmed via relocation:
+`__floatundidf`'s only `callq` carries `R_X86_64_PLT32 __floatundidf`.
+
+When make built libiberty it performed a u64→double conversion (file
+timestamp / numeric formatting path inside the libc), entered
+`__floatundidf`, and stack-overflowed (EXC_BAD_ACCESS at the stack
+guard page; crash report showed `make+<off>` repeating).
+
+### How it was localized
+1. Instrumented pattern_search depth → **0 calls** before the crash
+   (with `fflush`), ruling out implicit-rule search entirely.
+2. Built make 4.4.1 with system clang → built `alloca.o` fine. Same
+   make version, same Makefile ⇒ a tcc/libc codegen bug, not make.
+3. Disassembled the tcc-built make at the crashing offset: a tiny
+   function that reloads its pointer arg and unconditionally calls
+   itself. Matched it by shape to `__floatundidf` in
+   `tinycc-sysv-libc.o`; confirmed by its self-referential relocation.
+
+### The fix
+tcc emits *inline* hardware conversions for **signed** 64-bit and all
+32-bit casts (`cvtsi2sd` / `cvttsd2si`); only the **unsigned** 64-bit
+casts lower to a libcall. So the four unsigned helpers are now
+implemented via signed-64 casts + the standard shift/sticky-bit trick
+(see `bootstrap/tinycc-sysv-libc.c`). The signed helpers
+(`__floatdidf`, `__fixdfdi`) were always inline and are left as plain
+casts.
+
+Empirical cast→libcall map (verified with tcc-darwin-cc -c + objdump):
+| cast | lowering |
+|------|----------|
+| (double)(int), (double)(unsigned), (double)(long) | inline |
+| (long)(double), (int)(double), (unsigned)(double) | inline |
+| (long double)(int/long), (long)(long double) | inline |
+| **(double)(unsigned long)** | call __floatundidf |
+| **(unsigned long)(double)** | call __fixunsdfdi |
+| **(long double)(unsigned long)** | call __floatundixf |
+| **(unsigned long)(long double)** | call __fixunsxfdi |
+
+### Verified after fix
+- Rebuilt libc (step 44): all four helpers show **0** self-call relocs.
+- Rebuilt make (step 45): `make alloca.o` in the real libiberty tree
+  → **exit 0**, produces `alloca.o`. (Only a cosmetic clock-skew
+  warning from the epoch-returning time stubs.)
+- This is the exact repro that had crashed throughout this whole arc.
+
+gcc-4.6 all-gcc (step 48) re-run to confirm it clears libiberty: see
+build log.

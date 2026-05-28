@@ -522,12 +522,36 @@ double frexp(double x, int *e) { if (e) *e = 0; return x; }
 double fabs(double x) { return x < 0 ? -x : x; }
 double log(double x) { double y, y2, term, sum; int k = 0, n; if (x <= 0) return 0; while (x > 1.5) { x *= 0.5; k++; } while (x < 0.75) { x *= 2.0; k--; } y = (x - 1.0) / (x + 1.0); y2 = y * y; term = y; sum = 0.0; for (n = 1; n < 60; n += 2) { sum += term / (double)n; term *= y2; } return 2.0 * sum + (double)k * 0.69314718055994530942; }
 double exp(double x) { double term = 1.0, sum = 1.0, factor = 1.0; int halve_count = 0, iter; if (x < 0) return 1.0 / exp(-x); while (x > 1.0) { x *= 0.5; halve_count++; } for (iter = 1; iter < 40; iter++) { term *= x / (double)iter; sum += term; } while (halve_count--) { factor = sum; sum = factor * factor; } return sum; }
-double __floatundidf(unsigned long x) { return (double)x; }
+/* NOTE: a 64-bit unsigned<->float cast (e.g. (double)x where x is unsigned
+   long) is lowered by tcc into a call to the very runtime helper being
+   defined here, which would make these functions recurse into themselves
+   forever.  tcc emits *inline* hardware conversions only for the *signed*
+   64-bit and the 32-bit casts, so we implement the unsigned 64-bit helpers
+   in terms of signed 64-bit casts plus the standard shift/sticky-bit trick.
+   The signed helpers (__floatdidf/__fixdfdi) compile to inline cvtsi2sd /
+   cvttsd2si and are safe as plain casts. */
+double __floatundidf(unsigned long x) {
+    if ((long)x >= 0) return (double)(long)x;
+    return (double)(long)((x >> 1) | (x & 1)) * 2.0;
+}
 double __floatdidf(long x) { return (double)x; }
-long double __floatundixf(unsigned long x) { return (long double)x; }
-unsigned long __fixunsdfdi(double x) { return (unsigned long)x; }
+long double __floatundixf(unsigned long x) {
+    if ((long)x >= 0) return (long double)(long)x;
+    return (long double)(long)((x >> 1) | (x & 1)) * 2.0L;
+}
+unsigned long __fixunsdfdi(double x) {
+    if (x < 0) return 0;
+    if (x < 9223372036854775808.0) return (unsigned long)(long)x;
+    return (unsigned long)(long)(x - 9223372036854775808.0)
+         + 0x8000000000000000UL;
+}
 long __fixdfdi(double x) { return (long)x; }
-unsigned long __fixunsxfdi(long double x) { return (unsigned long)x; }
+unsigned long __fixunsxfdi(long double x) {
+    if (x < 0) return 0;
+    if (x < 9223372036854775808.0L) return (unsigned long)(long)x;
+    return (unsigned long)(long)(x - 9223372036854775808.0L)
+         + 0x8000000000000000UL;
+}
 int sscanf(const char *s, const char *fmt, long a, long b, long c_arg, long d)
 {
     long args[4];
