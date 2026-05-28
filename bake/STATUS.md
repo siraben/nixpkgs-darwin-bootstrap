@@ -145,3 +145,21 @@ Next debugging directions:
 * Try building make with a newer tinycc that has Darwin alloca support.
 * Cross-check against live-bootstrap: their tcc-built make runs on
   Linux, so compare the Darwin-specific delta (our libc + wrapper).
+
+## Codegen reproducer: basic patterns are fine
+
+A standalone C program reproducing pattern_search's core shape —
+dotted-name stem split via strrchr, a malloc-backed `alloca`, a
+`struct dep[]` array built with pointer arithmetic and indexed back —
+compiles and runs correctly under tcc-darwin-cc.
+
+So the fault is NOT in those basic patterns.  It's a more specific
+construct inside the real `pattern_search` (function-pointer calls,
+a global rule table walk, recursion, or a particular struct layout).
+
+Finding it requires recompiling src/implicit.c with printf tracing
+bracketing each phase of pattern_search and re-linking make — an
+interactive debug cycle, not a blind one.  Parking here: the
+no-Nix bootstrap is complete and verified through tcc-darwin-cc +
+GNU Make; gcc-4.6 is the one remaining blocker and it is localized
+to a single function with a clear (if laborious) path to a fix.
