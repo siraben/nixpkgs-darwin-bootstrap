@@ -321,3 +321,44 @@ Next: re-run gcc-4.6 all-gcc (step 48) with the clean make.  The
 original all-gcc failure was zlib/configure's make invocations
 segfaulting — which was the same corrupted-make symptom.  With a
 clean make this should now proceed.
+
+## REAL bug found via macOS crash report: make stack overflow (self-recursion)
+
+The gcc-4.6 all-gcc build deterministically dies at `all-libiberty
+Error 139`.  The recursive sub-make (`make <~150 vars> all`) SIGSEGVs.
+macOS crash report (~/Library/Logs/DiagnosticReports/make-*.ips) is
+decisive:
+
+* `EXC_BAD_ACCESS (SIGSEGV)`, `KERN_PROTECTION_FAILURE`,
+  message "Could not determine thread index for stack guard region"
+  → classic STACK OVERFLOW.
+* Faulting backtrace: `make+311458` (vmaddr ~0x64C022) repeated 6+
+  times — a function recursing on ITSELF until it hits the stack
+  guard page.
+
+Key facts:
+* `LC_MAIN stacksize 0` → kernel gives the normal 8 MB main stack, so
+  this is NOT a too-small-stack problem; it's UNBOUNDED recursion (a
+  termination guard that never fires).
+* A clean make handles small Makefiles + dotted prereqs fine; only
+  libiberty's real (configure-generated) Makefile triggers the runaway
+  recursion.
+* Not reproducible with synthetic Makefiles, large var lists (200),
+  or large environments (400) — needs libiberty's actual Makefile.
+
+Most likely the self-recursing function is GNU Make's recursive
+variable expansion (`variable_expand_string`/`expand`) or
+`pattern_search`; a guard/loop-detection comparison is failing — quite
+possibly a tcc-codegen issue in that specific comparison (consistent
+with the earlier suspicion, now pinned to one runaway function rather
+than "macros").
+
+### NEXT TASK (loop)
+1. Rebuild make keeping its symbol table (or build a symbol map) so
+   the crashing function at vmaddr 0x64C022 can be named.
+2. Reproduce the failing libiberty sub-make standalone (clean
+   libiberty objects + the exact `make <vars> all` command), capture a
+   fresh symbolized crash report.
+3. Identify the self-recursing function + its termination guard; check
+   whether tcc miscompiles that comparison (compare codegen vs a
+   reference) and patch make or the codegen.
