@@ -1,0 +1,1 @@
+../../../scripts/tinycc/tcc-darwin-cc.sh
