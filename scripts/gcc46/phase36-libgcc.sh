@@ -29,9 +29,9 @@ chmod -R u+w work
 export CC="$phase34/bin/tcc-darwin-cc"
 export CPP="$CC -E"
 export CC_FOR_BUILD="$CC"
-export AR="$cctools/bin/ar"
+export AR="${AR:-$cctools/bin/ar}"
 export NM="$cctools/bin/nm"
-export RANLIB="$cctools/bin/ranlib"
+export RANLIB="${RANLIB:-$cctools/bin/ranlib}"
 export STRIP="$cctools/bin/strip"
 export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
@@ -140,8 +140,8 @@ test -s libgcov.a
 for obj in _muldi3 "${eh_objects[@]}" "${soft_fp_objects[@]}"; do
   test "$(od -An -tx1 -N4 "$obj.o" | tr -d ' \n')" = "7f454c46"
 done
-"$cctools/bin/ar" t libgcc.a > "$out/share/darwin-bootstrap/libgcc.members"
-"$cctools/bin/ar" t libgcov.a > "$out/share/darwin-bootstrap/libgcov.members"
+"$AR" t libgcc.a > "$out/share/darwin-bootstrap/libgcc.members"
+"$AR" t libgcov.a > "$out/share/darwin-bootstrap/libgcov.members"
 for obj in "${eh_objects[@]}" "${soft_fp_objects[@]}"; do
   grep -q "^$obj.o$" "$out/share/darwin-bootstrap/libgcc.members"
 done

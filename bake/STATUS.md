@@ -11,9 +11,29 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
 → tcc → tcc-self → tcc-boot1 → tcc-boot2 → tcc-boot3
 → tcc-darwin-cc (native Darwin C compiler)
 → gnumake (GNU Make 4.4.1)
-→ gcc-4.6 source + patches → all-gcc (libiberty blocker fixed —
-  see "ROOT CAUSE FOUND AND FIXED" below)
+→ gcc-4.6 source + patches → all-gcc ✅ (xgcc + cc1, GCC 4.6.4)
+  → libgcc → bootstrap
 ```
+
+## ✅ gcc-4.6 all-gcc builds (2026-05-28)
+
+`bake/target/gcc46-all-gcc/bin/xgcc` is a working **GCC 4.6.4** C
+front-end (xgcc + cc1, 51 MB), built from the 4 KB seed with no Nix and
+no bootstrap-tools.  Three bugs had to be fixed to get here, each
+surfacing the next as the build progressed:
+
+1. **tcc libc self-recursion** — `__floatundidf` & 3 other unsigned
+   64-bit int↔float helpers were plain casts that tcc lowers back into
+   calls to themselves → make stack-overflowed in libiberty.  Fixed in
+   `bootstrap/tinycc-sysv-libc.c` (commit e2161fc).
+2. **Apple ar can't archive ELF** — `/usr/bin/ar` silently drops our
+   ELF objects, leaving libgmp/libmpfr/libmpc empty (mpc configure then
+   fails its MPFR ABI link).  Added `bake/scripts/bake-ar.py` (BSD-format
+   ELF archiver) + no-op `bake-ranlib` (commit 65431d7).
+3. **UTF-8 collation broke gcc's option dedup** — opt-gather.awk sorts
+   .opt records and opth-gen.awk merges *adjacent* identical option
+   names; UTF-8 collation separated the two `-C` records → duplicate
+   `OPT_C` in options.h.  Forced `LC_ALL=C` (commit 5066486).
 
 ## Working binaries (target/bin/)
 

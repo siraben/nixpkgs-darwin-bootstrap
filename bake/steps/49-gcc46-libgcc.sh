@@ -10,6 +10,12 @@ out="$TARGET/gcc46-libgcc"
 rm -rf "$out"
 mkdir -p "$out"
 
+## Use the ELF-capable bake-ar / no-op bake-ranlib (Apple's ar drops our
+## ELF objects); phase36-libgcc.sh honors a pre-set AR/RANLIB.
+export AR="$ROOT/scripts/bake-ar"
+export RANLIB="$ROOT/scripts/bake-ranlib"
+export LC_ALL=C LANG=C
+
 /bin/bash "$SOURCES/gcc46-scripts/phase36-libgcc.sh" \
     "$phase35" \
     "$TARGET/tcc-darwin-cc-root" \
