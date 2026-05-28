@@ -269,3 +269,35 @@ Repair the macro hash/collision handling in our tcc.  Path:
    the upstream stage.
 3. Rebuild the tcc chain, re-verify `defined(HAVE_UMASK)` survives the
    full gcc-4.6 flag set, then run step 45 (make) + step 48 (all-gcc).
+
+## Update: recompile failure may be a mutated-tree artifact
+
+Important caveat discovered while debugging: step 45 DID successfully
+compile implicit.o (all 30 make objects share build timestamp
+23:19:37, and the script's `set -eu` would have aborted on any
+failed compile).  Yet recompiling implicit.c *now*, in the same
+working tree, fails deterministically (5/5) on the mode_t error.
+
+Between the successful build and now, the working tree was mutated by
+debugging experiments (fprintf edits + restores, partial step re-runs,
+patch_replace tests).  The current `src/config.h` / headers may differ
+from what step 45's clean run produced.
+
+So the open question is sharper: is the macro-loss bug
+(a) real and reproducible from a clean build, or
+(b) an artifact of the mutated tree (e.g. a corrupted config.h)?
+
+Decisive experiment now running: a FRESH `bake/steps/45-gnumake.sh`
+(re-extracts make-4.4.1.tar.gz, regenerates config.h, recompiles all
+30 objects).  Outcomes:
+* If the fresh build's implicit.c compile FAILS → bug is real; proceed
+  to traced-tcc rebuild.
+* If it SUCCEEDS and `make` still SIGSEGVs on dotted prereqs → the
+  pattern_search miscompile is real and separate from the recompile
+  artifact; instrument that.
+* If it SUCCEEDS and `make` no longer crashes → the earlier crash was
+  itself a mutated-tree artifact and gcc-4.6 may just work.
+
+Earlier ruled-out (still valid): not -E-vs-c divergence, not macro
+count (2000 synthetic idents fine), not tok_alloc hash collision
+(HAVE_UMASK alone in bucket 1274), not table_ident 512-realloc.
