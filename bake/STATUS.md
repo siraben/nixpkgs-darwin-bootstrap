@@ -301,3 +301,23 @@ Decisive experiment now running: a FRESH `bake/steps/45-gnumake.sh`
 Earlier ruled-out (still valid): not -E-vs-c divergence, not macro
 count (2000 synthetic idents fine), not tok_alloc hash collision
 (HAVE_UMASK alone in bucket 1274), not table_ident 512-realloc.
+
+## BREAKTHROUGH: the make crash was a mutated-tree artifact
+
+Fresh `bake/steps/45-gnumake.sh` (re-extract + regenerate config.h +
+recompile all 30 objects) → builds clean, AND the resulting make:
+* `foo: foo.c` dotted-prereq Makefile → exit 0 (NO crash)
+* zlib-style `include sub/conftest.Po` pattern → exit 0 (NO crash)
+
+So the earlier `pattern_search` SIGSEGV was NOT a tcc codegen/macro
+bug.  It came from a make binary built in a tree that my own
+debugging experiments had corrupted (stray fprintf edits, partial
+step re-runs, patch_replace tests left src/ + config.h inconsistent).
+A clean rebuild produces a fully working make.
+
+Lesson: do destructive debugging in a COPY, never in target/work/.
+
+Next: re-run gcc-4.6 all-gcc (step 48) with the clean make.  The
+original all-gcc failure was zlib/configure's make invocations
+segfaulting — which was the same corrupted-make symptom.  With a
+clean make this should now proceed.
