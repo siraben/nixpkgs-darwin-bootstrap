@@ -163,3 +163,30 @@ interactive debug cycle, not a blind one.  Parking here: the
 no-Nix bootstrap is complete and verified through tcc-darwin-cc +
 GNU Make; gcc-4.6 is the one remaining blocker and it is localized
 to a single function with a clear (if laborious) path to a fix.
+
+## Recompile-to-trace is blocked by header sensitivity
+
+Attempted the documented next step (recompile src/implicit.c with
+printf tracing to find the faulting line).  Hit a wall: standalone
+recompilation of implicit.c with the build's exact CFLAGS fails with
+`makeint.h:310: incompatible redefinition of 'mode_t'`, even though
+step 45's full build compiled the same file successfully.
+
+Root cause of the recompile failure: makeint.h's mode_t typedef is
+gated on a fragile combination of HAVE_UMASK / HAVE_UNISTD_H /
+STDC_HEADERS plus whatever the tcc-darwin-bootstrap headers already
+typedef mode_t as.  The combination that step-45's build used cannot
+be trivially reproduced in a one-off `tcc-darwin-cc -c implicit.c`
+invocation — the tcc-darwin-cc wrapper's input-combining + caching
+makes per-file recompilation non-faithful to the in-build compile.
+
+Implication: the make `pattern_search` crash debugging needs to be
+driven *through* a controlled rebuild of all of make (so each .o is
+compiled in the same wrapper context the build used), with tracing
+baked into the source before step 45 runs — not via standalone
+recompiles afterward.  That is an interactive cycle.
+
+This iteration's net finding: the recompile path is itself
+environment-sensitive; future debugging should instrument
+src/implicit.c in bake/sources before invoking step 45, then run the
+full GNU Make build, rather than recompiling one object post-hoc.
