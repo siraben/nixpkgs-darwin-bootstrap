@@ -231,3 +231,41 @@ NEXT TASK (loop): add a two-phase `-E`→compile mode to
 scripts/tinycc/tcc-darwin-cc-bash3.sh, rebuild GNU Make via step 45,
 and re-test `make -f mf` on a dotted-prereq Makefile.  If the crash is
 gone, run step 48 (gcc-4.6 all-gcc) to completion.
+
+## Refined: macro hash-COLLISION bug in our tcc (not -E vs -c, not count)
+
+Further bisection corrected the earlier hypotheses:
+
+* It is NOT -E vs -c: `-E` and `-c` agree; both lose the macro.
+* It is NOT macro count: 21 synthetic `-DHAVE_THING1..20 -DHAVE_UMASK`
+  all survive.  Real names are the trigger.
+* It IS specific macro-name collisions: the real first-17 HAVE_*
+  macros + HAVE_UMASK make `defined(HAVE_UMASK)` return false, while
+  neither the first 8 nor macros 9-17 alone do.  Cumulative, name-
+  dependent → a hash-bucket collision our tcc mis-handles.
+
+Conclusion: our `tcc-boot3` has a miscompiled macro table / collision
+chain in tccpp.c (upstream tinycc handles thousands of macros fine).
+`defined()` and macro expansion silently lose entries when enough
+real-world names land in colliding buckets.  This is the true root
+cause of BOTH the gcc-4.6 mode_t error AND, almost certainly, the
+make `pattern_search` SIGSEGV (a different lost macro changing codegen).
+
+### Why workarounds don't fully fix it
+* Two-phase `-E`→compile: useless, `-E` is equally affected.
+* File `#define`s instead of `-D`: only helps if names don't collide;
+  the real names still collide.
+* Per-symptom patches (e.g. force mode_t agreement) would unblock the
+  mode_t error but not other lost-macro miscompiles like pattern_search.
+
+### Real fix (loop task)
+Repair the macro hash/collision handling in our tcc.  Path:
+1. Rebuild tcc-boot3 with tccpp.c instrumented (count collisions,
+   verify `find_macro`/`define_find` chain walking) to confirm the
+   chain-walk is the miscompiled spot.
+2. Identify which earlier compiler stage (mescc vs an earlier tcc)
+   miscompiles that specific construct in tccpp.c, and either fix the
+   construct (rewrite the chain walk in a tcc-codegen-safe way) or fix
+   the upstream stage.
+3. Rebuild the tcc chain, re-verify `defined(HAVE_UMASK)` survives the
+   full gcc-4.6 flag set, then run step 45 (make) + step 48 (all-gcc).
