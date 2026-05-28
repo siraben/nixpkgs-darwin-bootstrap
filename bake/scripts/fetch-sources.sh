@@ -55,5 +55,10 @@ fetch nyacc-1.09.1.tar.gz \
     "https://download.savannah.nongnu.org/releases/nyacc/nyacc-1.09.1.tar.gz" \
     0ec9ae537e0d951781a50de3c7929ac97a85c1d4b5e85e5d51542e3751022717
 
-## tinycc, gnumake, gcc-4.6/10/15 will follow once we get past mes
+## gnumake (built by tcc-darwin-cc, used to build gcc-4.6)
+fetch make-4.4.1.tar.gz \
+    "https://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz" \
+    dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3
+
+## gcc-4.6/10/15 will follow once we get past gnumake
 printf '\n== done ==\n'
