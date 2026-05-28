@@ -430,3 +430,37 @@ treats as a rule.)
 3. With the offending var(s) known, inspect pattern_search /
    try_implicit_rule for why that var's value causes unbounded
    recursion; compare tcc codegen of the recursion guard vs reference.
+
+## Tight reproduction + open question (bounded-deep vs infinite)
+
+One-line repro (no giant var list needed):
+  `cd <clean libiberty build dir> && rm -f *.o && make alloca.o`
+  → SIGSEGV.  `-d` shows it dies right after
+  "Considering target file 'alloca.o' / File 'alloca.o' does not exist"
+  → inside pattern_search for that .o target.
+
+Even a single object target crashes; plain `make all` with NO extra
+vars crashes.  So the command-line variables are NOT the trigger (that
+was a wrong turn) — it's pattern_search on libiberty's .o targets.
+
+Minimal synthetic pattern-rule Makefiles (`%.o: %.c`, `%.c: %.y`,
+VPATH, source present/absent) all build fine on the clean make — so
+the trigger is the SCALE/structure of libiberty's implicit-rule set,
+not pattern rules in general.
+
+Open question for the fix:
+* Truly infinite recursion (a termination guard miscompiled by tcc), OR
+* Bounded-but-deep recursion whose per-frame stack usage is much larger
+  under tcc's naive codegen (no reg alloc, big locals) than under gcc,
+  overflowing the 8 MB stack at a depth gcc handles fine.
+  (Note: make built with -Dalloca=malloc, so pattern_search's alloca
+  calls are heap, not stack — argues against per-frame bloat and FOR
+  genuine unbounded recursion.)
+
+### NEXT TASK (#72) — decisive instrumentation
+1. Add a depth counter + fprintf to pattern_search (recursions param)
+   in bake/sources … rebuild make via step 45.
+2. `make alloca.o` in clean libiberty; observe whether depth climbs
+   without bound (infinite) or hits a huge finite number (stack size).
+3. If infinite: find the guard that fails (compare tcc codegen vs ref).
+   If deep-finite: reduce frame size or raise stack.
