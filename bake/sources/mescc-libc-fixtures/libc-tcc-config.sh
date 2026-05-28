@@ -1,0 +1,1 @@
+../../../mescc-libc/fixtures/libc-tcc-config.sh

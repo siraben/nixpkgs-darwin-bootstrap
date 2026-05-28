@@ -1,0 +1,1 @@
+../../../mescc-libc/fixtures/libc-mini-puts-smoke.c
