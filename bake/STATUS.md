@@ -111,3 +111,37 @@ targets/prereqs work fine.
 This is consistent with a tcc codegen bug in some pointer-arithmetic
 path that handles the dot character in filenames.  GCC bootstrap is
 blocked here.
+
+## Crash pinpointed: pattern_search() implicit-rule machinery
+
+Confirmed via `make -d`: the SIGSEGV fires immediately after
+`Considering target file 'foo'` → `File 'foo' does not exist` →
+implicit-rule search on the dotted prerequisite.
+
+Proof it's the implicit-rule path: giving the dotted prereq its own
+explicit rule (even an empty `foo.c:` rule) makes the crash vanish.
+The crash only happens when make falls through to `pattern_search()`
+(src/implicit.c) for a name containing a dot.
+
+`pattern_search` uses `alloca` in 4 places (lines 236, 496, 892, 1107),
+including `alloca(sizeof(struct file))`.  We build make with
+`-Dalloca=malloc` because **tcc-darwin-cc has no working alloca**
+(`alloca(64)` → "Target label alloca is not valid" at link, since our
+minimal libc exports no alloca symbol and tcc's builtin isn't wired
+for the Darwin target).
+
+Candidate root causes (unverified):
+* A tcc codegen bug in `pattern_search`'s heavy pointer arithmetic /
+  struct-array handling (`struct patdeps *deplist`, stem splitting).
+* The `alloca→malloc` substitution interacting badly with code that
+  assumes alloca's stack-scoped lifetime (e.g. a pointer kept past the
+  malloc block being reused/clobbered).
+
+Next debugging directions:
+* Add printf tracing inside pattern_search (recompile just implicit.c)
+  to find the faulting line.
+* Provide a real heap-based alloca shim that tracks and frees per-call
+  rather than leaking, in case lifetime is the issue.
+* Try building make with a newer tinycc that has Darwin alloca support.
+* Cross-check against live-bootstrap: their tcc-built make runs on
+  Linux, so compare the Darwin-specific delta (our libc + wrapper).
