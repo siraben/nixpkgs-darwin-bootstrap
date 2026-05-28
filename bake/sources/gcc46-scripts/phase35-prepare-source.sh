@@ -1,0 +1,1 @@
+../../../scripts/gcc46/phase35-prepare-source.sh
