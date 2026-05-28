@@ -55,7 +55,8 @@ sed -i.bak \
     -e "s|@CRT1@|$out/share/crt1-tcc-sysv.M1|g" \
     -e "s|@SYSCALLS@|$SOURCES/bootstrap-c/tinycc-sysv-syscalls-amd64-darwin.M1|g" \
     -e "s|@LIBC_M1@|$out/share/tinycc-sysv-libc.M1|g" \
-    -e "s|@SIGNING@|/dev/null|g" \
+    -e '/^source @SIGNING@$/d' \
+    -e '/^sign "\$out"$/d' \
     "$out/bin/tcc-darwin-cc"
 rm -f "$out/bin/tcc-darwin-cc.bak"
 
@@ -80,8 +81,3 @@ if [ "$status" -ne 42 ]; then
 fi
 echo "tcc-darwin-cc hello → exit 42 ✓"
 
-## NOTE: tcc-darwin-cc.sh uses bash 4 associative arrays (declare -A).
-## macOS ships Bash 3.2 (due to GPLv3 licensing).  To run this script,
-## bash 4+ must be available — either from Homebrew (impure) or built
-## from source via tcc-boot3 in a later step.  Until then, darwin-cc
-## is non-functional but the script is staged.
