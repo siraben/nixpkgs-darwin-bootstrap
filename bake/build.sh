@@ -29,6 +29,14 @@ mkdir -p "$TARGET/bin" "$TARGET/share"
 ## NOTE: no nixpkgs paths here.
 export PATH="$TARGET/bin:/usr/bin:/bin"
 
+## Byte (C) collation for the whole chain.  gcc-4.6's option machinery
+## sorts its .opt records with awk and dedups adjacent identical option
+## names; under a UTF-8 locale the attribute strings collate apart, so
+## e.g. the two '-C' records are separated by '-CC'/'-c' and dedup fails,
+## yielding "redefinition of enumerator 'OPT_C'" in the generated
+## options.h.  C collation keeps identical names adjacent.
+export LC_ALL=C LANG=C
+
 printf '== bake driver ==\n'
 printf '   seed: %s\n' "$SEED"
 printf '   target: %s\n' "$TARGET"

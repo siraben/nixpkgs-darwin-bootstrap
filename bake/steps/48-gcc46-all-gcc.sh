@@ -40,6 +40,11 @@ STRIP=/usr/bin/strip
 LIPO=/usr/bin/lipo
 OTOOL=/usr/bin/otool
 
+## Byte collation so gcc's .opt dedup (adjacent identical option names)
+## works; a UTF-8 locale separates them and yields duplicate OPT_*
+## enumerators in the generated options.h.
+export LC_ALL=C LANG=C
+
 export CC CPP AR NM RANLIB STRIP LIPO OTOOL
 export CC_FOR_BUILD="$CC"
 export CFLAGS="-g"
