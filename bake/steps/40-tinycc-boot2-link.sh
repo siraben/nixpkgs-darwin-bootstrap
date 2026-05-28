@@ -53,9 +53,9 @@ hex2 --architecture amd64 --little-endian \
     --base-address 0x1000000 \
     -f "$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2" \
     -f tcc-boot2.hex2 \
-    -o tcc-boot1
+    -o tcc-boot2
 
-hex2-data-relocs patch tcc-boot2.hex2 tcc-boot1
+hex2-data-relocs patch tcc-boot2.hex2 tcc-boot2
 
 dd if=/dev/zero of=tcc-boot2 bs=1 count=1 seek=41943039 conv=notrunc 2>/dev/null || true
 chmod +x tcc-boot2

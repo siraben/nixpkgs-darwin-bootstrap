@@ -102,7 +102,7 @@ touch gcc/gengtype-lex.c
 
 ## Make
 echo "== running gcc-4.6 make all-gcc (slow, ~30 min) =="
-"$TARGET/bin/make" all-gcc -j2 \
+"$TARGET/bin/make" all-gcc -j1 \
     MAKEINFO=true \
     NATIVE_SYSTEM_HEADER_DIR="$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap" \
     CPP="$CPP" AR="$AR" NM="$NM" RANLIB="$RANLIB" STRIP="$STRIP" LIPO="$LIPO" OTOOL="$OTOOL" \
