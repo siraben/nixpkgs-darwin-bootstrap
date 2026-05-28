@@ -63,6 +63,19 @@ skip_section { next }
   print "\t.align " align
   next
 }
+## GAS ".p2align <exp>[,<fill>][,<max>]" — power-of-2 align with optional
+## fill/max-skip.  tcc's assembler chokes on the ",,," form, so convert to
+## a plain byte ".align 2^exp" (dropping fill/max, which are advisory).
+/^[[:space:]]*\.p2align[[:space:]]+[0-9]+/ {
+  line = $0
+  sub(/^[[:space:]]*\.p2align[[:space:]]+/, "", line)
+  split(line, parts, ",")
+  split(parts[1], words, /[[:space:]]+/)
+  align = 1
+  for (i = 0; i < words[1]; i++) align *= 2
+  print "\t.align " align
+  next
+}
 {
   if ($0 !~ /^[[:space:]]*\.(ascii|asciz|string)[[:space:]]/) {
     $0 = strip_darwin_symbol_prefix($0)
