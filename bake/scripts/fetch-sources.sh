@@ -60,5 +60,20 @@ fetch make-4.4.1.tar.gz \
     "https://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz" \
     dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3
 
-## gcc-4.6/10/15 will follow once we get past gnumake
+## gcc-4.6 + its in-tree deps (gmp, mpfr, mpc)
+fetch gcc-4.6.4.tar.bz2 \
+    "https://ftp.gnu.org/gnu/gcc/gcc-4.6.4/gcc-4.6.4.tar.bz2" \
+    35af16afa0b67af9b8eb15cafb76d2bc5f568540552522f5dc2c88dd45d977e8
+
+fetch gmp-4.3.2.tar.bz2 \
+    "https://ftp.gnu.org/gnu/gmp/gmp-4.3.2.tar.bz2" \
+    936162c0312886c21581002b79932829aa048cfaf9937c6265aeaa14f1cd1775
+
+fetch mpfr-2.4.2.tar.bz2 \
+    "https://www.mpfr.org/mpfr-2.4.2/mpfr-2.4.2.tar.bz2" \
+    c7e75a08a8d49d2082e4caee1591a05d11b9d5627514e678f02d66a124bcf2ba
+
+fetch mpc-0.8.1.tar.gz \
+    "https://gcc.gnu.org/pub/gcc/infrastructure/mpc-0.8.1.tar.gz" \
+    e664603757251fd8a352848276497a4c79b7f8b21fd8aedd5cc0598a38fee3e4
 printf '\n== done ==\n'
