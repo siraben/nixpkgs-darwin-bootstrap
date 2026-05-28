@@ -1,0 +1,6 @@
+#!/bin/sh
+## No-op ranlib.  tcc-darwin-cc indexes archive members itself (it
+## extracts and reads symbols via elf64-to-m1), so the archive needs no
+## symbol-table member.  A real ranlib here (Apple's) would choke on the
+## ELF members and rewrite the archive, dropping them.
+exit 0
