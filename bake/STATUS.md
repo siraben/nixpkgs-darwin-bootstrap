@@ -190,3 +190,44 @@ This iteration's net finding: the recompile path is itself
 environment-sensitive; future debugging should instrument
 src/implicit.c in bake/sources before invoking step 45, then run the
 full GNU Make build, rather than recompiling one object post-hoc.
+
+## ROOT CAUSE FOUND: tcc integrated-compile preprocessor ≠ tcc -E
+
+Interactive debugging localized the real bug. It is NOT make-specific:
+
+* `tcc-darwin-cc <full CFLAGS> -E src/implicit.c` produces **correct**
+  preprocessed output — the `#if !defined(HAVE_UMASK)` block at
+  makeint.h:309 is correctly DEAD (0 `typedef int mode_t`, 1
+  `typedef unsigned short mode_t` from sys/stat.h).
+* `tcc-darwin-cc <full CFLAGS> -c src/implicit.c` (integrated compile)
+  ERRORS with `makeint.h:310: incompatible redefinition of 'mode_t'`
+  — i.e. the integrated path evaluates the SAME `#if` as LIVE.
+
+So tcc's integrated-compile preprocessor diverges from its standalone
+`-E` preprocessor.  The divergence is triggered by macro-table state:
+it appears only when `-DSTDC_HEADERS` is also present (which makes
+makeint.h pull <stdlib.h>+<string.h>, adding many more macros), and
+HAVE_UMASK is dropped/misread by the integrated path under that load.
+
+This strongly implies the `pattern_search` SIGSEGV is the SAME class
+of bug — the integrated compiler mis-evaluating a conditional or
+mis-tracking macro state, here manifesting as miscompiled code rather
+than a visible error.  It also explains the build's non-determinism:
+the bug is sensitive to how many macros are live.
+
+## Fix direction: two-phase compile (-E then compile the .i)
+
+Since tcc's `-E` is correct, the fix is to make tcc-darwin-cc compile
+in two phases: run `@TCC@ -E ... > x.i` then `@TCC@ -c x.i`.  The
+fully-preprocessed `.i` has no `#if`/`#define` directives left, so the
+buggy integrated conditional-evaluation never runs.
+
+Validated so far: `-E` output for implicit.c is correct.  Compiling
+that `.i` standalone hit only a *reduced-flags* artifact (intmax_t
+undefined because the quick test dropped -DNO_ARCHIVES); with the full
+flag set the `.i` is self-contained.
+
+NEXT TASK (loop): add a two-phase `-E`→compile mode to
+scripts/tinycc/tcc-darwin-cc-bash3.sh, rebuild GNU Make via step 45,
+and re-test `make -f mf` on a dotted-prereq Makefile.  If the crash is
+gone, run step 48 (gcc-4.6 all-gcc) to completion.
