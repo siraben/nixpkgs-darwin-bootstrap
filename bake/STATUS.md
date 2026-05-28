@@ -87,3 +87,27 @@ options:
 * 45: GNU Make 4.4.1
 * 46-47: gcc-4.6 source + Darwin patches
 * 48-50: gcc-4.6 all-gcc, libgcc, bootstrap (skeletons; blocked on make)
+
+## tcc-make crash root cause (narrowed)
+
+Minimal repro:
+
+```sh
+PATH=bake/target/bin:/usr/bin:/bin
+echo 'foo: foo.c'      > mf  # any prereq containing a dot crashes
+echo '	@echo ok'     >> mf
+touch foo.c
+make -f mf  # exits 139 (SIGSEGV)
+```
+
+The crash is in make's prereq-handling code path when a prereq filename
+contains a dot — this is the path that interfaces with implicit rules.
+The bug is present even with `-r` (no built-in rules), so it's not in
+pattern-rule lookup itself but in lower-level filename processing.
+
+By contrast, `foo.o: bar` (dot only in target) DOES work.  And dot-free
+targets/prereqs work fine.
+
+This is consistent with a tcc codegen bug in some pointer-arithmetic
+path that handles the dot character in filenames.  GCC bootstrap is
+blocked here.
