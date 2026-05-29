@@ -628,3 +628,26 @@ combined.M1 (intercept the tcc-darwin-cc wrapper's $tmp), then either
       re-link cc1plus.
 If hex2 genuinely can't scale to cc1plus-size C++ binaries, consider a
 more memory-careful linker path for the large tier.
+
+## gcc-4.6 c,c++ — cc1plus LINKS (brk fix); xgcc driver crashes (2026-05-29)
+
+After the Darwin brk 512MB→1.75GB fix (M2libc unistd.c), step 51 now
+builds **cc1 (51MB) + cc1plus (75MB, large layout) + xgcc** — the
+cc1plus hex2 OOM is GONE.  all-gcc still "fails" only at the `specs`
+target because the **xgcc driver itself segfaults at startup** (NULL
+deref / KERN_INVALID_ADDRESS at 0x0; backtrace main→…→xgcc+212268).
+The C-only xgcc (step 48) worked, so this is a tcc-codegen bug in the
+*larger c,c++ spec tables* of gcc.c's driver init.
+
+DON'T deep-debug the symbol-less xgcc.  bake already **bypasses the real
+driver**: step 50 (phase37-driver.sh) generates a shell-script `gcc`
+that invokes cc1 + the bootstrap-as directly.  Plan: build an analogous
+**g++ wrapper around cc1plus** (+ a c,c++ `gcc` wrapper), so the broken
+xgcc driver is irrelevant.  cc1plus is a working compiler (it links).
+
+NEXT: (1) confirm cc1plus compiles a C++ TU to asm when invoked the way
+the driver would (mirror phase37's cc1 invocation but cc1plus + the
+C++ include paths); (2) generalize phase37-driver.sh (or a new step) to
+emit a g++ wrapper; (3) libstdc++-v3 via that g++; (4) gcc-10 via gcc-4.6
+g++.  If cc1plus/g++ runtime OOMs brk again, bump the 1.75GB region
+(stay <2GB or widen __darwin_mmap length to long) + rebuild hex2 (step13).
