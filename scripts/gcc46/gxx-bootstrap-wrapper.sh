@@ -21,8 +21,20 @@ cc1args=(-quiet -I"$SYSROOT")
 objs=()
 srcs=()
 
+## Driver queries autotools/configure makes — answer them ourselves with
+## canned values (the real xgcc driver crashes; cc1plus doesn't grok them).
+case "${1:-}" in
+  --version|-dumpversion) echo "4.6.4"; exit 0 ;;
+  -dumpmachine) echo "x86_64-apple-darwin"; exit 0 ;;
+  -print-prog-name=*) echo "${1#-print-prog-name=}"; exit 0 ;;
+  -print-search-dirs) echo "install: $(dirname "$0")/"; exit 0 ;;
+esac
+
 while [ $# -gt 0 ]; do
   case "$1" in
+    --version|-dumpversion) echo "4.6.4"; exit 0 ;;
+    -dumpmachine) echo "x86_64-apple-darwin"; exit 0 ;;
+    -E) cc1args+=(-E); mode=preprocess; shift ;;
     -c) mode=object; shift ;;
     -S) mode=asm; shift ;;
     -o) out="$2"; shift 2 ;;
@@ -42,6 +54,16 @@ trap 'rm -rf "$tmp"' EXIT HUP INT TERM
 i=0
 for s in "${srcs[@]}"; do
   i=$((i + 1))
+  ## -E: cc1plus integrated preprocess; emit preprocessed text (configure
+  ## uses `g++ -E` for header/feature checks). cc1plus -E writes to stdout.
+  if [ "$mode" = preprocess ]; then
+    if [ "$out" = a.out ]; then
+      "$CC1PLUS" "${cc1args[@]}" "$s"
+    else
+      "$CC1PLUS" "${cc1args[@]}" "$s" -o "$out"
+    fi
+    continue
+  fi
   "$CC1PLUS" "${cc1args[@]}" "$s" -o "$tmp/c$i.s"
   if [ "$mode" = asm ]; then
     "$ASFILTER" < "$tmp/c$i.s" > "${out:-${s%.*}.s}"
