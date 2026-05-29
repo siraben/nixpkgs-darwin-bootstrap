@@ -744,3 +744,47 @@ To finish gcc-10 we need ONE of:
 RECOMMEND (A) — the dynamic layout also retroactively speeds every gcc
 configure.  This is the real blocker between "working from-seed g++" and
 "gcc-10".
+
+## SPEC: dynamic per-link Mach-O layout (chosen 2026-05-29) — implement fresh
+
+Goal: stop padding every binary to a fixed 18MB/46MB; size each binary's
+__TEXT to its actual code so conftests are tiny/fast.  Unblocks libstdc++
++ gcc-10 configures and speeds all gcc configures.  Replaces the two-tier
+small/large layout in tcc-darwin-cc{,-bash3}.sh.
+
+How linking works today (wrapper): build combined.M1 (code, then ':ELF_data'
+then ':HEX2_data' then data); m1-to-hex2 --base-address 0x600400
+--align-label ELF_data=DATA_VMADDR pads code up to DATA_VMADDR at the
+':ELF_data' token, emits data → combined.hex2; hex2 --base-address 0x600000
+-f <MACHO-template> -f combined.hex2 -o out (template = Mach-O header+load
+commands for 0x600000..0x600400 with segment vmaddr/vmsize/fileoff baked
+in); dd pads file to linkeditOffset.  Template fields (LE 8-byte) at lowdata
+lines NR 10/11/15/19/20/24/25 = __TEXT vmaddr/vmsize, __TEXT fileoff/
+filesize, __text sect addr/size(=vmsize-0x400), __DATA vmaddr, __DATA
+vmsize/fileoff, __LINKEDIT vmaddr/vmsize(0x1000), __LINKEDIT fileoff.
+Relationships (verified): data_vmaddr=0x600000+text_vmsize; data_fileoff=
+text_filesize=text_vmsize; linkedit_vmaddr=data_vmaddr+data_vmsize;
+linkedit_fileoff=data_fileoff+data_vmsize=linkeditOffset.
+
+Implementation:
+1. m1-to-hex2.c: add `--auto-data-align` (or treat --align-label ELF_data=0
+   as auto).  At the ':ELF_data' token, set target = round_up(address,
+   0x10000) instead of a fixed lookup; pad to it; remember DATA_VMADDR=
+   target.  At EOF remember DATA_END=address.  Print "DATA_VMADDR=0x..
+   DATA_END=0x.." to stderr (or a sidecar -o.meta file).  Keep the old
+   fixed --align-label path for compatibility.
+2. wrapper: run m1-to-hex2 in auto mode; capture DATA_VMADDR + DATA_END.
+   Compute: text_vmsize=DATA_VMADDR-0x600000; data_vmsize=round_up(
+   DATA_END-DATA_VMADDR,0x10000); then the 7 fields.  LE-encode each via a
+   shell helper (for i in 0..7: byte=(v>>(8*i))&255; printf '%02x ').
+   Generate the per-link template by awk-substituting lowdata (move the
+   step-44 awk into the wrapper, parameterized).  Run hex2; dd to
+   linkeditOffset=data_fileoff+data_vmsize.
+3. Drop the small/large two-tier branch + the two static templates (step
+   44 / darwin-cc.nix) once dynamic works; keep lowdata as the base.
+4. VERIFY CAREFULLY (a wrong byte breaks ALL linking): hello (exit 42) and
+   a re-link of cc1plus (the 75MB binary) must both work; small binaries
+   should now be a few-hundred-KB, not 51MB.  Then re-run libstdc++
+   configure (should be fast now).
+
+RISK: delicate Mach-O byte math; test hello + cc1plus before trusting.
