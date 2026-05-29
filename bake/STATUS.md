@@ -671,3 +671,19 @@ equiv tcc accepts), drop/translate .weak_definition, and handle any
 __TEXT,__const_coal / __DATA,__datacoal_nt sections similarly.  Re-verify
 byte-identity isn't required here (new directives), just that tcc's
 assembler accepts the output and symbols resolve.
+
+## C++ end-to-end VALIDATED via bake toolchain (2026-05-29)
+
+A self-contained C++ program (class P{ctor; g()}; main returns p.g())
+compiled + assembled + linked + RAN through the bake toolchain:
+  cc1plus -quiet -I<sysroot> t.cc -o t.s    (gcc-4.6 C++ frontend)
+  as-filter < t.s > f.s                      (phase36-bootstrap-as.c, C++-aware)
+  tcc-darwin-cc -c f.s -o t.o                (assemble → ELF)
+  tcc-darwin-cc t.o -o exe                   (link → Mach-O)
+  ./exe → exit 42  ✓
+No libstdc++ needed for this TU (no iostream/exceptions). Confirms the
+g++-wrapper approach end-to-end; the broken xgcc driver is irrelevant.
+
+NEXT: formalize a g++ wrapper (phase37-style) so gcc-10's build can call
+`g++`; then libstdc++-v3 (where cross-TU weak-symbol coalescing in hex2
+is the expected hard part); then gcc-10 via gcc-4.6 g++.
