@@ -11,9 +11,26 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
 → tcc → tcc-self → tcc-boot1 → tcc-boot2 → tcc-boot3
 → tcc-darwin-cc (native Darwin C compiler)
 → gnumake (GNU Make 4.4.1)
-→ gcc-4.6 source + patches → all-gcc ✅ (xgcc + cc1, GCC 4.6.4)
-  → libgcc → bootstrap
+→ gcc-4.6 source + patches → all-gcc → libgcc → bootstrap ✅
+  (full GCC 4.6.4: `gcc hello.c` compiles & runs)
 ```
+
+## ✅ Full gcc-4.6 bootstrap (2026-05-28)
+
+`bake/target/gcc46-bootstrap/bin/gcc` is a working GCC 4.6.4 driver
+(xgcc + cc1 + libgcc + a tcc-compiled C `bootstrap-as`) that compiles
+and runs C programs — all from the 4 KB seed, no Nix, no bootstrap-tools,
+and **no host awk** in the assembly path.  Steps 48→49→50 all green.
+
+Bugs fixed to get here (each surfaced the next):
+1. tcc libc self-recursive int↔float helpers (make stack overflow) — e2161fc
+2. Apple ar can't archive ELF (empty libs) → bake-ar — 65431d7
+3. UTF-8 collation broke gcc's option dedup → LC_ALL=C — 5066486
+4. root tcc-darwin-cc not executable (libgcc `as`) — 0c0c876
+5. tcc assembler chokes on DWARF .file/.loc and GAS .p2align — 57240ca/.p2align
+6. **host-awk asm filter → tcc-compiled C translator** (byte-identical
+   over the 77-file/116k-line libgcc corpus) — b398738
+7. bash-3.2 empty-array under set -u in the gcc driver — 17506b7
 
 ## ✅ gcc-4.6 all-gcc builds (2026-05-28)
 
