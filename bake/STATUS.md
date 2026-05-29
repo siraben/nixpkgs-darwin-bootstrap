@@ -568,3 +568,32 @@ Empirical cast→libcall map (verified with tcc-darwin-cc -c + objdump):
 
 gcc-4.6 all-gcc (step 48) re-run to confirm it clears libiberty: see
 build log.
+
+## gcc-10 roadmap (bake) — in progress
+
+Goal: build gcc-10 from the seed.  gcc-10 is C++, so it needs a gcc-4.6
+g++ + libstdc++ first.
+
+Key insight: **gcc-4.6 itself is written in C** (GCC went C++-only in
+4.8), so its C++ *front-end* cc1plus compiles from C sources via tcc —
+the same proven path as step 48's cc1.  Do NOT port the Nix
+phase44-cxx.sh: it hardcodes the clang HOST_CC_SOURCES=1 shortcut +
+binutils as/ld + macho + SDK, none available to bake.  Instead extend
+the bake-native step-48 pattern.
+
+Planned bake steps (51+):
+1. **51-gcc46-cxx-all** — rerun the step-48 configure/build but with
+   `--enable-languages=c,c++` and target `all-gcc` (builds cc1plus +
+   xg++).  Reuse step 48's env: tcc-darwin-cc, bake-ar/bake-ranlib,
+   LC_ALL=C, config.cache fixtures.  Expected to behave like step 48.
+2. **52-gcc46-libstdc++** — build libstdc++-v3 with the new g++ (via the
+   phase36-style xgcc/bootstrap-as wrapper, but g++).  The big C++ unknown
+   — this is the part prior attempts found slow; our tcc is ~6 s/file so
+   it may be fine.  libsupc++ + libstdc++.
+3. **53-gcc10-source / 54-gcc10-build** — fetch gcc-10 + gmp/mpfr/mpc/isl,
+   build with gcc-4.6 g++ as host compiler (no clang).  Mirror gcc-10/
+   source.nix + scripts/gcc-modern/bootstrap-gcc.sh, swapping host clang
+   for our gcc-4.6 g++ and host as/ld for bootstrap-as + tcc link path.
+
+Success: g++ compiles+runs a C++ program (step 51/52); then xgcc-10
+compiles+runs a C program (step 54).
