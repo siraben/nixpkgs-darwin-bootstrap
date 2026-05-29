@@ -704,3 +704,17 @@ via that g++ — the hard part: cc1plus emits many WEAK/coalesced symbols
 hex2_linker.c storeLabel will see duplicate labels.  Need hex2 to accept
 duplicate labels (first-wins) OR the wrapper to dedup objects, OR
 compile libstdc++ as one big TU.  (3) gcc-10 via gcc-4.6 g++.
+
+## Weak-symbol cross-TU linking — NOT a blocker (2026-05-29)
+
+Probed the feared hard problem directly: two C++ TUs both emitting the
+same weak inline symbol (_Z6sharedv) compiled with target/gcc46-cxx/bin/g++
+and LINKED without error → program ran, exit 42.  hex2_linker.c storeLabel
+prepends each label to its hash bucket and GetTarget returns the latest,
+so duplicate (identical) weak/coalesced defs are tolerated (last-wins).
+=> libstdc++/gcc-10 C++ linking should not choke on template/inline
+duplicates.  Big de-risk.
+
+NEXT: build libstdc++-v3 (or go straight to gcc-10, providing libstdc++
+headers it needs) via target/gcc46-cxx/bin/g++; then gcc-10 source+build
+via gcc-4.6 g++.
