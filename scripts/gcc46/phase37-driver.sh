@@ -4,7 +4,7 @@ set -euo pipefail
 phase35=$1
 phase36=$2
 phase34=$3
-awk_filter=$4
+as_filter_src=$4   # C source for the Mach-O/GAS->tcc assembly translator
 python=$5
 elf_to_m1=$6
 out=$7
@@ -39,6 +39,11 @@ for object in "$gcc_lib/libgcc-objects"/*.o; do
   "$elf_to_m1" --symbols "$object" 2>/dev/null | sort -u > "$gcc_lib/libgcc-symbols/$(basename "$object").tsv"
 done
 
+## Compile the assembly-translation filter with the chain's own compiler
+## (tcc-darwin-cc) rather than depending on the host's awk.
+as_filter="$out/bin/gcc46-bootstrap-as-filter"
+"$phase34/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
+
 cat > "$out/bin/gcc46-bootstrap-as" <<EOF_AS
 #!$BASH
 set -euo pipefail
@@ -68,7 +73,7 @@ if [ -z "\$input" ] || [ "\$input" = - ]; then
   cat > "\$tmpdir/input.s"
   input="\$tmpdir/input.s"
 fi
-awk -f "$awk_filter" "\$input" > "\$tmpdir/filtered.s"
+"$as_filter" < "\$input" > "\$tmpdir/filtered.s"
 exec "$phase34/bin/tcc-darwin-cc" -c "\$tmpdir/filtered.s" -o "\$out"
 EOF_AS
 chmod +x "$out/bin/gcc46-bootstrap-as"

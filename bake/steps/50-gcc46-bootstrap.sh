@@ -10,7 +10,7 @@ mkdir -p "$out"
     "$TARGET/gcc46-all-gcc" \
     "$TARGET/gcc46-libgcc" \
     "$TARGET/tcc-darwin-cc-root" \
-    "$SOURCES/gcc46-scripts/phase36-bootstrap-as.awk" \
+    "$SOURCES/gcc46-scripts/phase36-bootstrap-as.c" \
     "" \
     "$TARGET/bin/elf64-to-m1" \
     "$out" \

@@ -1,2 +1,7 @@
 target/
 tarballs/
+## libgcc/bootstrap phases create these relative to the driver CWD (bake/):
+work/
+tmp/
+## tcc-darwin-cc materializes quote-include headers + a stamp dir into CWD:
+.tcc-darwin-header-stamps/

@@ -6,7 +6,7 @@ phase34=$2
 cctools=$3
 perl=$4
 helper=$5
-awk_filter=$6
+as_filter_src=$6   # C source for the Mach-O/GAS->tcc assembly translator
 out=$7
 gcc_version=$8
 xgcc_wrapper_template=${9:-}
@@ -43,11 +43,17 @@ export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
 export TMPDIR="$PWD/tmp"
 mkdir -p "$TCC_DARWIN_CACHE_DIR" "$TMPDIR"
 
+## Compile the assembly-translation filter with the chain's own C
+## compiler (tcc-darwin-cc), so the bootstrap `as` does not depend on the
+## host's awk for what is really compiler-frontend work.
+as_filter="$PWD/work/build/gcc/as-filter"
+"$phase34/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
+
 cat > work/build/gcc/as <<SH_AS
 #! /bin/sh
 set -eu
 compiler="$phase34/bin/tcc-darwin-cc"
-awk_filter="$awk_filter"
+as_filter="$as_filter"
 out=""
 input=""
 while test "\$#" -gt 0; do
@@ -72,7 +78,7 @@ if test -z "\$input" || test "\$input" = "-"; then
   cat > "\$tmpdir/source.s"
   input="\$tmpdir/source.s"
 fi
-awk -f "\$awk_filter" "\$input" > "\$filtered"
+"\$as_filter" < "\$input" > "\$filtered"
 exec "\$compiler" -c "\$filtered" -o "\$out"
 SH_AS
 chmod +x work/build/gcc/as

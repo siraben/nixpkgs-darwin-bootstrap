@@ -22,7 +22,7 @@ export LC_ALL=C LANG=C
     /usr/bin \
     /usr/bin/perl \
     "$SOURCES/gcc46-scripts/phase36-libgcc.pl" \
-    "$SOURCES/gcc46-scripts/phase36-bootstrap-as.awk" \
+    "$SOURCES/gcc46-scripts/phase36-bootstrap-as.c" \
     "$out" \
     4.6.4 \
     "$SOURCES/gcc46-scripts/phase36-xgcc-wrapper.sh"

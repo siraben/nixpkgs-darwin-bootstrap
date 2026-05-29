@@ -17,7 +17,7 @@ runCommand "phase36-gcc-${gcc46Version}-libgcc" {
     ${cctools} \
     ${perl}/bin/perl \
     ${root + "/scripts/gcc46/phase36-libgcc.pl"} \
-    ${root + "/scripts/gcc46/phase36-bootstrap-as.awk"} \
+    ${root + "/scripts/gcc46/phase36-bootstrap-as.c"} \
     "$out" \
     ${gcc46Version} \
     ${root + "/scripts/gcc46/phase36-xgcc-wrapper.sh"}

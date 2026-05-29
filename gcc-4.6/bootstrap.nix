@@ -13,7 +13,7 @@ runCommand "phase37-gcc-${gcc46Version}-bootstrap" { } ''
     ${phase35-gcc46-all-gcc} \
     ${phase36-gcc46-libgcc} \
     ${phase34-tinycc-darwin-cc} \
-    ${root + "/scripts/gcc46/phase36-bootstrap-as.awk"} \
+    ${root + "/scripts/gcc46/phase36-bootstrap-as.c"} \
     "" \
     ${phase26b-elf64-to-m1}/bin/elf64-to-m1 \
     "$out" \
