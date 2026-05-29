@@ -80,7 +80,9 @@ chmod +x "$out/bin/gcc46-bootstrap-as"
 
 cat > "$out/bin/gcc" <<EOF_GCC
 #!$BASH
-set -euo pipefail
+## No 'nounset': macOS ships bash 3.2, which errors on "\${arr[@]}" when
+## the array is empty (e.g. no extra compiler args) under set -u.
+set -eo pipefail
 
 xgcc="$gcc_exec/xgcc"
 gcc_exec="$gcc_exec"
