@@ -718,3 +718,29 @@ duplicates.  Big de-risk.
 NEXT: build libstdc++-v3 (or go straight to gcc-10, providing libstdc++
 headers it needs) via target/gcc46-cxx/bin/g++; then gcc-10 source+build
 via gcc-4.6 g++.
+
+## libstdc++ autotools configure is impractical with our toolchain (2026-05-29)
+
+Ran libstdc++-v3/configure with CC=tcc-darwin-cc CXX=our g++: after ~50
+min it had completed only ~12 autotools checks (stuck around "make
+supports nested variables").  Every C++ conftest compiles via cc1plus
+(75MB) and LINKS a 51MB Mach-O (the fixed-layout padding), and configure
+runs hundreds — plus the shell/make probes themselves crawl.  Not viable
+as-is.  Killed.
+
+To finish gcc-10 we need ONE of:
+  (A) a big toolchain SPEED fix — a per-link "dynamic" Mach-O layout so
+      tiny conftests produce tiny/fast binaries (data vmaddr = round-up of
+      actual text), instead of always padding to 17.8MB/46MB.  Would make
+      all configures (libstdc++, gcc-10) tractable.  Sizeable change to
+      tcc-darwin-cc + m1-to-hex2 (compute text size, emit a matching
+      per-link Mach-O template).  Highest-leverage.
+  (B) hand-roll libstdc++: write include/bits/c++config.h (+ os/cpu
+      defines) by hand for x86_64-darwin, skip configure, build only the
+      libstdc++/libsupc++ pieces gcc-10 links.  Intricate, fragile.
+  (C) pre-seed a complete config.cache so configure skips all conftests
+      (still pays the slow shell probes, but maybe tractable).
+
+RECOMMEND (A) — the dynamic layout also retroactively speeds every gcc
+configure.  This is the real blocker between "working from-seed g++" and
+"gcc-10".
