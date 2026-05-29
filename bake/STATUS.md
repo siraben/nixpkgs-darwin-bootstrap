@@ -597,3 +597,34 @@ Planned bake steps (51+):
 
 Success: g++ compiles+runs a C++ program (step 51/52); then xgcc-10
 compiles+runs a C program (step 54).
+
+## gcc-10 progress — cc1plus blocked on hex2 OOM (2026-05-29)
+
+Step 51 (gcc-4.6 c,c++) builds **all 320 gcc objects + cc1 (51MB) + xgcc**
+via tcc, but the final **cc1plus link fails in hex2** with
+`failed to allocate entry->name` (hex2_linker.c:140 — calloc NULL).
+
+Ruled out:
+* Disk/swap: fails with 18G free, 32GB RAM, ulimits unlimited.
+* Mach-O __TEXT overflow: the two-tier large layout (42MB) is used; no
+  "align target before current address" — text fits.
+* Layout speed: two-tier (small default / large fallback) restored fast
+  conftests (gmp/mpfr/mpc configure quick again).
+
+Anomaly: hex2's `jump_tables` is a fixed 65537-bucket hash; per-label
+entries are tiny. A small calloc failing implies either a huge label
+count (cc1plus is ~1.3x cc1, which links fine — doesn't obviously
+explain it) or a corrupt `length(scratch)`.  Suspect: `consume_token`
+(hex2_linker.c:48) never writes a trailing NUL — it relies on
+Clear_Scratch pre-zeroing; a long C++ mangled name could leave
+`length(scratch)` reading stale bytes → calloc(huge).  UNCONFIRMED.
+
+NEXT (focused debug, do fresh): reproduce the cc1plus link keeping
+combined.M1 (intercept the tcc-darwin-cc wrapper's $tmp), then either
+  (a) instrument storeLabel to print length(scratch) + a running label
+      count + hex2 RSS, OR
+  (b) test the 1-line fix `scratch[i]=0;` at end of consume_token (needs
+      hex2 rebuilt from stage0, or a tcc-compiled hex2 for testing) and
+      re-link cc1plus.
+If hex2 genuinely can't scale to cc1plus-size C++ binaries, consider a
+more memory-careful linker path for the large tier.
