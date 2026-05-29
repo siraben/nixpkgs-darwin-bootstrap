@@ -176,9 +176,16 @@ int main(void) {
                     continue;
                 }
                 if (strncmp(a, "__TEXT,__text", 13) == 0) { puts("\t.text"); continue; }
+                /* C++ coalesced text (templates/inlines/weak defs) -> .text */
+                if (strncmp(a, "__TEXT,__textcoal_nt", 20) == 0) { puts("\t.text"); continue; }
                 if (strncmp(a, "__TEXT,__cstring", 16) == 0 ||
-                    strncmp(a, "__TEXT,__literal", 16) == 0) { puts("\t.data"); continue; }
+                    strncmp(a, "__TEXT,__literal", 16) == 0 ||
+                    strncmp(a, "__TEXT,__const", 14) == 0) { puts("\t.data"); continue; }
                 if (strncmp(a, "__DATA,__data", 13) == 0) { puts("\t.data"); continue; }
+                /* C++ coalesced data / const data -> .data */
+                if (strncmp(a, "__DATA,__datacoal_nt", 20) == 0 ||
+                    strncmp(a, "__DATA,__const_coal", 19) == 0 ||
+                    strncmp(a, "__DATA,__const", 14) == 0) { puts("\t.data"); continue; }
                 if (strncmp(a, "__DATA,__bss", 12) == 0) { puts("\t.bss"); continue; }
                 /* other sections fall through to default printing */
             }
@@ -186,6 +193,12 @@ int main(void) {
 
         if (dir_eol(raw, ".subsections_via_symbols")) continue;
         if (starts_dir(raw, ".no_dead_strip")) continue;
+        /* C++ weak/coalesced markers: tcc's asm has no weak defs; drop them
+         * (the symbol stays defined via its .globl).  NB cross-TU weak
+         * coalescing in the minimal hex2 linker is a separate downstream
+         * problem for libstdc++. */
+        if (starts_dir(raw, ".weak_definition")) continue;
+        if (starts_dir(raw, ".weak_def_can_be_hidden")) continue;
 
         /* drop DWARF ".file N" and ".loc" */
         {
