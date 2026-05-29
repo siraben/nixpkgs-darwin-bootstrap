@@ -788,3 +788,22 @@ Implementation:
    configure (should be fast now).
 
 RISK: delicate Mach-O byte math; test hello + cc1plus before trusting.
+
+## Dynamic-layout impl note: M2-Planet operator constraints (2026-05-29)
+
+m1-to-hex2.c (compiled by M2-Planet/M2-darwin, NOT tcc — bake step 43)
+uses ONLY comparisons + add/subtract; it avoids >> << & | ~ / % (the
+file header warns M2-Planet codegen is unreliable for some constructs on
+Darwin).  So the dynamic-layout additions to m1-to-hex2.c must:
+  - round_up(address,0x10000): avoid &/~ — and verify M2-Planet supports
+    / and * first (the file never uses them). Safe fallback without /,%,&:
+    keep a running page boundary while emitting, or precompute via a
+    subtract-loop.  EASIEST: empirically test whether M2-darwin compiles
+    `/`, `%`, `&`, `>>` with a tiny probe before relying on them.
+  - hex-report of DATA_VMADDR/DATA_END to stderr: nibble extraction needs
+    /16 or >>4 — verify support, else build the value as decimal (fputs
+    an int via repeated /10) and have the wrapper read decimal, OR emit
+    via the existing hex_char with a /-based nibble loop.
+DO THIS FRESH with empirical M2-Planet operator testing — a wrong codegen
+assumption here silently corrupts every linked binary. The wrapper side
+(LE-byte template gen) is plain bash and lower-risk.
