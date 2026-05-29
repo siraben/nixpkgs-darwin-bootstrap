@@ -25,7 +25,24 @@ elf64-to-m1 --prefix tinycc_sysv_libc_ "$out/tinycc-sysv-libc.o" "$out/share/tin
 ## Copy crt1
 cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 
-## Generate MACHO-amd64-largedata.hex2 from lowdata via 7 awk substitutions
+## Generate two Mach-O segment-layout templates from lowdata via 7 awk
+## byte substitutions each.  tcc-darwin-cc tries the SMALL layout first
+## (fast: minimal text padding) and falls back to LARGE only when a
+## binary's text overruns it (e.g. gcc-4.6 cc1plus).  Keeping the small
+## layout as default preserves fast configure conftests.
+lowdata="$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2"
+## SMALL: __TEXT vmsize 0x1100000 (17.8MB), __DATA @0x1700000, linkedit @0x3100000
+awk '
+NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+NR==11 { print "00 00 00 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+NR==15 { print "00 04 60 00 00 00 00 00 00 fc 0f 01 00 00 00 00"; next }
+NR==19 { print "00 00 00 00 00 00 00 00 00 00 70 01 00 00 00 00"; next }
+NR==20 { print "00 00 00 02 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+NR==24 { print "00 00 70 03 00 00 00 00 00 10 00 00 00 00 00 00"; next }
+NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
+{ print }
+' "$lowdata" > "$out/share/MACHO-amd64-smalldata.hex2"
+## LARGE: __TEXT vmsize 0x2800000 (42MB), __DATA @0x2E00000, linkedit @0x4800000
 awk '
 NR==10 { print "00 00 60 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
 NR==11 { print "00 00 00 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
@@ -35,8 +52,7 @@ NR==20 { print "00 00 00 02 00 00 00 00 00 00 80 02 00 00 00 00"; next }
 NR==24 { print "00 00 e0 04 00 00 00 00 00 10 00 00 00 00 00 00"; next }
 NR==25 { print "00 00 80 04 00 00 00 00 00 00 00 00 00 00 00 00"; next }
 { print }
-' "$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2" \
-  > "$out/share/MACHO-amd64-largedata.hex2"
+' "$lowdata" > "$out/share/MACHO-amd64-largedata.hex2"
 
 ## Install the wrapper script with placeholders substituted.
 ## Use bash because the script uses arrays.

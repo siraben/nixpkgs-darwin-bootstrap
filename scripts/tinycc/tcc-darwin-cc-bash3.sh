@@ -508,12 +508,22 @@ done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
 } > "$tmp/combined.M1"
 
-@M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x2E00000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
+# Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text
+# padding → fast); fall back to LARGE only when the text overruns it
+# (m1-to-hex2 prints "align target before current address" and exits 1),
+# e.g. for gcc-4.6 cc1plus.  Keeps configure conftests fast.
+macho_large="@MACHO@"
+macho_small="$(dirname "@MACHO@")/MACHO-amd64-smalldata.hex2"
+if @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>/dev/null; then
+  macho="$macho_small"
+  linkeditOffset="$((0x1100000 + 0x2000000))"
+else
+  @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x2E00000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
+  macho="$macho_large"
+  linkeditOffset="$((0x2800000 + 0x2000000))"
+fi
 @HEX2@ --architecture amd64 --little-endian --base-address 0x600000 \
-  -f @MACHO@ -f "$tmp/combined.hex2" -o "$out"
-# The @MACHO@ template (MACHO-amd64-largedata.hex2) already has the
-# segment sizes baked in — no post-emit patcher needed.
-linkeditOffset="$((0x2800000 + 0x2000000))"
+  -f "$macho" -f "$tmp/combined.hex2" -o "$out"
 dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc 2>/dev/null
 chmod +x "$out"
 source @SIGNING@

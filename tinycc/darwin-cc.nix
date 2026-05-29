@@ -30,12 +30,23 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
 
   cp ${root + "/scripts/tinycc/crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
 
-  ## Generate MACHO-amd64-largedata.hex2 by substituting 7 segment
-  ## fields in MACHO-amd64-lowdata.hex2 (__TEXT vmsize, __TEXT
-  ## filesize, __TEXT section size, __DATA vmaddr, __DATA fileoff,
-  ## __LINKEDIT vmaddr+vmsize, __LINKEDIT fileoff).  Bakes in the
-  ## constants that tools/patch-macho-large-segments.py used to write
-  ## post-hex2; downstream tcc-darwin-cc.sh now skips that python call.
+  ## Generate two Mach-O layout templates from MACHO-amd64-lowdata.hex2
+  ## (7 segment-field byte substitutions each).  tcc-darwin-cc tries the
+  ## SMALL layout first (fast, minimal text padding) and falls back to
+  ## LARGE only when a binary's text overruns it (e.g. gcc-4.6 cc1plus).
+  lowdata=${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
+  ## SMALL: __TEXT vmsize 0x1100000, __DATA @0x1700000, linkedit @0x3100000
+  awk '
+  NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+  NR==11 { print "00 00 00 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+  NR==15 { print "00 04 60 00 00 00 00 00 00 fc 0f 01 00 00 00 00"; next }
+  NR==19 { print "00 00 00 00 00 00 00 00 00 00 70 01 00 00 00 00"; next }
+  NR==20 { print "00 00 00 02 00 00 00 00 00 00 10 01 00 00 00 00"; next }
+  NR==24 { print "00 00 70 03 00 00 00 00 00 10 00 00 00 00 00 00"; next }
+  NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
+  { print }
+  ' "$lowdata" > $out/share/darwin-bootstrap/MACHO-amd64-smalldata.hex2
+  ## LARGE: __TEXT vmsize 0x2800000, __DATA @0x2E00000, linkedit @0x4800000
   awk '
   NR==10 { print "00 00 60 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
   NR==11 { print "00 00 00 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
@@ -45,8 +56,7 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
   NR==24 { print "00 00 e0 04 00 00 00 00 00 10 00 00 00 00 00 00"; next }
   NR==25 { print "00 00 80 04 00 00 00 00 00 00 00 00 00 00 00 00"; next }
   { print }
-  ' ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
-    > $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
+  ' "$lowdata" > $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
 
   cp crt1-tcc-sysv.M1 tinycc-sysv-libc.M1 $out/share/darwin-bootstrap/
 
