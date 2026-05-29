@@ -687,3 +687,20 @@ g++-wrapper approach end-to-end; the broken xgcc driver is irrelevant.
 NEXT: formalize a g++ wrapper (phase37-style) so gcc-10's build can call
 `g++`; then libstdc++-v3 (where cross-TU weak-symbol coalescing in hex2
 is the expected hard part); then gcc-10 via gcc-4.6 g++.
+
+## g++ wrapper works — multi-file C++ links+runs (2026-05-29)
+
+A focused g++ wrapper (saved as scripts/gcc46/gxx-bootstrap-wrapper.sh,
+@PLACEHOLDER@ template) drives cc1plus + bootstrap-as + tcc-darwin-cc,
+bypassing the broken xgcc driver.  Validated: separate compilation of a
+two-file C++ program (b.cc calls helper() defined in a.cc) → a.o + b.o →
+linked → exit 42.  Cross-TU symbol resolution works through the bake
+linker for ordinary (non-weak) symbols.
+
+NEXT: (1) bake step that substitutes the wrapper's paths and installs a
+`g++` (and a c,c++ `gcc`) next to the gcc-4.6 cxx build; (2) libstdc++-v3
+via that g++ — the hard part: cc1plus emits many WEAK/coalesced symbols
+(templates/inlines) and the same symbol will appear in multiple TUs;
+hex2_linker.c storeLabel will see duplicate labels.  Need hex2 to accept
+duplicate labels (first-wins) OR the wrapper to dedup objects, OR
+compile libstdc++ as one big TU.  (3) gcc-10 via gcc-4.6 g++.
