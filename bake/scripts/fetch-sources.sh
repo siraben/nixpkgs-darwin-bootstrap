@@ -76,4 +76,25 @@ fetch mpfr-2.4.2.tar.bz2 \
 fetch mpc-0.8.1.tar.gz \
     "https://gcc.gnu.org/pub/gcc/infrastructure/mpc-0.8.1.tar.gz" \
     e664603757251fd8a352848276497a4c79b7f8b21fd8aedd5cc0598a38fee3e4
+
+## gcc-10 + its in-tree deps (gmp/mpfr/mpc/isl), built by our gcc-4.6 g++.
+fetch gcc-10.4.0.tar.xz \
+    "https://ftp.gnu.org/gnu/gcc/gcc-10.4.0/gcc-10.4.0.tar.xz" \
+    c9297d5bcd7cb43f3dfc2fed5389e948c9312fd962ef6a4ce455cff963ebe4f1
+
+fetch gmp-6.2.1.tar.xz \
+    "https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.xz" \
+    fd4829912cddd12f84181c3451cc752be224643e87fac497b69edddadc49b4f2
+
+fetch mpfr-4.2.2.tar.xz \
+    "https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.2.tar.xz" \
+    b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01
+
+fetch mpc-1.3.1.tar.gz \
+    "https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz" \
+    ab642492f5cf882b74aa0cb730cd410a81edcdbec895183ce930e706c1c759b8
+
+fetch isl-0.24.tar.bz2 \
+    "https://gcc.gnu.org/pub/gcc/infrastructure/isl-0.24.tar.bz2" \
+    fcf78dd9656c10eb8cf9fbd5f59a0b6b01386205fe1934b3b287a0a1898145c0
 printf '\n== done ==\n'
