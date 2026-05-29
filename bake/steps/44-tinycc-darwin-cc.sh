@@ -27,13 +27,13 @@ cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 
 ## Generate MACHO-amd64-largedata.hex2 from lowdata via 7 awk substitutions
 awk '
-NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==11 { print "00 00 00 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==15 { print "00 04 60 00 00 00 00 00 00 fc 0f 01 00 00 00 00"; next }
-NR==19 { print "00 00 00 00 00 00 00 00 00 00 70 01 00 00 00 00"; next }
-NR==20 { print "00 00 00 02 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==24 { print "00 00 70 03 00 00 00 00 00 10 00 00 00 00 00 00"; next }
-NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
+NR==10 { print "00 00 60 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
+NR==11 { print "00 00 00 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
+NR==15 { print "00 04 60 00 00 00 00 00 00 fc 7f 02 00 00 00 00"; next }
+NR==19 { print "00 00 00 00 00 00 00 00 00 00 e0 02 00 00 00 00"; next }
+NR==20 { print "00 00 00 02 00 00 00 00 00 00 80 02 00 00 00 00"; next }
+NR==24 { print "00 00 e0 04 00 00 00 00 00 10 00 00 00 00 00 00"; next }
+NR==25 { print "00 00 80 04 00 00 00 00 00 00 00 00 00 00 00 00"; next }
 { print }
 ' "$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2" \
   > "$out/share/MACHO-amd64-largedata.hex2"
