@@ -651,3 +651,23 @@ C++ include paths); (2) generalize phase37-driver.sh (or a new step) to
 emit a g++ wrapper; (3) libstdc++-v3 via that g++; (4) gcc-10 via gcc-4.6
 g++.  If cc1plus/g++ runtime OOMs brk again, bump the 1.75GB region
 (stay <2GB or widen __darwin_mmap length to long) + rebuild hex2 (step13).
+
+## cc1plus VALIDATED as a working C++ compiler (2026-05-29)
+
+Direct test: `cc1plus -quiet -I<sysroot> t.cc -o t.s` on a class with a
+ctor + method → produced Mach-O asm with mangled symbols (__ZN1PC1Ei).
+So the C++ FRONT-END works; only the xgcc *driver* is broken (bypass via
+a g++ wrapper around cc1plus — see prior section).
+
+Heads-up for the g++ wrapper's bootstrap-as: cc1plus emits C++-specific
+Mach-O directives the current scripts/gcc46/phase36-bootstrap-as.c does
+NOT yet translate — at least:
+  .section __TEXT,__textcoal_nt,coalesced,pure_instructions  (coalesced
+      text for template/weak/inline defs)
+  .weak_definition <sym>
+  .align 1   (already handled: .align N -> 2^N bytes)
+Extend the C filter to map __textcoal_nt -> .text (or a coalesced
+equiv tcc accepts), drop/translate .weak_definition, and handle any
+__TEXT,__const_coal / __DATA,__datacoal_nt sections similarly.  Re-verify
+byte-identity isn't required here (new directives), just that tcc's
+assembler accepts the output and symbols resolve.
