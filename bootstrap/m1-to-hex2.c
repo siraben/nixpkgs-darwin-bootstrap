@@ -41,6 +41,14 @@ int n_aligns;
 FILE* outfp;
 int address;
 
+/* Dynamic data-segment placement: when --auto-data-align is given, the
+ * ELF_data align target is computed as the page-rounded code end (rather
+ * than a fixed CLI value), and the chosen data vmaddr + final data end are
+ * reported on stderr so the linker wrapper can size the Mach-O segments to
+ * the actual binary instead of padding to a fixed huge layout. */
+int auto_data;
+int data_vmaddr;
+
 /* Per-line scratch buffers — heap-allocated via calloc since M2-Planet
  * codegen for global char[] storage is also unreliable. */
 char* line;
@@ -117,6 +125,30 @@ int align_lookup(char* name)
 	int i;
 	int j;
 	int ok;
+	/* Auto data placement: ELF_data's target is the page-rounded code end.
+	 * (Inline name match — streq is defined later in the file and M2-Planet
+	 * needs definition-before-use.) */
+	if(auto_data)
+	{
+		char* e;
+		int k;
+		int m;
+		e = "ELF_data";
+		k = 0;
+		m = 1;
+		while(e[k] != 0 || name[k] != 0)
+		{
+			if(e[k] != name[k]) { m = 0; }
+			if(e[k] == 0 || name[k] == 0) { break; }
+			k = k + 1;
+		}
+		if(e[k] != name[k]) m = 0;
+		if(m)
+		{
+			data_vmaddr = ((address + 0xFFFF) / 0x10000) * 0x10000;
+			return 1 + data_vmaddr;
+		}
+	}
 	i = 0;
 	while(i < n_aligns)
 	{
@@ -140,6 +172,14 @@ char hex_char(int n)
 {
 	if(n < 10) return '0' + n;
 	return 'A' + (n - 10);
+}
+
+/* Print a non-negative int as hex digits to stderr (recursion avoids a
+ * local array, whose M2-Planet codegen is suspect). */
+void fput_hex(int v)
+{
+	if(v >= 16) fput_hex(v / 16);
+	fputc(hex_char(v % 16), stderr);
 }
 
 void write_padding(int target)
@@ -408,6 +448,8 @@ int main(int argc, char** argv)
 	nfiles = 0;
 	output_path = NULL;
 	n_aligns = 0;
+	auto_data = 0;
+	data_vmaddr = 0;
 	files = calloc(MAX_FILES, sizeof(char*));
 	align_names = calloc(MAX_ALIGN_LABELS, sizeof(char*));
 	align_values = calloc(MAX_ALIGN_LABELS, sizeof(int));
@@ -439,6 +481,11 @@ int main(int argc, char** argv)
 			align_values[n_aligns] = parse_int(kv + eq + 1);
 			n_aligns = n_aligns + 1;
 			i = i + 2;
+		}
+		else if(streq(argv[i], "--auto-data-align"))
+		{
+			auto_data = 1;
+			i = i + 1;
 		}
 		else if(streq(argv[i], "-f") || streq(argv[i], "--file"))
 		{
@@ -476,5 +523,16 @@ int main(int argc, char** argv)
 	}
 
 	fclose(outfp);
+
+	/* Report the chosen data vmaddr + final data end so the link wrapper
+	 * can size the Mach-O segments dynamically. */
+	if(auto_data)
+	{
+		fputs("DATA_VMADDR=", stderr);
+		fput_hex(data_vmaddr);
+		fputs(" DATA_END=", stderr);
+		fput_hex(address);
+		fputc('\n', stderr);
+	}
 	return 0;
 }
