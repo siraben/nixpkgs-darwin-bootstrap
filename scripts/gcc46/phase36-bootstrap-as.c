@@ -157,10 +157,16 @@ int main(void) {
         size_t len = strlen(raw);
         if (len && raw[len - 1] == '\n') raw[--len] = 0;
 
-        /* skip_section state machine */
+        /* skip_section state machine.  A new section directive ends the skip.
+         * NB .text/.data/.bss are usually emitted BARE (just "\t.text\n", no
+         * trailing operand), so we must match end-of-line too — starts_dir
+         * alone requires trailing whitespace and would never reset, dropping
+         * all code after the first __gcc_except_tab/__eh_frame. */
         if (skip_section) {
-            if (starts_dir(raw, ".text") || starts_dir(raw, ".data") ||
-                starts_dir(raw, ".bss") || starts_dir(raw, ".section"))
+            if (starts_dir(raw, ".text") || dir_eol(raw, ".text") ||
+                starts_dir(raw, ".data") || dir_eol(raw, ".data") ||
+                starts_dir(raw, ".bss")  || dir_eol(raw, ".bss")  ||
+                starts_dir(raw, ".section"))
                 skip_section = 0;
             else
                 continue;
