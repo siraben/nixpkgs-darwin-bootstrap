@@ -1118,3 +1118,42 @@ ensure .bss symbol addresses are consistent. Likely in tcc-darwin-cc's dynamic
 Mach-O layout (task #73) and/or elf64-to-m1's .bss handling. Once fixed, gengtype
 +genmodes+cc1 all build correctly from-seed (no clang impurity needed). Repro
 files: /tmp/v{1..5}.c, /tmp/tb.s (cc1plus asm), /tmp/tb.f.s (as-filter out).
+
+## EXACT ROOT CAUSE (confirmed): elf64-to-m1 drops the RELA addend on cross-section PC32 (2026-05-30)
+
+SMOKING GUN (objdump -d /tmp/v4, from `static int x; s(){x=8;} main(){print x}`):
+  STORE  6006eb: c7 05 17 f9 00 00 08 00 00 00  movl $0x8, ...(%rip)  ## 0x61000c
+  LOAD   600700: 8b 05 02 f9 00 00              movl ...(%rip), %eax  ## 0x610008
+x lives at 0x610008 (where LOAD reads). STORE targets 0x61000c = x+4. The store
+is 4 bytes HIGH. Loads (8b, no trailing imm) are correct.
+
+WHY: `movl $imm, sym(%rip)` = `c7 05 [disp32] [imm32]`. The PC-rel disp must be
+S - rip where rip = END OF INSTRUCTION = end of imm32. But hex2's `%sym` computes
+S - (here+4) = S - end-of-disp-field = S - (rip-4). So the disp is +4 too high
+→ store target +4. The ELF RELA addend for this reloc is -8 (encodes the trailing
+4 imm bytes); elf64-to-m1 emits a plain `%sym` (assumes addend -4) and DROPS the
+extra -4. elf64-to-m1.M1 header line 33 literally says: "R_X86_64_PC32 (2) →
+computed disp if same-section, else %sym, +4" — the cross-section `%sym` branch
+ignores the addend.
+
+Affects ANY instruction with a rip-relative memory operand AND a trailing
+immediate: movl/movq/movw/movb $imm,sym(%rip); addl/cmpl/orl/andl $imm,sym(%rip);
+etc. (addend -5/-6/-8 for imm8/imm16/imm32). Pervasive in gcc-10 C++ (global
+initializers/flags). gcc-4.6 C (cc1) used GOTPCREL stores (addend -4, mov→lea
+mutation) so it never hit this; gcc-10 generators use direct rip-relative stores.
+V5 "0 7" = two stores each +4 high (a's 7 lands in b's slot, etc).
+
+THE FIX (elf64-to-m1.M1, tools/elf64-to-m1.M1, hand-written M1 asm, 3499 lines):
+in the R_X86_64_PC32 (and PLT32) cross-section `%sym` branch, apply the ELF
+addend: the emitted 32-bit value must be S + A - P, but hex2 `%sym` gives
+S - P - 4, so an extra (A+4) is needed. For the trailing-imm case A=-8 → extra -4.
+Options: (a) make elf64-to-m1 detect addend != -4 and bake the (A+4) adjustment
+(needs a hex2 mechanism to express `%sym + k` — check if hex2/M1 supports an
+addend after %label, e.g. `%sym+N` or a follow-up); (b) if no hex2 addend
+support, emit the disp via the GOTPCREL-style mov→lea + register path for these
+stores; (c) as-filter rewrite of `<op> $imm, sym(%rip)` → load addr to a scratch
+reg (lea, disp at instr end so correct) then `<op> $imm, (%reg)` — but scratch
+reg liveness is a hazard. Prefer (a). Repro: /tmp/v4.c (→ should print 8),
+/tmp/v5.c (→ "7 8"), and a multi-imm-size battery (imm8/16/32, movb/movw/movl/
+movq, addl/cmpl). Validate vs clang. Then rebuild genmodes (real) → BITS_PER_UNIT
+(8), gengtype runs, remove the clang-gengtype impurity, resume full build.
