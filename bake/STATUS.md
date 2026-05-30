@@ -833,3 +833,25 @@ dynamic layout into scripts/tinycc/tcc-darwin-cc.sh + tinycc/darwin-cc.nix
 
 NEXT (gcc-10 path): libstdc++ configure should be fast now -> c++config.h ->
 wire headers into g++ wrapper -> build libstdc++ pieces -> gcc-10 all-gcc.
+
+## ROOT CAUSE: dynamic layout crashed large binaries (2026-05-29, fix ab92310)
+
+After the dynamic layout landed, hello/conftests worked but cc1/cc1plus
+SIGSEGV'd (EXC_BAD_ACCESS at 0x8200024) on real compilation. Long bisect:
+ruled out layout size (FORCE_LARGE crashed), cache (cleared, still crashed),
+wrapper combine path, m1-to-hex2 (pre-auto-data-align rebuild still crashed).
+Decisive test: relinked the known-good cc1 at its exact proven config with
+the GENERATED template and `cmp` vs the original — the ONLY header diff was
+at byte 0xd1: my __text SECTION vmaddr = 0x600200, original = 0x600400.
+
+Bug: wrapper n15 used `le8 6291968` (0x600000 + 512) instead of
+`le8 6292480` (0x600000 + 0x400 header). The 512-byte section shift was
+harmless for tiny binaries but corrupted section-relative addressing in
+large ones. Fixed → relinked cc1 byte-identical to original; cc1 (37MB) and
+cc1plus (38MB) compile via pure dynamic path; g++ C++ smoke test exits 42.
+
+Lesson: verify generated Mach-O templates byte-for-byte against a known-good
+reference, not just "it loads + tiny test runs".
+
+gcc-4.6 C and C++ front-ends now build+run from seed with the fast dynamic
+layout. NEXT: libstdc++ (configure fast now) -> gcc-10.
