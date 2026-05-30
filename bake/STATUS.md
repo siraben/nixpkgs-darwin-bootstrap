@@ -1157,3 +1157,38 @@ reg liveness is a hazard. Prefer (a). Repro: /tmp/v4.c (→ should print 8),
 /tmp/v5.c (→ "7 8"), and a multi-imm-size battery (imm8/16/32, movb/movw/movl/
 movq, addl/cmpl). Validate vs clang. Then rebuild genmodes (real) → BITS_PER_UNIT
 (8), gengtype runs, remove the clang-gengtype impurity, resume full build.
+
+## THE FIX (mechanism found): elf64-to-m1 RELOC_pc32_label + hex2 `%sym>base` (2026-05-30)
+
+Exact bug location: tools/elf64-to-m1.M1, label :RELOC_pc32_label (~line 1535).
+The SAME-section PC32 branch (line 1520) correctly computes
+disp = sym_value + r_addend - r_offset. The CROSS-section branch (1535-1550)
+emits a plain `%sym` (advance 4) and IGNORES r_addend — so trailing-immediate
+stores (r_addend=-8) land +4.
+
+hex2 already supports a custom-base reference: `%target>baselabel` →
+displacement = target - baselabel (hex2_linker.c storePointer line 351, the '>'
+separator). Default `%sym` uses base = ip+4 (line 325/348).
+
+FIX: in the cross-section PC32 branch, when r_addend != -4, emit
+`%sym>L<n>` instead of `%sym`, then the instruction's trailing bytes, then define
+`:L<n>` at the instruction-end output position. The instruction end =
+r_offset - r_addend (for r_addend=-8 that's r_offset+8 = after disp32+imm32).
+Then hex2 computes sym - instruction_end = correct rip-relative disp for ANY
+trailing-immediate size (imm8 addend -5, imm16 -6, imm32 -8). Keep plain `%sym`
+when r_addend == -4 (backward compatible; that's base = r_offset+4 = ip+4).
+NB elf64-to-m1 emits .text byte-by-byte and tracks output position, so it can
+place `:L<n>` when it reaches output offset (r_offset - r_addend). Needs unique
+per-reloc label names (counter). This is a LOCALIZED M1-asm change, NO hex2
+rebuild, NO chain rebuild beyond re-running step 30 (elf64-to-m1) — but step 30's
+output is used by the whole link pipeline, so after fixing, re-run step 30 to
+rebuild bake/target/bin/elf64-to-m1, then the tcc-darwin-cc link uses it.
+
+ALTERNATIVE (if M1 editing too hard): add `%sym+N` integer-addend support to
+hex2_linker.c storePointer (clean C change) then emit `%sym+<r_addend+4>` — but
+that rebuilds hex2 + everything downstream (riskier).
+
+VALIDATE after fix: /tmp/v4.c→8, /tmp/v5.c→"7 8", plus a battery of movb/movw/
+movl/movq/addl/cmpl $imm,sym(%rip) vs clang. Then rebuild REAL genmodes (rm
+impure build/gcc/build/gengtype + build/genmodes), verify BITS_PER_UNIT(8) +
+gengtype runs, remove clang impurity, resume `sh bake/scripts/gcc10-resume-make.sh`.
