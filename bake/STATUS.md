@@ -1041,3 +1041,23 @@ miscompilation (hard: needle in a big C++ haystack), (b) an intermediate gcc
 (4.7/7) that our gcc-4.6 CAN build correctly and which can then build gcc-10, or
 (c) accepting a host-built gengtype as a bootstrap impurity purely to probe
 whether cc1 also miscompiles. DECISION NEEDED.
+
+## gcc-10 gengtype miscompile: pinning attempt (2026-05-30)
+
+Compiled gengtype-lex.c → asm via cc1plus, ran it through the as-filter, and
+compared. Findings:
+- The as-filter drops ZERO instructions. Every transform in this file is
+  accounted for and correct: cltq→.byte 48,98 (35x), salq→shlq (106x, same
+  opcode), movq X@GOTPCREL(%rip),%r→leaq X(%rip),%r (9x GOT relax). insn-ish
+  count 3229 in → 3194 out, fully explained by cltq→.byte.
+- So the miscompile is NOT the as-filter dropping/mistranslating; it's a subtle
+  tcc mis-ENCODING of a pass-through instruction (or cc1plus codegen, or libc).
+- Pinning the exact instruction by diffing tcc(ELF) vs clang(Mach-O) objects of
+  the SAME as-filter output is INTRACTABLE: the two assemblers lay out .text
+  differently (sizes 7128 vs 6784 bytes; diverge at byte 0), so there's no
+  alignment to isolate a single bad encoding. Host-build of full gengtype for
+  contrast also blocked (libc++/system.h header ordering under clang).
+
+CONCLUSION: confirmed miscompile, not pinnable with assembler-diff in reasonable
+effort. Need a behavioral isolation (run the tcc-built lexer on a tiny input vs
+a host reference) or a strategic pivot. Escalating to user for direction.
