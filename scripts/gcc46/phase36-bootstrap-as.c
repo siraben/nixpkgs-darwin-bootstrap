@@ -198,6 +198,9 @@ int main(void) {
 
         if (dir_eol(raw, ".subsections_via_symbols")) continue;
         if (starts_dir(raw, ".no_dead_strip")) continue;
+        /* Mach-O symbol-visibility directive tcc lacks; drop it (the symbol
+         * stays defined/global, fine for our static link). */
+        if (starts_dir(raw, ".private_extern")) continue;
         /* C++ weak/coalesced markers: tcc's asm has no weak defs; drop them
          * (the symbol stays defined via its .globl).  NB cross-TU weak
          * coalescing in the minimal hex2 linker is a separate downstream
