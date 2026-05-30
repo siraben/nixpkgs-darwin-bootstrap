@@ -1011,3 +1011,33 @@ DECISION FINAL: path (B) as-filter raw-byte encoder for the 4 q-suffixed cvt
 mnemonics. Uniform: ModRM.reg = dest(op1) regnum, ModRM.rm = src(op0). Prefix
 f2(sd)/f3(ss), opcode 2a(cvtsi2*)/2c(cvtt*2si), REX always has W; +R if reg>=8,
 +B/+X from rm base/index. Validate every operand form vs host `as`/clang.
+
+## gcc-10 GCC-PROPER: toolchain MISCOMPILES gengtype (flex lexer) (2026-05-30)
+
+Cleared the whole generator-link phase: g++ wrapper now passes .a archives to
+tcc (build-libiberty links); getopt.h got an extern "C" guard (gengtype's
+getopt_long was C++-mangled); cleared a stale non-exec genmodes. genmodes builds
++runs (insn-modes generated); gengtype builds+runs.
+
+HARD WALL: `build/gengtype` (our toolchain) aborts at runtime:
+  gengtype: Internal error: abort in type, at gengtype-parse.c:1013
+  (gcc_assert(nested) in the TYPEDEF case)
+Diagnostic print of lexer_line shows the offending token is at
+libcpp/include/line-map.h:147 — which is INSIDE a /* */ comment (ASCII-art
+table). A TYPEDEF token reported mid-comment means gengtype's flex-generated
+lexer (gengtype-lex.c) is mis-tokenising: it is MISCOMPILED. The build compiles
+it with NO -O flag (-g -std=gnu++0x -mno-sse3 only), so this is a baseline
+codegen miscompilation, not an optimiser bug. Suspect the hand-rolled as-filter
+mistranslating, or tcc mis-assembling, some instruction the flex DFA needs
+(cc1plus 4.6 itself is mature/unlikely). Repro: cd build/gcc &&
+./build/gengtype -S <srcdir> -I gtyp-input.list -w /tmp/x.state. Host build of
+gengtype to confirm-by-contrast stalls on libc++/system.h header ordering.
+
+IMPLICATION: if a flex lexer miscompiles at -O0, gcc-10's cc1/cc1plus (vastly
+larger C++) will almost certainly miscompile too -> xgcc-10 would be unreliable
+even if it links. The gcc-4.6 -> gcc-10 direct jump via this from-seed toolchain
+may be INFEASIBLE without either (a) pinning+fixing the specific as-filter/tcc
+miscompilation (hard: needle in a big C++ haystack), (b) an intermediate gcc
+(4.7/7) that our gcc-4.6 CAN build correctly and which can then build gcc-10, or
+(c) accepting a host-built gengtype as a bootstrap impurity purely to probe
+whether cc1 also miscompiles. DECISION NEEDED.
