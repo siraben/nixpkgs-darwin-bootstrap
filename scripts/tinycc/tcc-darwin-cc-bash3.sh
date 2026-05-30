@@ -508,23 +508,49 @@ done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
 } > "$tmp/combined.M1"
 
-# Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text
-# padding → fast); fall back to LARGE only when the text overruns it
-# (m1-to-hex2 prints "align target before current address" and exits 1),
-# e.g. for gcc-4.6 cc1plus.  Keeps configure conftests fast.
-macho_large="@MACHO@"
-macho_small="$(dirname "@MACHO@")/MACHO-amd64-smalldata.hex2"
-if @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>/dev/null; then
-  macho="$macho_small"
-  linkeditOffset="$((0x1100000 + 0x2000000))"
-else
-  @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x2E00000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2"
-  macho="$macho_large"
-  linkeditOffset="$((0x2800000 + 0x2000000))"
-fi
+# Dynamic Mach-O layout: m1-to-hex2 --auto-data-align pads the code only up
+# to its page-rounded end (minimal padding → tiny/fast conftests) and
+# reports the chosen __DATA vmaddr + data end on stderr.  We then size the
+# Mach-O segments to the ACTUAL binary by generating a per-link load-command
+# template from MACHO-amd64-lowdata.hex2.  (Replaces the old fixed small/
+# large two-tier layout, which padded every binary to 18MB/46MB.)
+lowdata="$(dirname "@MACHO@")/MACHO-amd64-lowdata.hex2"
+_meta="$(@M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --auto-data-align -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>&1 1>/dev/null)"
+_dv="$(printf '%s\n' "$_meta" | sed -n 's/.*DATA_VMADDR=\([0-9A-Fa-f][0-9A-Fa-f]*\).*/\1/p')"
+_de="$(printf '%s\n' "$_meta" | sed -n 's/.*DATA_END=\([0-9A-Fa-f][0-9A-Fa-f]*\).*/\1/p')"
+data_vmaddr=$((16#$_dv))
+data_end=$((16#$_de))
+text_vmsize=$((data_vmaddr - 6291456))           # 6291456 = 0x600000
+text_sect_size=$((text_vmsize - 1024))           # header is 0x400
+data_size=$((data_end - data_vmaddr))
+data_vmsize=$(( ((data_size + 65535) / 65536) * 65536 ))
+if [ "$data_vmsize" -eq 0 ]; then data_vmsize=65536; fi
+data_fileoff=$text_vmsize
+linkedit_vmaddr=$((data_vmaddr + data_vmsize))
+linkedit_fileoff=$((data_fileoff + data_vmsize))
+le8() {
+  local v=$1 i b o=""
+  for i in 0 1 2 3 4 5 6 7; do
+    b=$(( (v >> (8 * i)) & 255 ))
+    o="$o$(printf '%02x ' "$b")"
+  done
+  printf '%s' "${o% }"
+}
+awk -v n10="$(le8 6291456) $(le8 "$text_vmsize")" \
+    -v n11="$(le8 0) $(le8 "$text_vmsize")" \
+    -v n15="$(le8 6291968) $(le8 "$text_sect_size")" \
+    -v n19="$(le8 0) $(le8 "$data_vmaddr")" \
+    -v n20="$(le8 "$data_vmsize") $(le8 "$data_fileoff")" \
+    -v n21="$(le8 "$data_vmsize") 03 00 00 00 03 00 00 00" \
+    -v n24="$(le8 "$linkedit_vmaddr") $(le8 4096)" \
+    -v n25="$(le8 "$linkedit_fileoff") $(le8 0)" '
+  NR==10{print n10;next} NR==11{print n11;next} NR==15{print n15;next}
+  NR==19{print n19;next} NR==20{print n20;next} NR==21{print n21;next}
+  NR==24{print n24;next}
+  NR==25{print n25;next} {print}' "$lowdata" > "$tmp/macho.hex2"
 @HEX2@ --architecture amd64 --little-endian --base-address 0x600000 \
-  -f "$macho" -f "$tmp/combined.hex2" -o "$out"
-dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc 2>/dev/null
+  -f "$tmp/macho.hex2" -f "$tmp/combined.hex2" -o "$out"
+dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkedit_fileoff - 1))" conv=notrunc 2>/dev/null
 chmod +x "$out"
 source @SIGNING@
 sign "$out"

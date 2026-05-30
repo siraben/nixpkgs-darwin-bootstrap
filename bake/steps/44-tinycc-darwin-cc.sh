@@ -25,34 +25,13 @@ elf64-to-m1 --prefix tinycc_sysv_libc_ "$out/tinycc-sysv-libc.o" "$out/share/tin
 ## Copy crt1
 cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 
-## Generate two Mach-O segment-layout templates from lowdata via 7 awk
-## byte substitutions each.  tcc-darwin-cc tries the SMALL layout first
-## (fast: minimal text padding) and falls back to LARGE only when a
-## binary's text overruns it (e.g. gcc-4.6 cc1plus).  Keeping the small
-## layout as default preserves fast configure conftests.
+## Install the base Mach-O load-command template (lowdata).  tcc-darwin-cc
+## now generates a per-link layout from this dynamically (it substitutes
+## the 7 segment-size fields to match each binary's actual code size — see
+## m1-to-hex2 --auto-data-align), so the old fixed small/large templates are
+## gone.  The wrapper finds this file via dirname(@MACHO@).
 lowdata="$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2"
-## SMALL: __TEXT vmsize 0x1100000 (17.8MB), __DATA @0x1700000, linkedit @0x3100000
-awk '
-NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==11 { print "00 00 00 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==15 { print "00 04 60 00 00 00 00 00 00 fc 0f 01 00 00 00 00"; next }
-NR==19 { print "00 00 00 00 00 00 00 00 00 00 70 01 00 00 00 00"; next }
-NR==20 { print "00 00 00 02 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-NR==24 { print "00 00 70 03 00 00 00 00 00 10 00 00 00 00 00 00"; next }
-NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
-{ print }
-' "$lowdata" > "$out/share/MACHO-amd64-smalldata.hex2"
-## LARGE: __TEXT vmsize 0x2800000 (42MB), __DATA @0x2E00000, linkedit @0x4800000
-awk '
-NR==10 { print "00 00 60 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-NR==11 { print "00 00 00 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-NR==15 { print "00 04 60 00 00 00 00 00 00 fc 7f 02 00 00 00 00"; next }
-NR==19 { print "00 00 00 00 00 00 00 00 00 00 e0 02 00 00 00 00"; next }
-NR==20 { print "00 00 00 02 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-NR==24 { print "00 00 e0 04 00 00 00 00 00 10 00 00 00 00 00 00"; next }
-NR==25 { print "00 00 80 04 00 00 00 00 00 00 00 00 00 00 00 00"; next }
-{ print }
-' "$lowdata" > "$out/share/MACHO-amd64-largedata.hex2"
+cp "$lowdata" "$out/share/MACHO-amd64-lowdata.hex2"
 
 ## Install the wrapper script with placeholders substituted.
 ## Use bash because the script uses arrays.
@@ -69,7 +48,7 @@ sed -i.bak \
     -e "s|@ELF_TO_M1@|$TARGET/bin/elf64-to-m1|g" \
     -e "s|@M1_TO_HEX2@|$TARGET/bin/m1-to-hex2|g" \
     -e "s|@HEX2@|$TARGET/bin/hex2|g" \
-    -e "s|@MACHO@|$out/share/MACHO-amd64-largedata.hex2|g" \
+    -e "s|@MACHO@|$out/share/MACHO-amd64-lowdata.hex2|g" \
     -e "s|@CRT1@|$out/share/crt1-tcc-sysv.M1|g" \
     -e "s|@SYSCALLS@|$SOURCES/bootstrap-c/tinycc-sysv-syscalls-amd64-darwin.M1|g" \
     -e "s|@LIBC_M1@|$out/share/tinycc-sysv-libc.M1|g" \
