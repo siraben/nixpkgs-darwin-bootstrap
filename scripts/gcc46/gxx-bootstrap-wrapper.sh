@@ -20,7 +20,10 @@ out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
 # C headers go in the SYSTEM include chain (searched after -I dirs) so that
 # libstdc++'s `#include_next <stdlib.h>` etc. resolve to them rather than
 # being skipped (they sit before the libstdc++ headers if added via -I).
-cc1args=(-quiet -isystem "$SYSROOT")
+# -mno-sse3: keep gcc on the SSE2 baseline so float->int uses cvttsd2si
+# (tcc's assembler has SSE2 but not the SSE3 fisttp instruction; adding fisttp
+# to tcc's opcode table overflowed the mes-m2 bootstrap stage).
+cc1args=(-quiet -mno-sse3 -isystem "$SYSROOT")
 objs=()
 srcs=()
 

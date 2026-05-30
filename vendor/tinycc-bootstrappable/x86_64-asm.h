@@ -318,11 +318,6 @@ ALT(DEF_ASM_OP1(fstl, 0xdd, 2, OPC_MODRM, OPT_EA))
     DEF_ASM_OP1(fstp, 0xddd8, 0, OPC_REG, OPT_ST)
     DEF_ASM_OP1(fistpq, 0xdf, 7, OPC_MODRM, OPT_EA)
     DEF_ASM_OP1(fistpll, 0xdf, 7, OPC_MODRM, OPT_EA)
-    /* fisttp (SSE3): truncating float->int store, modrm group /1 */
-    DEF_ASM_OP1(fisttps, 0xdf, 1, OPC_MODRM, OPT_EA)
-    DEF_ASM_OP1(fisttpl, 0xdb, 1, OPC_MODRM, OPT_EA)
-    DEF_ASM_OP1(fisttpq, 0xdd, 1, OPC_MODRM, OPT_EA)
-    DEF_ASM_OP1(fisttpll, 0xdd, 1, OPC_MODRM, OPT_EA)
     DEF_ASM_OP1(fstpt, 0xdb, 7, OPC_MODRM, OPT_EA)
     DEF_ASM_OP1(fbstp, 0xdf, 6, OPC_MODRM, OPT_EA)
 
