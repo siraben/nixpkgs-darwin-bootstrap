@@ -145,3 +145,17 @@ main (int argc, char **argv)
   return 0;
 }
 PSQR
+
+## 5) incpath.c — make include-dir dedup name-based.  tcc's libc stat()
+## returns unreliable dev/ino, so remove_duplicates() considered every -I
+## directory a duplicate of the first and dropped the rest (cc1/cc1plus then
+## honored only the first -I).  Force HOST_LACKS_INODE_NUMBERS and compare by
+## ->name (canonical_name is NULL here because lrealpath/realpath fail).
+perl -i -0pe '
+  s{/\* Microsoft Windows does not natively support inodes\.}
+   {#define HOST_LACKS_INODE_NUMBERS 1\n\n/* Microsoft Windows does not natively support inodes.}
+   or die "incpath.c VMS-comment anchor not found";
+  s{#define DIRS_EQ\(A, B\) \(!strcmp \(\(A\)->canonical_name, \(B\)->canonical_name\)\)}
+   {#define DIRS_EQ(A, B) (!strcmp ((A)->name, (B)->name))}
+   or die "incpath.c DIRS_EQ anchor not found";
+' src/gcc/incpath.c

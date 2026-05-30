@@ -16,7 +16,12 @@ static char *malloc_end = (char *)-1;
 
 extern long write(int fd, const void *buf, unsigned long n);
 extern long read(int fd, void *buf, unsigned long n);
-extern long open(const char *path, int flags, int mode);
+extern long sys_open(const char *path, int flags, int mode);
+/* open() must translate the kernel's -errno return into -1 + errno, like
+ * stat()/execve() do.  Without this, a failed open() returns e.g. -2 with
+ * errno=0, which breaks callers (notably cpp's include search, which relies
+ * on errno==ENOENT to keep scanning the next -I dir instead of erroring). */
+int open(const char *path, int flags, int mode) { long r = sys_open(path, flags, mode); if (r < 0) { errno = -r; return -1; } return r; }
 extern long close(int fd);
 extern long lseek(int fd, long off, int whence);
 extern long unlink(const char *path);

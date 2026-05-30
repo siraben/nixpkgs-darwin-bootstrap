@@ -40,7 +40,8 @@ while [ $# -gt 0 ]; do
     -o) out="$2"; shift 2 ;;
     -o*) out="${1#-o}"; shift ;;
     -I|-isystem|-iquote|-idirafter|-include|-D|-U) cc1args+=("$1" "$2"); shift 2 ;;
-    -I*|-D*|-U*|-O*|-g*|-f*|-std=*|-W*|-nostdinc*) cc1args+=("$1"); shift ;;
+    -W*) shift ;;   # drop warnings: gcc-10's libstdc++ passes -W flags (e.g. -Wabi=2) that gcc-4.6 cc1plus rejects; warnings never affect codegen
+    -I*|-D*|-U*|-O*|-g*|-f*|-std=*|-nostdinc*) cc1args+=("$1"); shift ;;
     -L*|-l*|*.a) shift ;;   # link args ignored for now (static, no libs yet)
     *.cc|*.cpp|*.cxx|*.C|*.c++) srcs+=("$1"); shift ;;
     *.o) objs+=("$1"); shift ;;
