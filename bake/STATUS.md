@@ -1085,3 +1085,36 @@ wall, just another tcc assembler bug to pin+fix.
 
 Per user: install the clang-assembled gengtype (documented impurity) ONLY to get
 past s-gtype and probe whether cc1 (our full toolchain incl tcc) also breaks.
+
+## ROOT CAUSE CORRECTED: it's a .bss LINKER bug, NOT a tcc assembler bug (2026-05-30)
+
+The "tcc assembler miscompile" framing was WRONG. Real root cause: the bake link
+pipeline (elf64-to-m1 / m1-to-hex2 / hex2 / tcc-darwin-cc Mach-O layout)
+mishandles .bss for objects produced via the g++ path (cc1plus → as-filter →
+tcc). 5-LINE REPRO:
+  static int x; static void s(void){x=8;} int main(){s();printf("%d\n",x);}
+  -> g++ wrapper:  prints 0  (WRONG)
+  -> tcc-darwin-cc (as C): prints 8  (CORRECT)
+V5 (two static ints a,b; s(){a=7;b=8;} print a,b) -> "0 7": a 4-byte SHIFT — the
+.bss symbol addresses resolve inconsistently between store and load sites.
+
+Evidence it's the LINKER not the assembler:
+- tcc-assembled object is CORRECT: .bss size = 8, _ZL1a@0 _ZL1b@4, store/load
+  carry proper R_X86_64_PC32 relocs to the symbols (objdump -dr).
+- Failing g++-path binary: __DATA vmsize == filesize (0x10000) — NO extra vm
+  space reserved for the NOBITS .bss. tcc's own C codegen path works (its .bss
+  handling differs from the assembler's .skip-reserved .bss).
+- Only initialized .data works (static int x=8 -> 8); every BSS form fails
+  (static/global, same/cross function).
+
+WHY UNSEEN BEFORE: gcc-4.6's cc1 is C, built via tcc's C path (BSS ok). gcc-10's
+generators (genmodes/gengtype) and cc1/cc1plus are C++, built via the g++ path
+(cc1plus+as-filter) which hits the .bss bug. So EVERY gcc-10 generator that uses
+global/static BSS miscompiles (genmodes bits_per_unit=0, gengtype lexer abort).
+
+THIS IS THE FIX TO MAKE: the bake link pipeline must reserve runtime vm space
+for .bss (NOBITS) — extend __DATA vmsize beyond filesize by the .bss size, and
+ensure .bss symbol addresses are consistent. Likely in tcc-darwin-cc's dynamic
+Mach-O layout (task #73) and/or elf64-to-m1's .bss handling. Once fixed, gengtype
++genmodes+cc1 all build correctly from-seed (no clang impurity needed). Repro
+files: /tmp/v{1..5}.c, /tmp/tb.s (cc1plus asm), /tmp/tb.f.s (as-filter out).
