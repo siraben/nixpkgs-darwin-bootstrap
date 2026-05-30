@@ -28,6 +28,7 @@ out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
 cc1args=(-quiet -mno-sse3 -I"$LIBSTDCXX/include" -I"$LIBSTDCXX/include/x86_64-apple-darwin" -I"$LIBSUPCXX" -isystem "$SYSROOT")
 objs=()
 srcs=()
+arlibs=()   # explicit .a paths to link (tcc-darwin-cc resolves archive members)
 
 ## Driver queries autotools/configure makes — answer them ourselves with
 ## canned values (the real xgcc driver crashes; cc1plus doesn't grok them).
@@ -55,7 +56,8 @@ while [ $# -gt 0 ]; do
     -MF|-MT|-MQ) cc1args+=("$1" "$2"); shift 2 ;;
     -MD|-MMD|-MP|-MG|-M|-MM|-MF*) cc1args+=("$1"); shift ;;
     -I*|-D*|-U*|-O*|-g*|-f*|-std=*|-nostdinc*) cc1args+=("$1"); shift ;;
-    -L*|-l*|*.a) shift ;;   # link args ignored for now (static, no libs yet)
+    *.a) arlibs+=("$1"); shift ;;   # static archive (e.g. build-libiberty) -> pass to tcc
+    -L*|-l*) shift ;;   # bake-ar archives can't be -l/-L resolved; gcc passes full .a paths instead
     *.cc|*.cpp|*.cxx|*.C|*.c++|*.c|*.i|*.ii) srcs+=("$1"); shift ;;  # g++ compiles .c as C++ (autotools probes use conftest.c)
     *.o) objs+=("$1"); shift ;;
     *) cc1args+=("$1"); shift ;;
@@ -100,4 +102,7 @@ done
 libs=()
 [ -f "$LIBSTDCXX/libstdc++.a" ] && libs+=("$LIBSTDCXX/libstdc++.a")
 [ -f "$LIBSTDCXX/libsupc++/.libs/libsupc++.a" ] && libs+=("$LIBSTDCXX/libsupc++/.libs/libsupc++.a")
-"$TCC" "${objs[@]}" "${libs[@]}" -o "${out:-a.out}"
+## Explicit .a archives (build-libiberty etc.) go BEFORE libstdc++ so their
+## undefined symbols can still pull libstdc++ members; tcc-darwin-cc does its
+## own archive member selection.
+"$TCC" "${objs[@]}" "${arlibs[@]}" "${libs[@]}" -o "${out:-a.out}"
