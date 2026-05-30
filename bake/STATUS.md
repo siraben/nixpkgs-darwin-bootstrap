@@ -1225,3 +1225,41 @@ uses existing tcc-self, NO mes-m2). Risk: changes tcc behavior broadly.
 RECOMMEND A (localized). Validate: /tmp/v4.c→8, /tmp/v5.c→"7 8", battery
 movb/movw/movl/movq/addl/cmpl $imm,sym(%rip) vs clang. /tmp/rip.s is a minimal
 asm repro (movl/movb/load to foo/bar bss).
+
+## REFINED FIX PLAN: synth approach fails on negative addends; use %sym>endlabel (2026-05-30)
+
+ATTEMPTED: folded the disp32 field into r9 (effective addend) in elf64-to-m1.M1
+(read movsxd [text_buf+rcx], add to r9). RESULT: link error "Target label
+_ZL1x_plus_fffffffffffffffc is not valid" → emit_label_ref creates synth labels
+named <sym>_plus_<offset_hex>, only DEFINED for POSITIVE addends. Our effective
+addend is NEGATIVE (-4 for movl store) → undefined synth → link fails. REVERTED
+(restored /tmp/elf64-to-m1.bak + git checkout). Pipeline working again (v4→0,
+hello ok).
+
+So the synth/offset mechanism can't express the negative PC-rel adjustment. Use
+hex2's custom-base ref instead: `%sym>L` → disp = sym - L (hex2_linker.c
+storePointer line 351). Emit a label L at the INSTRUCTION END so hex2 computes
+sym - instr_end = correct rip-relative disp for any trailing-imm size.
+
+IMPLEMENTATION (elf64-to-m1.M1, cross-section PC32 branch RELOC_pc32_label ~1535):
+when effective addend A = (r_addend + signed disp32 field) != -4:
+  1. emit "%sym>L<id>" (label-ref with '>' custom base). Need emit helper that
+     writes `%<name>>L<id>`; study FUNCTION_emit_label_ref to mirror name output.
+  2. instr_end_offset = r_offset - A  (A negative → r_offset + |A|; for movl
+     store A=-8 → r_offset+8 = after disp32+imm32).
+  3. record ONE pending label: (id, instr_end_offset). At most one active at a
+     time (trailing bytes are within the same instruction; next reloc is in a
+     later instruction), so a single global slot suffices — no list needed.
+  4. in the EMIT byte loop, before processing each output offset rcx, if
+     rcx == pending_offset, emit ":L<id>\n" and clear the slot. Then the normal
+     byte/reloc handling proceeds.
+  5. when A == -4 (no trailing imm), keep the existing plain `%sym` path.
+Need: a label-id counter global, pending_offset/pending_id globals, an itoa for
+the id, and emit of ':' / '%' / '>' literals. The field read is movsxd
+[text_buf(=[rbp-0x60]) + rcx]; r_offset is rcx; r_addend [rdx+16].
+ALT (if M1 too hard): add `%sym+N`/`%sym>+N` integer-addend parsing to
+hex2_linker.c storePointer + rebuild hex2 (step ~10) — but M1 assembler must also
+pass `+N` through; riskier. Prefer the %sym>endlabel M1 approach.
+VALIDATE: /tmp/v4.c→8, /tmp/v5.c→"7 8", battery movb/movw/movl/movq/addl/cmpl
+$imm,sym(%rip) vs clang; regression: tcc-darwin-cc hello, gcc-4.6 cc1 still work.
+Backup of working elf64-to-m1 at /tmp/elf64-to-m1.bak.
