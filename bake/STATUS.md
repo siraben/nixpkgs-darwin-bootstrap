@@ -902,3 +902,30 @@ ucomiss/sd, andps/andpd, orps, xorps, pxor (have?), sqrtss/sd, fisttp{s,l,ll}.
 Copy encodings from upstream tinycc i386-asm.h. Then rebuild the tcc chain
 (steps ~23-41 tinycc-boot1/2/3) and verify it self-hosts + assembles movsd.
 This is the critical path to gcc-10.
+
+## MILESTONE: gcc-4.6 libstdc++ WORKS (2026-05-30)
+
+std::string/std::vector program compiles+links+RUNS (exit 41) via the
+chain-built g++. Key fixes that got here (all committed):
+- tcc assembler: scalar SSE float ops (x86_64-asm.h) + hex immediates (libc
+  strtol 0x prefix). DON'T add more opcodes — mes-m2 bootstrap overflows.
+- as-filter (phase36-bootstrap-as.c): CRITICAL skip_section reset bug — it
+  required trailing ws so bare `\t.text\n` never reset the skip after a
+  __gcc_except_tab/__eh_frame, truncating ALL code after the first exception
+  table in every C++ object (stdexcept.o was 2404B!). Fixed via dir_eol.
+  Also: .private_extern dropped, .mod_init_func/.mod_term_func→.data,
+  __gcc_except_tab skipped.
+- g++ wrapper: -mno-sse3 (avoid SSE3 fisttp), -isystem for #include_next,
+  output defaults basename.s/.o, wired libstdc++ -I + .a link.
+- bootstrap headers: stdbool/time.h C++ guards, unwind.h shipped.
+- tcc libc: _Unwind_* stubs (EH unsupported but must link),
+  __stdinp/__stdoutp/__stderrp (Darwin stdio symbols).
+
+libstdc++ artifacts: target/work/libstdcxx46/libstdc++.a (2MB) +
+libsupc++/.libs/libsupc++.a (384KB), wired into g++ wrapper. 3 float/locale
+files excluded (c++locale, inst, math_stubs_float — need SSE3, gcc-10
+doesn't need them).
+
+NEXT: gcc-10 — configure target/gcc10-source + make all-gcc with our g++
+-std=gnu++0x -mno-sse3. Likely final hard problem: global ctors don't run
+(.mod_init_func→.data) so gcc-10 static init is dead → crt1 must call them.
