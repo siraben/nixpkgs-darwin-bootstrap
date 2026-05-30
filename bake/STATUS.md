@@ -989,3 +989,25 @@ Two fix paths (both weighty):
       battery before trusting it. Operand forms seen: %xmmS,%rD (reg,reg) and
       mem,%xmm (e.g. -8(%rbp)).
 Recommendation: (B) — lowest blast radius, fully autonomous, validatable.
+
+## UPDATE: boot3 rebuild CONFIRMS the cvt REX.W bug is a miscompilation (2026-05-30)
+
+Rebuilt tcc-boot3 from current staged source via steps 41,42,44 (driver
+/tmp/tcc-rebuild.sh; uses existing tcc-self/boot0, NO mes-m2/step-23, so no
+overflow risk). Rebuild succeeded (hello->42, sysroot header fixes intact).
+But the freshly-built boot3 STILL emits `f2 0f 2a c0` for `cvtsi2sd %rax,%xmm0`
+(== %eax, NO REX.W). cvttsd2si likewise.
+
+The i386-asm.c source is provably correct: the OPC_48 OPT_REG64 ALT for cvtsi2sd
+must match %rax (OP_REG64=8 rejects the REG32 template at line 832) and force
+rex64=1 (line 911); even matching the 32-bit template, alltypes&OP_REG64 (line
+913) would set rex64=1. Yet the built binary does neither. Conclusion: the
+bootstrap tcc (tcc-self, mes-m2-derived) MISCOMPILES the assembler's
+template-matching / rex64 logic for this case — not fixable at the asm source
+level without chasing the codegen bug. Backup of the working tcc at
+/tmp/tcc-backup/ (current rebuilt boot3 behaves identically, kept in place).
+
+DECISION FINAL: path (B) as-filter raw-byte encoder for the 4 q-suffixed cvt
+mnemonics. Uniform: ModRM.reg = dest(op1) regnum, ModRM.rm = src(op0). Prefix
+f2(sd)/f3(ss), opcode 2a(cvtsi2*)/2c(cvtt*2si), REX always has W; +R if reg>=8,
++B/+X from rm base/index. Validate every operand form vs host `as`/clang.
