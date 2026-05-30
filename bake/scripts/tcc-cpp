@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "$(dirname "$0")/../target/bin/tcc-darwin-cc" -E "$@"

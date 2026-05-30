@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "$(dirname "$0")/../target/gcc46-cxx/bin/g++" -E "$@"
