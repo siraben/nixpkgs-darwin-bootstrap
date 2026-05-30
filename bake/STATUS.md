@@ -1263,3 +1263,28 @@ pass `+N` through; riskier. Prefer the %sym>endlabel M1 approach.
 VALIDATE: /tmp/v4.c→8, /tmp/v5.c→"7 8", battery movb/movw/movl/movq/addl/cmpl
 $imm,sym(%rip) vs clang; regression: tcc-darwin-cc hello, gcc-4.6 cc1 still work.
 Backup of working elf64-to-m1 at /tmp/elf64-to-m1.bak.
+
+## FIX LANDED: elf64-to-m1 PC32 trailing-immediate addend (2026-05-30)
+
+IMPLEMENTED + COMMITTED (tools/elf64-to-m1.M1): cross-section PC32 relocs now
+emit `%sym[_plus_<symoff>]>L<id>` with :L<id> at the instruction END when the
+disp field is non-zero (trailing immediate present), so hex2 computes
+(sym+off) - instr_end. New helper FUNCTION_emit_base_label_ref + DATA_gt_L +
+DATA_label_def_L. Verified the hex2 `%sym>L` custom-base mechanism survives
+m1-to-hex2 + hex2.
+PROVEN: /tmp/v4.c→8, /tmp/v5.c→"7 8", mixed sizes+arrays+64bit (/tmp/batt.c),
+arr[2]=77, add/cmp/or-imm, a C++ struct/array program all CORRECT; C hello and
+existing links unaffected.  REAL genmodes rebuilt with our (fixed) toolchain now
+emits `#define BITS_PER_UNIT (8)` — the gcc-10 generator miscompile is fixed
+FROM-SEED (no clang needed for genmodes).
+
+REMAINING: build/gengtype (our toolchain) now passes the lexer (no more abort)
+but SIGBUSes (exit 138) deterministically — a SECOND miscompile in gengtype
+beyond the lexer one, previously masked by the lexer abort.  The clang-built
+gengtype runs fine on the same input, so it's our-toolchain-specific.  genmodes
+(same patterns) works, so it's an edge case / different instruction pattern in
+gengtype (or a libiberty member it links).  TODO next: narrow the gengtype
+SIGBUS (lldb on the x86_64 binary, or bisect objects: relink gengtype with some
+objects clang-assembled to find the bad one; or diff a suspect function's bytes
+tcc vs clang).  Meanwhile the clang gengtype (/tmp/cg-gengtype) is reinstalled
+as a documented impurity to keep the build progressing to cc1.
