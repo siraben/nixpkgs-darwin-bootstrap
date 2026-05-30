@@ -929,3 +929,24 @@ doesn't need them).
 NEXT: gcc-10 — configure target/gcc10-source + make all-gcc with our g++
 -std=gnu++0x -mno-sse3. Likely final hard problem: global ctors don't run
 (.mod_init_func→.data) so gcc-10 static init is dead → crt1 must call them.
+
+## gcc-10 build IN PROGRESS (2026-05-30)
+
+gcc-10 CONFIGURES (52s, --enable-languages=c, our g++ as CXX). make all-gcc
+builds the in-tree math libs first. gmp BUILDS OK. mpfr 4.2.2 is the current
+blocker:
+- long-double-format probe returns 'unknown' with tcc → preseed mpfr/+mpc/
+  config.cache: mpfr_cv_c_double_format=IEEE-littleendian,
+  mpfr_cv_c_long_double_format=IEEE-littleendian (tcc long double == 64-bit
+  double), mpfr_cv_gcc_float128=no, mpfr_cv_fp_nan_inf=yes.
+- After forcing re-configure, mpfr now fails "C preprocessor -E fails sanity
+  check" — tcc-darwin-cc -E doesn't satisfy autoconf AC_PROG_CPP (likely
+  doesn't error on a nonexistent #include). The FIRST configure run passed CPP
+  (inherited parent cache). Fix options: preseed ac_cv_prog_CPP / the CPP
+  sanity result, OR make tcc -E error on missing headers, OR don't force a
+  full re-configure (place caches before the top configure like step 51).
+
+REMAINING to gcc-10: mpfr+mpc+isl configure/build (cache fixtures for tcc),
+then gcc proper (cc1/xgcc — gcc-10 C++11 compiled by gcc-4.6 g++ -std=gnu++0x;
+unknown if pervasive C++11 walls), then GLOBAL CTORS don't run (.mod_init_func
+→.data → crt1 must call them). Build dir: target/work/gcc10-all-gcc/build.
