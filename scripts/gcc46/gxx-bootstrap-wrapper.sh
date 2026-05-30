@@ -19,10 +19,6 @@ LIBSUPCXX="@LIBSUPCXX@"      # libsupc++ source headers (<new>, <exception>, <ty
 
 mode=link
 out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
-depfile= # -MF target: autotools' dependency-style probe compiles with -MD -MF;
-deptarget=  # our cc1plus path doesn't emit deps, so we write a trivial depfile
-            # ourselves (build-time dep tracking is disabled, so content is moot —
-            # the probe only needs the file to exist and name the object).
 # C headers go in the SYSTEM include chain (searched after -I dirs) so that
 # libstdc++'s `#include_next <stdlib.h>` etc. resolve to them rather than
 # being skipped (they sit before the libstdc++ headers if added via -I).
@@ -53,10 +49,11 @@ while [ $# -gt 0 ]; do
     -o*) out="${1#-o}"; shift ;;
     -I|-isystem|-iquote|-idirafter|-include|-D|-U) cc1args+=("$1" "$2"); shift 2 ;;
     -W*) shift ;;   # drop warnings: gcc-10's libstdc++ passes -W flags (e.g. -Wabi=2) that gcc-4.6 cc1plus rejects; warnings never affect codegen
-    -MF) depfile="$2"; shift 2 ;;
-    -MF*) depfile="${1#-MF}"; shift ;;
-    -MT|-MQ) deptarget="$2"; shift 2 ;;
-    -MD|-MMD|-MP|-MG|-M|-MM) shift ;;   # consume dep flags; we synthesize the depfile, don't pass to cc1plus
+    # Forward dependency-generation flags to cc1plus: its integrated preprocessor
+    # writes a real .d listing every #include (autotools' depmode probe greps the
+    # depfile for a specific header, so a synthetic "obj: src" line won't do).
+    -MF|-MT|-MQ) cc1args+=("$1" "$2"); shift 2 ;;
+    -MD|-MMD|-MP|-MG|-M|-MM|-MF*) cc1args+=("$1"); shift ;;
     -I*|-D*|-U*|-O*|-g*|-f*|-std=*|-nostdinc*) cc1args+=("$1"); shift ;;
     -L*|-l*|*.a) shift ;;   # link args ignored for now (static, no libs yet)
     *.cc|*.cpp|*.cxx|*.C|*.c++|*.c|*.i|*.ii) srcs+=("$1"); shift ;;  # g++ compiles .c as C++ (autotools probes use conftest.c)
@@ -67,15 +64,6 @@ done
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/gxx-bootstrap.XXXXXX")"
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
-
-# Synthesize the requested dependency file (-MF). Trivial but valid: the object
-# depends on its source. Satisfies autotools' depmode probe (which greps the
-# object name out of the depfile); real build-time dep tracking is disabled.
-write_depfile() {
-  [ -n "$depfile" ] || return 0
-  local tgt="${deptarget:-${out:-${1%.*}.o}}"
-  printf '%s: %s\n' "$tgt" "$1" > "$depfile"
-}
 
 i=0
 for s in "${srcs[@]}"; do
@@ -91,7 +79,6 @@ for s in "${srcs[@]}"; do
     continue
   fi
   "$CC1PLUS" "${cc1args[@]}" "$s" -o "$tmp/c$i.s"
-  write_depfile "$s"
   if [ "$mode" = asm ]; then
     "$ASFILTER" < "$tmp/c$i.s" > "${out:-${s%.*}.s}"
     continue

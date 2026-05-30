@@ -204,6 +204,12 @@ int main(void) {
 
         if (dir_eol(raw, ".subsections_via_symbols")) continue;
         if (starts_dir(raw, ".no_dead_strip")) continue;
+        /* Mach-O section-attribute directives gcc-4.6 emits (even for an empty
+         * C++ TU); tcc's assembler has no such opcodes.  Drop them — the actual
+         * static-init mechanism we honour is .mod_init_func (routed to .data
+         * elsewhere), not these bare .constructor/.destructor attributes. */
+        if (dir_eol(raw, ".constructor") || starts_dir(raw, ".constructor")) continue;
+        if (dir_eol(raw, ".destructor") || starts_dir(raw, ".destructor")) continue;
         /* Mach-O symbol-visibility directive tcc lacks; drop it (the symbol
          * stays defined/global, fine for our static link). */
         if (starts_dir(raw, ".private_extern")) continue;
