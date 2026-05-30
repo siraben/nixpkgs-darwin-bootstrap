@@ -5,7 +5,9 @@ typedef long ssize_t;
 typedef long ptrdiff_t;
 typedef long intptr_t;
 typedef unsigned long uintptr_t;
-typedef int wchar_t;
+#ifndef __cplusplus
+typedef int wchar_t;   /* wchar_t is a built-in type in C++; only define for C */
+#endif
 typedef int pid_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
