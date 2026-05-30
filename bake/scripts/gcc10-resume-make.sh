@@ -28,10 +28,17 @@ export STRIP=/usr/bin/strip
 export LIPO=/usr/bin/lipo
 export OTOOL=/usr/bin/otool
 
-# Drop stale sub-configures so config.site is re-read on retry.
+# Drop stale sub-configures so the depmode probe re-runs cleanly on retry.
+# Host subdirs read config.site (am_cv_*_dependencies_compiler_type=gcc3); the
+# build-* subdirs are forced CONFIG_SITE=no-such-file by the top Makefile, so
+# they rely on the g++ wrapper now emitting a -MF depfile (probe passes
+# naturally). Any cache holding a stale "=none" would re-trigger the fatal
+# "no usable dependency style found", so clear them all.
 for d in gcc libgcc libatomic; do
   rm -f "$B/$d/config.cache" "$B/$d/config.status" 2>/dev/null || true
 done
+find "$B" -path '*build-*/config.cache' -delete 2>/dev/null || true
+find "$B" -path '*build-*' -name config.cache -delete 2>/dev/null || true
 
 # Normalize source-tree mtimes to one fixed past timestamp. The host clock has
 # drifted behind the checked-out file mtimes ("modification time in the future"),
