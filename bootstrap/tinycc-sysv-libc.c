@@ -149,6 +149,9 @@ int atoi(const char *s) { return (int)strtol(s, 0, 10); }
 long atol(const char *s) { return strtol(s, 0, 10); }
 long long atoll(const char *s) { return strtoll(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
+int ffs(int x) { int i; if (x == 0) return 0; for (i = 1; !(x & 1); i++) x = (int)((unsigned)x >> 1); return i; }
+int ffsl(long x) { int i; if (x == 0) return 0; for (i = 1; !(x & 1); i++) x = (long)((unsigned long)x >> 1); return i; }
+int ffsll(long long x) { int i; if (x == 0) return 0; for (i = 1; !(x & 1); i++) x = (long long)((unsigned long long)x >> 1); return i; }
 long labs(long x) { return x < 0 ? -x : x; }
 long long llabs(long long x) { return x < 0 ? -x : x; }
 void qsort(void *base, size_t n, size_t size, int (*cmp)(const void *, const void *))

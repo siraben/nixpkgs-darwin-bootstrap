@@ -8,4 +8,7 @@ char *index(const char *, int);
 char *rindex(const char *, int);
 int strcasecmp(const char *, const char *);
 int strncasecmp(const char *, const char *, unsigned long);
+int ffs(int);
+int ffsl(long);
+int ffsll(long long);
 #endif
