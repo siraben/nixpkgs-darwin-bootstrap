@@ -950,3 +950,42 @@ REMAINING to gcc-10: mpfr+mpc+isl configure/build (cache fixtures for tcc),
 then gcc proper (cc1/xgcc — gcc-10 C++11 compiled by gcc-4.6 g++ -std=gnu++0x;
 unknown if pervasive C++11 walls), then GLOBAL CTORS don't run (.mod_init_func
 →.data → crt1 must call them). Build dir: target/work/gcc10-all-gcc/build.
+
+## gcc-10 build-libcpp: tcc can't emit REX.W for 64-bit SSE cvt (2026-05-30)
+
+Progress: build-libcpp C++ compiles (charset/mkdeps built) after C++-compat
+header fixes: sys/types.h guards wchar_t (#ifndef __cplusplus); stdarg.h
+branches on __TINYC__ (tcc __va_arg form vs gcc __builtin_va_* form). Earlier
+walls cleared: config.site depmode pin, mtime flatten, g++ wrapper .c sources +
+-MD/-MF forwarding to cc1plus, as-filter drops .constructor/.destructor.
+
+HARD BLOCKER at symtab.o: gcc emits cvttsd2siq/cvttss2siq/cvtsi2sdq (64-bit SSE
+int<->double, forced by -mno-sse3). tcc's assembler:
+  - does NOT know the q-suffixed mnemonic (unknown opcode 'cvttsd2siq'); AND
+  - even the unsuffixed form emits NO REX.W: `cvtsi2sd %rax,%xmm0` and
+    `cvtsi2sd %eax,%xmm0` both assemble to `f2 0f 2a c0` (32-bit!) — verified
+    by od. `cvttsd2si %xmm0,%rax` likewise `f2 0f 2c c0`. So stripping the q in
+    the as-filter would silently produce WRONG 32-bit conversions.
+Normal 64-bit ops DO get REX.W (addq %rax,%rbx -> 48 01 c3), so the REX path
+works generally — it's specific to these SSE cvt instructions.
+
+Root-cause dig: x86_64-asm.h HAS the OPC_48 REX.W ALT entries (OPT_REG64) for
+cvtsi2sd/ss + cvttsd2si/ss; staged tinycc-mes-src == vendor; OPC_48=0x200 fits
+uint16_t instr_type; O()/T() macros preserve OPC_48; asm_parse_reg types %rax as
+OP_REG64. By source reading the OPC_48 ALT SHOULD match %rax and set rex64=1
+(i386-asm.c:911), yet the live binary doesn't. Unresolved why — needs either a
+fresh chain rebuild (to test if binary is somehow stale) or a real i386-asm.c
+fix. NB active tcc binary mtime (05-30 06:09) postdates the asm.h commits.
+
+Two fix paths (both weighty):
+  (A) Fix tcc + rebuild chain. build.sh does rm -rf target (WIPES gcc-10
+      progress). Re-running steps 22..44 manually risks the mes-m2 step-23
+      overflow (staged source still carries the 5 fisttp entries; re-stage from
+      vendor first to drop them). Correct + general if it works.
+  (B) as-filter raw-byte emission for the 4 q-suffixed cvt mnemonics with a
+      real ModRM/SIB/disp encoder (chain-built C). No rebuild, no overflow, but
+      encoder bugs => silent gcc-10 miscompiles. Mitigate by validating every
+      operand form's bytes against the host assembler (clang/as) in a test
+      battery before trusting it. Operand forms seen: %xmmS,%rD (reg,reg) and
+      mem,%xmm (e.g. -8(%rbp)).
+Recommendation: (B) — lowest blast radius, fully autonomous, validatable.
