@@ -1,5 +1,6 @@
 #ifndef _DARWIN_BOOTSTRAP_TIME_H
 #define _DARWIN_BOOTSTRAP_TIME_H
+#include <stddef.h>   /* size_t (used by strftime) */
 typedef long time_t;
 typedef long clock_t;
 #ifndef _STRUCT_TIMESPEC

@@ -182,6 +182,11 @@ int main(void) {
                     strncmp(a, "__TEXT,__literal", 16) == 0 ||
                     strncmp(a, "__TEXT,__const", 14) == 0) { puts("\t.data"); continue; }
                 if (strncmp(a, "__DATA,__data", 13) == 0) { puts("\t.data"); continue; }
+                /* C++ exception LSDA tables: skip entirely.  EH does not unwind
+                 * in this toolchain (eh_frame is also skipped), and the LSDA
+                 * uses .set/label-difference/`$` syntax tcc's assembler rejects.
+                 * The tables are only consumed by the unwinder, which we lack. */
+                if (strncmp(a, "__DATA,__gcc_except_tab", 23) == 0) { skip_section = 1; continue; }
                 /* C++ coalesced data / const data -> .data */
                 if (strncmp(a, "__DATA,__datacoal_nt", 20) == 0 ||
                     strncmp(a, "__DATA,__const_coal", 19) == 0 ||
@@ -213,7 +218,12 @@ int main(void) {
             while (ws((unsigned char)*p)) p++;
             if (*p == '.') {
                 const char *names[] = {".const", ".const_data", ".cstring",
-                                       ".static_data", 0};
+                                       ".static_data",
+                                       /* C++ global ctor/dtor pointer sections:
+                                        * route into .data so tcc assembles the
+                                        * function-pointer table (running those
+                                        * ctors at startup is handled elsewhere). */
+                                       ".mod_init_func", ".mod_term_func", 0};
                 int matched = 0, i;
                 for (i = 0; names[i]; i++) {
                     size_t n = strlen(names[i]);
