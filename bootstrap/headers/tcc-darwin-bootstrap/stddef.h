@@ -5,7 +5,9 @@ typedef long ptrdiff_t;
 typedef long ssize_t;
 typedef long intptr_t;
 typedef unsigned long uintptr_t;
+#ifndef __cplusplus
 typedef int wchar_t;
+#endif
 #ifndef NULL
 #ifdef __cplusplus
 #define NULL 0
