@@ -1,0 +1,23 @@
+# Ground-truth x86-64 encodings (from: clang -target x86_64-apple-darwin -c
+# cvt-encoder-tests.s; otool -arch x86_64 -t). The as-filter's raw-byte encoder
+# for the q-suffixed SSE int<->double conversions must reproduce these exactly.
+# Rule: prefix f2(sd)/f3(ss); REX = 0x48 | R(reg>=8?0x4) | X(index>=8?0x2) |
+# B(base/rm>=8?0x1); 0f; opcode 2a(cvtsi2*)/2c(cvtt*2si); modrm.reg = DEST(op1)
+# low3; modrm.rm = SRC(op0). cvtsi2*: reg=xmm(dst), rm=gp/mem(src). cvtt*2si:
+# reg=gp(dst), rm=xmm/mem(src).
+cvtsi2sdq %rax, %xmm0      = f2 48 0f 2a c0
+cvtsi2sdq %r8, %xmm0       = f2 49 0f 2a c0
+cvtsi2sdq %rax, %xmm8      = f2 4c 0f 2a c0
+cvtsi2sdq (%rdi), %xmm0    = f2 48 0f 2a 07
+cvtsi2sdq -8(%rbp), %xmm0  = f2 48 0f 2a 45 f8
+cvtsi2sdq (%rdi,%rsi,8), %xmm0   = f2 48 0f 2a 04 f7
+cvtsi2sdq 16(%rdi,%rsi,8), %xmm0 = f2 48 0f 2a 44 f7 10
+cvtsi2sdq (%rsp), %xmm0    = f2 48 0f 2a 04 24
+cvtsi2sdq (%r12), %xmm0    = f2 49 0f 2a 04 24
+cvtsi2sdq (%r13), %xmm0    = f2 49 0f 2a 45 00
+cvtsi2ssq %rdi, %xmm0      = f3 48 0f 2a c7
+cvttsd2siq %xmm0, %rax     = f2 48 0f 2c c0
+cvttsd2siq %xmm8, %rax     = f2 49 0f 2c c0
+cvttsd2siq %xmm0, %r8      = f2 4c 0f 2c c0
+cvttsd2siq (%rdi), %rax    = f2 48 0f 2c 07
+cvttss2siq %xmm0, %rax     = f3 48 0f 2c c0
