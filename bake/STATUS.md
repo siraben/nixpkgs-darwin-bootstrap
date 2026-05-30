@@ -1192,3 +1192,36 @@ VALIDATE after fix: /tmp/v4.c→8, /tmp/v5.c→"7 8", plus a battery of movb/mov
 movl/movq/addl/cmpl $imm,sym(%rip) vs clang. Then rebuild REAL genmodes (rm
 impure build/gcc/build/gengtype + build/genmodes), verify BITS_PER_UNIT(8) +
 gengtype runs, remove clang impurity, resume `sh bake/scripts/gcc10-resume-make.sh`.
+
+## EXACT ARITHMETIC + FIX OPTIONS: tcc puts imm-adjust in FIELD, RELA uses ADDEND (2026-05-30)
+
+Tested tcc-darwin-cc -c on movl/movb/load to rip-relative .bss syms (objdump -dr):
+  movl $imm,sym(%rip) [c7 05, imm32 trailing]: field=-4, RELA addend=-4 → needs -8
+  movb $imm,sym(%rip) [c6 05, imm8  trailing]: field=-1, RELA addend=-4 → needs -5
+  movl sym(%rip),%eax [8b 05, no imm]:         field= 0, RELA addend=-4 → -4 (ok)
+PATTERN: tcc's i386-asm.c fixup (line 1131-1133: add32le(data+pc-4, pc-ind))
+correctly writes -(imm_size) into the disp32 FIELD, and gen_addrpc32 puts the
+base -4 in the RELA ADDEND (greloca ... R_X86_64_PC32, c-4). For ELF RELA the
+linker uses the ADDEND and OVERWRITES the field — so the field's imm-adjust is
+LOST. TRUE effective addend = RELA_addend + field_value (= -4 + -(imm_size)).
+elf64-to-m1 reads only [rdx+16] (RELA addend = -4) → drops the field → store +4.
+
+elf64-to-m1 ALREADY adds +4 for PC-rel types (line 1421-1432, r9 = r_addend+4),
+and the cross-section branch emits a synth label at sym+r9 (so a non-zero
+effective addend already works via synths). It just needs r9 = r_addend +
+FIELD_VALUE + 4 (currently missing the field). Same for the same-section disp
+(line 1520: sym_value + r_addend - r_offset → must add field too).
+
+FIX OPTION A (elf64-to-m1.M1, localized, no tcc rebuild): in RELOC_check_match
+after computing r9 (line ~1422), for PC-rel types add the signed 4-byte field
+value read from text_buf[r_offset] (text_buf ptr at [rbp-?], r_offset in rcx)
+into r9. Also add field to the same-section disp (line 1523). Then re-run
+bake/steps/30-elf64-to-m1.sh. Tedious M1 asm but isolated.
+FIX OPTION B (tcc ELF writer, cleaner C, but rebuilds tcc chain steps 41/42/44):
+make tcc fold the disp32 field into the RELA addend when writing .rela (so the
+emitted addend = -8/-5 directly). Look in tccelf.c put_elf_reloca / the relocate
+path; then re-stage (step 22 from vendor) + rebuild boot1/2/3 (steps 41/42/44,
+uses existing tcc-self, NO mes-m2). Risk: changes tcc behavior broadly.
+RECOMMEND A (localized). Validate: /tmp/v4.c→8, /tmp/v5.c→"7 8", battery
+movb/movw/movl/movq/addl/cmpl $imm,sym(%rip) vs clang. /tmp/rip.s is a minimal
+asm repro (movl/movb/load to foo/bar bss).
