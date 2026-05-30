@@ -807,3 +807,29 @@ Darwin).  So the dynamic-layout additions to m1-to-hex2.c must:
 DO THIS FRESH with empirical M2-Planet operator testing — a wrong codegen
 assumption here silently corrupts every linked binary. The wrapper side
 (LE-byte template gen) is plain bash and lower-risk.
+
+## RESOLVED: dynamic per-link Mach-O layout (2026-05-29, commits a322756 + 4b6d814)
+
+DONE and verified on both ends of the size range:
+- m1-to-hex2.c `--auto-data-align`: data target = round_up(address,0x10000)
+  (computed with /,*,%,& — M2-darwin DOES support them, hex2_linker.c uses
+  them; m1-to-hex2 just never did). Reports `DATA_VMADDR=.. DATA_END=..`
+  hex to stderr via a /16-recursive fput_hex.
+- wrapper (tcc-darwin-cc-bash3.sh): runs auto mode, captures DATA_VMADDR/
+  DATA_END, computes 8 segment fields, LE-encodes via `le8`, awk-substitutes
+  lowdata at NR 10/11/15/19/20/21/24/25, runs hex2, dd-pads to linkeditOffset.
+- THE BUG that cost a cycle: __DATA *filesize* (template line 21, NR==21)
+  was NOT being substituted — it inherited lowdata's hardcoded 0x2000000
+  (32MB). For small binaries that's > the file size, so the kernel SIGKILL'd
+  them on exec ("filesize ... past end of file" in otool -l). Fix: NR==21
+  field1 = data_vmsize (keep prot bytes "03 00 00 00 03 00 00 00").
+- Step 44 now just `cp`s lowdata; old small/large template generation removed.
+- VERIFIED: hello.c -> 128KB, exit 42 (was 51MB). cc1plus relinked 75MB->37MB,
+  runs (`cc1plus -version` => GNU C++ (GCC) 4.6.4), no past-end-of-file.
+
+TODO (Nix consistency, lower priority — bake path unaffected): port the same
+dynamic layout into scripts/tinycc/tcc-darwin-cc.sh + tinycc/darwin-cc.nix
+(they still have the old two-tier static templates).
+
+NEXT (gcc-10 path): libstdc++ configure should be fast now -> c++config.h ->
+wire headers into g++ wrapper -> build libstdc++ pieces -> gcc-10 all-gcc.
