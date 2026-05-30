@@ -620,3 +620,22 @@ int vasprintf(char **out, const char *f, void *ap) { *out = malloc(4096); return
 void unlock_std_streams(void) { }
 int setjmp(void *env) { return 0; }
 void longjmp(void *env, int val) { _exit(2); }
+
+/* libgcc unwinder stubs.  This toolchain does not implement DWARF exception
+ * unwinding (the as-filter drops .eh_frame/.gcc_except_tab), so C++ exceptions
+ * cannot propagate.  These symbols are referenced by libstdc++'s cleanup paths
+ * but are only reached when an exception is actually thrown; provide stubs so
+ * non-throwing C++ programs link.  If reached, abort loudly. */
+void _Unwind_Resume(void *exc) { fputs("_Unwind_Resume: C++ exceptions unsupported\n", stderr); _exit(134); }
+long _Unwind_RaiseException(void *exc) { fputs("_Unwind_RaiseException: C++ exceptions unsupported\n", stderr); _exit(134); return 0; }
+void _Unwind_DeleteException(void *exc) { }
+long _Unwind_GetLanguageSpecificData(void *ctx) { return 0; }
+long _Unwind_GetRegionStart(void *ctx) { return 0; }
+long _Unwind_GetIPInfo(void *ctx, int *ip_before) { if (ip_before) *ip_before = 0; return 0; }
+long _Unwind_GetIP(void *ctx) { return 0; }
+void _Unwind_SetIP(void *ctx, long v) { }
+long _Unwind_GetGR(void *ctx, int i) { return 0; }
+void _Unwind_SetGR(void *ctx, int i, long v) { }
+long _Unwind_GetTextRelBase(void *ctx) { return 0; }
+long _Unwind_GetDataRelBase(void *ctx) { return 0; }
+long _Unwind_GetCFA(void *ctx) { return 0; }
