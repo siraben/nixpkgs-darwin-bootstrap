@@ -855,3 +855,50 @@ reference, not just "it loads + tiny test runs".
 
 gcc-4.6 C and C++ front-ends now build+run from seed with the fast dynamic
 layout. NEXT: libstdc++ (configure fast now) -> gcc-10.
+
+## gcc-10 path progress + SSE assembler blocker (2026-05-30)
+
+Toolchain bugs fixed+committed this session (all prerequisites for gcc-10):
+- Dynamic Mach-O layout n15 __text section vmaddr 0x600200→0x600400 (ab92310)
+  — was crashing all large binaries (cc1plus etc.).
+- Multi -I include search (8969290): tcc libc open() now translates -errno→
+  -1/errno (was a raw stub); gcc incpath.c dedup by ->name not stat dev/ino
+  (tcc stat unreliable); g++ wrapper drops -W*.
+- g++ wrapper: -isystem $SYSROOT (for #include_next), output defaults to
+  basename.s/.o (EH-model probe), wire-in pending.
+- C++ header guards: stdbool.h `#define bool int` now #ifndef __cplusplus
+  (was corrupting bool→int, numeric_limits<bool>==<int>); time.h includes
+  stddef.h for size_t.
+- as-filter: .mod_init_func/.mod_term_func→.data, skip __gcc_except_tab.
+
+libstdc++ status: gcc-4.6's OWN libstdc++ (target/work/libstdcxx46), NOT
+gcc-10's (gcc-4.6 can't compile C++17). Configures in 47s. libsupc++.a BUILT.
+make -k: 114 .lo built; only ~6 FLOAT files fail (complex_io, globals_io,
+locale, math_stubs_float/long_double) on SSE/x87 opcodes.
+
+Build-dir artifacts needed (codify into a libstdc++ bake step):
+- target/gcc46-darwin-bootstrap-src/gcc/gthr-.h = copy of gthr-single.h
+  (standalone configure leaves glibcxx_thread_h empty).
+- sysroot unwind.h (copied from gcc build include/).
+- libstdc++ configure flags: --disable-shared --disable-libstdcxx-pch
+  --disable-multilib --enable-threads=single --enable-cstdio=stdio,
+  CPPFLAGS=-isystem <sysroot>.
+
+### BLOCKER: tcc assembler lacks scalar SSE float instructions
+
+Decisive test: `g++` on `double mul(double a,double b){return a*b+1.5;}`
+fails — `unknown opcode 'movsd'`. cc1plus emits movsd/mulsd/addsd/cvttsd2si/
+movq for doubles; tcc-darwin-cc's assembler rejects them. Because gcc-10's
+compiler uses double in many places AND the build path is cc1plus→asm→
+tcc-assembler (unlike gcc-4.6 which was built by tcc-compiles-C-directly,
+never going through gcc-emitted-SSE-asm), THIS BLOCKS gcc-10.
+
+Fix: add SSE float DEF_ASM_OP entries to vendor/tinycc-bootstrappable/
+i386-asm.h. It already has MMX/SSE-integer (movd, movq, packssdw, padd*) and
+the OPT_SSE operand type, but is MISSING scalar/packed FLOAT: movss, movsd
+(SSE form 0xf20f10/11), movaps/movapd, addss/addsd, subss/subsd, mulss/mulsd,
+divss/divsd, cvtsi2ss/sd, cvtss2sd/cvtsd2ss, cvttss2si/cvttsd2si, comiss/sd,
+ucomiss/sd, andps/andpd, orps, xorps, pxor (have?), sqrtss/sd, fisttp{s,l,ll}.
+Copy encodings from upstream tinycc i386-asm.h. Then rebuild the tcc chain
+(steps ~23-41 tinycc-boot1/2/3) and verify it self-hosts + assembles movsd.
+This is the critical path to gcc-10.
