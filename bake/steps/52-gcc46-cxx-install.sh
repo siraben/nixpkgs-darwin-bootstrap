@@ -27,6 +27,8 @@ sed -e "s|@CC1PLUS@|$out/bin/cc1plus|g" \
     -e "s|@ASFILTER@|$out/bin/gcc46-cxx-as-filter|g" \
     -e "s|@TCC@|$TARGET/bin/tcc-darwin-cc|g" \
     -e "s|@SYSROOT@|$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap|g" \
+    -e "s|@LIBSTDCXX@|$TARGET/work/libstdcxx46|g" \
+    -e "s|@LIBSUPCXX@|$TARGET/gcc46-darwin-bootstrap-src/libstdc++-v3/libsupc++|g" \
     "$SOURCES/gcc46-scripts/gxx-bootstrap-wrapper.sh" > "$out/bin/g++"
 chmod +x "$out/bin/g++"
 

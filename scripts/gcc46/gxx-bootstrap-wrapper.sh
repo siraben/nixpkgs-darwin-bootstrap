@@ -14,6 +14,8 @@ CC1PLUS="@CC1PLUS@"          # gcc-4.6 cc1plus
 ASFILTER="@ASFILTER@"        # tcc-compiled phase36-bootstrap-as
 TCC="@TCC@"                  # tcc-darwin-cc (assemble + link)
 SYSROOT="@SYSROOT@"          # tcc-darwin-bootstrap C headers
+LIBSTDCXX="@LIBSTDCXX@"      # gcc-4.6 libstdc++ build dir (headers + .a)
+LIBSUPCXX="@LIBSUPCXX@"      # libsupc++ source headers (<new>, <exception>, <typeinfo>)
 
 mode=link
 out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
@@ -23,7 +25,7 @@ out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
 # -mno-sse3: keep gcc on the SSE2 baseline so float->int uses cvttsd2si
 # (tcc's assembler has SSE2 but not the SSE3 fisttp instruction; adding fisttp
 # to tcc's opcode table overflowed the mes-m2 bootstrap stage).
-cc1args=(-quiet -mno-sse3 -isystem "$SYSROOT")
+cc1args=(-quiet -mno-sse3 -I"$LIBSTDCXX/include" -I"$LIBSTDCXX/include/x86_64-apple-darwin" -I"$LIBSUPCXX" -isystem "$SYSROOT")
 objs=()
 srcs=()
 
@@ -87,4 +89,10 @@ for s in "${srcs[@]}"; do
 done
 
 [ "$mode" = link ] || exit 0
-"$TCC" "${objs[@]}" -o "${out:-a.out}"
+## Link against the chain-built libstdc++ + libsupc++ (partial archive; the
+## few float-formatting/locale TUs that needed SSE3 are excluded — not used by
+## gcc-10).  bake-ar archives can't be -l/-L resolved, so pass the .a paths.
+libs=()
+[ -f "$LIBSTDCXX/libstdc++.a" ] && libs+=("$LIBSTDCXX/libstdc++.a")
+[ -f "$LIBSTDCXX/libsupc++/.libs/libsupc++.a" ] && libs+=("$LIBSTDCXX/libsupc++/.libs/libsupc++.a")
+"$TCC" "${objs[@]}" "${libs[@]}" -o "${out:-a.out}"
