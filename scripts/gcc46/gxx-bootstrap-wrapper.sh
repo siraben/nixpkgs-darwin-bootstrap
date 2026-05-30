@@ -16,7 +16,7 @@ TCC="@TCC@"                  # tcc-darwin-cc (assemble + link)
 SYSROOT="@SYSROOT@"          # tcc-darwin-bootstrap C headers
 
 mode=link
-out=a.out
+out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
 # C headers go in the SYSTEM include chain (searched after -I dirs) so that
 # libstdc++'s `#include_next <stdlib.h>` etc. resolve to them rather than
 # being skipped (they sit before the libstdc++ headers if added via -I).
@@ -61,7 +61,7 @@ for s in "${srcs[@]}"; do
   ## -E: cc1plus integrated preprocess; emit preprocessed text (configure
   ## uses `g++ -E` for header/feature checks). cc1plus -E writes to stdout.
   if [ "$mode" = preprocess ]; then
-    if [ "$out" = a.out ]; then
+    if [ -z "$out" ]; then
       "$CC1PLUS" "${cc1args[@]}" "$s"
     else
       "$CC1PLUS" "${cc1args[@]}" "$s" -o "$out"
@@ -75,7 +75,7 @@ for s in "${srcs[@]}"; do
   fi
   "$ASFILTER" < "$tmp/c$i.s" > "$tmp/c$i.f.s"
   if [ "$mode" = object ] && [ "${#srcs[@]}" -eq 1 ]; then
-    "$TCC" -c "$tmp/c$i.f.s" -o "$out"
+    "$TCC" -c "$tmp/c$i.f.s" -o "${out:-${s%.*}.o}"
     exit 0
   fi
   o="${s%.*}.o"
@@ -84,4 +84,4 @@ for s in "${srcs[@]}"; do
 done
 
 [ "$mode" = link ] || exit 0
-"$TCC" "${objs[@]}" -o "$out"
+"$TCC" "${objs[@]}" -o "${out:-a.out}"
