@@ -538,7 +538,7 @@ le8() {
 }
 awk -v n10="$(le8 6291456) $(le8 "$text_vmsize")" \
     -v n11="$(le8 0) $(le8 "$text_vmsize")" \
-    -v n15="$(le8 6291968) $(le8 "$text_sect_size")" \
+    -v n15="$(le8 6292480) $(le8 "$text_sect_size")" \
     -v n19="$(le8 0) $(le8 "$data_vmaddr")" \
     -v n20="$(le8 "$data_vmsize") $(le8 "$data_fileoff")" \
     -v n21="$(le8 "$data_vmsize") 03 00 00 00 03 00 00 00" \
