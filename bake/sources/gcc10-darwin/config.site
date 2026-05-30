@@ -1,0 +1,12 @@
+# Pre-set dependency-style cache vars for gcc-10 sub-configures.
+# gcc's config/depstand.m4 (ZW_PROG_COMPILER_DEPENDENCIES) probes the depmode
+# UNCONDITIONALLY and makes a "none" result fatal ("no usable dependency style
+# found"), even with --disable-dependency-tracking. Our chain-built tcc/g++ do
+# not emit .Po dependency files, so every depmode probe fails. Forcing gcc3 is
+# safe because dependency tracking is disabled at build time (no -MD flags are
+# ever passed). config.site is sourced by every subdir configure (gcc, libgcc,
+# libatomic), so this applies uniformly.
+am_cv_CC_dependencies_compiler_type=gcc3
+am_cv_CXX_dependencies_compiler_type=gcc3
+am_cv_GCJ_dependencies_compiler_type=gcc3
+am_cv_OBJC_dependencies_compiler_type=gcc3
