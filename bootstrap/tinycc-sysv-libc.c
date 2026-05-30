@@ -627,6 +627,7 @@ void longjmp(void *env, int val) { _exit(2); }
  * but are only reached when an exception is actually thrown; provide stubs so
  * non-throwing C++ programs link.  If reached, abort loudly. */
 void _Unwind_Resume(void *exc) { fputs("_Unwind_Resume: C++ exceptions unsupported\n", stderr); _exit(134); }
+long _Unwind_Resume_or_Rethrow(void *exc) { fputs("_Unwind_Resume_or_Rethrow: C++ exceptions unsupported\n", stderr); _exit(134); return 0; }
 long _Unwind_RaiseException(void *exc) { fputs("_Unwind_RaiseException: C++ exceptions unsupported\n", stderr); _exit(134); return 0; }
 void _Unwind_DeleteException(void *exc) { }
 long _Unwind_GetLanguageSpecificData(void *ctx) { return 0; }
