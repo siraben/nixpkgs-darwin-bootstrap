@@ -1061,3 +1061,27 @@ compared. Findings:
 CONCLUSION: confirmed miscompile, not pinnable with assembler-diff in reasonable
 effort. Need a behavioral isolation (run the tcc-built lexer on a tiny input vs
 a host reference) or a strategic pivot. Escalating to user for direction.
+
+## BREAKTHROUGH: gengtype miscompile is in TCC's ASSEMBLER, not cc1plus (2026-05-30)
+
+Built gengtype from the SAME cc1plus output two ways:
+- cc1plus (gcc-4.6) → as-filter → TCC  : aborts (miscompiled).
+- cc1plus (gcc-4.6) → CLANG assembler  : RUNS, writes 1.27MB gtype.state. CORRECT.
+(Host build recipe: cc1plus -S each gengtype*.c/errors.c with the libstdc++ +
+build -I/-D flags → /tmp/cg-*.s; clang -target x86_64 -c those → Mach-O .o;
+host libiberty built by compiling build-libiberty's 84 members with clang into a
+Mach-O .a (getopt1.c needs -std=gnu89); + /tmp/cg-shim.c providing version_string
+/bug_report_url and the *_unlocked stdio wrappers macOS lacks. Link, run via
+Rosetta.)
+
+CONCLUSION: the gcc-4.6 COMPILER (cc1plus) correctly compiles gcc-10 gengtype.
+The miscompile is a TCC ASSEMBLER bug — a specific instruction tcc mis-encodes
+(we already proved the as-filter drops/rewrites nothing wrongly here). This is
+the SAME class as the cvt REX.W bug and is FIXABLE via an as-filter raw-byte
+rewrite once pinned. And now there's a clean reference: diff clang-assembled vs
+tcc-assembled output of the SAME cc1plus .s (e.g. /tmp/cg-gengtype-lex.s) to
+find the bad encoding. FEASIBILITY OUTLOOK IMPROVED: not a compiler-codegen
+wall, just another tcc assembler bug to pin+fix.
+
+Per user: install the clang-assembled gengtype (documented impurity) ONLY to get
+past s-gtype and probe whether cc1 (our full toolchain incl tcc) also breaks.
