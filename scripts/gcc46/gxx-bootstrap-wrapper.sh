@@ -17,7 +17,10 @@ SYSROOT="@SYSROOT@"          # tcc-darwin-bootstrap C headers
 
 mode=link
 out=a.out
-cc1args=(-quiet -I"$SYSROOT")
+# C headers go in the SYSTEM include chain (searched after -I dirs) so that
+# libstdc++'s `#include_next <stdlib.h>` etc. resolve to them rather than
+# being skipped (they sit before the libstdc++ headers if added via -I).
+cc1args=(-quiet -isystem "$SYSROOT")
 objs=()
 srcs=()
 
