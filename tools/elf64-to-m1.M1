@@ -1533,13 +1533,76 @@
 	jmp %EMIT_loop
 
 :RELOC_pc32_label
-	;; Cross-section PC32: emit %sym, advance 4.
-	!0x4c !0x89 !0xda
+	;; Cross-section PC32.  tcc's assembler puts the trailing-immediate
+	;; adjustment -(imm_size) in the disp FIELD (0 if no trailing imm) and the
+	;; symbol-relative base in the RELA addend; ELF RELA uses the addend so the
+	;; field is lost -> stores with a trailing immediate land +imm_size.
+	;; field = signed disp32 at text_buf[r_offset]; trailing = -field.
+	;; r9 (= r_addend+4) is the positive symbol offset.
+	!0x48 !0x8b !0x45 !0xa0                 ; mov rax, [rbp-0x60]   (text_buf)
+	!0x48 !0x63 !0x04 !0x08                 ; movsxd rax, [rax+rcx] (signed field)
+	!0x48 !0x85 !0xc0                       ; test rax, rax
+	je %RELOC_pc32_nofield                  ; field == 0 -> no trailing imm, old path
+
+	;; field != 0: trailing imm present.  Emit
+	;;   %sym[_plus_<symval+r9>] > L<r_offset>
+	;; then the `trailing` raw bytes, then :L<r_offset> at the instruction END.
+	;; The synth (positive symbol offset) handles sym+N; the >L base (instr end)
+	;; handles the trailing immediate so hex2 computes (sym+N) - instr_end.
+	!0x48 !0xf7 !0xd8                       ; neg rax  (rax = trailing)
+	push_rcx                                ; [rsp+8] = r_offset
+	!0x50                                   ; push rax  ([rsp+0] = trailing)
+	;; synth_offset = (r9 != 0) ? sym.value + r9 : 0  -> rcx
+	!0x4d !0x85 !0xc9                       ; test r9, r9
+	je %RELOC_pc32b_zero
+	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  (sym.value)
+	!0x4c !0x01 !0xc9                       ; add rcx, r9
+	jmp %RELOC_pc32b_args
+:RELOC_pc32b_zero
+	xor_ecx,ecx
+:RELOC_pc32b_args
+	!0x4c !0x89 !0xda                       ; mov rdx, r11  (sym_idx)
+	!0x4c !0x8b !0x44 !0x24 !0x08           ; mov r8, [rsp+8]  (base_id = r_offset)
+	call %FUNCTION_emit_base_label_ref
+	;; emit `trailing` bytes; rbx = i; preserve outer rbx
+	!0x53                                   ; push rbx ([rsp+16]=r_offset,[rsp+8]=trailing)
+	!0x48 !0x31 !0xdb                       ; xor rbx, rbx
+:RELOC_pc32_byteloop
+	!0x48 !0x3b !0x5c !0x24 !0x08           ; cmp rbx, [rsp+8]  (trailing)
+	je %RELOC_pc32_bytedone
+	!0x48 !0x8b !0x45 !0xa0                 ; mov rax, [rbp-0x60]
+	!0x48 !0x03 !0x44 !0x24 !0x10           ; add rax, [rsp+16]  (r_offset)
+	!0x48 !0x83 !0xc0 !0x04                 ; add rax, 4
+	!0x48 !0x01 !0xd8                       ; add rax, rbx
+	!0x0f !0xb6 !0x38                       ; movzx edi, byte [rax]
+	call %FUNCTION_emit_byte_hex
+	!0x48 !0xff !0xc3                       ; inc rbx
+	jmp %RELOC_pc32_byteloop
+:RELOC_pc32_bytedone
+	!0x5b                                   ; pop rbx  ([rsp+0]=trailing,[rsp+8]=r_offset)
+	lea_rdi,[rip+DWORD] %DATA_label_def_L
+	mov_rsi, %0x03
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x08           ; mov rdi, [rsp+8]  (r_offset)
+	call %FUNCTION_emit_hex_lz
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; advance rcx = r_offset + 4 + trailing
+	!0x58                                   ; pop rax  (trailing)
+	pop_rcx                                 ; r_offset
+	!0x48 !0x83 !0xc1 !0x04                 ; add rcx, 4
+	!0x48 !0x01 !0xc1                       ; add rcx, rax  (+ trailing)
+	jmp %EMIT_loop
+
+:RELOC_pc32_nofield
+	;; field == 0: no trailing immediate.  Original synth path.
+	!0x4c !0x89 !0xda                       ; mov rdx, r11  (sym_idx)
 	push_rcx
-	!0x4d !0x85 !0xc9
+	!0x4d !0x85 !0xc9                       ; test r9, r9
 	je %RELOC_pc32lbl_zero
-	!0x49 !0x8b !0x4a !0x08
-	!0x4c !0x01 !0xc9
+	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  (sym.value)
+	!0x4c !0x01 !0xc9                       ; add rcx, r9
 	jmp %RELOC_pc32lbl_call
 :RELOC_pc32lbl_zero
 	xor_ecx,ecx
@@ -3165,6 +3228,71 @@
 	ret
 
 ## ===========================================================================
+## FUNCTION_emit_base_label_ref(rdi=name, rsi=skip_prefix, rdx=sym_idx,
+##   rcx=base_id) — like emit_label_ref but emits "\n%<prefixed name>>L<base_id
+##   _hex>\n", a hex2 custom-base reference (storePointer '>' → disp = sym -
+##   L<base_id>).  Used for rip-relative instructions with a trailing immediate
+##   (effective addend != -4): the caller defines :L<base_id> at the instruction
+##   END so hex2 computes sym - instr_end (correct disp for any trailing-imm
+##   size).  Plain %sym / _plus_ synths can't express this (synths positive-only).
+## ===========================================================================
+:FUNCTION_emit_base_label_ref
+	;; Args: rdi=name, rsi=skip, rdx=sym_idx, rcx=synth_offset, r8=base_id.
+	;; Emits "\n%<name>[_idx][_plus_<synth_hex>]>L<base_id_hex>\n".  The synth
+	;; (positive symbol-relative offset) handles sym+N references; the >L base
+	;; (instruction end) handles the trailing-immediate adjustment.
+	!0x41 !0x50                             ; push r8   ([rsp+32] = base_id)
+	push_rcx                                ; [rsp+24] = synth_offset
+	push_rdx                                ; [rsp+16] = sym_idx
+	push_rdi                                ; [rsp+ 8] = name
+	push_rsi                                ; [rsp+ 0] = skip_prefix
+	lea_rdi,[rip+DWORD] %DATA_label_ref_prefix
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EBLR_skip_prefix
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_strlen
+	!0x48 !0x89 !0xc6
+	!0x48 !0x8b !0xbd !0x78 !0xff !0xff !0xff
+	call %FUNCTION_write_stdout
+:EBLR_skip_prefix
+	!0x48 !0x8b !0x7c !0x24 !0x08
+	call %FUNCTION_emit_cleaned_name
+	!0x48 !0x8b !0x04 !0x24
+	test_rax,rax
+	jne %EBLR_no_idx_suffix
+	lea_rdi,[rip+DWORD] %DATA_underscore
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x10
+	call %FUNCTION_emit_dec_lz
+:EBLR_no_idx_suffix
+	;; If synth_offset != 0, append "_plus_<hex>"
+	!0x48 !0x8b !0x44 !0x24 !0x18            ; mov rax, [rsp+24]  (synth_offset)
+	test_rax,rax
+	je %EBLR_no_synth
+	lea_rdi,[rip+DWORD] %DATA_plus
+	mov_rsi, %0x06
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x18
+	call %FUNCTION_emit_hex_lz
+:EBLR_no_synth
+	;; append ">L<base_id_hex>"
+	lea_rdi,[rip+DWORD] %DATA_gt_L
+	mov_rsi, %0x02
+	call %FUNCTION_write_stdout
+	!0x48 !0x8b !0x7c !0x24 !0x20            ; mov rdi, [rsp+32]  (base_id)
+	call %FUNCTION_emit_hex_lz
+	lea_rdi,[rip+DWORD] %DATA_newline
+	mov_rsi, %0x01
+	call %FUNCTION_write_stdout
+	;; add rsp, 40
+	!0x48 !0x83 !0xc4 !0x28
+	ret
+
+## ===========================================================================
 ## FUNCTION_emit_byte_hex(rdi=byte_val) — writes "!0xHH " (6 bytes) to
 ##   stdout.  Used by the M1 output emitter to produce one byte per
 ##   .text byte.  Clobbers rax/rcx/rdx/rdi/rsi.
@@ -3432,6 +3560,10 @@
 	!0x0a !0x26                             ; "\n&"
 :DATA_underscore
 	!0x5f                                   ; "_"
+:DATA_gt_L
+	!0x3e !0x4c                             ; ">L"  (hex2 custom-base ref sigil + label prefix)
+:DATA_label_def_L
+	!0x0a !0x3a !0x4c                       ; "\n:L" (label definition prefix)
 :DATA_zero4
 	!0x0a
 	!0x21 !0x30 !0x78 !0x30 !0x30 !0x20     ; "!0x00 "
