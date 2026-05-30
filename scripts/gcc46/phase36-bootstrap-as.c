@@ -149,6 +149,173 @@ static int sub_mn(char *line, const char *mn, const char *rep) {
     return 1;
 }
 
+/* Parse a register token at p (which must point at '%').  Returns the register
+ * number 0-15 (and sets *is_xmm), advancing *end past the token; -1 on failure.
+ * Handles %rax..%rdi, %r8..%r15, %eax..%edi (same low-3), %xmm0..%xmm15. */
+static int parse_reg(const char *p, const char **end, int *is_xmm) {
+    if (*p != '%') return -1;
+    p++;
+    if (strncmp(p, "xmm", 3) == 0) {
+        p += 3;
+        if (*p < '0' || *p > '9') return -1;
+        int n = *p++ - '0';
+        if (*p >= '0' && *p <= '9') n = n * 10 + (*p++ - '0');
+        if (n > 15) return -1;
+        *is_xmm = 1; *end = p; return n;
+    }
+    *is_xmm = 0;
+    if (*p == 'r' && p[1] >= '0' && p[1] <= '9') {       /* r8..r15 */
+        p++;
+        int n = *p++ - '0';
+        if (*p >= '0' && *p <= '9') n = n * 10 + (*p++ - '0');
+        if (n < 8 || n > 15) return -1;
+        *end = p; return n;
+    }
+    {
+        static const struct { const char *nm; int n; } names[] = {
+            {"rax",0},{"rcx",1},{"rdx",2},{"rbx",3},{"rsp",4},{"rbp",5},{"rsi",6},{"rdi",7},
+            {"eax",0},{"ecx",1},{"edx",2},{"ebx",3},{"esp",4},{"ebp",5},{"esi",6},{"edi",7},
+            {0,0}
+        };
+        int i;
+        for (i = 0; names[i].nm; i++) {
+            size_t n = strlen(names[i].nm);
+            if (strncmp(p, names[i].nm, n) == 0) { *end = p + n; return names[i].n; }
+        }
+    }
+    return -1;
+}
+
+/* The four 64-bit SSE int<->double conversions gcc emits but the bootstrap tcc
+ * MISCOMPILES (its assembler never emits the REX.W prefix for these, silently
+ * producing 32-bit conversions).  We hand-encode them to raw .byte here.
+ *
+ *   prefix f2(sd)/f3(ss); REX = 0x48 | R(reg>=8) | X(index>=8) | B(base/rm>=8);
+ *   0x0f; opcode 2a(cvtsi2*)/2c(cvtt*2si); ModRM.reg = dest(op1), rm = src(op0).
+ *
+ * Verified byte-for-byte against the host assembler for all operand forms gcc
+ * emits (see scripts/gcc46/cvt-encoder-tests.{s,expected}).  On any operand
+ * shape we don't recognise we emit the original line (=> a loud tcc "unknown
+ * opcode" rather than a silent miscompile).  Returns 1 if the line was a target
+ * mnemonic (handled), 0 otherwise. */
+static int emit_cvt(const char *line) {
+    static const struct { const char *mn; int pfx; int op; } tab[] = {
+        {"cvtsi2sdq", 0xf2, 0x2a}, {"cvtsi2ssq", 0xf3, 0x2a},
+        {"cvttsd2siq", 0xf2, 0x2c}, {"cvttss2siq", 0xf3, 0x2c}, {0,0,0}
+    };
+    const char *args = NULL;
+    int pfx = 0, op = 0, t;
+    for (t = 0; tab[t].mn; t++) {
+        args = match_mn(line, tab[t].mn);
+        if (args) { pfx = tab[t].pfx; op = tab[t].op; break; }
+    }
+    if (!args) return 0;
+
+    /* split into op0 (src) and op1 (dst) at the top-level comma (memory
+     * operands contain commas inside parens, so track paren depth). */
+    const char *comma = NULL, *p;
+    int depth = 0;
+    for (p = args; *p; p++) {
+        if (*p == '(') depth++;
+        else if (*p == ')') depth--;
+        else if (*p == ',' && depth == 0) { comma = p; break; }
+    }
+    char op0[256], op1[256];
+    if (!comma) goto bail;
+    {
+        size_t l0 = comma - args;
+        if (l0 >= sizeof op0) l0 = sizeof op0 - 1;
+        memcpy(op0, args, l0); op0[l0] = 0;
+        while (l0 && ws((unsigned char)op0[l0 - 1])) op0[--l0] = 0;
+        const char *q = comma + 1;
+        while (ws((unsigned char)*q)) q++;
+        strncpy(op1, q, sizeof op1 - 1); op1[sizeof op1 - 1] = 0;
+        size_t m = strlen(op1);
+        while (m && ws((unsigned char)op1[m - 1])) op1[--m] = 0;
+    }
+
+    /* op1 (dest) is always a register -> ModRM.reg */
+    int is_xmm1; const char *e1;
+    int reg = parse_reg(op1, &e1, &is_xmm1);
+    if (reg < 0 || *e1 != 0) goto bail;
+    int rex = 0x48;
+    if (reg >= 8) rex |= 0x4;                            /* REX.R */
+
+    unsigned char modrm, sib = 0;
+    int have_sib = 0, dispsize = 0;
+    long disp = 0;
+
+    if (op0[0] == '%') {                                 /* reg-direct rm */
+        int is_xmm0; const char *e0;
+        int rm = parse_reg(op0, &e0, &is_xmm0);
+        if (rm < 0 || *e0 != 0) goto bail;
+        if (rm >= 8) rex |= 0x1;                         /* REX.B */
+        modrm = 0xC0 | ((reg & 7) << 3) | (rm & 7);
+    } else {                                             /* memory rm */
+        const char *paren = strchr(op0, '(');
+        if (!paren) goto bail;
+        int have_disp = 0;
+        if (paren != op0) {
+            char dbuf[64]; size_t dl = paren - op0;
+            if (dl >= sizeof dbuf) dl = sizeof dbuf - 1;
+            memcpy(dbuf, op0, dl); dbuf[dl] = 0;
+            char *endp;
+            disp = strtol(dbuf, &endp, 0);
+            if (*endp != 0) goto bail;                   /* symbolic disp */
+            have_disp = 1;
+        }
+        const char *ip = paren + 1;
+        int base = -1, index = -1, scale = 1, is_x; const char *e;
+        if (*ip == '%') { base = parse_reg(ip, &e, &is_x); if (base < 0) goto bail; ip = e; }
+        if (base < 0) goto bail;                         /* no-base mem: gcc never emits for these */
+        if (*ip == ',') {
+            ip++;
+            index = parse_reg(ip, &e, &is_x);
+            if (index < 0) goto bail; ip = e;
+            if (*ip == ',') { ip++; scale = atoi(ip); while (*ip >= '0' && *ip <= '9') ip++; }
+        }
+        if (*ip != ')') goto bail;
+        if (base >= 8) rex |= 0x1;                       /* REX.B */
+        if (index >= 8) rex |= 0x2;                      /* REX.X */
+        int sclog = scale==1?0:scale==2?1:scale==4?2:scale==8?3:-1;
+        if (index >= 0 && sclog < 0) goto bail;
+
+        int need_sib = (index >= 0) || ((base & 7) == 4);      /* rsp/r12 force SIB */
+        int base_is_bp = ((base & 7) == 5);                    /* rbp/r13 need disp */
+        int mod;
+        if (!have_disp || disp == 0) {
+            if (base_is_bp) { mod = 1; dispsize = 1; disp = 0; }
+            else { mod = 0; dispsize = 0; }
+        } else if (disp >= -128 && disp <= 127) { mod = 1; dispsize = 1; }
+        else { mod = 2; dispsize = 4; }
+
+        if (need_sib) {
+            modrm = (mod << 6) | ((reg & 7) << 3) | 4;
+            int sib_index = (index >= 0) ? (index & 7) : 4;    /* 4 = no index */
+            sib = ((sclog < 0 ? 0 : sclog) << 6) | (sib_index << 3) | (base & 7);
+            have_sib = 1;
+        } else {
+            modrm = (mod << 6) | ((reg & 7) << 3) | (base & 7);
+        }
+    }
+
+    printf("\t.byte 0x%02x,0x%02x,0x0f,0x%02x,0x%02x", pfx, rex, op, modrm);
+    if (have_sib) printf(",0x%02x", (unsigned)(unsigned char)sib);
+    if (dispsize == 1) printf(",0x%02x", (unsigned)(disp & 0xff));
+    else if (dispsize == 4) {
+        unsigned long u = (unsigned long)disp & 0xffffffffUL;
+        printf(",0x%02lx,0x%02lx,0x%02lx,0x%02lx",
+               u & 0xff, (u >> 8) & 0xff, (u >> 16) & 0xff, (u >> 24) & 0xff);
+    }
+    putchar('\n');
+    return 1;
+
+bail:
+    fprintf(stderr, "as-filter: cvt: unrecognised operand form, emitting verbatim: %s\n", line);
+    puts(line);
+    return 1;
+}
+
 int main(void) {
     static char raw[8192], line[8192], tmp[8192];
     int skip_section = 0;
@@ -394,6 +561,8 @@ int main(void) {
             }
             if (done) continue;
         }
+
+        if (emit_cvt(line)) continue;
 
         puts(line);
     }
