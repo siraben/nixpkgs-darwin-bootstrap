@@ -9,6 +9,11 @@ char **environ = empty_environ;
 FILE *stdin = (FILE *)0;
 FILE *stdout = (FILE *)1;
 FILE *stderr = (FILE *)2;
+/* Darwin's <stdio.h> maps stdin/stdout/stderr to these; libstdc++ references
+ * them (debug.o, ios_init.o, vterminate.o).  Same FILE* sentinels. */
+FILE *__stdinp = (FILE *)0;
+FILE *__stdoutp = (FILE *)1;
+FILE *__stderrp = (FILE *)2;
 static int ungot_fd = -1;
 static int ungot_ch = -1;
 static char *malloc_cur = (char *)-1;
