@@ -23,6 +23,13 @@ export CXXFLAGS="-g -std=gnu++0x -mno-sse3"
 export CFLAGS="-g"
 export AR=$ROOT/scripts/bake-ar
 export RANLIB=$ROOT/scripts/bake-ranlib
+# Build-side subdirs (build-x86_64-apple-darwin/libcpp, libiberty) archive
+# their .o with AR_FOR_BUILD/RANLIB_FOR_BUILD, NOT AR/RANLIB. Their Makefiles
+# default these to plain `ar`, which silently makes an empty archive from our
+# ELF members (only __.SYMDEF, zero members) -> "Target label _ZNK... not valid"
+# when genmatch links libcpp.a. Force the bake shims here too.
+export AR_FOR_BUILD=$ROOT/scripts/bake-ar
+export RANLIB_FOR_BUILD=$ROOT/scripts/bake-ranlib
 export NM=/usr/bin/nm
 export STRIP=/usr/bin/strip
 export LIPO=/usr/bin/lipo
@@ -49,4 +56,5 @@ fi
 cd "$B"
 exec make all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$SYS" \
-  CPP="$CPP" CXXCPP="$CXXCPP" AR="$AR" RANLIB="$RANLIB" NM="$NM"
+  CPP="$CPP" CXXCPP="$CXXCPP" AR="$AR" RANLIB="$RANLIB" NM="$NM" \
+  AR_FOR_BUILD="$AR_FOR_BUILD" RANLIB_FOR_BUILD="$RANLIB_FOR_BUILD"
