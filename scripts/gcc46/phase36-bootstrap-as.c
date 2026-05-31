@@ -199,15 +199,21 @@ static int parse_reg(const char *p, const char **end, int *is_xmm) {
  * opcode" rather than a silent miscompile).  Returns 1 if the line was a target
  * mnemonic (handled), 0 otherwise. */
 static int emit_cvt(const char *line) {
-    static const struct { const char *mn; int pfx; int op; } tab[] = {
-        {"cvtsi2sdq", 0xf2, 0x2a}, {"cvtsi2ssq", 0xf3, 0x2a},
-        {"cvttsd2siq", 0xf2, 0x2c}, {"cvttss2siq", 0xf3, 0x2c}, {0,0,0}
+    static const struct { const char *mn; int pfx; int op; int rexw; } tab[] = {
+        {"cvtsi2sdq", 0xf2, 0x2a, 1}, {"cvtsi2ssq", 0xf3, 0x2a, 1},
+        {"cvttsd2siq", 0xf2, 0x2c, 1}, {"cvttss2siq", 0xf3, 0x2c, 1},
+        /* float<->double conversions (0F 5A /r), XMM<->XMM(/mem), reg=dst rm=src.
+         * No REX.W (no 64-bit GP operand); SSE prefix is 0/66/f3/f2.  gcc-10's
+         * gimple-pretty-print.c etc. emit cvtps2pd; tcc's assembler lacks it. */
+        {"cvtps2pd", 0x00, 0x5a, 0}, {"cvtpd2ps", 0x66, 0x5a, 0},
+        {"cvtss2sd", 0xf3, 0x5a, 0}, {"cvtsd2ss", 0xf2, 0x5a, 0},
+        {0,0,0,0}
     };
     const char *args = NULL;
-    int pfx = 0, op = 0, t;
+    int pfx = 0, op = 0, rexw = 0, t;
     for (t = 0; tab[t].mn; t++) {
         args = match_mn(line, tab[t].mn);
-        if (args) { pfx = tab[t].pfx; op = tab[t].op; break; }
+        if (args) { pfx = tab[t].pfx; op = tab[t].op; rexw = tab[t].rexw; break; }
     }
     if (!args) return 0;
 
@@ -238,7 +244,7 @@ static int emit_cvt(const char *line) {
     int is_xmm1; const char *e1;
     int reg = parse_reg(op1, &e1, &is_xmm1);
     if (reg < 0 || *e1 != 0) goto bail;
-    int rex = 0x48;
+    int rex = rexw ? 0x48 : 0x40;   /* 0x40 base; W only for the int forms */
     if (reg >= 8) rex |= 0x4;                            /* REX.R */
 
     unsigned char modrm, sib = 0;
@@ -299,7 +305,13 @@ static int emit_cvt(const char *line) {
         }
     }
 
-    printf("\t.byte 0x%02x,0x%02x,0x0f,0x%02x,0x%02x", pfx, rex, op, modrm);
+    /* SSE prefix (if any) then REX (only when it carries W/R/X/B), then 0F op modrm */
+    int emit_rex = rexw || (rex != 0x40);
+    int first = 1;
+    printf("\t.byte ");
+    if (pfx) { printf("0x%02x", pfx); first = 0; }
+    if (emit_rex) { printf("%s0x%02x", first ? "" : ",", rex); first = 0; }
+    printf("%s0x0f,0x%02x,0x%02x", first ? "" : ",", op, modrm);
     if (have_sib) printf(",0x%02x", (unsigned)(unsigned char)sib);
     if (dispsize == 1) printf(",0x%02x", (unsigned)(disp & 0xff));
     else if (dispsize == 4) {
