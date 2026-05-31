@@ -13,6 +13,9 @@ extern "C" {
 #endif
 time_t time(time_t *);
 clock_t clock(void);
+#ifndef CLOCKS_PER_SEC
+#define CLOCKS_PER_SEC 1000000
+#endif
 struct tm *localtime(const time_t *);
 struct tm *gmtime(const time_t *);
 time_t mktime(struct tm *);
