@@ -36,7 +36,11 @@ export CXX_FOR_BUILD=$CXX
 # runs during these compiles.  The g++ wrapper forwards unknown tokens to cc1plus
 # via its catch-all, so `--param NAME=VAL` reaches cc1plus directly.
 GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
-export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 $GGC"
+# -fpermissive: gcc-4.6 cc1plus rejects some C++11 brace-init narrowing in
+# gcc-10's source (e.g. opts-common.c:1520, long long -> int) as a hard ERROR;
+# downgrade to a warning so the build proceeds.  (-Wno-narrowing would be dropped
+# by the g++ wrapper, which strips -W*; -fpermissive forwards via the -f* rule.)
+export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 -fpermissive $GGC"
 export CFLAGS="-O0 $GGC"
 export AR=$ROOT/scripts/bake-ar
 export RANLIB=$ROOT/scripts/bake-ranlib
