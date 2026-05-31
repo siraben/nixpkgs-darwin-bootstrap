@@ -1644,7 +1644,14 @@
 :DATA_emit_loop
 	;; cmp rcx, [rbp - 168]
 	!0x48 !0x3b !0x8d !0x58 !0xff !0xff !0xff
-	jge %DATA_emit_done
+	;; jg (not jge): run ONE extra iteration at rcx == data_size so the label
+	;; and DSYNTH passes below fire for the one-past-end .data boundary.  A C
+	;; one-past-the-end pointer (`arr + ARRAY_SIZE(arr)`, e.g. libcpp init.c
+	;; operator_array loop bound) relocates to sym+offset whose target equals
+	;; data_size; the byte loop used to stop at data_size-1 and drop the
+	;; `:<sym>_plus_<data_size>` synth def -> hex2 "Target label ... not valid".
+	;; The byte-emission guard below ends the loop after this boundary pass.
+	!0x0f !0x8f %DATA_emit_done
 
 	;; Per-byte label-definition pass on .data.
 	push_rcx
@@ -1940,6 +1947,14 @@
 	jmp %DBSYN_loop
 :DBSYN_done
 	pop_rcx
+
+	;; One-past-end boundary guard: at rcx == data_size (reachable only via the
+	;; jg in the loop head) the label + DSYNTH passes above have already emitted
+	;; any :<sym>_plus_<data_size> defs.  There is no byte at this offset, so end
+	;; the loop instead of reading .data[data_size] (out of bounds).
+	;; cmp rcx, [rbp-168]; jge %DATA_emit_done
+	!0x48 !0x3b !0x8d !0x58 !0xff !0xff !0xff
+	!0x0f !0x8d %DATA_emit_done
 
 	;; Per-byte relocation EMISSION check on .rela.data.
 	;; mov rax, [rbp - 224]   (rela_data_size)
