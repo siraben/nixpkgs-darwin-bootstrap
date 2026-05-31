@@ -1,5 +1,8 @@
 #ifndef _DARWIN_BOOTSTRAP_SYS_STAT_H
 #define _DARWIN_BOOTSTRAP_SYS_STAT_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef long long off_t;
 typedef unsigned short mode_t;
 typedef int dev_t;
@@ -71,4 +74,7 @@ int mknod(const char *, mode_t, dev_t);
 #define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
 #define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #define S_ISSOCK(m) (((m) & S_IFMT) == S_IFSOCK)
+#ifdef __cplusplus
+}
+#endif
 #endif

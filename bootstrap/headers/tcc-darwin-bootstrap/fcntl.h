@@ -1,5 +1,8 @@
 #ifndef _DARWIN_BOOTSTRAP_FCNTL_H
 #define _DARWIN_BOOTSTRAP_FCNTL_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define O_RDONLY 0
 #define O_WRONLY 1
 #define O_RDWR 2
@@ -36,4 +39,7 @@ struct flock {
 int open(const char *, int, ...);
 int creat(const char *, int);
 int fcntl(int, int, ...);
+#ifdef __cplusplus
+}
+#endif
 #endif

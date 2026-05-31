@@ -1,5 +1,8 @@
 #ifndef _DARWIN_BOOTSTRAP_DIRENT_H
 #define _DARWIN_BOOTSTRAP_DIRENT_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef struct DIR DIR;
 #define DT_UNKNOWN 0
 #define DT_FIFO 1
@@ -13,4 +16,7 @@ struct dirent { unsigned long d_ino; unsigned long d_seekoff; unsigned short d_r
 DIR *opendir(const char *);
 struct dirent *readdir(DIR *);
 int closedir(DIR *);
+#ifdef __cplusplus
+}
+#endif
 #endif
