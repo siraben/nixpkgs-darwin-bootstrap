@@ -19,8 +19,16 @@ export CPP=$ROOT/scripts/tcc-cpp
 export CXXCPP=$ROOT/scripts/gxx-cpp
 export CC_FOR_BUILD=$CC
 export CXX_FOR_BUILD=$CXX
-export CXXFLAGS="-g -std=gnu++0x -mno-sse3"
-export CFLAGS="-g"
+# Drop -g: our cc1plus runs x86-64 under Rosetta 2 and generating DWARF debug
+# info for the huge generated files (insn-emit.c/insn-recog.c have thousands of
+# gen_* functions) costs HOURS per file (insn-emit.o was 3h48m+ at -O0 with -g,
+# 1.2G RSS).  A working xgcc-10 does not need debug symbols in its own binaries,
+# so compile without -g — this cuts per-file time several-fold and makes the
+# from-seed build practically completable.  Passed on the make command line
+# below so it overrides the configure-baked `CXXFLAGS = -g` in gcc/Makefile;
+# already-built (-g) .o are kept (mixed -g/non-g objects link fine).
+export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3"
+export CFLAGS="-O0"
 export AR=$ROOT/scripts/bake-ar
 export RANLIB=$ROOT/scripts/bake-ranlib
 # Build-side subdirs (build-x86_64-apple-darwin/libcpp, libiberty) archive
@@ -69,4 +77,5 @@ cd "$B"
 exec make all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$SYS" \
   CPP="$CPP" CXXCPP="$CXXCPP" AR="$AR" RANLIB="$RANLIB" NM="$NM" \
-  AR_FOR_BUILD="$AR_FOR_BUILD" RANLIB_FOR_BUILD="$RANLIB_FOR_BUILD"
+  AR_FOR_BUILD="$AR_FOR_BUILD" RANLIB_FOR_BUILD="$RANLIB_FOR_BUILD" \
+  CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS"
