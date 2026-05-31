@@ -53,6 +53,18 @@ if [ -d "$SRC" ]; then
   find "$SRC" -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
 fi
 
+# Force build-side archives to use bake-ar. The build-x86_64-apple-darwin/libcpp
+# Makefile hardcodes `AR = ar` (Apple's), which silently produces an empty
+# __.SYMDEF-only archive from our ELF objects -> genmatch fails to link
+# ("Target label _ZNK13rich_location7get_locEj is not valid"). A command-line
+# AR_FOR_BUILD override does NOT reach it: the top Makefile only EXPORTS
+# AR=$(AR_FOR_BUILD) into the sub-make environment, and a Makefile `AR =`
+# assignment beats an environment variable. So patch the generated Makefile
+# directly (idempotent; the regex no-ops once already pointing at bake-ar).
+for mk in "$B"/build-*/libcpp/Makefile; do
+  [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
+done
+
 cd "$B"
 exec make all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$SYS" \
