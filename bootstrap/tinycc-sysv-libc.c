@@ -648,3 +648,73 @@ void _Unwind_SetGR(void *ctx, int i, long v) { }
 long _Unwind_GetTextRelBase(void *ctx) { return 0; }
 long _Unwind_GetDataRelBase(void *ctx) { return 0; }
 long _Unwind_GetCFA(void *ctx) { return 0; }
+
+/* fnmatch(3): shell glob matching.  gcc-10's genattrtab uses fnmatch(pat, name,
+ * 0) for define_bypass patterns.  libiberty ships a fallback fnmatch.c but it
+ * compiles to nothing once configure sees our <fnmatch.h> (HAVE_FNMATCH), so we
+ * must provide the symbol here.  Returns 0 on match, 1 (FNM_NOMATCH) otherwise.
+ * Supports * ? [..] ranges/negation and backslash escapes; honours FNM_NOESCAPE
+ * (0x01) and FNM_PATHNAME (0x02). */
+int fnmatch(const char *p, const char *s, int flags) {
+  for (;;) {
+    char pc = *p;
+    p = p + 1;
+    if (pc == 0) {
+      return (*s == 0) ? 0 : 1;
+    } else if (pc == '?') {
+      if (*s == 0) return 1;
+      if ((flags & 0x02) && *s == '/') return 1;
+      s = s + 1;
+    } else if (pc == '*') {
+      while (*p == '*') p = p + 1;
+      if (*p == 0) {
+        if (flags & 0x02) {
+          const char *t = s;
+          while (*t) { if (*t == '/') return 1; t = t + 1; }
+        }
+        return 0;
+      }
+      while (*s) {
+        if (fnmatch(p, s, flags) == 0) return 0;
+        if ((flags & 0x02) && *s == '/') break;
+        s = s + 1;
+      }
+      return fnmatch(p, s, flags);
+    } else if (pc == '[') {
+      int neg = 0;
+      int matched = 0;
+      int first = 1;
+      char sc = *s;
+      if (sc == 0) return 1;
+      if ((flags & 0x02) && sc == '/') return 1;
+      if (*p == '!' || *p == '^') { neg = 1; p = p + 1; }
+      while (*p && (*p != ']' || first)) {
+        char lo = *p;
+        if (lo == '\\' && !(flags & 0x01) && p[1]) { lo = p[1]; p = p + 2; }
+        else p = p + 1;
+        if (*p == '-' && p[1] != ']' && p[1] != 0) {
+          char hi = p[1];
+          if (hi == '\\' && !(flags & 0x01) && p[2]) { hi = p[2]; p = p + 3; }
+          else p = p + 2;
+          if ((unsigned char)sc >= (unsigned char)lo &&
+              (unsigned char)sc <= (unsigned char)hi) matched = 1;
+        } else {
+          if (sc == lo) matched = 1;
+        }
+        first = 0;
+      }
+      if (*p == ']') p = p + 1;
+      if (matched == neg) return 1;
+      s = s + 1;
+    } else if (pc == '\\' && !(flags & 0x01)) {
+      char lit = *p;
+      p = p + 1;
+      if (lit == 0) return 1;
+      if (*s != lit) return 1;
+      s = s + 1;
+    } else {
+      if (*s != pc) return 1;
+      s = s + 1;
+    }
+  }
+}
