@@ -27,8 +27,17 @@ export CXX_FOR_BUILD=$CXX
 # from-seed build practically completable.  Passed on the make command line
 # below so it overrides the configure-baked `CXXFLAGS = -g` in gcc/Makefile;
 # already-built (-g) .o are kept (mixed -g/non-g objects link fine).
-export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3"
-export CFLAGS="-O0"
+# GC tuning: the huge generated files (insn-emit.c/insn-recog.c, thousands of
+# gen_* functions) build a ~1.2 GB live GGC heap.  gcc-4.6's default
+# ggc-min-heapsize is ~4 MB, so cc1plus mark-sweeps that whole heap after nearly
+# every function -> O(n^2) GC thrash (insn-emit.c was 4h+ at -O0 with a stable
+# 1.2 GB heap stuck in the GGC mark loop; -g made no difference because the heap
+# is function trees, not debug info).  Raise the thresholds so GC almost never
+# runs during these compiles.  The g++ wrapper forwards unknown tokens to cc1plus
+# via its catch-all, so `--param NAME=VAL` reaches cc1plus directly.
+GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
+export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 $GGC"
+export CFLAGS="-O0 $GGC"
 export AR=$ROOT/scripts/bake-ar
 export RANLIB=$ROOT/scripts/bake-ranlib
 # Build-side subdirs (build-x86_64-apple-darwin/libcpp, libiberty) archive
