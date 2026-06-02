@@ -13,7 +13,70 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
 → gnumake (GNU Make 4.4.1)
 → gcc-4.6 source + patches → all-gcc → libgcc → bootstrap ✅
   (full GCC 4.6.4: `gcc hello.c` compiles & runs)
+→ gcc-10.4.0 source + patches → all-gcc → cc1 + xgcc ✅
+  (`xgcc hello.c` compiles & runs, returns 7)
 ```
+
+## ✅ gcc-10 cc1 + xgcc from the seed (2026-06-02)
+
+gcc-10.4.0's `cc1` and `xgcc`, built entirely from the 4 KB hex0 seed through
+the bake chain (gcc-4.6 g++ → tcc-darwin-cc → elf64-to-m1 → m1-to-hex2 → hex2),
+**compile and run real C correctly**:
+
+```
+B=bake/target/work/gcc10-all-gcc/build
+SDKROOT=$(xcrun --show-sdk-path) $B/gcc/xgcc -B$B/gcc/ hello.c -o hello && ./hello   # => 7
+```
+
+Also verified: a freestanding program with recursion (`fib`), loops and arrays
+returns 7 at both `-O0` and `-O1`.
+
+**The long-standing "gcc-10 miscompile wall" was NEVER a compiler miscompile** —
+it was four bugs in the bake toolchain's link/runtime path, each found, fixed,
+validated and committed:
+
+1. `64e9bfc` **scripts/tinycc/synth-inject.awk** — precise cross-object
+   `<sym>_plus_<hex>` synth-label injector (the cap-0x40 blanket missed far
+   offsets like C++ vtable slots) → cc1 *links* (44 MB Mach-O).
+2. `b016ef9` **crt1 + tcc-darwin-cc** — run C++ global constructors at startup.
+   gcc registers each TU's `_GLOBAL__sub_I_*` via a Mach-O `.mod_init_func`
+   pointer the as-filter/tcc/elf64-to-m1 chain dropped, so global C++ objects
+   kept NULL vtables. tcc-darwin-cc now builds an init-array; crt1 calls it.
+3. `04a19e0` **crt1** — pass argc/argv to main. The Mach-O entry is LC_MAIN-style
+   (rdi=argc, rsi=argv, rdx=envp); the ctor loop above clobbered the caller-saved
+   arg registers, so cc1's `main(argc,argv)` got garbage. Saved/restored them.
+4. `6be4d86` **tools/elf64-to-m1.M1** — the abs64/abs32 *data*-reloc synth-label
+   suffix must be the RELATIVE addend, not `sym.value + addend` (absolute). The
+   code-reloc path was already relative; the DRELOC paths were not. gcc-10's
+   `builtin_structptr_types[].base = global_trees+0x1e8` therefore resolved to
+   `global_trees+0x14b0` (= global_trees value 0x12c8 in tree.o + 0x1e8) and fed
+   a garbage type into `build_variant_type_copy` → crash deep in compilation init.
+
+### gcc-10 source patches (codified in `bake/steps/53b-gcc10-patches.sh`)
+
+Bootstrap-environment workarounds (not gcc-correctness fixes), applied after the
+gcc-10 source is staged:
+- `gcc/system.h` + `gcc/ipa-icf-gimple.h` — force `__FUNCTION__`/`__func__` to the
+  literal `"?"`/`""` (our from-seed cc1plus miscompiles the synthetic
+  `make_fname_decl` VAR_DECL; these are diagnostic strings only, no codegen).
+- `gcc/config/host-darwin.c` — 1 GB PCH buffer → 1 MB (hex2 materialises .bss as
+  explicit zero bytes), and the page-align `gcc_assert` in
+  `darwin_gt_pch_use_address` → graceful PCH-disable (hex2 ignores
+  `aligned(16384)`; PCH is never used in the bootstrap).
+
+NB: `53b` was written from the known edits; verify it against a fresh `53` unpack
+once `xz` is on PATH (the codification host lacked it).
+
+### Open follow-ups (none block the milestone)
+- `-O2` ICE in some optimization pass (cc1 compiles fine at -O0/-O1).
+- Modern macOS SDK headers use `__has_attribute(unsafe_buffer_usage)` which
+  gcc-10's preprocessor rejects (`stdio.h` fails) — header incompat, not a
+  compiler bug. Freestanding C works.
+- The link currently needs empty stub `lib{gcc,gcc_eh,gcc_s,emutls_w}.a` in
+  `$B/gcc/` + `SDKROOT` for `-lSystem`; building real libgcc/emutls with the
+  now-working xgcc (`make all-target-libgcc`) would remove the stubs.
+- The `DRELOC_default` path in `tools/elf64-to-m1.M1` (~line 2040) still uses the
+  absolute addend; harmless today (not hit) but should match abs64/abs32.
 
 ## ✅ Full gcc-4.6 bootstrap (2026-05-28)
 
