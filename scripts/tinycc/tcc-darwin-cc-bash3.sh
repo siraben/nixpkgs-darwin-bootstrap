@@ -223,28 +223,34 @@ resolve_libraries() {
       fi
     done
     if [ "$found" = 0 ]; then
-      echo "tcc-darwin-cc: library not found: -l$lib" >&2
-      return 1
+      # Not finding a -l library is not fatal: system libs (-lc/-lm/-ldl/...)
+      # are provided by the cat'd libc M1, and any genuinely-missing symbol is
+      # caught later by hex2 ("Target label ... not valid").  Warn and continue
+      # so a harmless -l flag forwarded by a caller can't abort the whole link.
+      echo "tcc-darwin-cc: warning: library not found, skipping: -l$lib" >&2
     fi
   done
 }
 
 process_symbol_file() {
+  # Update the global defined/unresolved symbol sets with one member's symbols,
+  # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
+  # The old loop ran `grep -vFx`/`grep -qFx` once PER symbol against files that
+  # grow to ~600K lines for a gcc cc1 link -> O(n^2), ~hours, and the repeated
+  # rewrites churned the disk.  This is near-linear C-speed and keeps both set
+  # files sorted (LC_ALL=C) so comm below is valid.  Semantics preserved exactly:
+  #   defined    := defined ∪ memberD
+  #   unresolved := (unresolved \ memberD) ∪ (memberU \ defined_new)
   local file="$1"
-  local kind name
-  while IFS=$'\t' read -r kind name; do
-    [ -n "${name:-}" ] || continue
-    if [ "$kind" = D ]; then
-      echo "$name" >> "$defined_symbols_file"
-      grep -vFx "$name" "$unresolved_symbols_file" > "$unresolved_symbols_file.tmp" && mv "$unresolved_symbols_file.tmp" "$unresolved_symbols_file" || :
-    fi
-  done < "$file"
-  while IFS=$'\t' read -r kind name; do
-    [ -n "${name:-}" ] || continue
-    if [ "$kind" = U ] && ! grep -qFx "$name" "$defined_symbols_file"; then
-      echo "$name" >> "$unresolved_symbols_file"
-    fi
-  done < "$file"
+  local d="$tmp/.psf_d" u="$tmp/.psf_u" t1="$tmp/.psf_t1" t2="$tmp/.psf_t2"
+  LC_ALL=C awk -F'\t' '$1 == "D" && $2 != "" { print $2 }' "$file" | LC_ALL=C sort -u > "$d"
+  LC_ALL=C awk -F'\t' '$1 == "U" && $2 != "" { print $2 }' "$file" | LC_ALL=C sort -u > "$u"
+  LC_ALL=C sort -u "$defined_symbols_file" "$d" > "$t1"
+  mv "$t1" "$defined_symbols_file"
+  LC_ALL=C comm -23 "$unresolved_symbols_file" "$d" > "$t1"
+  LC_ALL=C comm -23 "$u" "$defined_symbols_file" > "$t2"
+  LC_ALL=C sort -u "$t1" "$t2" > "$unresolved_symbols_file.n"
+  mv "$unresolved_symbols_file.n" "$unresolved_symbols_file"
 }
 
 add_object_symbols() {
@@ -286,15 +292,14 @@ prepare_archive_cache() {
 }
 
 archive_member_needed() {
+  # A member is needed iff any symbol it DEFINES is currently unresolved.
+  # Sorted-set intersection (comm -12) instead of a per-symbol grep scan of the
+  # growing unresolved file.  unresolved_symbols_file is kept sorted (LC_ALL=C)
+  # by process_symbol_file.
   local symbols="$1"
-  local kind name
-  while IFS=$'\t' read -r kind name; do
-    [ -n "${name:-}" ] || continue
-    if [ "$kind" = D ] && grep -qFx "$name" "$unresolved_symbols_file"; then
-      return 0
-    fi
-  done < "$symbols"
-  return 1
+  local d="$tmp/.amn_d"
+  LC_ALL=C awk -F'\t' '$1 == "D" && $2 != "" { print $2 }' "$symbols" | LC_ALL=C sort -u > "$d"
+  LC_ALL=C comm -12 "$d" "$unresolved_symbols_file" | LC_ALL=C grep -q .
 }
 
 add_selected_archive_member() {
