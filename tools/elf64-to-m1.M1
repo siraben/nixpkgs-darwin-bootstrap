@@ -2052,8 +2052,11 @@
 	push_rcx
 	!0x4d !0x85 !0xc9
 	je %DRELOC_abs64_zero
-	!0x49 !0x8b !0x4a !0x08
-	!0x4c !0x01 !0xc9
+	;; synth suffix = effective_addend (RELATIVE), matching the def side; was
+	;; sym.value+r9 (absolute) which mismatched the relative defs -> a data
+	;; pointer like builtin_structptr_types[].base (global_trees+0x1e8) got
+	;; named _plus_<value+0x1e8> and resolved to the wrong global_trees slot.
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9   (effective_addend)
 	jmp %DRELOC_abs64_call
 :DRELOC_abs64_zero
 	xor_ecx,ecx
@@ -2067,8 +2070,8 @@
 	push_rcx
 	!0x4d !0x85 !0xc9
 	je %DRELOC_abs32_zero
-	!0x49 !0x8b !0x4a !0x08
-	!0x4c !0x01 !0xc9
+	;; relative effective_addend (was sym.value+r9 absolute) — see DRELOC_emit_abs64
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9   (effective_addend)
 	jmp %DRELOC_abs32_call
 :DRELOC_abs32_zero
 	xor_ecx,ecx
