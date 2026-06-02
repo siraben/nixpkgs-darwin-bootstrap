@@ -1464,8 +1464,13 @@
 	push_rcx                                ; save outer rcx
 	!0x4d !0x85 !0xc9                       ; test r9, r9
 	je %RELOC_default_zero
-	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  sym.value
-	!0x4c !0x01 !0xc9                       ; add rcx, r9
+	;; synth suffix = effective_addend (relative), NOT sym.value+addend.  A
+	;; cross-object reference sees the symbol as external (value 0) so it can
+	;; only name the synth label by the addend; the defining object must use the
+	;; same relative name or the label never resolves (e.g. gtype-desc.o's
+	;; &ipa_escaped_pt_plus_8 vs the def's _plus_958).  st_size is 0 (tcc emits
+	;; no .size) so the BLANKET relative pass can't cover this.
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9   (effective_addend)
 	jmp %RELOC_default_call
 :RELOC_default_zero
 	xor_ecx,ecx
@@ -1480,8 +1485,7 @@
 	push_rcx
 	!0x4d !0x85 !0xc9
 	je %RELOC_abs64_zero
-	!0x49 !0x8b !0x4a !0x08
-	!0x4c !0x01 !0xc9
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9 (relative addend)
 	jmp %RELOC_abs64_call
 :RELOC_abs64_zero
 	xor_ecx,ecx
@@ -1496,8 +1500,7 @@
 	push_rcx
 	!0x4d !0x85 !0xc9
 	je %RELOC_abs32_zero
-	!0x49 !0x8b !0x4a !0x08
-	!0x4c !0x01 !0xc9
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9 (relative addend)
 	jmp %RELOC_abs32_call
 :RELOC_abs32_zero
 	xor_ecx,ecx
@@ -1555,8 +1558,7 @@
 	;; synth_offset = (r9 != 0) ? sym.value + r9 : 0  -> rcx
 	!0x4d !0x85 !0xc9                       ; test r9, r9
 	je %RELOC_pc32b_zero
-	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  (sym.value)
-	!0x4c !0x01 !0xc9                       ; add rcx, r9
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9 (relative addend)
 	jmp %RELOC_pc32b_args
 :RELOC_pc32b_zero
 	xor_ecx,ecx
@@ -1610,8 +1612,7 @@
 	push_rcx
 	!0x4d !0x85 !0xc9                       ; test r9, r9
 	je %RELOC_pc32lbl_zero
-	!0x49 !0x8b !0x4a !0x08                 ; mov rcx, [r10+8]  (sym.value)
-	!0x4c !0x01 !0xc9                       ; add rcx, r9
+	!0x4c !0x89 !0xc9                       ; mov rcx, r9 (relative addend)
 	jmp %RELOC_pc32lbl_call
 :RELOC_pc32lbl_zero
 	xor_ecx,ecx
@@ -1752,7 +1753,7 @@
 	!0x41 !0x8b !0x01
 	!0x48 !0x8b !0x7d !0x88
 	!0x48 !0x01 !0xc7
-	!0x48 !0x8b !0x74 !0x24 !0x08
+	!0x4c !0x89 !0xde                       ; mov rsi, r11 (relative addend, not absolute byte offset)
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc2
@@ -1821,9 +1822,10 @@
 	!0x41 !0x8b !0x01
 	!0x48 !0x8b !0x7d !0x88
 	!0x48 !0x01 !0xc7
-	;; rsi = target_offset = rax = [rsp]
-	;; mov rsi, [rsp]
-	!0x48 !0x8b !0x34 !0x24
+	;; rsi = effective_addend (relative), from the reloc r_addend at [rdx+16];
+	;; NOT the absolute byte offset [rsp] (= sym.value+addend), so the synth
+	;; label name matches a cross-object reference's relative name.
+	!0x48 !0x8b !0x72 !0x10                 ; mov rsi, [rdx+16] (r_addend)
 	;; rdx = skip_prefix from bind
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
@@ -1890,9 +1892,15 @@
 	je %DBSYN_next
 	;; Unsigned cmp delta vs sym.size — skip if delta >= size (catches
 	;; negative delta as huge-unsigned too).
-	!0x49 !0x3b !0x79 !0x10                 ; cmp rdi, [r9+16]
-	;; jae rel32 → 0x0f 0x83 imm32
-	!0x0f !0x83 %DBSYN_next
+	;; st_size is always 0 (tcc/as-filter emit no .size), so the old
+	;; `delta < st_size` guard skipped EVERY blanket label — leaving any
+	;; cross-object &sym_plus_<k> whose offset the defining .o doesn't itself
+	;; relocate (e.g. alias_stats+0x20, gcov_var+0x1c) unresolved at hex2.
+	;; Bound by a fixed cap instead; the byte-walk already limits us to real
+	;; .data offsets.  Cap 0x500 so the 0x40C/0x4D0 specials still pass; an
+	;; unsigned compare still rejects negative (huge-unsigned) deltas.
+	!0x48 !0x81 !0xff !0x00 !0x05 !0x00 !0x00  ; cmp rdi, 0x500
+	!0x0f !0x83 %DBSYN_next                     ; jae skip
 	;; --- Check delta against the blanket addend set ---
 	;; delta == 1?
 	!0x48 !0x83 !0xff !0x01                 ; cmp rdi, 1
@@ -1906,17 +1914,17 @@
 	;; delta == 0x4D0?
 	!0x48 !0x81 !0xff !0xd0 !0x04 !0x00 !0x00
 	je %DBSYN_emit
-	;; (delta % 8 == 0) AND (8 <= delta < 0x300)?
-	;; rax = rdi
+	;; (delta % 8 == 0) AND (8 <= delta < 0x100)?  8-aligned (pointer fields),
+	;; capped at 0x100 to bound the blanket synth-label count: hex2's label
+	;; table is malloc-backed, and 4-aligned up to 0x300 for EVERY global
+	;; OOM'd the linker ("failed to allocate entry").
 	!0x48 !0x89 !0xf8                       ; mov rax, rdi
 	!0x48 !0x83 !0xe0 !0x07                 ; and rax, 7
 	test_rax,rax
 	jne %DBSYN_next
-	;; cmp rdi, 8 ; jb %DBSYN_next  → 0x0f 0x82 rel32
-	!0x48 !0x83 !0xff !0x08
+	!0x48 !0x83 !0xff !0x08                 ; cmp rdi, 8 ; jb skip
 	!0x0f !0x82 %DBSYN_next
-	;; cmp rdi, 0x300 ; jae %DBSYN_next
-	!0x48 !0x81 !0xff !0x00 !0x03 !0x00 !0x00
+	!0x48 !0x83 !0xff !0x40                 ; cmp rdi, 0x40 (cap; bounds blanket label count vs hex2 OOM)  ; cmp rdi, 0x100 ; jae skip
 	!0x0f !0x83 %DBSYN_next
 	;; Fallthrough → emit.
 :DBSYN_emit
@@ -2259,7 +2267,7 @@
 	!0x41 !0x8b !0x01
 	!0x48 !0x8b !0x7d !0x88
 	!0x48 !0x01 !0xc7
-	!0x48 !0x8b !0x74 !0x24 !0x08           ; rsi = saved rcx
+	!0x4c !0x89 !0xde                       ; mov rsi, r11 (relative addend, not absolute byte offset)
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc2                       ; rdx = skip_prefix
@@ -2317,7 +2325,7 @@
 	!0x41 !0x8b !0x01
 	!0x48 !0x8b !0x7d !0x88
 	!0x48 !0x01 !0xc7
-	!0x48 !0x8b !0x74 !0x24 !0x08
+	!0x4c !0x89 !0xde                       ; mov rsi, r11 (relative addend, not absolute byte offset)
 	!0x41 !0x0f !0xb6 !0x41 !0x04
 	!0xc1 !0xe8 !0x04
 	!0x48 !0x89 !0xc2
@@ -2369,8 +2377,9 @@
 	;; delta == 0? skip
 	!0x48 !0x85 !0xff
 	je %BBSYN_next
-	;; delta >= size (unsigned)? skip
-	!0x49 !0x3b !0x79 !0x10
+	;; st_size==0 (no .size) → cap by a fixed 0x500 instead (byte-walk bounds
+	;; us to real .bss offsets); unsigned cmp still rejects negative deltas.
+	!0x48 !0x81 !0xff !0x00 !0x05 !0x00 !0x00  ; cmp rdi, 0x500
 	!0x0f !0x83 %BBSYN_next
 	;; delta in blanket set?
 	!0x48 !0x83 !0xff !0x01                 ; cmp rdi, 1
@@ -2381,14 +2390,15 @@
 	je %BBSYN_emit
 	!0x48 !0x81 !0xff !0xd0 !0x04 !0x00 !0x00  ; cmp rdi, 0x4D0
 	je %BBSYN_emit
-	;; multiple of 8 in [8, 0x300)?
+	;; multiple of 8 in [8, 0x100)?  8-aligned, capped at 0x100 to bound the
+	;; blanket synth-label count (avoid hex2 OOM "failed to allocate entry").
 	!0x48 !0x89 !0xf8
 	!0x48 !0x83 !0xe0 !0x07
 	test_rax,rax
 	jne %BBSYN_next
 	!0x48 !0x83 !0xff !0x08
 	!0x0f !0x82 %BBSYN_next
-	!0x48 !0x81 !0xff !0x00 !0x03 !0x00 !0x00
+	!0x48 !0x83 !0xff !0x40                 ; cmp rdi, 0x40 (cap; bounds blanket label count vs hex2 OOM)
 	!0x0f !0x83 %BBSYN_next
 :BBSYN_emit
 	push_rdi
