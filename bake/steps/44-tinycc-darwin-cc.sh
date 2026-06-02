@@ -33,6 +33,9 @@ cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 lowdata="$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2"
 cp "$lowdata" "$out/share/MACHO-amd64-lowdata.hex2"
 
+## Install the precise cross-object synth-label injector (awk post-pass).
+cp "$SOURCES/tcc-darwin/synth-inject.awk" "$out/share/synth-inject.awk"
+
 ## Install the wrapper script with placeholders substituted.
 ## Use bash because the script uses arrays.
 cp "$SOURCES/tcc-darwin/tcc-darwin-cc.sh" "$out/bin/tcc-darwin-cc"
@@ -52,6 +55,7 @@ sed -i.bak \
     -e "s|@CRT1@|$out/share/crt1-tcc-sysv.M1|g" \
     -e "s|@SYSCALLS@|$SOURCES/bootstrap-c/tinycc-sysv-syscalls-amd64-darwin.M1|g" \
     -e "s|@LIBC_M1@|$out/share/tinycc-sysv-libc.M1|g" \
+    -e "s|@SYNTH_INJECT@|$out/share/synth-inject.awk|g" \
     -e '/^source @SIGNING@$/d' \
     -e '/^sign "\$out"$/d' \
     "$out/bin/tcc-darwin-cc"

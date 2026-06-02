@@ -513,6 +513,16 @@ done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
 } > "$tmp/combined.M1"
 
+# Precise cross-object synth labels: elf64-to-m1's per-object blanket only
+# DEFINES a small predictable set of `:<sym>_plus_<off>` labels, so a reference
+# to a far offset it never relocates (e.g. a C++ vtable slot) is left undefined.
+# Scan the whole link for referenced-but-undefined `<sym>_plus_<hex>` labels and
+# inject each def at byte (<sym> + hex).  No-op (verbatim pass-through) when the
+# link has no such gap, which is the case for nearly every conftest/small link.
+if awk -f @SYNTH_INJECT@ "$tmp/combined.M1" > "$tmp/combined.inj.M1"; then
+  mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
+fi
+
 # Dynamic Mach-O layout: m1-to-hex2 --auto-data-align pads the code only up
 # to its page-rounded end (minimal padding → tiny/fast conftests) and
 # reports the chosen __DATA vmaddr + data end on stderr.  We then size the
