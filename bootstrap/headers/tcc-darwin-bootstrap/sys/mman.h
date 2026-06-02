@@ -12,8 +12,14 @@
 #define MAP_ANONYMOUS MAP_ANON
 #define MAP_FAILED ((void *)-1)
 #define MADV_RANDOM 1
+#ifdef __cplusplus
+extern "C" {
+#endif
 void *mmap(void *, size_t, int, int, int, off_t);
 int munmap(void *, size_t);
 int mprotect(void *, size_t, int);
 int madvise(void *, size_t, int);
+#ifdef __cplusplus
+}
+#endif
 #endif

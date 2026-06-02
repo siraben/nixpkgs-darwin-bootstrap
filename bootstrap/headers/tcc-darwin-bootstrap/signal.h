@@ -1,5 +1,8 @@
 #ifndef _DARWIN_BOOTSTRAP_SIGNAL_H
 #define _DARWIN_BOOTSTRAP_SIGNAL_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef int sig_atomic_t;
 typedef unsigned int sigset_t;
 typedef void (*__sighandler_t)(int);
@@ -51,4 +54,7 @@ int kill(int, int);
 int sigemptyset(sigset_t *);
 int sigaddset(sigset_t *, int);
 int sigprocmask(int, const sigset_t *, sigset_t *);
+#ifdef __cplusplus
+}
+#endif
 #endif

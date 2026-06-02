@@ -1,5 +1,8 @@
 #ifndef _DARWIN_BOOTSTRAP_SYS_RESOURCE_H
 #define _DARWIN_BOOTSTRAP_SYS_RESOURCE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include <sys/time.h>
 #define RUSAGE_SELF 0
 #define RUSAGE_CHILDREN -1
@@ -11,4 +14,7 @@ struct rlimit { unsigned long rlim_cur; unsigned long rlim_max; };
 int getrusage(int, struct rusage *);
 int getrlimit(int, struct rlimit *);
 int setrlimit(int, const struct rlimit *);
+#ifdef __cplusplus
+}
+#endif
 #endif
