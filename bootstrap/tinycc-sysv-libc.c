@@ -718,3 +718,14 @@ int fnmatch(const char *p, const char *s, int flags) {
     }
   }
 }
+
+/* libgcc helper: gcc-10's cc1 emits a call to __popcountdi2 for
+   __builtin_popcountll when the target has no popcnt insn (we build with
+   -mno-sse3 and no -mpopcnt).  Simple bit loop — correctness over speed,
+   and it avoids the 64-bit multiply/magic-constant trick. */
+int __popcountdi2(long long a) {
+  unsigned long long x = (unsigned long long)a;
+  int count = 0;
+  while (x) { count = count + (int)(x & 1); x = x >> 1; }
+  return count;
+}
