@@ -29,6 +29,8 @@ cc1args=(-quiet -mno-sse3 -I"$LIBSTDCXX/include" -I"$LIBSTDCXX/include/x86_64-ap
 objs=()
 srcs=()
 arlibs=()   # explicit .a paths to link (tcc-darwin-cc resolves archive members)
+ldirs=()    # -L dirs forwarded to tcc-darwin-cc
+llibs=()    # -l libs forwarded to tcc-darwin-cc (it resolves lib<name>.a in -L dirs)
 
 ## Driver queries autotools/configure makes — answer them ourselves with
 ## canned values (the real xgcc driver crashes; cc1plus doesn't grok them).
@@ -57,7 +59,12 @@ while [ $# -gt 0 ]; do
     -MD|-MMD|-MP|-MG|-M|-MM|-MF*) cc1args+=("$1"); shift ;;
     -I*|-D*|-U*|-O*|-g*|-f*|-std=*|-nostdinc*) cc1args+=("$1"); shift ;;
     *.a) arlibs+=("$1"); shift ;;   # static archive (e.g. build-libiberty) -> pass to tcc
-    -L*|-l*) shift ;;   # bake-ar archives can't be -l/-L resolved; gcc passes full .a paths instead
+    # Forward -L/-l to tcc-darwin-cc, which resolves lib<name>.a from -L dirs
+    # (needed for gcc-10's cc1 link: it passes the math libs as -lmpc -lmpfr
+    # -lgmp -lz, NOT full .a paths).  tcc-darwin-cc skips any lib it can't find.
+    -L) ldirs+=("-L$2"); shift 2 ;;
+    -L*) ldirs+=("$1"); shift ;;
+    -l*) llibs+=("$1"); shift ;;
     *.cc|*.cpp|*.cxx|*.C|*.c++|*.c|*.i|*.ii) srcs+=("$1"); shift ;;  # g++ compiles .c as C++ (autotools probes use conftest.c)
     *.o) objs+=("$1"); shift ;;
     *) cc1args+=("$1"); shift ;;
@@ -105,4 +112,4 @@ libs=()
 ## Explicit .a archives (build-libiberty etc.) go BEFORE libstdc++ so their
 ## undefined symbols can still pull libstdc++ members; tcc-darwin-cc does its
 ## own archive member selection.
-"$TCC" "${objs[@]}" "${arlibs[@]}" "${libs[@]}" -o "${out:-a.out}"
+"$TCC" "${objs[@]}" "${arlibs[@]}" "${libs[@]}" "${ldirs[@]}" "${llibs[@]}" -o "${out:-a.out}"
