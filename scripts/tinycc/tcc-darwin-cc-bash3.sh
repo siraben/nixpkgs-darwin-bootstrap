@@ -467,7 +467,12 @@ if [ "${#inputs[@]}" -eq 0 ] && [ "${#objects[@]}" -eq 0 ] && [ "${#archives[@]}
 fi
 
 tmp="$(mktemp -d)"
-trap 'cleanup; rm -rf "$tmp"' EXIT
+if [ -n "${TCC_DARWIN_KEEP:-}" ]; then
+  echo "tcc-darwin-cc: keeping tmp $tmp" >&2
+  trap cleanup EXIT
+else
+  trap 'cleanup; rm -rf "$tmp"' EXIT
+fi
 
 prepare_source_inputs
 materialize_quote_headers
@@ -511,6 +516,20 @@ done
   echo ':HEX2_data'
   for file in "${data_files[@]}"; do cat "$file"; done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
+  # C++ static-init array: gcc (configured x86_64-apple-darwin) registers each
+  # TU's global-constructor entry point `<prefix>_GLOBAL__sub_I_<name>` via a
+  # Mach-O `.mod_init_func` pointer that the as-filter/tcc chain drops, so the
+  # ctors never run and global objects keep NULL vtable pointers.  Collect every
+  # such ctor label (in link order) into an array bracketed by __bake_init_start
+  # /__bake_init_end; _start (crt1) walks it and calls each before main.  Pure-C
+  # links emit an empty array (start==end), so the crt1 loop is a no-op.
+  echo ':__bake_init_start'
+  { grep -hoE '^:[A-Za-z0-9_.$]*_GLOBAL__sub_I[A-Za-z0-9_.$]*' "${code_files[@]}" 2>/dev/null || true; } \
+    | sed 's/^://' | awk '!seen[$0]++' \
+    | while IFS= read -r ctor; do
+        printf '&%s\n!0x00 !0x00 !0x00 !0x00\n' "$ctor"
+      done
+  echo ':__bake_init_end'
 } > "$tmp/combined.M1"
 
 # Precise cross-object synth labels: elf64-to-m1's per-object blanket only
