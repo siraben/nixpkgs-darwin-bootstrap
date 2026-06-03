@@ -19,7 +19,7 @@
 # ARGV[1] = the combined M1 file (read twice).
 BEGIN {
     f = ARGV[1]
-    # ---- pass A: collect referenced and defined _plus_ labels ----
+    # ---- pass A1: collect REFERENCED _plus_ labels (typically a few thousand) ----
     while ((getline line < f) > 0) {
         n = split(line, tok, /[ \t]+/)
         for (i = 1; i <= n; i++) {
@@ -29,9 +29,23 @@ BEGIN {
                 lab = substr(t, 2)
                 sub(/>.*/, "", lab)          # strip a >base suffix
                 if (lab ~ /_plus_[0-9a-fA-F]+$/) refd[lab] = 1
-            } else if (c == ":") {
+            }
+        }
+    }
+    close(f)
+    # ---- pass A2: mark which REFERENCED labels are also DEFINED ----
+    # Only record defs for labels we actually reference.  A large link (e.g.
+    # gcc-4.6's cc1) defines ~350k `:sym_plus_hex` labels, each a long
+    # C++-mangled string; storing them all cost ~3 GB and thrashed into swap
+    # under the cc1 link's memory pressure (the awk appeared to hang at 0% CPU).
+    # Intersecting with refd keeps this table to the few thousand we care about.
+    while ((getline line < f) > 0) {
+        n = split(line, tok, /[ \t]+/)
+        for (i = 1; i <= n; i++) {
+            t = tok[i]
+            if (substr(t, 1, 1) == ":") {
                 lab = substr(t, 2)
-                if (lab ~ /_plus_[0-9a-fA-F]+$/) defd[lab] = 1
+                if (lab in refd) defd[lab] = 1
             }
         }
     }
@@ -75,8 +89,12 @@ function tokbytes(t,   c) {
 
 # emit any scheduled injections whose target == current pos
 function flush_at(p,   key, parts, i, nn) {
+    # `if (!(p in sched))` — must NOT write `key = sched[p]` first: that
+    # auto-vivifies an empty sched[p] entry for every position checked (millions
+    # over a large link), which ballooned the array to ~14 GB and thrashed the
+    # gcc-4.6 cc1 link into swap (the awk hung at 0% CPU).
+    if (!(p in sched)) return
     key = sched[p]
-    if (key == "") return
     delete sched[p]
     nn = split(key, parts, "\x01")
     for (i = 1; i <= nn; i++) if (parts[i] != "") print ":" parts[i]
