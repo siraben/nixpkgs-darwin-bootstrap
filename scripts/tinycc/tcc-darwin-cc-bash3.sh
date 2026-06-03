@@ -538,9 +538,18 @@ done
 # Scan the whole link for referenced-but-undefined `<sym>_plus_<hex>` labels and
 # inject each def at byte (<sym> + hex).  No-op (verbatim pass-through) when the
 # link has no such gap, which is the case for nearly every conftest/small link.
-if awk -f @SYNTH_INJECT@ "$tmp/combined.M1" > "$tmp/combined.inj.M1"; then
+#
+# First flatten to one token per line with `tr` (pure whitespace reformatting):
+# a big link's combined.M1 has enormous data lines (gcc-4.6 cc1 has a 96 MB line
+# of 16.7M `!0x..` tokens), and awk's split()/gsub on such a line build a ~3 GB
+# array / are O(n^2), which memory-compressed and hung the cc1 link.  One token
+# per line keeps the awk streaming at ~3 MB; synth-inject already emits one token
+# per line, so m1-to-hex2 (which tokenises on whitespace) sees identical input.
+if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
+   && awk -f @SYNTH_INJECT@ "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
   mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
 fi
+rm -f "$tmp/combined.tok.M1"
 
 # Dynamic Mach-O layout: m1-to-hex2 --auto-data-align pads the code only up
 # to its page-rounded end (minimal padding → tiny/fast conftests) and
