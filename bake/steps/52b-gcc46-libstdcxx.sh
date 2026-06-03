@@ -54,4 +54,15 @@ echo "== building libstdc++ (make all) =="
 
 test -f "$work/include/x86_64-apple-darwin/bits/c++config.h" \
   || { echo "52b: c++config.h not generated" >&2; exit 1; }
-echo "gcc-4.6 libstdc++ built at $work (bits/c++config.h generated)"
+
+# `make all` leaves libstdc++.a under src/.libs/.  The gcc46-cxx g++ wrapper
+# links it only from the TOP-LEVEL $work/libstdc++.a (and SILENTLY skips it if
+# absent), so gcc-10's cc1 link would drop every libstdc++ symbol and hex2 would
+# abort at the first one (std::_Rb_tree_increment) — truncating cc1.  Publish the
+# archive where the wrapper looks.  (libsupc++.a is already at the path the
+# wrapper expects: $work/libsupc++/.libs/libsupc++.a.)
+cp "$work/src/.libs/libstdc++.a" "$work/libstdc++.a"
+
+test -f "$work/libstdc++.a" \
+  || { echo "52b: top-level libstdc++.a not published" >&2; exit 1; }
+echo "gcc-4.6 libstdc++ built at $work (bits/c++config.h generated; libstdc++.a published)"

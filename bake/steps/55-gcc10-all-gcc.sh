@@ -55,11 +55,21 @@ test -x "$GCC10_BUILD/gcc/xgcc" || { echo "55: xgcc not produced" >&2; exit 1; }
 ## TEMPORARY IMPURITY — empty stub libs so the goal test (and any -lgcc link)
 ## resolves.  TODO: replace with real libgcc/emutls built by this xgcc
 ## (make all-target-libgcc; blocked on the -O2 cc1 crash — build libgcc at -O1).
-emptyo="$GCC10_BUILD/gcc/.bake-empty.o"
-printf '' > "$emptyo.c"
-"$CC" -c "$emptyo.c" -o "$emptyo" 2>/dev/null || : > "$emptyo"
+##
+## These feed the SYSTEM ld used for the final Mach-O executable link (the chain
+## has no native-exe linker; that is the established escape hatch in
+## gcc10-goal-test.sh), so they must be x86_64 *Mach-O* archives — a bake-ar ELF
+## archive makes ld bail with "archive member ... not a mach-o file", and macOS
+## ar will not create a memberless archive.  A single symbol-less x86_64 object
+## (built by the host cc, like the final link) gives ld a valid, empty-of-useful-
+## symbols stub; xgcc references these only for -lgcc/-lemutls_w and the test
+## program needs none of their symbols.
+stubo="$GCC10_BUILD/gcc/.bake-stub.o"
+printf 'static int _bake_stub;\n' > "$stubo.c"
+/usr/bin/cc -arch x86_64 -c "$stubo.c" -o "$stubo"
 for L in libgcc libgcc_eh libgcc_s libemutls_w; do
-  "$AR" cr "$GCC10_BUILD/gcc/$L.a" "$emptyo" 2>/dev/null || true
+  rm -f "$GCC10_BUILD/gcc/$L.a"
+  /usr/bin/ar cr "$GCC10_BUILD/gcc/$L.a" "$stubo"
 done
 
 echo "gcc10 all-gcc done: cc1 + xgcc at $GCC10_BUILD/gcc (run scripts/gcc10-goal-test.sh to verify)"
