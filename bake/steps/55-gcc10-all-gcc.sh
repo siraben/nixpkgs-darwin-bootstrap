@@ -22,10 +22,18 @@ test -f "$GCC10_BUILD/Makefile" || { echo "55: not configured (run step 54)" >&2
 find "$GCC10_SRC"   -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
 find "$GCC10_BUILD" -print0 | xargs -0 touch -t 202701010000 2>/dev/null || true
 
-## The build-side libcpp Makefile hardcodes `AR = ar` (Apple's), which silently
-## makes an empty __.SYMDEF-only archive from our ELF objects.  An AR_FOR_BUILD
-## env override does not reach it (a Makefile assignment beats the environment),
-## so patch the generated Makefile directly (idempotent).
+## The build-side libcpp Makefile hardcodes literal `AR = ar` (resolved via PATH
+## at build time), and Apple's /usr/bin/ar silently makes an empty __.SYMDEF-only
+## archive from our ELF objects -> genmatch fails to link ("Target label
+## _ZNK13rich_location7get_locEj is not valid").  An AR_FOR_BUILD env override
+## doesn't reach it (a Makefile assignment beats the environment), and a sed on
+## the generated Makefile is racy: build-*/libcpp/Makefile is created DURING this
+## make, after the loop below has already run.  The robust fix: put bake-ar on
+## PATH as `ar`, so the Makefile's literal `ar` resolves to it.  (build-libiberty
+## is unaffected — it uses the passed $(AR).)
+ln -sf "$ROOT/scripts/bake-ar"     "$TARGET/bin/ar"
+ln -sf "$ROOT/scripts/bake-ranlib" "$TARGET/bin/ranlib"
+## Also keep the sed for any already-configured tree (idempotent; harmless).
 for mk in "$GCC10_BUILD"/build-*/libcpp/Makefile; do
   [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
 done
