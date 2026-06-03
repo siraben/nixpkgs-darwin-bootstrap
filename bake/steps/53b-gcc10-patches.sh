@@ -43,10 +43,15 @@ def patch(path, olds_news, label):
         print("53b: already patched", path)
 
 # (a) system.h — force __FUNCTION__/__func__ to literal "?".
+# Pristine gcc-10.4.0 only defines __FUNCTION__="?" when (GCC_VERSION < 2007);
+# our from-seed gcc-4.6 cc1plus reports GCC_VERSION=4006, so the guard is false
+# and __FUNCTION__ stays the (miscompiled) builtin.  Force it unconditionally.
 patch("system.h", [(
     '/* Various error reporting routines want to use __FUNCTION__.  */\n'
-    '#if GCC_VERSION < 2007\n'
-    '# define __FUNCTION__ (__FILE__)\n'
+    '#if (GCC_VERSION < 2007)\n'
+    '#ifndef __FUNCTION__\n'
+    '#define __FUNCTION__ "?"\n'
+    '#endif /* ! __FUNCTION__ */\n'
     '#endif\n',
     '/* Various error reporting routines want to use __FUNCTION__.  */\n'
     '#if 1 /* bake: from-seed cc1plus miscompiles the synthetic __FUNCTION__ decl */\n'

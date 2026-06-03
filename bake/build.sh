@@ -24,8 +24,12 @@ TARGET="${TARGET:-$ROOT/target}"
 
 export ROOT SEED SOURCES STEPS TARGET
 
-## Reset target on each run for a clean build.
-rm -rf "$TARGET"
+## Reset target on each run for a clean build — UNLESS resuming via
+## $BAKE_START_FROM (skip the wipe so an existing partial target is reused, e.g.
+## to re-run a fixed late step without redoing the multi-hour gcc builds).
+if [ -z "${BAKE_START_FROM:-}" ]; then
+  rm -rf "$TARGET"
+fi
 mkdir -p "$TARGET/bin" "$TARGET/share"
 
 ## Restricted PATH: only system /usr/bin and the chain's own outputs.
@@ -50,9 +54,20 @@ printf '\n'
 ##   BAKE_STOP_AFTER=14 TARGET=/tmp/bake-verify sh bake/build.sh
 ## runs phases up to and including 14-kaem.  Useful for incremental
 ## reproducibility verification without a full multi-hour run.
+## Optional: skip every step before the one whose name starts with
+## $BAKE_START_FROM (combined with not wiping TARGET above, this resumes a
+## partial build), e.g.  BAKE_START_FROM=54 TARGET=/tmp/bake-verify sh build.sh
 step_count=0
+started=1
+[ -n "${BAKE_START_FROM:-}" ] && started=0
 for step in "$STEPS"/*.sh; do
   step_name=$(basename "$step" .sh)
+  if [ "$started" -eq 0 ]; then
+    case "$step_name" in
+      "$BAKE_START_FROM"*) started=1 ;;
+      *) continue ;;
+    esac
+  fi
   printf '== %s ==\n' "$step_name"
   ## Each step runs in a subshell with the env above.
   ( cd "$ROOT" && /bin/sh "$step" )
