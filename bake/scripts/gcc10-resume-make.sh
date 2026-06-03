@@ -87,7 +87,7 @@ for mk in "$B"/build-*/libcpp/Makefile; do
 done
 
 cd "$B"
-exec make all-gcc -j1 MAKEINFO=true \
+exec "${MAKE:-$TARGET/bin/make}" all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$SYS" \
   CPP="$CPP" CXXCPP="$CXXCPP" AR="$AR" RANLIB="$RANLIB" NM="$NM" \
   AR_FOR_BUILD="$AR_FOR_BUILD" RANLIB_FOR_BUILD="$RANLIB_FOR_BUILD" \

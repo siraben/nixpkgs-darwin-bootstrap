@@ -16,16 +16,12 @@
 set -u
 
 ROOT="${ROOT:-$(cd -- "$(dirname -- "$0")/.." && pwd)}"
-TARGET="${TARGET:-$ROOT/target}"
-B="${B:-$TARGET/work/gcc10-all-gcc/build}"
-
-export LC_ALL=C MACOSX_DEPLOYMENT_TARGET=10.6
-export TCC_DARWIN_CACHE_DIR="${TCC_DARWIN_CACHE_DIR:-$ROOT/.tcc-darwin-archive-cache}"
-GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
+. "$ROOT/scripts/gcc10-env.sh"
+B="$GCC10_BUILD"
 
 cd "$B/gcc"
 rm -f cc1
-"$TARGET/gcc46-cxx/bin/g++" -O0 -std=gnu++0x -mno-sse3 -fpermissive $GGC \
+"$CXX" -O0 -std=gnu++0x -mno-sse3 -fpermissive $GCC10_GGC \
   -DIN_GCC -fno-exceptions -fno-rtti -fasynchronous-unwind-tables -DHAVE_CONFIG_H -o cc1 \
   c/c-lang.o c-family/stub-objc.o attribs.o c/c-errors.o c/c-decl.o c/c-typeck.o c/c-convert.o \
   c/c-aux-info.o c/c-objc-common.o c/c-parser.o c/c-fold.o c/gimple-parser.o c-family/c-common.o \
