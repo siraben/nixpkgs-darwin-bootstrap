@@ -17,6 +17,32 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
   (`xgcc hello.c` compiles & runs, returns 7)
 ```
 
+## ✅✅ FULL FROM-SEED REPRODUCIBILITY VERIFIED (2026-06-03)
+
+`sh bake/build.sh` rebuilds the **entire** chain from the committed 4 KB hex0
+seed to a working gcc-10 `cc1` + `xgcc` — verified end-to-end into a scratch
+tree (`TARGET=/tmp/bake-verify`), `scripts/gcc10-goal-test.sh` returns **7**
+(xgcc compiles & runs C; cc1 is the full 44 MB binary, runs clean).
+
+Repro bugs found & fixed while making the manual build reproduce from scratch:
+
+- **mes brk pool** computed at runtime to 4 GB (M2-Planet truncates the literal) — `mes-darwin/lib/darwin/brk.c`.
+- **synth-label injector** auto-vivify guard + `tr`-flatten of the giant cc1 M1 line — `scripts/tinycc/{synth-inject.awk,tcc-darwin-cc-bash3.sh}`.
+- **gcc-10 source patches** matched to pristine 10.4.0 (`__FUNCTION__`, PCH) — `steps/53b`.
+- **`make -f -` hang** fixed by running each step with stdin `</dev/null` — `build.sh`.
+- **gcc-4.6 libstdc++** built + **published to top-level `libstdc++.a`** (the g++ wrapper silently skips a missing top-level `.a`, which dropped every libstdc++ symbol and made hex2 abort at `std::_Rb_tree_increment`, truncating cc1) — `steps/52b`.
+- **`AR=ar` in build-libcpp** resolved to `bake-ar` via PATH so genmatch links — `steps/55`.
+- **libgcc/emutls stubs** built as x86_64 Mach-O (system ld rejects bake-ar ELF) — `steps/55`.
+
+Step ordering matters: 52b (libstdc++) precedes 54 (gcc-10 configure) so the
+`clock_t` conftest sees `<new>`. The archive-resolve symbol cache flakes empty
+member TSVs when the disk/`/tmp` is near-full during prep (writes truncate);
+keep headroom (a clean `sh build.sh` re-preps fine with space).
+
+Remaining (faithfulness, tracked): host-awk synth-inject + archive-resolve →
+chain-built C; `bake-ar` python → C; real `-O1` libgcc instead of stubs;
+host-cc escape hatches in the gcc-4.6 driver; chain libc `mkstemp`.
+
 ## ✅ gcc-10 cc1 + xgcc from the seed (2026-06-02)
 
 gcc-10.4.0's `cc1` and `xgcc`, built entirely from the 4 KB hex0 seed through
