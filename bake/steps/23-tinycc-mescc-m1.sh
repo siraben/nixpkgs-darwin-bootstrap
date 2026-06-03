@@ -18,9 +18,9 @@ mesLoadPath="$mes_source/module:$mes_source/mes/module:$nyacc_dir/module"
 
 MES_PREFIX="$mes_source" \
     GUILE_LOAD_PATH="$mesLoadPath" \
-    MES_STACK=12000000 \
-    MES_ARENA=140000000 \
-    MES_MAX_ARENA=140000000 \
+    MES_STACK=6000000 \
+    MES_ARENA=60000000 \
+    MES_MAX_ARENA=60000000 \
     srcdest="$mes_source/" \
     includedir="$mes_source/include" \
     libdir="$mes_source/lib" \
