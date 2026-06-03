@@ -17,7 +17,10 @@ ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
 SEED="$ROOT/seed"
 SOURCES="$ROOT/sources"
 STEPS="$ROOT/steps"
-TARGET="$ROOT/target"
+## TARGET defaults to $ROOT/target but may be overridden, so a reproducibility
+## verification run can build into a scratch dir without destroying an existing
+## target tree:  TARGET=/path/to/scratch sh bake/build.sh
+TARGET="${TARGET:-$ROOT/target}"
 
 export ROOT SEED SOURCES STEPS TARGET
 
@@ -43,6 +46,10 @@ printf '   target: %s\n' "$TARGET"
 printf '   PATH: %s\n' "$PATH"
 printf '\n'
 
+## Optional: stop after the step whose name starts with $BAKE_STOP_AFTER, e.g.
+##   BAKE_STOP_AFTER=14 TARGET=/tmp/bake-verify sh bake/build.sh
+## runs phases up to and including 14-kaem.  Useful for incremental
+## reproducibility verification without a full multi-hour run.
 step_count=0
 for step in "$STEPS"/*.sh; do
   step_name=$(basename "$step" .sh)
@@ -51,6 +58,12 @@ for step in "$STEPS"/*.sh; do
   ( cd "$ROOT" && /bin/sh "$step" )
   step_count=$((step_count + 1))
   printf '   ok\n\n'
+  case "${BAKE_STOP_AFTER:-}" in
+    '') ;;
+    *) case "$step_name" in
+         "$BAKE_STOP_AFTER"*) printf '== stopping after %s (BAKE_STOP_AFTER) ==\n' "$step_name"; break ;;
+       esac ;;
+  esac
 done
 
 printf '== done; %d steps ==\n' "$step_count"
