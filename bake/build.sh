@@ -69,8 +69,15 @@ for step in "$STEPS"/*.sh; do
     esac
   fi
   printf '== %s ==\n' "$step_name"
-  ## Each step runs in a subshell with the env above.
-  ( cd "$ROOT" && /bin/sh "$step" )
+  ## Each step runs in a subshell with the env above, with stdin from
+  ## /dev/null.  Configure scripts probe `make -f -` (read a makefile from
+  ## stdin); our chain make can't create the stdin temp file and errors — but
+  ## only if stdin is at EOF.  If build.sh inherits an open pipe as stdin (e.g.
+  ## launched under nohup from a pipe), that `make -f -` blocks forever waiting
+  ## for EOF and wedges the configure (seen at gmp-6.2.1's nested-variables
+  ## check in gcc-10's step 55).  /dev/null gives immediate EOF so the probe
+  ## fails fast and configure proceeds; no build step needs real stdin.
+  ( cd "$ROOT" && /bin/sh "$step" </dev/null )
   step_count=$((step_count + 1))
   printf '   ok\n\n'
   case "${BAKE_STOP_AFTER:-}" in
