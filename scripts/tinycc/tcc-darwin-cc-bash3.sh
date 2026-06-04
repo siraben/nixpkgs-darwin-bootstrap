@@ -615,8 +615,10 @@ rm -f "$tmp/combined.tok.M1"
 # large two-tier layout, which padded every binary to 18MB/46MB.)
 lowdata="$(dirname "@MACHO@")/MACHO-amd64-lowdata.hex2"
 _meta="$(@M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --auto-data-align -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>&1 1>/dev/null)"
-_dv="$(printf '%s\n' "$_meta" | sed -n 's/.*DATA_VMADDR=\([0-9A-Fa-f][0-9A-Fa-f]*\).*/\1/p')"
-_de="$(printf '%s\n' "$_meta" | sed -n 's/.*DATA_END=\([0-9A-Fa-f][0-9A-Fa-f]*\).*/\1/p')"
+# Parse m1-to-hex2's reported DATA_VMADDR / DATA_END with shell parameter
+# expansion (no host sed): strip up to the key, then keep the leading hex run.
+_dv="${_meta##*DATA_VMADDR=}"; _dv="${_dv%%[!0-9A-Fa-f]*}"
+_de="${_meta##*DATA_END=}";    _de="${_de%%[!0-9A-Fa-f]*}"
 data_vmaddr=$((16#$_dv))
 data_end=$((16#$_de))
 text_vmsize=$((data_vmaddr - 6291456))           # 6291456 = 0x600000
