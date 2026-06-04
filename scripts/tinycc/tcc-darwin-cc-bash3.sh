@@ -269,6 +269,20 @@ emit_ctor_table() {
   fi
 }
 
+# Rewrite the per-link Mach-O load-command template from MACHO-amd64-lowdata.hex2:
+# $1 = template file; $2..$9 = replacement strings for the 8 size/offset fields
+# at template lines 10,11,15,19,20,21,24,25.  Chain-built line-rewrite
+# (sources/tools/line-rewrite.c, step 44f) replaces host awk; awk fallback only
+# while bootstrapping it.
+macho_template() {
+  if [ -x "@LINE_REWRITE@" ]; then
+    "@LINE_REWRITE@" 10 "$2" 11 "$3" 15 "$4" 19 "$5" 20 "$6" 21 "$7" 24 "$8" 25 "$9" < "$1"
+  else
+    awk -v n10="$2" -v n11="$3" -v n15="$4" -v n19="$5" -v n20="$6" -v n21="$7" -v n24="$8" -v n25="$9" \
+      'NR==10{print n10;next} NR==11{print n11;next} NR==15{print n15;next} NR==19{print n19;next} NR==20{print n20;next} NR==21{print n21;next} NR==24{print n24;next} NR==25{print n25;next} {print}' "$1"
+  fi
+}
+
 process_symbol_file() {
   # Update the global defined/unresolved symbol sets with one member's symbols,
   # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
@@ -612,18 +626,15 @@ le8() {
   done
   printf '%s' "${o% }"
 }
-awk -v n10="$(le8 6291456) $(le8 "$text_vmsize")" \
-    -v n11="$(le8 0) $(le8 "$text_vmsize")" \
-    -v n15="$(le8 6292480) $(le8 "$text_sect_size")" \
-    -v n19="$(le8 0) $(le8 "$data_vmaddr")" \
-    -v n20="$(le8 "$data_vmsize") $(le8 "$data_fileoff")" \
-    -v n21="$(le8 "$data_vmsize") 03 00 00 00 03 00 00 00" \
-    -v n24="$(le8 "$linkedit_vmaddr") $(le8 4096)" \
-    -v n25="$(le8 "$linkedit_fileoff") $(le8 0)" '
-  NR==10{print n10;next} NR==11{print n11;next} NR==15{print n15;next}
-  NR==19{print n19;next} NR==20{print n20;next} NR==21{print n21;next}
-  NR==24{print n24;next}
-  NR==25{print n25;next} {print}' "$lowdata" > "$tmp/macho.hex2"
+macho_template "$lowdata" \
+  "$(le8 6291456) $(le8 "$text_vmsize")" \
+  "$(le8 0) $(le8 "$text_vmsize")" \
+  "$(le8 6292480) $(le8 "$text_sect_size")" \
+  "$(le8 0) $(le8 "$data_vmaddr")" \
+  "$(le8 "$data_vmsize") $(le8 "$data_fileoff")" \
+  "$(le8 "$data_vmsize") 03 00 00 00 03 00 00 00" \
+  "$(le8 "$linkedit_vmaddr") $(le8 4096)" \
+  "$(le8 "$linkedit_fileoff") $(le8 0)" > "$tmp/macho.hex2"
 @HEX2@ --architecture amd64 --little-endian --base-address 0x600000 \
   -f "$tmp/macho.hex2" -f "$tmp/combined.hex2" -o "$out"
 dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkedit_fileoff - 1))" conv=notrunc 2>/dev/null

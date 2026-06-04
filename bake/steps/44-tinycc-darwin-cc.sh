@@ -59,6 +59,7 @@ sed -i.bak \
     -e "s|@M1_SPLIT@|$TARGET/bin/m1-split|g" \
     -e "s|@TSV_COL@|$TARGET/bin/tsv-col|g" \
     -e "s|@CTOR_TABLE@|$TARGET/bin/ctor-table|g" \
+    -e "s|@LINE_REWRITE@|$TARGET/bin/line-rewrite|g" \
     -e '/^source @SIGNING@$/d' \
     -e '/^sign "\$out"$/d' \
     "$out/bin/tcc-darwin-cc"
