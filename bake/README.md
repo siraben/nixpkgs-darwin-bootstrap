@@ -82,8 +82,8 @@ TARGET=/tmp/verify sh scripts/gcc10-goal-test.sh   # check xgcc compiles+runs C 
 ```
 
 The gcc-10 phase is long: `cc1plus` runs x86-64 under Rosetta 2.  The final cc1
-link is the single largest operation (a ~335 MB combined M1) and is
-memory-hungry.
+link is the single largest operation (a ~335 MB combined M1); the chain link
+tools' M2libc heap is sized (4 GB) to hold it.
 
 ## Status & remaining impurities
 

@@ -24,17 +24,21 @@ seed to a working gcc-10 `cc1` + `xgcc` — verified end-to-end into a scratch
 tree (`TARGET=/tmp/bake-verify`), `scripts/gcc10-goal-test.sh` returns **7**
 (xgcc compiles & runs C; cc1 is the full 44 MB binary, runs clean).
 
-> **Note on the de-awk verification (2026-06-03).** After porting all six link
-> tools to chain-built C (steps 44b–44g, see REVIEW.md), the goal-test cc1 was
-> removed to re-link it with the de-awk'd wrapper as an end-to-end proof. That
-> re-link of the single largest object in the whole build (a ~335 MB combined M1)
-> is memory-hungry and is being killed by the OS (jetsam) at varying stages on
-> the development host — i.e. completion is memory-env-limited, not a code bug.
-> Functionality is independently established: the original cc1 (awk wrapper)
-> passed the goal test (7); each chain-built C tool is byte-identical to the awk
-> it replaced; and synth-inject ran clean on a real cc1 link. A host with more
-> free RAM, or fully pre-populating the archive-resolve member cache, completes
-> the re-link. The build steps are unchanged and correct.
+> **De-awk verification + the cc1-link root cause (2026-06-03).** After porting
+> all six link tools to chain-built C (steps 44b–44g, see REVIEW.md), the cc1 was
+> re-linked with the de-awk'd wrapper as an end-to-end proof. That re-link — of
+> the single largest object in the whole build (a ~335 MB combined M1) — kept
+> dying mid-link with no diagnostic. **Root cause: the M2libc bump allocator.**
+> The chain link tools (`m1-to-hex2`, `hex2`) are M2libc programs whose heap is a
+> single *fixed*, non-growing `mmap` pool — 1.79 GB via the Darwin `brk` shim
+> (`M2libc/amd64/Darwin/unistd.c`) and 512 MB in `bootstrap.c`. m1-to-hex2 loading
+> the 335 MB combined M1 plus its label/output tables overran the pool; `malloc`
+> returned NULL and the tool crashed silently. It was a fixed-pool *code* bug, not
+> an OS-memory limit (the host has 34 GB RAM and unlimited address space).
+> **Fix (commit ab4ebf1):** both pools enlarged to 4 GB (computed at runtime —
+> M2-Planet truncates integer literals > 2³¹). With the 4 GB-pool tools the cc1
+> re-link completes: the full 44 MB Mach-O cc1 links clean (`otool` reports no
+> "past end of file"), and the de-awk'd from-seed `xgcc` passes the goal test (7).
 
 Repro bugs found & fixed while making the manual build reproduce from scratch:
 
@@ -45,6 +49,7 @@ Repro bugs found & fixed while making the manual build reproduce from scratch:
 - **gcc-4.6 libstdc++** built + **published to top-level `libstdc++.a`** (the g++ wrapper silently skips a missing top-level `.a`, which dropped every libstdc++ symbol and made hex2 abort at `std::_Rb_tree_increment`, truncating cc1) — `steps/52b`.
 - **`AR=ar` in build-libcpp** resolved to `bake-ar` via PATH so genmatch links — `steps/55`.
 - **libgcc/emutls stubs** built as x86_64 Mach-O (system ld rejects bake-ar ELF) — `steps/55`.
+- **M2libc heap cap** — the chain link tools' fixed bump-allocator pool (1.79 GB `brk` + 512 MB `bootstrap.c`) overflowed on the 335 MB combined M1 → silent `malloc` NULL → cc1 link crash; enlarged both to 4 GB (commit ab4ebf1) — `M2libc/amd64/Darwin/{unistd,bootstrap}.c`.
 
 Step ordering matters: 52b (libstdc++) precedes 54 (gcc-10 configure) so the
 `clock_t` conftest sees `<new>`. The archive-resolve symbol cache flakes empty

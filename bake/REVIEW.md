@@ -13,9 +13,11 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
   load-command template (44f, b4f1fe2); synth-inject cross-object `_plus_<hex>`
   injector (44g, e7b43af). @AR@ extraction = bake-ar (bcba3cf). Each verified
   byte-identical to its predecessor. A full cc1 relink with the de-awk'd wrapper
-  ran synth-inject.c CLEAN (no error, link reached the hex2 stage); it could not
-  COMPLETE only because the host is disk-99%-full / memory-tight (jetsam SIGKILL
-  at hex2 — environmental, not a code bug). Remaining wrapper host text-tools: a
+  COMPLETES: the de-awk'd from-seed xgcc passes the goal test (7), cc1 is the full
+  44 MB Mach-O. (Earlier relinks died mid-`m1-to-hex2`; root cause was the M2libc
+  fixed bump-allocator heap overflowing on the 335 MB combined M1, not the host
+  environment — enlarged 1.79 GB→4 GB in commit ab4ebf1.) Remaining wrapper host
+  text-tools: a
   `cksum|awk '{print $1"-"$2}'` cache-key formatter (benign, not translation) and
   the intentional bootstrap fallbacks.
 - #2 early Mes/TCC steps (21/25/26/27/42) split M1 with host awk — TODO: they run
@@ -25,7 +27,7 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 - #3 tcc-cpp/gxx-cpp hardcoded ../target — FIXED (bcba3cf, honour $TARGET).
 - #4 archive cache outside TARGET — FIXED (bcba3cf, under $TARGET/work).
 - #5 step 55 host-compiled stub libgcc/emutls — OPEN (build real -O1 libgcc with
-  xgcc; blocked here by the host being disk/memory-constrained for the build).
+  the from-seed xgcc; xgcc now links & runs, so this is unblocked).
 - #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, bake-ar).
 - #7 phase37-driver.sh dormant host as/cc hatches — FIXED (be25b5b, default empty
   so the macho/host-source guards refuse unless explicitly opted in).
@@ -50,8 +52,9 @@ Remaining (acknowledged, not host *translation* in the gcc link path):
   pre-C-compiler bootstrap section-splitting, a weaker concern than the gcc link
   path. (To remove it one would build a splitter with an earlier chain cc.)
 - step-55 stub libgcc/emutls (host cc + ar) for the goal-test exe + system ld:
-  acknowledged impurity; a real -O1 libgcc build is env-blocked here (disk-full /
-  memory-tight → jetsam). System ld is the sole native-exe-link escape hatch.
+  acknowledged impurity; a real -O1 libgcc build with the from-seed xgcc is the
+  planned replacement (now unblocked — xgcc links & runs). System ld is the sole
+  native-exe-link escape hatch.
 - SHA256-pinned source tarballs: source-trust, not host semantic translation.
 
 Net: the "post-44 gcc link path uses chain-built link machinery, no host semantic
