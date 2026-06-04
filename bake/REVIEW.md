@@ -50,11 +50,19 @@ both now FIXED:
   → chain-built tsv-col via a dusym helper, awk fallback (ed4aad1).
 
 Remaining (acknowledged, not host *translation* in the gcc link path):
-- The pre-tcc Mes/stage0 M1-split awk is BROADER than first thought — besides
-  steps 21/25/26/27/42 it also appears in 31/33/35/36/38/40. All run BEFORE
-  tcc-darwin-cc exists (step 44), so the chain m1-split can't build them; this is
-  pre-C-compiler bootstrap section-splitting, a weaker concern than the gcc link
-  path. (To remove it one would build a splitter with an earlier chain cc.)
+- The pre-tcc Mes/stage0 M1-split awk (steps 21/25/26/27/31/33/35/36/38/40/42).
+  **Analysed and accepted as a bounded impurity, not a TODO**, for two reasons:
+  (1) *It is not translation.* Each awk mechanically partitions an already-built
+  M1 stream into its code section (lines before `:ELF_data`/a custom label) and
+  data section (label + after) — pure text bookkeeping for the hex2 layout. The
+  actual C→M1 translation is done by chain `mescc`, and M1→Mach-O by chain
+  `M1`+`hex2`; the awk emits no machine code, so it is outside the as-filter rule.
+  (2) *Bootstrap ordering makes a chain replacement impossible here.* Steps
+  21/25/26 are where the libc itself is built (libc-mini → libc → libc-tcc), and
+  the first turnkey chain compiler that emits a runnable Mach-O binary is
+  `tcc-darwin-cc` at step 44 — which is exactly why the post-44 splitter
+  (`m1-split.c`) IS chain-built and these are not. A replacement binary cannot
+  exist before the very libc+compiler toolchain it would be compiled with.
 - step-55 stub libgcc/emutls (host cc + ar) for the goal-test exe + system ld:
   acknowledged impurity; a real -O1 libgcc build with the from-seed xgcc is the
   planned replacement (now unblocked — xgcc links & runs). System ld is the sole
