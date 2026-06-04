@@ -31,7 +31,14 @@ find "$GCC10_BUILD" -print0 | xargs -0 touch -t 202701010000 2>/dev/null || true
 ## make, after the loop below has already run.  The robust fix: put bake-ar on
 ## PATH as `ar`, so the Makefile's literal `ar` resolves to it.  (build-libiberty
 ## is unaffected — it uses the passed $(AR).)
-ln -sf "$ROOT/scripts/bake-ar"     "$TARGET/bin/ar"
+## Symlink `ar` to the self-contained chain-built bake-ar BINARY (not the
+## scripts/bake-ar shim): gcc-10's build-side libcpp sub-make invokes `ar`
+## without TARGET in its environment, and the shim's TARGET fallback
+## (`$dir/../target`) is wrong for a scratch TARGET, so it would silently
+## produce an EMPTY libcpp.a and genmatch would fail to link
+## (`Target label _ZNK13rich_location7get_locEj is not valid`).  The binary
+## needs no env.  bake-ranlib is a pure no-op shim, so it is fine as-is.
+ln -sf "$TARGET/bin/bake-ar"        "$TARGET/bin/ar"
 ln -sf "$ROOT/scripts/bake-ranlib" "$TARGET/bin/ranlib"
 ## Also keep the sed for any already-configured tree (idempotent; harmless).
 for mk in "$GCC10_BUILD"/build-*/libcpp/Makefile; do
