@@ -29,8 +29,34 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 - #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, bake-ar).
 - #7 phase37-driver.sh dormant host as/cc hatches — FIXED (be25b5b, default empty
   so the macho/host-source guards refuse unless explicitly opted in).
-- #8 tarballs fetched not committed (SHA256-pinned) — acceptable; soften the
-  "text sources only" wording (TODO in STATUS.md/README).
+- #8 tarballs fetched not committed (SHA256-pinned) — FIXED wording (937415e):
+  build.sh trust anchors now state the tarballs are SHA256-pinned fetches and the
+  system cc/ld are only the final goal-test exe escape hatch.
+
+## Codex re-review round 2 (after the 6 chain-built C tools landed)
+
+Verdict: the host awk/python/grep/sed link machinery is confirmed gone from the
+clean gcc-4.6/gcc-10 path after 44g. Two further active host-tool uses it found,
+both now FIXED:
+- **layout sed** in tcc-darwin-cc (parsed m1-to-hex2's DATA_VMADDR/DATA_END that
+  drive the Mach-O offsets) → shell parameter expansion (f75d2e9).
+- **gcc-4.6 libgcc symbol-selection awk** in phase37-driver.sh (5 D/U extractions)
+  → chain-built tsv-col via a dusym helper, awk fallback (ed4aad1).
+
+Remaining (acknowledged, not host *translation* in the gcc link path):
+- The pre-tcc Mes/stage0 M1-split awk is BROADER than first thought — besides
+  steps 21/25/26/27/42 it also appears in 31/33/35/36/38/40. All run BEFORE
+  tcc-darwin-cc exists (step 44), so the chain m1-split can't build them; this is
+  pre-C-compiler bootstrap section-splitting, a weaker concern than the gcc link
+  path. (To remove it one would build a splitter with an earlier chain cc.)
+- step-55 stub libgcc/emutls (host cc + ar) for the goal-test exe + system ld:
+  acknowledged impurity; a real -O1 libgcc build is env-blocked here (disk-full /
+  memory-tight → jetsam). System ld is the sole native-exe-link escape hatch.
+- SHA256-pinned source tarballs: source-trust, not host semantic translation.
+
+Net: the "post-44 gcc link path uses chain-built link machinery, no host semantic
+translation" claim holds; the absolute "no host tools anywhere" claim does not
+(pre-44 Mes/stage0 splits + the final-exe stub/ld), and the docs say so.
 
 ---
 

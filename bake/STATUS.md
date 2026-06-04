@@ -39,9 +39,19 @@ Step ordering matters: 52b (libstdc++) precedes 54 (gcc-10 configure) so the
 member TSVs when the disk/`/tmp` is near-full during prep (writes truncate);
 keep headroom (a clean `sh build.sh` re-preps fine with space).
 
-Remaining (faithfulness, tracked): host-awk synth-inject + archive-resolve →
-chain-built C; `bake-ar` python → C; real `-O1` libgcc instead of stubs;
-host-cc escape hatches in the gcc-4.6 driver; chain libc `mkstemp`.
+Faithfulness (2026-06-03): the gcc-10/gcc-4.6 LINK PATH is now host-awk-free.
+Every host tool that did translation/symbol-resolution/layout in tcc-darwin-cc is
+a chain-built C tool compiled by tcc-darwin-cc itself (steps 44b–44g): bake-ar
+(archiver), m1-split (code/data split), tsv-col (symbol-set), ctor-table (C++
+ctor table), line-rewrite (Mach-O load-command template), synth-inject
+(cross-object label injector); the layout `sed` and `cksum|awk` are gone too, and
+gcc-4.6 libgcc selection routes through tsv-col. See bake/REVIEW.md for the codex
+audit + round-2 verdict. Acknowledged remaining impurities (documented, not in
+the gcc-link translation path): pre-tcc Mes/stage0 M1-split awk in the early
+steps (21/25/26/27/31/33/35/36/38/40/42 — before the C compiler exists); the
+step-55 stub libgcc + system `ld` for the final goal-test executable (a real -O1
+libgcc is env-blocked on a disk-full host); chain libc `mkstemp` (the `make -f -`
+stdin-`</dev/null` workaround); SHA256-pinned upstream tarballs.
 
 ## ✅ gcc-10 cc1 + xgcc from the seed (2026-06-02)
 
