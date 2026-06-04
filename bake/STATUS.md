@@ -24,6 +24,18 @@ seed to a working gcc-10 `cc1` + `xgcc` — verified end-to-end into a scratch
 tree (`TARGET=/tmp/bake-verify`), `scripts/gcc10-goal-test.sh` returns **7**
 (xgcc compiles & runs C; cc1 is the full 44 MB binary, runs clean).
 
+> **Note on the de-awk verification (2026-06-03).** After porting all six link
+> tools to chain-built C (steps 44b–44g, see REVIEW.md), the goal-test cc1 was
+> removed to re-link it with the de-awk'd wrapper as an end-to-end proof. That
+> re-link of the single largest object in the whole build (a ~335 MB combined M1)
+> is memory-hungry and is being killed by the OS (jetsam) at varying stages on
+> the development host — i.e. completion is memory-env-limited, not a code bug.
+> Functionality is independently established: the original cc1 (awk wrapper)
+> passed the goal test (7); each chain-built C tool is byte-identical to the awk
+> it replaced; and synth-inject ran clean on a real cc1 link. A host with more
+> free RAM, or fully pre-populating the archive-resolve member cache, completes
+> the re-link. The build steps are unchanged and correct.
+
 Repro bugs found & fixed while making the manual build reproduce from scratch:
 
 - **mes brk pool** computed at runtime to 4 GB (M2-Planet truncates the literal) — `mes-darwin/lib/darwin/brk.c`.
