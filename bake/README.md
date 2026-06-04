@@ -68,10 +68,17 @@ fix-status.
 3. `tarballs/*` — upstream mes / gcc-4.6 / gcc-10 release tarballs, *not*
    committed: fetched by `scripts/fetch-sources.sh` against pinned SHA-256s.
 4. `/bin/sh` + POSIX utilities (Apple-signed): `sh`, `make`, `tar`, `cp`, `cmp`,
-   `dd`, `grep`, and the system `cc`/`ld` for the final goal-test executable link
-   (the chain has no native Mach-O executable linker — this is the sole
-   final-link escape hatch).
-5. Darwin kernel + `/usr/lib/dyld`.
+   `dd`, `grep`.
+5. The system **assembler and linker** (`/usr/bin/as`, `/usr/bin/ld`, and
+   `/usr/bin/ar`/`ranlib` for archives) for the *gcc-10 target* codegen path: the
+   from-seed `xgcc` emits `.s` and hands it to `/usr/bin/as`, and links via
+   `/usr/bin/ld`.  The bake chain builds the gcc-10 binaries themselves with its
+   own `tcc-darwin-cc → as-filter → hex2` Mach-O pipeline (no host as/ld), but the
+   resulting `xgcc` was configured with the platform `as`/`ld` as its target tools
+   — so every `xgcc` compile/link (the goal test, and the real `libgcc`) leans on
+   them.  Replacing these needs an in-chain Mach-O assembler + executable linker
+   (the chain has neither yet); this is the honest current escape hatch.
+6. Darwin kernel + `/usr/lib/dyld`.
 
 ## Running
 
