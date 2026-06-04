@@ -95,9 +95,14 @@ elf_to_m1="$elf_to_m1"
 libgcc_objects="$gcc_lib/libgcc-objects"
 libgcc_symbols="$gcc_lib/libgcc-symbols"
 object_format="\${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}"
-macho_as="\${GCC46_BOOTSTRAP_AS:-$(command -v as || true)}"
-macho_linker="\${GCC46_BOOTSTRAP_MACHO_CC:-$(command -v cc || true)}"
-host_generated_cc="\${GCC46_BOOTSTRAP_HOST_CC:-$(command -v cc || true)}"
+# Quarantine: the dormant macho/host-source code paths must NOT silently fall
+# back to the host as/cc/ld.  Default these empty (instead of $(command -v ...))
+# so the guards below ("requires GCC46_BOOTSTRAP_AS/MACHO_CC/HOST_CC") refuse
+# loudly unless a developer EXPLICITLY opts in.  Faithful bake uses
+# object_format=elf and never touches them.
+macho_as="\${GCC46_BOOTSTRAP_AS:-}"
+macho_linker="\${GCC46_BOOTSTRAP_MACHO_CC:-}"
+host_generated_cc="\${GCC46_BOOTSTRAP_HOST_CC:-}"
 
 mode=link
 out_file=
