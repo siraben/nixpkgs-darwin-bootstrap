@@ -283,6 +283,15 @@ macho_template() {
   fi
 }
 
+# Inject precise cross-object :<sym>_plus_<hex> synth-label defs ($1 = the
+# whitespace-flattened combined.tok.M1).  Chain-built synth-inject
+# (sources/tools/synth-inject.c, step 44g) replaces the host awk; the awk is the
+# fallback only while bootstrapping it.
+synth_inject() {
+  if [ -x "@SYNTH_INJECT_BIN@" ]; then "@SYNTH_INJECT_BIN@" "$1"
+  else awk -f @SYNTH_INJECT@ "$1"; fi
+}
+
 process_symbol_file() {
   # Update the global defined/unresolved symbol sets with one member's symbols,
   # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
@@ -593,7 +602,7 @@ done
 # per line keeps the awk streaming at ~3 MB; synth-inject already emits one token
 # per line, so m1-to-hex2 (which tokenises on whitespace) sees identical input.
 if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
-   && awk -f @SYNTH_INJECT@ "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
+   && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
   mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
 fi
 rm -f "$tmp/combined.tok.M1"
