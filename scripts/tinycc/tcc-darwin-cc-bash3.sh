@@ -232,6 +232,20 @@ resolve_libraries() {
   done
 }
 
+# Split a combined M1 stream into its code (before :ELF_data) or data (after)
+# section, dropping the :ELF_data/:HEX2_data marker lines.  The chain-built
+# m1-split (sources/tools/m1-split.c, step 44c) replaces the host awk; the awk
+# fallback runs only while m1-split itself is being bootstrapped (its binary not
+# yet present) — once built, every gcc-link split goes through chain-built C.
+m1_split_code() {
+  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --code < "$1"
+  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$1"; fi
+}
+m1_split_data() {
+  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --data < "$1"
+  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$1"; fi
+}
+
 process_symbol_file() {
   # Update the global defined/unresolved symbol sets with one member's symbols,
   # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
@@ -318,8 +332,8 @@ add_selected_archive_member() {
   if [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; then
     if mkdir "$cache_dir/member-$member_index.lock" 2>/dev/null; then
       @ELF_TO_M1@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
-      awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
-      awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
+      m1_split_code "$m1" > "$cache_dir/code/member-$member_index.M1"
+      m1_split_data "$m1" > "$cache_dir/data/member-$member_index.M1"
       rm -f "$m1"
       rmdir "$cache_dir/member-$member_index.lock"
     else
@@ -500,8 +514,8 @@ object_index=0
 for object in "${objects[@]}"; do
   m1="$tmp/object-$object_index.M1"
   @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
+  m1_split_code "$m1" > "$tmp/object-$object_index.code.M1"
+  m1_split_data "$m1" > "$tmp/object-$object_index.data.M1"
   code_files+=("$tmp/object-$object_index.code.M1")
   data_files+=("$tmp/object-$object_index.data.M1")
   object_index=$((object_index + 1))
@@ -511,11 +525,11 @@ done
   cat @CRT1@
   cat @SYSCALLS@
   for file in "${code_files[@]}"; do cat "$file"; done
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' @LIBC_M1@
+  m1_split_code @LIBC_M1@
   echo ':ELF_data'
   echo ':HEX2_data'
   for file in "${data_files[@]}"; do cat "$file"; done
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
+  m1_split_data @LIBC_M1@
   # C++ static-init array: gcc (configured x86_64-apple-darwin) registers each
   # TU's global-constructor entry point `<prefix>_GLOBAL__sub_I_<name>` via a
   # Mach-O `.mod_init_func` pointer that the as-filter/tcc chain drops, so the
