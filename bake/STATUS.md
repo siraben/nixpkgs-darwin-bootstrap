@@ -88,9 +88,14 @@ surfaced three from-seed-compiler bugs, each worked around (not yet root-fixed):
   `specs` file was present.)
 - **cc1 segfaults at -O1/-O2** compiling the overflow-checked arithmetic routines
   (e.g. `_mulvdi3`) — libgcc is built at -O0.
-- **cc1 emits malformed TLS assembly** (`...@gottpof`, should be `@GOTTPOFF`) that
-  the system `as` rejects — this blocks `_eprintf` (a non-essential assert helper
-  touching the `stderr` TLS), which is excluded.
+- **cc1 emits corrupted TLS assembly** that the system `as` rejects — this blocks
+  `_eprintf` (a non-essential assert helper touching the `stderr` TLS), which is
+  excluded.  Localized (2026-06-04): for `__thread` access cc1 emits a *binary*
+  `.s` with `movq ___emutls_v.x(%rip)\x00@gottpof, %rax` — a NUL byte injected and
+  `@gottpoff` truncated by one char.  Two layers: (a) it wrongly takes the native
+  ELF `@gottpoff` path for an *emutls* variable (Darwin should reference the var
+  plainly), and (b) the string is corrupted — a runtime miscompile in cc1's i386
+  operand printer (`gcc/config/i386/i386.c` ~11806-11825), not a source bug.
 
 The EH/unwind `libgcc_eh` is the one remaining stub (its `unwind-dw2.c` needs
 `<pthread.h>`); C programs (the goal) need only the core `-lgcc`.
