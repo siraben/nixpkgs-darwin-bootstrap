@@ -68,8 +68,11 @@ the gcc-link translation path): pre-tcc Mes/stage0 M1-split awk in the early
 steps (21/25/26/27/31/33/35/36/38/40/42 — before the C compiler exists); the
 system `as`/`ld` used by the from-seed `xgcc` for all target codegen (the chain
 has no native Mach-O assembler/exe-linker); the EH/unwind `libgcc_eh` stub (needs
-`<pthread.h>`, absent from the chain `--sysroot`); chain libc `mkstemp` (the
-`make -f -` stdin-`</dev/null` workaround); SHA256-pinned upstream tarballs.
+`<pthread.h>` + the cc1 TLS-asm fix); SHA256-pinned upstream tarballs.  (The
+`build.sh` stdin-`</dev/null` is **not** an impurity — running a build step with
+stdin closed is standard hygiene; it only makes a `make -f -` configure probe
+fail fast.  A chain-libc `mkstemp` would let `make -f -` work but is optional
+completeness, not a faithfulness issue.)
 
 ### Real core libgcc.a (2026-06-04)
 
