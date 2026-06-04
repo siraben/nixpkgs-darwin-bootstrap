@@ -142,7 +142,7 @@ materialize_one_quote_header_dir() {
   [ "$abs_dir" = "$PWD" ] && return 0
 
   mkdir -p .tcc-darwin-header-stamps
-  key="$(printf '%s\n' "$abs_dir" | cksum | awk '{ print $1 "-" $2 }')"
+  key="$(printf '%s\n' "$abs_dir" | cksum | { read -r _c _b _; printf '%s-%s' "$_c" "$_b"; })"
   stamp_dir=".tcc-darwin-header-stamps/$key"
   if [ -f "$stamp_dir/.complete" ]; then
     return 0
@@ -400,7 +400,7 @@ add_archive_m1_files() {
   local cache_root cache_key cache_dir checksum prefix_key member_index member_name symbols
   cache_root="${TCC_DARWIN_CACHE_DIR:-$PWD/.tcc-darwin-archive-cache}"
   mkdir -p "$cache_root"
-  checksum="$(cksum "$archive" | awk '{ print $1 "-" $2 }')"
+  checksum="$(cksum "$archive" | { read -r _c _b _; printf '%s-%s' "$_c" "$_b"; })"
   cache_key="$(basename "$archive" | sed 's/[^A-Za-z0-9_.-]/_/g')-$checksum-resolve-v3"
   cache_dir="$cache_root/$cache_key"
   prefix_key="$(printf '%s' "$checksum" | tr -c 'A-Za-z0-9_' '_')"
