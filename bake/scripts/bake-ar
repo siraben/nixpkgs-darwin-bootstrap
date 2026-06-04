@@ -1,5 +1,14 @@
 #!/bin/sh
-## Shim: ELF-capable `ar` for the bake gcc build.  Apple's /usr/bin/ar
-## refuses non-Mach-O members; bake-ar.py stores ELF objects verbatim.
+## bake-ar — ELF-capable `ar` for the bake gcc build.  Apple's /usr/bin/ar
+## refuses non-Mach-O members; this stores ELF objects verbatim (4.4BSD ar).
+##
+## The implementation is the CHAIN-BUILT binary at $TARGET/bin/bake-ar, compiled
+## from sources/tools/bake-ar.c by tcc-darwin-cc in step 44b — no host tools.
+## This shim only resolves $TARGET and forwards.
 d=$(cd "$(dirname "$0")" && pwd)
-exec /usr/bin/python3 "$d/bake-ar.py" "$@"
+TARGET="${TARGET:-$(cd "$d/../target" && pwd)}"
+[ -x "$TARGET/bin/bake-ar" ] || {
+  echo "bake-ar: $TARGET/bin/bake-ar not built (run step 44b first)" >&2
+  exit 1
+}
+exec "$TARGET/bin/bake-ar" "$@"
