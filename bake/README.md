@@ -98,9 +98,11 @@ tools' M2libc heap is sized (4 GB) to hold it.
 to make the manual build reproduce from scratch.  Acknowledged remaining
 impurities (documented, outside the gcc link translation path):
 
-- the step-55 stub `libgcc`/`libemutls` archives + the system `ld` used for the
-  final goal-test executable (a real `-O1` libgcc built by the from-seed `xgcc`
-  is the planned replacement);
+- the from-seed `xgcc`'s use of the system `as`/`ld` for target codegen, and the
+  remaining EH/unwind `libgcc_eh` stub (its `unwind-dw2.c` needs `<pthread.h>`,
+  absent from the chain sysroot).  The **core** `libgcc.a` (arithmetic /
+  soft-float) is now a real archive built by the from-seed `xgcc`
+  (`scripts/gcc10-build-libgcc.sh`), not a stub;
 - the pre-`tcc-darwin-cc` Mes/stage0 M1 section-split helpers (host awk, in the
   steps that run before the C compiler exists);
 - chain libc `mkstemp` (the build runs each step with stdin `</dev/null` so

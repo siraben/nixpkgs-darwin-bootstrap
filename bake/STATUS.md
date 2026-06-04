@@ -66,9 +66,34 @@ gcc-4.6 libgcc selection routes through tsv-col. See bake/REVIEW.md for the code
 audit + round-2 verdict. Acknowledged remaining impurities (documented, not in
 the gcc-link translation path): pre-tcc Mes/stage0 M1-split awk in the early
 steps (21/25/26/27/31/33/35/36/38/40/42 — before the C compiler exists); the
-step-55 stub libgcc + system `ld` for the final goal-test executable (a real -O1
-libgcc is env-blocked on a disk-full host); chain libc `mkstemp` (the `make -f -`
-stdin-`</dev/null` workaround); SHA256-pinned upstream tarballs.
+system `as`/`ld` used by the from-seed `xgcc` for all target codegen (the chain
+has no native Mach-O assembler/exe-linker); the EH/unwind `libgcc_eh` stub (needs
+`<pthread.h>`, absent from the chain `--sysroot`); chain libc `mkstemp` (the
+`make -f -` stdin-`</dev/null` workaround); SHA256-pinned upstream tarballs.
+
+### Real core libgcc.a (2026-06-04)
+
+The step-55 empty stub `libgcc.a` is replaced by a **real** archive (146 Mach-O
+members — `__divdi3`, `__udivdi3`, `__divtf3`, `__multf3`, the soft-float and
+`__int`/`__float` conversion routines, etc.) compiled by the from-seed `xgcc`
+itself (`scripts/gcc10-build-libgcc.sh`).  Verified: the goal test still returns
+7, and a `__float128` program (needs `__divtf3`/`__multf3`) links against the
+real libgcc but **fails to link** against the symbol-less stub.  Building it
+surfaced three from-seed-compiler bugs, each worked around (not yet root-fixed):
+
+- **xgcc driver segfaults reading any external `specs` file** (a `read_specs`
+  bug) — even an empty one or its own byte-identical `-dumpspecs`.  The built-in
+  specs are used when no file is present, so the `specs` make target is
+  neutralised to emit no file.  (The goal test passed all along only because no
+  `specs` file was present.)
+- **cc1 segfaults at -O1/-O2** compiling the overflow-checked arithmetic routines
+  (e.g. `_mulvdi3`) — libgcc is built at -O0.
+- **cc1 emits malformed TLS assembly** (`...@gottpof`, should be `@GOTTPOFF`) that
+  the system `as` rejects — this blocks `_eprintf` (a non-essential assert helper
+  touching the `stderr` TLS), which is excluded.
+
+The EH/unwind `libgcc_eh` is the one remaining stub (its `unwind-dw2.c` needs
+`<pthread.h>`); C programs (the goal) need only the core `-lgcc`.
 
 ## ✅ gcc-10 cc1 + xgcc from the seed (2026-06-02)
 

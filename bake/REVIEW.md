@@ -26,8 +26,12 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
   Lower priority (pre-compiler stages).
 - #3 tcc-cpp/gxx-cpp hardcoded ../target — FIXED (bcba3cf, honour $TARGET).
 - #4 archive cache outside TARGET — FIXED (bcba3cf, under $TARGET/work).
-- #5 step 55 host-compiled stub libgcc/emutls — OPEN (build real -O1 libgcc with
-  the from-seed xgcc; xgcc now links & runs, so this is unblocked).
+- #5 step 55 host-compiled stub libgcc/emutls — FIXED for the CORE: a real
+  libgcc.a (146 Mach-O members) is now built by the from-seed xgcc
+  (scripts/gcc10-build-libgcc.sh, at -O0, working around three from-seed-compiler
+  bugs — specs-file driver segfault, -O1 overflow-routine cc1 crash, broken TLS
+  asm). Verified a __float128 program links against it but not the stub. The
+  EH/unwind libgcc_eh stays a stub (unwind-dw2.c needs <pthread.h>).
 - #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, bake-ar).
 - #7 phase37-driver.sh dormant host as/cc hatches — FIXED (be25b5b, default empty
   so the macho/host-source guards refuse unless explicitly opted in).
