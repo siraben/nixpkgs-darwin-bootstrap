@@ -63,10 +63,10 @@ Remaining (acknowledged, not host *translation* in the gcc link path):
   `tcc-darwin-cc` at step 44 — which is exactly why the post-44 splitter
   (`m1-split.c`) IS chain-built and these are not. A replacement binary cannot
   exist before the very libc+compiler toolchain it would be compiled with.
-- step-55 stub libgcc/emutls (host cc + ar) for the goal-test exe + system ld:
-  acknowledged impurity; a real -O1 libgcc build with the from-seed xgcc is the
-  planned replacement (now unblocked — xgcc links & runs). System ld is the sole
-  native-exe-link escape hatch.
+- step-55 libgcc: the CORE libgcc.a is now a REAL archive built by the from-seed
+  xgcc (scripts/gcc10-build-libgcc.sh); only libgcc_eh/libgcc_s/libemutls_w remain
+  host-cc stubs (EH/unwind needs pthread.h + the TLS-asm cc1 fix). System ld is
+  the sole native-exe-link escape hatch.
 - SHA256-pinned source tarballs: source-trust, not host semantic translation.
 
 Net: the "post-44 gcc link path uses chain-built link machinery, no host semantic
@@ -75,7 +75,12 @@ translation" claim holds; the absolute "no host tools anywhere" claim does not
 
 ---
 
-**Ranked Findings**
+**Ranked Findings** — _this is the ORIGINAL codex audit, kept verbatim as a
+snapshot.  Most items have since been resolved; read each against the fix-status
+at the top of this file.  In particular: #1 (host awk/sed in the link path) is
+FIXED (the six chain-built C tools, steps 44b–44g); #2 (pre-44 Mes/TCC M1 splits)
+is an ACCEPTED bounded impurity (see the analysis above — mechanical partitioning
++ bootstrap ordering); #3/#4/#6 are FIXED; #5 (stub libgcc) is FIXED for the core._
 
 1. **Critical: host `awk`/`sed` are still active linker machinery in `tcc-darwin-cc`. Violation.**  
    Active install comes from [44-tinycc-darwin-cc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/44-tinycc-darwin-cc.sh:41). The wrapper uses host `awk` to update defined/unresolved symbol sets for archive selection at [tcc-darwin-cc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:260), [line 261](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:261), and [line 315](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:315). That decides which archive members enter the final binary. Host `grep|sed|awk` emits the C++ constructor table at [line 541](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:541), which is load-bearing for GCC-10 C++ build tools. Host `awk -f synth-inject.awk` injects missing cross-object labels at [line 563](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:563); the awk program itself says it computes and inserts labels needed for `hex2` resolution at [synth-inject.awk](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/synth-inject.awk:1). Host `sed` parses linker metadata at [line 576](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:576), and host `awk` generates the per-link Mach-O load-command template at [line 596](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:596).  
@@ -93,7 +98,7 @@ translation" claim holds; the absolute "no host tools anywhere" claim does not
    [gcc10-env.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/scripts/gcc10-env.sh:25) defaults `TCC_DARWIN_CACHE_DIR` to `$ROOT/.tcc-darwin-archive-cache`, not the clean target tree. The wrapper trusts `.prepared` caches at [tcc-darwin-cc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:284). A clean `TARGET` rebuild can therefore reuse stale or corrupt symbol/member data from a previous run.  
    Suggested fix: put the cache under `$TARGET/work/...`, or rebuild/validate cache contents every run.
 
-5. **High: step 55 creates host-compiled Mach-O stub libgcc/emutls archives. Acknowledged violation, scoped late.**  
+5. **High: step 55 creates host-compiled Mach-O stub libgcc/emutls archives. [FIXED for the CORE — see fix-status #5 above: real libgcc.a now built by the from-seed xgcc; only libgcc_eh/libgcc_s/libemutls_w remain stubs.]**  
    [55-gcc10-all-gcc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/55-gcc10-all-gcc.sh:55) calls this a temporary impurity. It writes C, compiles it with `/usr/bin/cc`, then archives it with `/usr/bin/ar` at [line 68](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/55-gcc10-all-gcc.sh:68), [line 69](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/55-gcc10-all-gcc.sh:69), and [line 72](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/55-gcc10-all-gcc.sh:72). This does not build `cc1`/`xgcc`, but it is used by the final `xgcc hello.c -o hello` goal link. The goal test also relies on SDK/system linking at [gcc10-goal-test.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/scripts/gcc10-goal-test.sh:27).  
    Suggested fix: build real `libgcc`, `libgcc_eh`, `libgcc_s`, and `libemutls_w` with chain-built `xgcc`, then keep system `ld` as the only explicit final-executable escape hatch.
 
