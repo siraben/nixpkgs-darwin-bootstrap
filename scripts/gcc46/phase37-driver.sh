@@ -595,12 +595,20 @@ normalize_symbols() {
   comm -23 "\$tmpdir/unresolved.all" "\$tmpdir/defined.sorted" > "\$tmpdir/unresolved.sorted"
 }
 
+# Extract column 2 of a D/U symbol TSV (\$1 = D|U, \$2 = file).  Prefer the
+# chain-built tsv-col (sources/tools/tsv-col.c, on PATH as \$TARGET/bin once
+# step 44d ran) over host awk for this libgcc symbol selection.
+dusym() {
+  if command -v tsv-col >/dev/null 2>&1; then tsv-col "\$1" < "\$2"
+  else awk -F '\t' -v t="\$1" '\$1 == t { print \$2 }' "\$2"; fi
+}
+
 add_object_symbols() {
   local object="\$1"
   local symbols="\$tmpdir/symbols-\${object##*/}.tsv"
   "\$elf_to_m1" --symbols "\$object" 2>/dev/null | sort -u > "\$symbols"
-  awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbols" >> "\$tmpdir/defined.raw"
-  awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbols" >> "\$tmpdir/unresolved.raw"
+  dusym D "\$symbols" >> "\$tmpdir/defined.raw"
+  dusym U "\$symbols" >> "\$tmpdir/unresolved.raw"
   normalize_symbols
 }
 
@@ -629,13 +637,13 @@ select_libgcc_objects() {
       member_object="\$libgcc_objects/\$member_name"
       grep -qxF "\$member_object" "\$tmpdir/selected-libgcc.list" 2>/dev/null && continue
 
-      awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbol_file" | sort -u > "\$tmpdir/member-defs.sorted"
+      dusym D "\$symbol_file" | sort -u > "\$tmpdir/member-defs.sorted"
       needed_defs="\$(comm -12 "\$tmpdir/member-defs.sorted" "\$tmpdir/unresolved.sorted" | head -1 || true)"
       if [ -n "\$needed_defs" ]; then
         selected_libgcc_objects+=("\$member_object")
         printf '%s\n' "\$member_object" >> "\$tmpdir/selected-libgcc.list"
-        awk -F '\t' '\$1 == "D" { print \$2 }' "\$symbol_file" >> "\$tmpdir/defined.raw"
-        awk -F '\t' '\$1 == "U" { print \$2 }' "\$symbol_file" >> "\$tmpdir/unresolved.raw"
+        dusym D "\$symbol_file" >> "\$tmpdir/defined.raw"
+        dusym U "\$symbol_file" >> "\$tmpdir/unresolved.raw"
         normalize_symbols
         changed=1
       fi
