@@ -8,8 +8,15 @@
 ##
 ## Trust anchors:
 ##   - seed/hex0-amd64-darwin       (4 KB Mach-O committed bytes)
-##   - sources/*                    (auditable text)
-##   - /usr/bin/sh and POSIX utils  (Apple-signed system components)
+##   - sources/*                    (committed auditable text: stage0-posix,
+##                                   the hand-written tools, patches, scripts)
+##   - tarballs/*                   (upstream mes/gcc-4.6/gcc-10 release tarballs,
+##                                   NOT committed — fetched by scripts/fetch-
+##                                   sources.sh against pinned SHA-256 hashes)
+##   - /usr/bin/sh and POSIX utils  (Apple-signed system components: sh, make,
+##                                   tar, cp, nm, system cc/ld for the final
+##                                   goal-test exe link — the chain has no native
+##                                   Mach-O exe linker)
 ##   - Darwin kernel + /usr/lib/dyld
 set -eu
 

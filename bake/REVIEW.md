@@ -4,14 +4,33 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 
 ## Fix status (as of HEAD)
 
-- #1 host-awk linker machinery in tcc-darwin-cc — PARTIAL: M1 code/data splitter ported to chain-C (m1-split.c, 273a3f2); bake-ar ported (9ad4a83); @AR@ extraction now bake-ar (bcba3cf). STILL host-awk: symbol-set TSV ops, C++ ctor table, synth-inject.awk, Mach-O load-cmd template.
-- #2 early Mes/TCC steps (21/25/26/27/42) also split M1 with host awk — TODO (use a chain-built splitter; chicken-and-egg: needs a splitter buildable before those steps).
+- #1 host-awk linker machinery in tcc-darwin-cc — DONE: every host tool in the
+  active link path is now chain-built C (compiled by tcc-darwin-cc in a 44X step,
+  @PLACEHOLDER@ + wrapper helper; awk/host fallback runs ONLY while the tool
+  itself bootstraps): bake-ar (44b, 9ad4a83); m1-split :ELF_data/:HEX2_data
+  splitter (44c, 273a3f2); tsv-col symbol-set TSV extractor (44d, 15b5d65);
+  ctor-table C++ GLOBAL__sub_I init table (44e, 664ee8c); line-rewrite Mach-O
+  load-command template (44f, b4f1fe2); synth-inject cross-object `_plus_<hex>`
+  injector (44g, e7b43af). @AR@ extraction = bake-ar (bcba3cf). Each verified
+  byte-identical to its predecessor. A full cc1 relink with the de-awk'd wrapper
+  ran synth-inject.c CLEAN (no error, link reached the hex2 stage); it could not
+  COMPLETE only because the host is disk-99%-full / memory-tight (jetsam SIGKILL
+  at hex2 — environmental, not a code bug). Remaining wrapper host text-tools: a
+  `cksum|awk '{print $1"-"$2}'` cache-key formatter (benign, not translation) and
+  the intentional bootstrap fallbacks.
+- #2 early Mes/TCC steps (21/25/26/27/42) split M1 with host awk — TODO: they run
+  BEFORE tcc-darwin-cc exists so the chain m1-split can't be used; build a
+  splitter with an earlier chain cc (mescc/tcc) or document as pre-cc bootstrap.
+  Lower priority (pre-compiler stages).
 - #3 tcc-cpp/gxx-cpp hardcoded ../target — FIXED (bcba3cf, honour $TARGET).
 - #4 archive cache outside TARGET — FIXED (bcba3cf, under $TARGET/work).
-- #5 step 55 host-compiled stub libgcc/emutls — OPEN (build real -O1 libgcc with xgcc).
+- #5 step 55 host-compiled stub libgcc/emutls — OPEN (build real -O1 libgcc with
+  xgcc; blocked here by the host being disk/memory-constrained for the build).
 - #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, bake-ar).
-- #7 phase37-driver.sh dormant host as/cc hatches — TODO (quarantine/refuse in bake mode).
-- #8 tarballs fetched not committed (SHA256-pinned) — acceptable; soften the "text sources only" wording.
+- #7 phase37-driver.sh dormant host as/cc hatches — FIXED (be25b5b, default empty
+  so the macho/host-source guards refuse unless explicitly opted in).
+- #8 tarballs fetched not committed (SHA256-pinned) — acceptable; soften the
+  "text sources only" wording (TODO in STATUS.md/README).
 
 ---
 
