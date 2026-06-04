@@ -1,86 +1,100 @@
 # Darwin bootstrap, no Nix
 
-A pure-shell, no-Nix, no-bootstrap-tools driver for the Darwin Mach-O
-bootstrap chain.  Models live-bootstrap-bake's structure:
+A pure-shell, no-Nix, no-bootstrap-tools driver for the Darwin (x86-64 Mach-O,
+run under Rosetta 2 on Apple Silicon) bootstrap chain.  Modelled on
+live-bootstrap's structure, it rebuilds the whole toolchain from a single 4 KB
+committed seed:
 
-> `hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2 →
->  blood-elf → M1-0 → hex2-1 → M1 → hex2-linker → kaem → mes-m2 →
->  tinycc → bash → gcc-4.6 → gcc-10 → gcc-latest`
+```
+hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc_arch → M2-Planet
+  → blood-elf → M1 → hex2 (linker) → kaem
+  → mes → mescc-libc → tinycc → tcc-darwin-cc   (native Darwin C compiler)
+  → GNU Make
+  → gcc-4.6 (incl. C++ / libstdc++)
+  → gcc-10  →  cc1 + xgcc that compile & run C
+```
+
+`sh build.sh` runs the ordered `steps/*.sh` end to end.  A clean from-seed run
+into a scratch tree reaches a working gcc-10 `cc1` + `xgcc`;
+`scripts/gcc10-goal-test.sh` compiles and runs a C program through the from-seed
+`xgcc` and checks it returns 7.
 
 ## Layout
 
 ```
 bake/
-├── seed/
-│   └── hex0-amd64-darwin              # 4 KB Mach-O trust anchor
-├── sources/                           # auditable text sources
-│   ├── *.hex0 / *.hex2                # hand-rolled stage0 source (symlinks)
-│   └── stage0-posix/                  # vendored from oriansj/stage0-posix-1.9.1
-│       ├── M2-Planet/                 #   cc.c + cc_*.c (~250 KB)
-│       ├── M2libc/                    #   bootstrappable, fcntl, ctype, etc.
-│       └── mescc-tools/               #   blood-elf, M1-macro, hex2*, Kaem/
-├── steps/                             # ordered shell scripts
-│   ├── 01-hex0.sh ... 14-kaem.sh
-├── target/                            # outputs (gitignored)
-│   └── bin/
-└── build.sh                           # driver
+├── seed/hex0-amd64-darwin    # 4 KB Mach-O trust anchor (the one opaque blob)
+├── sources/                  # auditable text sources
+│   ├── stage0-posix/         #   vendored oriansj/stage0-posix-1.9.1
+│   ├── tcc-darwin/           #   the tcc-darwin-cc link wrapper (template) + headers
+│   ├── tools/                #   chain-built C helpers: bake-ar.c, m1-split.c,
+│   │                         #     tsv-col.c, ctor-table.c, line-rewrite.c,
+│   │                         #     synth-inject.c, elf64-to-m1.M1
+│   ├── gcc10-darwin/, gcc46-*/, gnumake/, ...
+│   └── tools/elf64-to-m1.M1  #   hand-written ELF→M1 converter
+├── steps/                    # ordered build scripts: 01-hex0 … 55-gcc10-all-gcc
+│                             #   (44b–44g build the chain-built C link tools)
+├── scripts/                  # gcc10-env.sh, gcc10-link-cc1.sh, goal test, bake-ar shim
+├── tarballs/                 # upstream mes/gcc tarballs (gitignored, SHA-256 pinned)
+├── target/                   # build outputs (gitignored)
+└── build.sh                  # driver (supports TARGET=, BAKE_START_FROM=, BAKE_STOP_AFTER=)
 ```
 
-## Status (phases 1-11 of the Darwin chain)
+## The chain-built link path (no host awk)
 
-| # | Step | Binary | Built by |
-|---|---|---|---|
-| 01 | 01-hex0.sh | hex0 | seed (self-host) |
-| 02 | 02-hex1.sh | hex1-darwin | hex0 |
-| 03 | 03-hex2.sh | hex2-darwin | hex0 |
-| 04 | 04-catm.sh | catm-darwin | hex2 |
-| 05 | 05-m0.sh | M0-darwin | hex2 |
-| 06 | 06-macho-patcher-early.sh | macho-patcher | hex2 |
-| 07 | 07-cc-arch.sh | cc_arch-darwin | hex0 (final form) |
-| 08 | 08-m2.sh | M2-darwin | catm + cc_arch + M0 + hex2 + patcher |
-| 09 | 09-blood-elf-macho.sh | blood-macho-0 | M2 + catm + M0 + hex2 + patcher |
-| 10 | 10-m1-0.sh | M1-0 | M2 + catm + M0 + hex2 + patcher |
-| 11 | 11-hex2-1.sh | hex2-1 | M2 + M1-0 + catm + hex2 + patcher |
-| 12 | 12-m1.sh | M1 | M2 + M1-0 + hex2-1 + patcher |
-| 13 | 13-hex2-linker.sh | hex2 (final) | M2 + M1 + hex2-1 + patcher |
-| 14 | 14-kaem.sh | kaem | M2 + M1 + hex2 + patcher |
+`tcc-darwin-cc` (the native Darwin C compiler/linker wrapper) drives a
+tcc → as-filter → ELF→M1 → M1 → hex2 pipeline.  Every host tool that once did
+semantically-significant work in that pipeline has been ported to C compiled by
+`tcc-darwin-cc` itself (built in steps 44b–44g, each verified byte-identical to
+the tool it replaced):
 
-All 14 produce working Mach-O binaries with `--help` output matching
-the Nix-built versions; functional outputs for the same inputs match
-byte-for-byte where verified.
+| Tool | Step | Replaces |
+|---|---|---|
+| `bake-ar` | 44b | host python3 `ar` (stores ELF members verbatim) |
+| `m1-split` | 44c | awk `:ELF_data`/`:HEX2_data` code/data splitter |
+| `tsv-col` | 44d | awk D/U symbol-set extractor (archive resolution) |
+| `ctor-table` | 44e | grep\|sed\|awk C++ `_GLOBAL__sub_I` init-table emitter |
+| `line-rewrite` | 44f | awk Mach-O load-command template rewriter |
+| `synth-inject` | 44g | awk cross-object `:<sym>_plus_<hex>` label injector |
+
+See [`REVIEW.md`](REVIEW.md) for the codex faithfulness audit and the full
+fix-status.
 
 ## Trust anchors
 
 1. `seed/hex0-amd64-darwin` (4096 bytes) — the one opaque binary blob.
-2. `sources/*.hex0` and `*.hex2` — hand-rolled, auditable.
-3. `sources/stage0-posix/` — vendored snapshot of upstream
-   oriansj/stage0-posix-1.9.1 sources (hash
-   `UNoyb2teqH26VM7YoOcazyqZ0AlDae045aWc31ZHFdw=`).
-4. `/bin/sh`, `/bin/cmp`, `/bin/cp`, `/usr/bin/dd`, `/usr/bin/grep` —
-   Apple-signed system utilities (no nixpkgs, no Homebrew).
+2. `sources/*` — committed, auditable text: stage0-posix, the hand-written
+   tools, the link wrapper, patches, and step scripts.
+3. `tarballs/*` — upstream mes / gcc-4.6 / gcc-10 release tarballs, *not*
+   committed: fetched by `scripts/fetch-sources.sh` against pinned SHA-256s.
+4. `/bin/sh` + POSIX utilities (Apple-signed): `sh`, `make`, `tar`, `cp`, `cmp`,
+   `dd`, `grep`, and the system `cc`/`ld` for the final goal-test executable link
+   (the chain has no native Mach-O executable linker — this is the sole
+   final-link escape hatch).
 5. Darwin kernel + `/usr/lib/dyld`.
-
-Once `kaem` is built (step 14), `build.sh` could be rewritten as a
-kaem script and `/bin/sh` would no longer be in the orchestration
-trust path.  That's a near-term cleanup.
 
 ## Running
 
 ```sh
-./build.sh
+sh build.sh                                   # full chain into bake/target
+TARGET=/tmp/verify sh build.sh                # into a scratch tree
+TARGET=/tmp/verify sh scripts/gcc10-goal-test.sh   # check xgcc compiles+runs C → 7
 ```
 
-Builds all 14 phases into `target/bin/`.  Takes ~30 minutes on a
-2023 MacBook Pro, dominated by hex0 chewing through 80+ MB of zero
-padding in early phases and M2 compiling C sources in later phases.
+The gcc-10 phase is long: `cc1plus` runs x86-64 under Rosetta 2.  The final cc1
+link is the single largest operation (a ~335 MB combined M1) and is
+memory-hungry.
 
-## Next phases (not yet implemented)
+## Status & remaining impurities
 
-- mes-m2 (phase 16) — bigger build, ~10-20 MB output
-- mescc-libc (phases 17-22) — .M1 archives
-- tinycc bootstrap chain (phases 23-38) — multiple boot stages
-- gnumake, gnupatch, coreutils (phases 39-41)
-- gcc-4.6 (phases 35-37, 44)
-- gcc-10 (phase 45)
-- gcc-latest (phases 46, 47)
-- Final: gnu-hello-hash-comparison reproduces `5019a64...db2e7ff2f73`
+[`STATUS.md`](STATUS.md) has the detailed log and the list of repro bugs fixed
+to make the manual build reproduce from scratch.  Acknowledged remaining
+impurities (documented, outside the gcc link translation path):
+
+- the step-55 stub `libgcc`/`libemutls` archives + the system `ld` used for the
+  final goal-test executable (a real `-O1` libgcc built by the from-seed `xgcc`
+  is the planned replacement);
+- the pre-`tcc-darwin-cc` Mes/stage0 M1 section-split helpers (host awk, in the
+  steps that run before the C compiler exists);
+- chain libc `mkstemp` (the build runs each step with stdin `</dev/null` so
+  `configure`'s `make -f -` probe fails fast instead of hanging).

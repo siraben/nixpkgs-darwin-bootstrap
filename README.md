@@ -3,7 +3,24 @@
 Standalone Darwin minimal-bootstrap experiments for reproducing the Linux
 `minimal-bootstrap` stage0/M2-Planet/MesCC path as a Darwin Mach-O chain.
 
-## Current state
+The repo has **two parallel tracks**:
+
+- **`bake/` — the no-Nix, from-seed chain** (the primary result). A single
+  `sh bake/build.sh` rebuilds the entire toolchain from a committed **4 KB
+  `bake/seed/hex0-amd64-darwin` Mach-O seed** + auditable text sources +
+  Apple's `/bin/sh`, with no Nix and no prebuilt clang/gcc/as/ld for code
+  translation, all the way to a working **gcc-10 `cc1` + `xgcc`** that compile
+  and run C. See [`bake/README.md`](bake/README.md), [`bake/STATUS.md`](bake/STATUS.md),
+  and [`bake/REVIEW.md`](bake/REVIEW.md) (a codex faithfulness audit). Every host
+  tool that did translation / symbol-resolution / binary-layout in the link path
+  has been ported to chain-built C (`bake/sources/tools/*.c`, steps 44b–44g), so
+  the gcc link path is host-awk-free.
+
+- **The Nix track** (the flake + the per-package top-level directories). The
+  Nixified chain reaches a strict self-hosted modern GCC handoff and verifies a
+  `gnu-hello-hash-comparison` baseline — described below.
+
+## Current state (Nix track)
 
 The active, runnable bootstrap path is `x86_64-darwin`/amd64.  The Nixified
 chain reaches a strict self-hosted modern GCC handoff whose GCC source version
