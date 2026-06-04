@@ -57,6 +57,7 @@ sed -i.bak \
     -e "s|@LIBC_M1@|$out/share/tinycc-sysv-libc.M1|g" \
     -e "s|@SYNTH_INJECT@|$out/share/synth-inject.awk|g" \
     -e "s|@M1_SPLIT@|$TARGET/bin/m1-split|g" \
+    -e "s|@TSV_COL@|$TARGET/bin/tsv-col|g" \
     -e '/^source @SIGNING@$/d' \
     -e '/^sign "\$out"$/d' \
     "$out/bin/tcc-darwin-cc"

@@ -246,6 +246,14 @@ m1_split_data() {
   else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$1"; fi
 }
 
+# Extract column 2 of a D/U symbol TSV ($1 = D|U tag, $2 = file).  Chain-built
+# tsv-col (sources/tools/tsv-col.c, step 44d) replaces host awk; awk fallback
+# only while bootstrapping tsv-col.  Output is piped to `sort -u` by callers.
+tsv_col() {
+  if [ -x "@TSV_COL@" ]; then "@TSV_COL@" "$1" < "$2"
+  else awk -F'\t' -v t="$1" '$1 == t && $2 != "" { print $2 }' "$2"; fi
+}
+
 process_symbol_file() {
   # Update the global defined/unresolved symbol sets with one member's symbols,
   # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
@@ -257,8 +265,8 @@ process_symbol_file() {
   #   unresolved := (unresolved \ memberD) ∪ (memberU \ defined_new)
   local file="$1"
   local d="$tmp/.psf_d" u="$tmp/.psf_u" t1="$tmp/.psf_t1" t2="$tmp/.psf_t2"
-  LC_ALL=C awk -F'\t' '$1 == "D" && $2 != "" { print $2 }' "$file" | LC_ALL=C sort -u > "$d"
-  LC_ALL=C awk -F'\t' '$1 == "U" && $2 != "" { print $2 }' "$file" | LC_ALL=C sort -u > "$u"
+  tsv_col D "$file" | LC_ALL=C sort -u > "$d"
+  tsv_col U "$file" | LC_ALL=C sort -u > "$u"
   LC_ALL=C sort -u "$defined_symbols_file" "$d" > "$t1"
   mv "$t1" "$defined_symbols_file"
   LC_ALL=C comm -23 "$unresolved_symbols_file" "$d" > "$t1"
@@ -312,7 +320,7 @@ archive_member_needed() {
   # by process_symbol_file.
   local symbols="$1"
   local d="$tmp/.amn_d"
-  LC_ALL=C awk -F'\t' '$1 == "D" && $2 != "" { print $2 }' "$symbols" | LC_ALL=C sort -u > "$d"
+  tsv_col D "$symbols" | LC_ALL=C sort -u > "$d"
   LC_ALL=C comm -12 "$d" "$unresolved_symbols_file" | LC_ALL=C grep -q .
 }
 
