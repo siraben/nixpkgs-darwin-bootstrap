@@ -52,24 +52,27 @@ sh "$ROOT/scripts/gcc10-relink-xgcc.sh"
 test -x "$GCC10_BUILD/gcc/cc1"  || { echo "55: cc1 not produced"  >&2; exit 1; }
 test -x "$GCC10_BUILD/gcc/xgcc" || { echo "55: xgcc not produced" >&2; exit 1; }
 
-## TEMPORARY IMPURITY — empty stub libs so the goal test (and any -lgcc link)
-## resolves.  TODO: replace with real libgcc/emutls built by this xgcc
-## (make all-target-libgcc; blocked on the -O2 cc1 crash — build libgcc at -O1).
-##
-## These feed the SYSTEM ld used for the final Mach-O executable link (the chain
-## has no native-exe linker; that is the established escape hatch in
-## gcc10-goal-test.sh), so they must be x86_64 *Mach-O* archives — a bake-ar ELF
-## archive makes ld bail with "archive member ... not a mach-o file", and macOS
-## ar will not create a memberless archive.  A single symbol-less x86_64 object
-## (built by the host cc, like the final link) gives ld a valid, empty-of-useful-
-## symbols stub; xgcc references these only for -lgcc/-lemutls_w and the test
-## program needs none of their symbols.
+## libgcc.  The CORE libgcc.a (arithmetic / soft-float routines) is now a REAL
+## archive built by the from-seed xgcc itself (scripts/gcc10-build-libgcc.sh,
+## which works around three from-seed-compiler bugs — see STATUS.md).  The
+## EH/unwind library (libgcc_eh) needs <pthread.h>, absent from the chain
+## --sysroot, so libgcc_eh / libgcc_s / libemutls_w stay symbol-less x86_64
+## Mach-O stubs (xgcc references them for -lgcc_eh/-lemutls_w but the C goal test
+## needs none of their symbols; the final exe link uses the SYSTEM ld, which
+## requires Mach-O archives — a bake-ar ELF archive or a memberless macOS-ar
+## archive would be rejected).
 stubo="$GCC10_BUILD/gcc/.bake-stub.o"
 printf 'static int _bake_stub;\n' > "$stubo.c"
 /usr/bin/cc -arch x86_64 -c "$stubo.c" -o "$stubo"
-for L in libgcc libgcc_eh libgcc_s libemutls_w; do
+for L in libgcc_eh libgcc_s libemutls_w; do
   rm -f "$GCC10_BUILD/gcc/$L.a"
   /usr/bin/ar cr "$GCC10_BUILD/gcc/$L.a" "$stubo"
 done
+## Real core libgcc.a; fall back to a stub only if the build cannot produce one.
+if ! sh "$ROOT/scripts/gcc10-build-libgcc.sh"; then
+  echo "55: real libgcc build failed; falling back to a stub libgcc.a" >&2
+  rm -f "$GCC10_BUILD/gcc/libgcc.a"
+  /usr/bin/ar cr "$GCC10_BUILD/gcc/libgcc.a" "$stubo"
+fi
 
 echo "gcc10 all-gcc done: cc1 + xgcc at $GCC10_BUILD/gcc (run scripts/gcc10-goal-test.sh to verify)"
