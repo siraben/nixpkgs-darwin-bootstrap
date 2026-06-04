@@ -199,9 +199,15 @@ void* malloc(int size)
 {
 	if(NULL == _malloc_ptr)
 	{
-			_malloc_ptr = mmap(0, 536870912, 3, 4098, -1, 0);
+			/* 4 GB heap (runtime-computed; M2-Planet truncates literals > 2^31).
+			 * Matches the brk pool in unistd.c so tools using this minimal libc
+			 * can also handle the largest links. */
+			long poolsize = 1000000000;
+			poolsize = poolsize + poolsize;
+			poolsize = poolsize + poolsize;
+			_malloc_ptr = mmap(0, poolsize, 3, 4098, -1, 0);
 			if(-1 == _malloc_ptr) return 0;
-			_malloc_end = _malloc_ptr + 536870912;
+			_malloc_end = _malloc_ptr + poolsize;
 	}
 
 	size = (size + 7) & -8;

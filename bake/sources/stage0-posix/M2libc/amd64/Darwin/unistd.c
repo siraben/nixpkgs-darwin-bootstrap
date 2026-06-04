@@ -174,9 +174,16 @@ int brk(void *addr)
 {
 	if(NULL == __darwin_brk_ptr)
 	{
-		__darwin_brk_ptr = __darwin_mmap(0, 1879048192, 3, 4098, -1, 0);
+		/* 4 GB heap.  The gcc-10 cc1 link's combined M1 (~335 MB) plus
+		 * m1-to-hex2's label/output tables overflow the old 1.79 GB pool and
+		 * malloc would silently return NULL -> the tool crashes mid-link.
+		 * Computed at runtime: M2-Planet/cc_* truncate integer literals > 2^31. */
+		long brksize = 1000000000;
+		brksize = brksize + brksize;
+		brksize = brksize + brksize;
+		__darwin_brk_ptr = __darwin_mmap(0, brksize, 3, 4098, -1, 0);
 		if(-1 == __darwin_brk_ptr) return -1;
-		__darwin_brk_end = __darwin_brk_ptr + 1879048192;
+		__darwin_brk_end = __darwin_brk_ptr + brksize;
 	}
 
 	if(NULL == addr) return __darwin_brk_ptr;
