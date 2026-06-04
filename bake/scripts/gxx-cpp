@@ -1,2 +1,6 @@
 #!/bin/sh
-exec "$(dirname "$0")/../target/gcc46-cxx/bin/g++" -E "$@"
+## Chain C++ preprocessor shim (CXXCPP).  Honour an exported $TARGET so a scratch
+## verification build (TARGET=/tmp/bake-verify) preprocesses with ITS g++, not
+## the repo's pre-existing bake/target.
+TARGET="${TARGET:-$(cd "$(dirname "$0")/../target" && pwd)}"
+exec "$TARGET/gcc46-cxx/bin/g++" -E "$@"

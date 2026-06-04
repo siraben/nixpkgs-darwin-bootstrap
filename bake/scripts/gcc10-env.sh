@@ -22,7 +22,10 @@ export GCC10_SRC GCC10_BUILD GCC10_INSTALL GCC10_SYS
 export LC_ALL=C
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export CONFIG_SITE="$ROOT/sources/gcc10-darwin/config.site"
-export TCC_DARWIN_CACHE_DIR="${TCC_DARWIN_CACHE_DIR:-$ROOT/.tcc-darwin-archive-cache}"
+# Archive-resolve symbol cache lives UNDER $TARGET so a clean/scratch build gets
+# a fresh cache — keying it at $ROOT let a TARGET=/tmp/... verify run reuse (and
+# inherit stale/flaked member TSVs from) a previous build's cache.
+export TCC_DARWIN_CACHE_DIR="${TCC_DARWIN_CACHE_DIR:-$TARGET/work/.tcc-darwin-archive-cache}"
 
 export CC="$TARGET/bin/tcc-darwin-cc"
 export CXX="$TARGET/gcc46-cxx/bin/g++"
