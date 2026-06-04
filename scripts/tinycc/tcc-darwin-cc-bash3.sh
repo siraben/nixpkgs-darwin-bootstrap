@@ -254,6 +254,21 @@ tsv_col() {
   else awk -F'\t' -v t="$1" '$1 == t && $2 != "" { print $2 }' "$2"; fi
 }
 
+# Emit the C++ global-constructor init table from the code-section M1 files.
+# Chain-built ctor-table (sources/tools/ctor-table.c, step 44e) replaces the
+# host grep|sed|awk|while pipeline; that pipeline is the awk fallback only while
+# bootstrapping ctor-table.
+emit_ctor_table() {
+  if [ -x "@CTOR_TABLE@" ]; then "@CTOR_TABLE@" "$@"
+  else
+    { grep -hoE '^:[A-Za-z0-9_.$]*_GLOBAL__sub_I[A-Za-z0-9_.$]*' "$@" 2>/dev/null || true; } \
+      | sed 's/^://' | awk '!seen[$0]++' \
+      | while IFS= read -r ctor; do
+          printf '&%s\n!0x00 !0x00 !0x00 !0x00\n' "$ctor"
+        done
+  fi
+}
+
 process_symbol_file() {
   # Update the global defined/unresolved symbol sets with one member's symbols,
   # using sorted-set operations (sort/comm) instead of a per-symbol grep loop.
@@ -546,11 +561,7 @@ done
   # /__bake_init_end; _start (crt1) walks it and calls each before main.  Pure-C
   # links emit an empty array (start==end), so the crt1 loop is a no-op.
   echo ':__bake_init_start'
-  { grep -hoE '^:[A-Za-z0-9_.$]*_GLOBAL__sub_I[A-Za-z0-9_.$]*' "${code_files[@]}" 2>/dev/null || true; } \
-    | sed 's/^://' | awk '!seen[$0]++' \
-    | while IFS= read -r ctor; do
-        printf '&%s\n!0x00 !0x00 !0x00 !0x00\n' "$ctor"
-      done
+  emit_ctor_table "${code_files[@]}"
   echo ':__bake_init_end'
 } > "$tmp/combined.M1"
 
