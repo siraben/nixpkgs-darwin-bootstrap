@@ -506,6 +506,14 @@ done
   echo ':HEX2_data'
   for file in "${data_files[@]}"; do cat "$file"; done
   awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
+  # C++ static-init array brackets. crt1-tcc-sysv.M1 references __bake_init_start
+  # /__bake_init_end and walks [start,end) calling each ctor before main. This
+  # wrapper compiles only C (no global constructors), so emit an EMPTY array
+  # (start == end → the crt1 loop is a no-op). Without these labels the link
+  # fails "Target label __bake_init_start is not valid": crt1 added the
+  # references in commit b016ef9 (the bake bash3 wrapper emits a real array).
+  echo ':__bake_init_start'
+  echo ':__bake_init_end'
 } > "$tmp/combined.M1"
 
 # Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text
