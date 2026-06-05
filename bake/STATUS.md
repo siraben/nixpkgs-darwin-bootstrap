@@ -56,11 +56,18 @@ Step ordering matters: 52b (libstdc++) precedes 54 (gcc-10 configure) so the
 member TSVs when the disk/`/tmp` is near-full during prep (writes truncate);
 keep headroom (a clean `sh build.sh` re-preps fine with space).
 
-## Clean-clean from-seed audit (2026-06-04, `TARGET=/tmp/bake-verify2`)
+## Clean-clean from-seed audit (2026-06-04/05, `TARGET=/tmp/bake-verify2`)
+
+> **✅ CONFIRMED (2026-06-05): a fully COLD archive cache reproduces a working
+> gcc-10 cc1 + xgcc.** After the four fixes below, a `BAKE_START_FROM=55` run with
+> the archive resolve-cache **deleted** rebuilt cc1 (insn-emit.o/member-160 now
+> correctly selected and built, 11.9 MB M1), installed the real 146-member core
+> libgcc.a, and `scripts/gcc10-goal-test.sh` returned **7**. The cold-cache cc1
+> link — the scenario that exposed all four bugs — now reproduces end-to-end.
 
 A second from-seed run into a **pristine** tree (separate from the warm
 `/tmp/bake-verify`) confirmed the chain reproduces seed → gcc-4.6 → gcc-10
-`all-gcc` *compile*, and caught a genuine reproducibility bug now fixed:
+`all-gcc` *compile*, and caught four genuine reproducibility bugs, all now fixed:
 
 - **bake-ar symlink (commit ac097b8)** — step 55 symlinked `ar` to the
   `scripts/bake-ar` *shim*, whose `TARGET` fallback (`$dir/../target`) is wrong
