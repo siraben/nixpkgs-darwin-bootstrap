@@ -45,6 +45,22 @@ for mk in "$GCC10_BUILD"/build-*/libcpp/Makefile; do
   [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
 done
 
+## `all-gcc` also links the coverage programs gcov / gcov-dump / gcov-tool,
+## which are NOT bootstrap-goal binaries (the goal is cc1 + xgcc).  gcov-tool
+## pulls in libgcov-util.o, whose `ftw_close`/directory walk references libc's
+## nftw(3) — a symbol absent from the chain --sysroot libc — so the from-seed
+## link dies with `Target label nftw is not valid` and -j1 make stops before
+## cc1.  (The warm tree only got past this because a gcov-tool stub had been
+## hand-placed there; a clean from-seed build hits it every time.)  Pre-place
+## executable stubs with a far-future mtime so make sees them up to date versus
+## their freshly-compiled .o and skips the link entirely.  These tools are never
+## executed on the cc1/xgcc goal path.
+for g in gcov gcov-dump gcov-tool; do
+  printf '#!/bin/sh\nexit 0\n' > "$GCC10_BUILD/gcc/$g"
+  chmod +x "$GCC10_BUILD/gcc/$g"
+  touch -t 202801010000 "$GCC10_BUILD/gcc/$g"
+done
+
 cd "$GCC10_BUILD"
 "$MAKE" all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$GCC10_SYS" \
