@@ -79,19 +79,23 @@ via hand-placed artifacts — both are real gaps in the committed step 55:
   hand-placed (mtime 2027 ⇒ make skipped it). Step 55 now pre-places executable
   stubs (far-future mtime) for all three so make skips the link. These tools are
   never run on the cc1/xgcc goal path.
-- **cc1-link `gen_blockage` on a *fresh* archive cache (open)** — on a
-  cold-cache cc1 link, hex2 aborts `Target label _Z12gen_blockagev is not valid`.
-  Diagnosis: in cache `libbackend.a-…-resolve-v3`, member-160 (`insn-emit.o`) is
-  the **unique** definer of gen_blockage (D); the member-build pipeline works
-  perfectly in isolation (elf64-to-m1 --prefix → 12.3 MB M1 exit 0, m1-split
-  --code carries the `gen_blockagev` label), tsv-col/awk/comm all handle the
-  10 775-symbol TSV correctly, no duplicate definer, no stale lock — yet member-160
-  is not selected and its M1 is never built, so the assembly's `for f in
-  code_files: cat "$f"` (no `set -e`) silently drops it. A warm-cache re-link
-  shows gen_blockage *resolved* (0 unresolved) and never reaches that path, so the
-  failure is specific to the cold-cache resolver fixpoint. NOT yet root-caused to
-  a one-line fix; tracked as the next hardening item. Warm tree `/tmp/bake-verify`
-  remains the proven reference (cc1+xgcc, goal test 7, real libgcc).
+- **cc1-link `gen_blockage` — pipefail/SIGPIPE in the archive resolver (FIXED,
+  `scripts/tinycc/tcc-darwin-cc-bash3.sh`)** — on a cold-cache cc1 link, hex2
+  aborted `Target label _Z12gen_blockagev is not valid`. Root cause: the wrapper
+  runs `set -eo pipefail`, and `archive_member_needed()` decided "is this member
+  needed?" with `comm -12 D unresolved | grep -q .`. For a member with a **large**
+  defined∩unresolved intersection (insn-emit.o = 6508 common symbols, >64 KB pipe
+  buffer), `grep -q` exits on the first match and closes the pipe, `comm` then dies
+  with **SIGPIPE** (exit 141), and **pipefail propagates that failure** — so the
+  member is wrongly judged *not needed*, never selected, its M1 never built, and
+  its gen_blockage definition silently dropped from the link. Small members
+  (intersection fits the pipe buffer, comm finishes before grep exits) were
+  unaffected — which is why only big definers failed, and why the bug was
+  load/scheduling-sensitive (an isolated subshell didn't reproduce; a tight
+  `set -eo pipefail` loop reproduced it 30/30). Fix: write the intersection to a
+  file and test `[ -s "$d.i" ]` instead of piping into `grep -q` — no early reader,
+  no SIGPIPE (verified 30/30 correct). This is a genuine resolver-correctness bug
+  the warm tree had only dodged because member-160.M1 was already cached.
 
 Faithfulness (2026-06-03): the gcc-10/gcc-4.6 LINK PATH is now host-awk-free.
 Every host tool that did translation/symbol-resolution/layout in tcc-darwin-cc is

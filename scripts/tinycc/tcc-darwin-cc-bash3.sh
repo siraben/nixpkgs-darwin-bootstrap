@@ -359,7 +359,16 @@ archive_member_needed() {
   local symbols="$1"
   local d="$tmp/.amn_d"
   tsv_col D "$symbols" | LC_ALL=C sort -u > "$d"
-  LC_ALL=C comm -12 "$d" "$unresolved_symbols_file" | LC_ALL=C grep -q .
+  # Write the intersection to a file and test it, rather than piping comm into
+  # `grep -q`.  Under `set -o pipefail`, `comm … | grep -q .` reports FAILURE for
+  # members with a LARGE intersection: grep -q exits on the first match and closes
+  # the pipe, comm then dies with SIGPIPE (exit 141), and pipefail propagates that
+  # non-zero status — so the member is wrongly judged "not needed".  Small members
+  # (intersection fits the 64 KB pipe buffer, comm finishes before grep exits) were
+  # unaffected, which is why only big definers like insn-emit.o (gen_blockage) were
+  # silently dropped from the gcc-10 cc1 link.
+  LC_ALL=C comm -12 "$d" "$unresolved_symbols_file" > "$d.i"
+  [ -s "$d.i" ]
 }
 
 add_selected_archive_member() {
