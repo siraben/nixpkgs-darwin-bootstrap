@@ -61,6 +61,18 @@ for g in gcov gcov-dump gcov-tool; do
   touch -t 202801010000 "$GCC10_BUILD/gcc/$g"
 done
 
+## `all-gcc` also runs fixincludes (target `stmp-fixinc`), which patches the
+## *system* headers for portability bugs — irrelevant to the cc1/xgcc goal.  Our
+## --sysroot + absolute NATIVE_SYSTEM_HEADER_DIR makes its sysroot-header path
+## double up (".../tcc-darwin-bootstrap/tmp/.../tcc-darwin-bootstrap"), so the
+## recipe reports "directory that should contain system headers does not exist"
+## and -j1 make stops before cc1.  (Again the warm tree only passed because a
+## stmp-fixinc stamp + include-fixed/ dir were already present.)  Pre-create the
+## stamp + dir with a far-future mtime so make treats fixincludes as done.
+mkdir -p "$GCC10_BUILD/gcc/include-fixed"
+: > "$GCC10_BUILD/gcc/stmp-fixinc"
+touch -t 202801010000 "$GCC10_BUILD/gcc/include-fixed" "$GCC10_BUILD/gcc/stmp-fixinc"
+
 cd "$GCC10_BUILD"
 "$MAKE" all-gcc -j1 MAKEINFO=true \
   NATIVE_SYSTEM_HEADER_DIR="$GCC10_SYS" \
