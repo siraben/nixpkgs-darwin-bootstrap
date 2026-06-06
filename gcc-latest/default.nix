@@ -23,8 +23,15 @@ runCommand "phase46-gcc-${gccLatestVersion}" {
   ## to build phase26c-f, so we can't reference them here without a
   ## cycle. phase47 strict consumes external libs (the goal lands
   ## there). See todos task #12.
-  export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
-  export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
+  ## Host build-helpers (genmatch/gengtype/build-libcpp) compile with the
+  ## nixpkgs *wrapped* clang, not the bare ${stdenv.cc.cc} binary: the wrapper
+  ## injects the SDK sysroot + libc++ include paths. The bare clang loses them
+  ## once SDKROOT is store-pinned to ${apple-sdk} (whose MacOSX.sdk ships no
+  ## libc++), so C++ build-helpers fail on '#include <new>'. These helpers only
+  ## emit deterministic generated source, so the wrapper choice never reaches
+  ## target codegen and the final compiler stays bit-identical.
+  export GCC_MODERN_HOST_CC=${stdenv.cc}/bin/clang
+  export GCC_MODERN_HOST_CXX=${stdenv.cc}/bin/clang++
   export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld
   export GCC_MODERN_AS=${darwin.binutils-unwrapped}/bin/as
   export SDKROOT=$GCC_MODERN_SDK_PATH
