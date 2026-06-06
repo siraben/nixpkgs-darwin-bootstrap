@@ -48,11 +48,30 @@ runCommand "phase26f-isl-${version}" {
     > $out/share/darwin-bootstrap/configure.stdout \
     2> $out/share/darwin-bootstrap/configure.stderr
 
-  ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
+  ## Build only the library. GCC needs just libisl.a + the isl/*.h headers;
+  ## `make all` additionally builds isl_test_cpp, a C++ TEST program that does
+  ## not compile against the from-stage0 gcc-15's bootstrap libstdc++ (its
+  ## <type_traits> is incomplete: std::is_nothrow_assignable<...>::value is
+  ## undeclared). The test is irrelevant to the bootstrap, so build the library
+  ## target and install only the library + headers + pkg-config data.
+  ##
+  ## gitversion.h is a BUILT_SOURCES header (isl_version.c #includes it) that
+  ## `make all` generates first but the bare `libisl.la` target does not, so
+  ## generate it explicitly before the library (a separate, serial make call to
+  ## avoid a -j race against isl_version.lo).
+  ${gnumake}/bin/make gitversion.h \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${gnumake}/bin/make install \
+  ${gnumake}/bin/make libisl.la -j"''${NIX_BUILD_CORES:-1}" \
+    >> $out/share/darwin-bootstrap/make.stdout \
+    2>> $out/share/darwin-bootstrap/make.stderr
+
+  ${gnumake}/bin/make \
+    install-libLTLIBRARIES \
+    install-nodist_pkgincludeHEADERS \
+    install-pkgincludeHEADERS \
+    install-pkgconfigDATA \
     > $out/share/darwin-bootstrap/install.stdout \
     2> $out/share/darwin-bootstrap/install.stderr
 
