@@ -59,6 +59,7 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
   ' "$lowdata" > $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
 
   cp crt1-tcc-sysv.M1 tinycc-sysv-libc.M1 $out/share/darwin-bootstrap/
+  cp ${root + "/scripts/tinycc/synth-inject.awk"} $out/share/darwin-bootstrap/synth-inject.awk
 
   cp ${root + "/scripts/tinycc/tcc-darwin-cc.sh"} $out/bin/tcc-darwin-cc
   chmod u+w $out/bin/tcc-darwin-cc
@@ -75,6 +76,7 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
     --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \
     --replace-fail @SYSCALLS@ ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"} \
     --replace-fail @LIBC_M1@ $out/share/darwin-bootstrap/tinycc-sysv-libc.M1 \
+    --replace-fail @SYNTH_INJECT@ $out/share/darwin-bootstrap/synth-inject.awk \
     --replace-fail @SIGNING@ ${darwin.signingUtils}
   chmod +x $out/bin/tcc-darwin-cc
 

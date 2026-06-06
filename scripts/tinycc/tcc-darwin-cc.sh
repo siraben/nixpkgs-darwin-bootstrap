@@ -516,6 +516,22 @@ done
   echo ':__bake_init_end'
 } > "$tmp/combined.M1"
 
+# Cross-object synth labels: elf64-to-m1's per-object blanket only DEFINES a
+# small predictable set of `:<sym>_plus_<off>` labels, so a reference to a far
+# offset it never relocates (e.g. a data-array slot in gcc's xgcc/cc1) is left
+# undefined and the binary's data relocations come out wrong — xgcc then runs
+# but prints NOTHING (-dumpversion/-E/-dM all empty), failing the gcc-4.6
+# `s-macro_list` step.  Scan the whole link for referenced-but-undefined
+# `<sym>_plus_<hex>` labels and inject each def at byte (<sym> + hex).  No-op
+# (verbatim) for small links.  Flatten to one token per line first (`tr`) so awk
+# streams instead of building a multi-GB array on gcc's huge data lines.
+synth_inject() { awk -f @SYNTH_INJECT@ "$1"; }
+if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
+   && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
+  mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
+fi
+rm -f "$tmp/combined.tok.M1"
+
 # Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text
 # padding → fast); fall back to LARGE only when the text overruns it
 # (m1-to-hex2 prints "align target before current address" and exits 1),
