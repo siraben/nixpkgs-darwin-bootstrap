@@ -9,7 +9,7 @@ typedef int dev_t;
 typedef unsigned short nlink_t;
 typedef unsigned int uid_t;
 typedef unsigned int gid_t;
-typedef unsigned int ino_t;
+typedef unsigned long long ino_t;
 typedef long blkcnt_t;
 typedef int blksize_t;
 #ifndef _STRUCT_TIMESPEC
@@ -18,9 +18,9 @@ struct timespec { long tv_sec; long tv_nsec; };
 #endif
 struct stat {
   dev_t st_dev;
-  ino_t st_ino;
   mode_t st_mode;
   nlink_t st_nlink;
+  ino_t st_ino;
   uid_t st_uid;
   gid_t st_gid;
   dev_t st_rdev;
@@ -39,10 +39,28 @@ struct stat {
 #define st_atime st_atimespec.tv_sec
 #define st_mtime st_mtimespec.tv_sec
 #define st_ctime st_ctimespec.tv_sec
+/*
+ * On Darwin x86_64 the default `struct stat` is the 64-bit-inode layout, but
+ * libSystem exposes it under the `$INODE64`-suffixed symbols; the plain
+ * `_stat`/`_fstat` symbols are the legacy 32-bit-inode variants with a
+ * different field layout. Apple's linker rewrites the references, but the
+ * binutils `ld` used from gcc-10 onward does not, so a gcc-compiled binary
+ * linking libSystem would otherwise call the legacy stat and misread st_mode
+ * (e.g. genmatch seeing a regular file as a block device). Bind the 64-bit
+ * variant explicitly for gcc; tcc-compiled binaries use the bootstrap libc's
+ * own syscall-based stat (boot_stat) and keep the plain symbol.
+ */
+#if defined(__GNUC__) && !defined(__TINYC__)
+int stat(const char *, struct stat *) __asm__("_stat$INODE64");
+int fstat(int, struct stat *) __asm__("_fstat$INODE64");
+int fstatat(int, const char *, struct stat *, int) __asm__("_fstatat$INODE64");
+int lstat(const char *, struct stat *) __asm__("_lstat$INODE64");
+#else
 int stat(const char *, struct stat *);
 int fstat(int, struct stat *);
 int fstatat(int, const char *, struct stat *, int);
 int lstat(const char *, struct stat *);
+#endif
 int chmod(const char *, mode_t);
 int chown(const char *, unsigned int, unsigned int);
 int mkdir(const char *, mode_t);
