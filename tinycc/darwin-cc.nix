@@ -77,8 +77,31 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
     --replace-fail @SYSCALLS@ ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"} \
     --replace-fail @LIBC_M1@ $out/share/darwin-bootstrap/tinycc-sysv-libc.M1 \
     --replace-fail @SYNTH_INJECT@ $out/share/darwin-bootstrap/synth-inject.awk \
+    --replace-fail @M1_SPLIT@ $out/bin/m1-split \
+    --replace-fail @SYNTH_INJECT_BIN@ $out/bin/synth-inject \
     --replace-fail @SIGNING@ ${darwin.signingUtils}
   chmod +x $out/bin/tcc-darwin-cc
+
+  ## Chain-built C replacements for the host-awk M1 split + synth-label inject
+  ## (the "no host awk as a translator" rule). The just-built wrapper compiles
+  ## them; for these two small links the @M1_SPLIT@/@SYNTH_INJECT_BIN@ binaries
+  ## are not present yet, so the wrapper uses its awk fallback — the LAST host
+  ## awk in the chain. Every later link (tcc self-host, gcc-4.6/10/15) then goes
+  ## through the C tools.
+  $out/bin/tcc-darwin-cc ${root + "/bake/sources/tools/m1-split.c"} -o $out/bin/m1-split
+  chmod +x $out/bin/m1-split
+  $out/bin/tcc-darwin-cc ${root + "/bake/sources/tools/synth-inject.c"} -o $out/bin/synth-inject
+  chmod +x $out/bin/synth-inject
+
+  ## Smoke-test the C tools against the awk they replace.
+  printf 'CODE1\n:HEX2_data\nCODE2\n:ELF_data\nDATA1\nDATA2\n' > split-in.M1
+  test "$($out/bin/m1-split --code < split-in.M1)" = "$(printf 'CODE1\nCODE2')"
+  test "$($out/bin/m1-split --data < split-in.M1)" = "$(printf 'DATA1\nDATA2')"
+  printf ':mysym\n!0x01\n!0x02\n!0x03\n&mysym_plus_2>base\n' > synth-in.M1
+  awk -f $out/share/darwin-bootstrap/synth-inject.awk synth-in.M1 > synth-awk.out
+  $out/bin/synth-inject synth-in.M1 > synth-c.out
+  cmp -s synth-awk.out synth-c.out
+  cp split-in.M1 synth-in.M1 synth-awk.out synth-c.out $out/share/darwin-bootstrap/
 
   cp ${root + "/scripts/tinycc/selftest/hello.c"} hello.c
   $out/bin/tcc-darwin-cc hello.c -o hello

@@ -20,6 +20,21 @@ dep_file=
 dep_target=
 dep_dummy_headers=0
 
+# M1 code/data section split. elf64-to-m1 emits each object/member's code
+# section, then a ':ELF_data' marker, then the data section; the chain-built
+# m1-split (bake/sources/tools/m1-split.c, compiled at phase34 to @M1_SPLIT@)
+# partitions them. The host awk runs ONLY as a fallback while m1-split is itself
+# being bootstrapped (its binary not yet present) — this honours the "no host
+# awk as a translator" rule: every gcc link's split goes through chain-built C.
+m1_split_code() {
+  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --code < "$1"
+  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$1"; fi
+}
+m1_split_data() {
+  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --data < "$1"
+  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$1"; fi
+}
+
 while (($#)); do
   case "$1" in
     --version|-version|-V|-qversion)
@@ -313,8 +328,8 @@ add_selected_archive_member() {
   if [ ! -f "$cache_dir/code/member-$member_index.M1" ] || [ ! -f "$cache_dir/data/member-$member_index.M1" ]; then
     if mkdir "$cache_dir/member-$member_index.lock" 2>/dev/null; then
       @ELF_TO_M1@ --prefix "archive_${prefix_key}_${member_index}_" "$member" "$m1"
-      awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$cache_dir/code/member-$member_index.M1"
-      awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$cache_dir/data/member-$member_index.M1"
+      m1_split_code "$m1" > "$cache_dir/code/member-$member_index.M1"
+      m1_split_data "$m1" > "$cache_dir/data/member-$member_index.M1"
       rm -f "$m1"
       rmdir "$cache_dir/member-$member_index.lock"
     else
@@ -490,8 +505,8 @@ object_index=0
 for object in "${objects[@]}"; do
   m1="$tmp/object-$object_index.M1"
   @ELF_TO_M1@ --prefix "obj_$object_index"_ "$object" "$m1"
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$m1" > "$tmp/object-$object_index.code.M1"
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$m1" > "$tmp/object-$object_index.data.M1"
+  m1_split_code "$m1" > "$tmp/object-$object_index.code.M1"
+  m1_split_data "$m1" > "$tmp/object-$object_index.data.M1"
   code_files+=("$tmp/object-$object_index.code.M1")
   data_files+=("$tmp/object-$object_index.data.M1")
   object_index=$((object_index + 1))
@@ -501,11 +516,11 @@ done
   cat @CRT1@
   cat @SYSCALLS@
   for file in "${code_files[@]}"; do cat "$file"; done
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' @LIBC_M1@
+  m1_split_code @LIBC_M1@
   echo ':ELF_data'
   echo ':HEX2_data'
   for file in "${data_files[@]}"; do cat "$file"; done
-  awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' @LIBC_M1@
+  m1_split_data @LIBC_M1@
   # C++ static-init array brackets. crt1-tcc-sysv.M1 references __bake_init_start
   # /__bake_init_end and walks [start,end) calling each ctor before main. This
   # wrapper compiles only C (no global constructors), so emit an EMPTY array
@@ -525,7 +540,10 @@ done
 # `<sym>_plus_<hex>` labels and inject each def at byte (<sym> + hex).  No-op
 # (verbatim) for small links.  Flatten to one token per line first (`tr`) so awk
 # streams instead of building a multi-GB array on gcc's huge data lines.
-synth_inject() { awk -f @SYNTH_INJECT@ "$1"; }
+synth_inject() {
+  if [ -x "@SYNTH_INJECT_BIN@" ]; then "@SYNTH_INJECT_BIN@" "$1"
+  else awk -f @SYNTH_INJECT@ "$1"; fi
+}
 if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
    && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
   mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
