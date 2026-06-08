@@ -1993,9 +1993,19 @@ backtrace_syminfo (struct backtrace_state *state, uintptr_t addr,
   return 0;
 }
 BACKTRACE_STUB_C
-  $wrapper_host_cc -arch x86_64 -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
-    -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
-    -o libbacktrace/darwin-bootstrap-backtrace-stub.o
+  # The libbacktrace stub object is linked into the build compiler (cc1/xgcc),
+  # so in the strict path (GCC_MODERN_HOST_BUILD_CC=0) it must be compiled by
+  # the chain gcc, not host clang — otherwise host-clang codegen leaks into the
+  # strict artifact. The chain gcc is x86_64-native and rejects clang's -arch.
+  if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" = 1 ]; then
+    $wrapper_host_cc -arch x86_64 -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
+      -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
+      -o libbacktrace/darwin-bootstrap-backtrace-stub.o
+  else
+    "$compiler/bin/gcc" -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
+      -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
+      -o libbacktrace/darwin-bootstrap-backtrace-stub.o
+  fi
   "$AR" rc libbacktrace/.libs/libbacktrace.a libbacktrace/darwin-bootstrap-backtrace-stub.o
   "$RANLIB" libbacktrace/.libs/libbacktrace.a
   perl -0pi \
