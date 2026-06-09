@@ -5,6 +5,7 @@
   gnuHelloVersion,
   gnumake,
   hostPlatform,
+  phase39b-cctools,
   phase46-gcc-latest-bootstrap,
   phase47-gcc-latest-strict-bootstrap,
   runCommand,
@@ -19,11 +20,15 @@ let
         mkdir build
         cd build
 
-        export PATH="${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        ## ar/ranlib are the chain-built cctools ar/ranlib (phase39b, gcc-15);
+        ## prepend so the chain ar resolves first. ARFLAGS=rcS keeps ar from
+        ## auto-exec'ing ranlib (Make runs $(RANLIB) separately); the chain ar
+        ## is downstream of gcc-15 so it can't replace host ar in the gcc chain.
+        export PATH="${phase39b-cctools}/bin:${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         export CC="${compiler}/bin/gcc"
         export CXX="${compiler}/bin/g++"
-        export AR="${cctools}/bin/ar"
-        export RANLIB="${cctools}/bin/ranlib"
+        export AR="${phase39b-cctools}/bin/ar"
+        export RANLIB="${phase39b-cctools}/bin/ranlib"
         export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
         export GCC_MODERN_CONFTEST_TIMEOUT=120
         export CFLAGS="-O2 -g0"
@@ -36,7 +41,7 @@ let
         ## recipe graph (same limitation noted in todos.md).  Use nixpkgs
         ## gnumake here until phase39 is promoted; same approach phase44-47
         ## take for the GCC chain.
-        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rc \
+        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
           > make.stdout \
           2> make.stderr
 

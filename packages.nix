@@ -250,6 +250,9 @@ let
     phase43-gcc-latest-source           = callPhase ./gcc-latest/source.nix;
     phase46-gcc-latest-bootstrap        = callPhase ./gcc-latest;
     phase47-gcc-latest-strict-bootstrap = callPhase ./gcc-latest/strict.nix;
+
+    ## cctools ar/ranlib chain-built from source via gcc-15 (downstream of gcc-15)
+    phase39b-cctools = callPhase ./cctools/ar.nix;
   };
 
   tinycc-m2-negative-probe = import ./tinycc/m2-negative-probe.nix (phaseContext // phaseDefs);
