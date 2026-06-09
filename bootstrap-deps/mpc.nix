@@ -4,6 +4,7 @@
   apple-sdk,
   cctools,
   gnumake,
+  phase39-gnumake,
   gccModernMpcVersion,
   gccModernMpcTarball,
   phase26c-bootstrap-gmp,
@@ -52,11 +53,11 @@ runCommand "phase26e-mpc-${version}" {
     > $out/share/darwin-bootstrap/configure.stdout \
     2> $out/share/darwin-bootstrap/configure.stderr
 
-  ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
+  ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${gnumake}/bin/make install \
+  ${phase39-gnumake}/bin/make install \
     > $out/share/darwin-bootstrap/install.stdout \
     2> $out/share/darwin-bootstrap/install.stderr
 

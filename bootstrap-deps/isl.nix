@@ -4,6 +4,7 @@
   apple-sdk,
   cctools,
   gnumake,
+  phase39-gnumake,
   gccModernIslVersion,
   gccModernIslTarball,
   phase26c-bootstrap-gmp,
@@ -59,15 +60,15 @@ runCommand "phase26f-isl-${version}" {
   ## `make all` generates first but the bare `libisl.la` target does not, so
   ## generate it explicitly before the library (a separate, serial make call to
   ## avoid a -j race against isl_version.lo).
-  ${gnumake}/bin/make gitversion.h \
+  ${phase39-gnumake}/bin/make gitversion.h \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${gnumake}/bin/make libisl.la -j"''${NIX_BUILD_CORES:-1}" \
+  ${phase39-gnumake}/bin/make libisl.la -j"''${NIX_BUILD_CORES:-1}" \
     >> $out/share/darwin-bootstrap/make.stdout \
     2>> $out/share/darwin-bootstrap/make.stderr
 
-  ${gnumake}/bin/make \
+  ${phase39-gnumake}/bin/make \
     install-libLTLIBRARIES \
     install-nodist_pkgincludeHEADERS \
     install-pkgincludeHEADERS \
