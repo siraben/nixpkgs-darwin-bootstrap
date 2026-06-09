@@ -34,7 +34,7 @@ runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   export GCC_MODERN_COMPILER_ONLY=1
   export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
   export GCC_MODERN_HOST_BUILD_CC=0
-  export BOOTSTRAP_MAKE=${gnumake}/bin/make
+  export BOOTSTRAP_MAKE=${phase39-gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${phase43-gcc-latest-source} \
     ${phase46-gcc-latest-bootstrap} \
