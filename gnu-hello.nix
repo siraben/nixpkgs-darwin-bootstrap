@@ -5,6 +5,7 @@
   gnuHelloVersion,
   gnumake,
   hostPlatform,
+  phase39-gnumake,
   phase39b-cctools,
   phase46-gcc-latest-bootstrap,
   phase47-gcc-latest-strict-bootstrap,
@@ -37,11 +38,10 @@ let
         ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
           > configure.stdout \
           2> configure.stderr
-        ## phase39-gnumake segfaults inside GNU Hello's Automake-generated
-        ## recipe graph (same limitation noted in todos.md).  Use nixpkgs
-        ## gnumake here until phase39 is promoted; same approach phase44-47
-        ## take for the GCC chain.
-        ${gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
+        ## chain-built make (phase39-gnumake, from tcc). It now builds GNU Hello's
+        ## Automake recipe graph cleanly incl. parallel -j (the old segfault is
+        ## gone with GNU Make 4.4.1).
+        ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
           > make.stdout \
           2> make.stderr
 
