@@ -73,12 +73,14 @@ The implemented amd64 chain is:
   Pinning the SDK headers to a Nix fetch is a future hardening step.
 - `gcc-4.6/cxx` compiles GCC 4.6 sources with the chain compiler
   (phase35 cc1 via the phase37 driver) and uses nixpkgs clang and
-  binutils for assembling and linking only.  `gcc-10` compiles its
-  build-helper binaries (genmatch, gengtype, build-libcpp) with the
-  chain gcc-4.6 and ships its own from-stage0 libgcc and libstdc++
-  (GCC_MODERN_HOST_BUILD_CC=0, GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0,
-  GCC_MODERN_BUILD_TARGET_LIBS=1) — the configuration
-  `gcc-latest/strict` already proves for GCC 15.
+  binutils for assembling and linking only.  `gcc-10`, `gcc-latest`, and
+  `gcc-latest/strict` all compile their build-helper binaries
+  (genmatch, gengtype, build-libcpp) with the chain input compiler
+  (GCC_MODERN_HOST_BUILD_CC=0, GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0);
+  `gcc-10` and `gcc-latest` ship their own from-stage0 libgcc and
+  libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
+  participates in any chain compile; nixpkgs clang/binutils remain at
+  the assemble/link boundary only.
 - The chain runs on the chain-built `phase39-gnumake` in `gnu-hello`,
   `bootstrap-deps`, `gcc-10`, and `gcc-latest/strict`.  `gcc-latest`
   (phase46) and `gcc-4.6/cxx` (phase44) run nixpkgs `gnumake`; under

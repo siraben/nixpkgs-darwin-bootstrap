@@ -34,6 +34,12 @@ runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   export GCC_MODERN_COMPILER_ONLY=1
   export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
   export GCC_MODERN_HOST_BUILD_CC=0
+  ## pex-unix.c gates its posix_spawn path on the function probes, which
+  ## link against libSystem and succeed even with ac_cv_header_spawn_h=no
+  ## (set in bootstrap-gcc.sh for gcc-latest); both go off so pex uses
+  ## fork/exec.
+  export ac_cv_func_posix_spawn=no
+  export ac_cv_func_posix_spawnp=no
   export BOOTSTRAP_MAKE=${phase39-gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${phase43-gcc-latest-source} \

@@ -23,13 +23,14 @@ runCommand "phase46-gcc-${gccLatestVersion}" {
   ## to build phase26c-f, so we can't reference them here without a
   ## cycle. phase47 strict consumes external libs (the goal lands
   ## there). See todos task #12.
-  ## Host build-helpers (genmatch/gengtype/build-libcpp) compile with the
-  ## nixpkgs *wrapped* clang, not the bare ${stdenv.cc.cc} binary: the wrapper
-  ## injects the SDK sysroot + libc++ include paths. The bare clang loses them
-  ## once SDKROOT is store-pinned to ${apple-sdk} (whose MacOSX.sdk ships no
-  ## libc++), so C++ build-helpers fail on '#include <new>'. These helpers only
-  ## emit deterministic generated source, so the wrapper choice never reaches
-  ## target codegen and the final compiler stays bit-identical.
+  ## Build-helpers (genmatch/gengtype/build-libcpp) compile with the chain
+  ## input compiler (phase45 gcc-10 + its from-stage0 libstdc++) under
+  ## GCC_MODERN_HOST_BUILD_CC=0 + GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0 — the
+  ## pure configuration phase47 strict uses.  WRAPPER_HOST_SHORTCUTS=0 also
+  ## cascades INPUT_HOST_SHORTCUTS and INPUT_HOST_LINK_SHORTCUTS to 0, so
+  ## cc1/cc1plus link through the chain g++ wrapper.  The HOST_CC/HOST_CXX
+  ## exports remain for the wrapper guard paths, which refuse loudly if a
+  ## shortcut is reached while the flags are 0.
   export GCC_MODERN_HOST_CC=${stdenv.cc}/bin/clang
   export GCC_MODERN_HOST_CXX=${stdenv.cc}/bin/clang++
   export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld
@@ -37,6 +38,14 @@ runCommand "phase46-gcc-${gccLatestVersion}" {
   export SDKROOT=$GCC_MODERN_SDK_PATH
   export GCC_MODERN_TARGETS=all-gcc
   export GCC_MODERN_COMPILER_ONLY=1
+  export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
+  export GCC_MODERN_HOST_BUILD_CC=0
+  ## pex-unix.c gates its posix_spawn path on the function probes, which
+  ## link against libSystem and succeed even with ac_cv_header_spawn_h=no
+  ## (the SDK spawn.h does not parse under the gcc-10 input compiler);
+  ## both go off so pex uses fork/exec.
+  export ac_cv_func_posix_spawn=no
+  export ac_cv_func_posix_spawnp=no
   ## Task #13/#67: phase46 builds its own libgcc + libstdc++ so the
   ## resulting $out/include/c++/15.2.0 (with C++11 <type_traits>) is what
   ## phase47's pure-from-stage0 build-helpers compile against. Without this
