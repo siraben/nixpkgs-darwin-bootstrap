@@ -63,26 +63,31 @@ The implemented amd64 chain is:
 
 ## Known impurity boundaries
 
-- The Darwin executable path intentionally links against the platform
-  `libSystem`/dyld ABI and ad-hoc signs generated Mach-O binaries through
-  nixpkgs `darwin.signingUtils`.
+- The Darwin executable path links against the platform `libSystem`/dyld
+  ABI and ad-hoc signs generated Mach-O binaries through nixpkgs
+  `darwin.signingUtils`.
 - GCC phases use the macOS SDK headers and Apple `as`/`ld`/`cc` tools at
-  selected bootstrap boundaries.  Those are store-pinned (`${apple-sdk}`,
-  `${cctools}`, `${darwin.binutils-unwrapped}`) rather than referenced
-  through `/usr/bin` or the Command Line Tools install dir — no hardcoded
-  paths in any .nix file.  Pinning the SDK headers themselves to a Nix
-  fetch (rather than the system MacOSX.sdk store path) remains a future
-  hardening step.
-- `gcc-4.6/cxx`, `gcc-10`, `gcc-latest`, and `gcc-latest/strict` use the
-  host clang (`${stdenv.cc.cc}/bin/clang`) as bootstrap-host CC for GCC
-  source compilation.  Removing this shortcut needs the bootstrapped TCC
-  to converge in finite time on the GCC 4.6 frontend.
-- `phase39-gnumake` exists and passes a recipe-execution smoke test, but
-  GCC and GNU Hello still use nixpkgs `gnumake`: a direct phase39 GNU
-  Hello build segfaults while evaluating Automake-generated makefiles.
+  selected bootstrap boundaries.  All of these are store-pinned
+  (`${apple-sdk}`, `${cctools}`, `${darwin.binutils-unwrapped}`); no .nix
+  file references `/usr/bin` or the Command Line Tools install dir.
+  Pinning the SDK headers to a Nix fetch is a future hardening step.
+- `gcc-4.6/cxx` compiles GCC 4.6 sources with the chain compiler
+  (phase35 cc1 via the phase37 driver) and uses nixpkgs clang and
+  binutils for assembling and linking only.  `gcc-10` compiles its
+  build-helper binaries (genmatch, gengtype, build-libcpp) with the
+  chain gcc-4.6 and ships its own from-stage0 libgcc and libstdc++
+  (GCC_MODERN_HOST_BUILD_CC=0, GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0,
+  GCC_MODERN_BUILD_TARGET_LIBS=1) — the configuration
+  `gcc-latest/strict` already proves for GCC 15.
+- The chain runs on the chain-built `phase39-gnumake` in `gnu-hello`,
+  `bootstrap-deps`, `gcc-10`, and `gcc-latest/strict`.  `gcc-latest`
+  (phase46) and `gcc-4.6/cxx` (phase44) run nixpkgs `gnumake`; under
+  phase39-gnumake, GCC 15's libstdc++ C++23-module rule emits
+  self-referential `bits/std.cc` symlinks and the install `cp -RL`
+  fails with ELOOP.
 - The modern GCC packages carry a staged, patched bootstrap sysroot and
-  wrapper metadata sufficient for the current proofs; they are not yet a
-  full nixpkgs compiler/runtime/bintools closure.
+  wrapper metadata sufficient for the current proofs; a full nixpkgs
+  compiler/runtime/bintools closure is future work.
 
 ## Key commands
 

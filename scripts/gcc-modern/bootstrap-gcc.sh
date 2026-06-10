@@ -593,6 +593,13 @@ wrapper_host_bin_dir=$(dirname "$wrapper_host_ld")
 if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" != 1 ]; then
   build_cc="$cc $bootstrap_link_flags"
   build_cxx="$cxx $bootstrap_link_flags"
+  if [ "$label" = gcc10 ]; then
+    ## gcc-4.6 (the gcc10 input compiler) resolves libc headers through the
+    ## staged sysroot; its raw driver lacks sys/times.h and friends, so the
+    ## build-machine helpers need the same -isystem the host side gets.
+    build_cc="$cc -isystem $sysroot/include $bootstrap_link_flags"
+    build_cxx="$cxx -isystem $sysroot/include $bootstrap_link_flags"
+  fi
 fi
 input_wrapper_dir="$PWD/input-compiler-wrappers"
 mkdir -p "$input_wrapper_dir"
@@ -751,7 +758,15 @@ export CPPFLAGS="${GCC_MODERN_CPPFLAGS:-$bootstrap_include_flags}"
   export CFLAGS="${GCC_MODERN_CFLAGS:--O2 -g0}"
   export CXXFLAGS="${GCC_MODERN_CXXFLAGS:--O2 -g0 $default_cxx_standard}"
   export CFLAGS_FOR_BUILD="${GCC_MODERN_CFLAGS_FOR_BUILD:--O2 -g0 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
-  export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 -std=c++14 -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
+  ## With chain-compiled build helpers (HOST_BUILD_CC=0) the build C++
+  ## standard is whatever the input compiler supports (gcc-4.6: c++0x);
+  ## host clang takes c++14.
+  if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" != 1 ]; then
+    build_cxx_standard="$default_cxx_standard"
+  else
+    build_cxx_standard=-std=c++14
+  fi
+  export CXXFLAGS_FOR_BUILD="${GCC_MODERN_CXXFLAGS_FOR_BUILD:--O2 -g0 $build_cxx_standard -Wno-error=format-security -Wno-unknown-warning-option -Wno-error=implicit-function-declaration}"
 export CFLAGS_FOR_TARGET="${GCC_MODERN_CFLAGS_FOR_TARGET:--O2 -g0}"
 export CXXFLAGS_FOR_TARGET="${GCC_MODERN_CXXFLAGS_FOR_TARGET:--O2 -g0}"
 export LDFLAGS="${GCC_MODERN_LDFLAGS:-$bootstrap_link_flags}"
@@ -872,6 +887,11 @@ if [ "$label" = gcc-latest ]; then
   export ac_cv_header_sys_auxv_h=no
   export ac_cv_header_sys_locking_h=no
   export ac_cv_header_thread_h=no
+  ## The SDK's spawn.h pulls sys/cdefs.h whose
+  ## __has_cpp_attribute(clang::unsafe_buffer_usage) block (entered under
+  ## _GNU_SOURCE) does not parse under gcc-10; libiberty's pex falls back
+  ## to fork/exec without it.
+  export ac_cv_header_spawn_h=no
   export gcc_cv_type_rlim_t=yes
   export ac_cv_header_sys_wait_h=yes
   export ac_cv_header_time=yes
@@ -1731,20 +1751,17 @@ WRAPPER
 int main(void) { return 0; }
 C
   "$out/bin/gcc" -c smoke.c -o "$bootstrap_share/smoke.o" \
-    > "$bootstrap_share/smoke.stdout" \
-    2> "$bootstrap_share/smoke.stderr"
+    2>&1 | tee "$bootstrap_share/smoke.log"
   cat > smoke.cc <<'CXX'
 int main() { return 0; }
 CXX
   "$out/bin/g++" -c smoke.cc -o "$bootstrap_share/smoke-cxx.o" \
-    > "$bootstrap_share/smoke-cxx.stdout" \
-    2> "$bootstrap_share/smoke-cxx.stderr"
+    2>&1 | tee "$bootstrap_share/smoke-cxx.log"
 }
 
 if [ "${GCC_MODERN_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
   ../src/configure "${configure_flags[@]}" MAKEINFO=true \
-    > "$bootstrap_share/configure.stdout" \
-    2> "$bootstrap_share/configure.stderr"
+    2>&1 | tee "$bootstrap_share/configure.log"
 else
   printf 'Reusing existing %s configure state in %s\n' "$label" "$PWD" > "$bootstrap_share/configure.resume"
 fi
@@ -2046,9 +2063,6 @@ fi
 ## doesn't exist yet at build time).
 target_lib_make_args=()
 if [ "${GCC_MODERN_BUILD_TARGET_LIBS:-0}" = 1 ]; then
-  if [[ "$make_targets" != *all-target-libgcc* ]]; then
-    make_targets="$make_targets all-target-libgcc all-target-libstdc++-v3"
-  fi
   ## GCC propagates CFLAGS_FOR_TARGET / CXXFLAGS_FOR_TARGET to recursive
   ## target builds; LIBGCC2_INCLUDES alone doesn't reach $target/libgcc
   ## from the top-level make. Pass the bootstrap sysroot includes via
@@ -2058,6 +2072,10 @@ if [ "${GCC_MODERN_BUILD_TARGET_LIBS:-0}" = 1 ]; then
     CXXFLAGS_FOR_TARGET="-O2 -g0 -isystem $sysroot/include"
     CRTSTUFF_T_CFLAGS="-isystem $sysroot/include"
     LIBGCC2_INCLUDES="-isystem $sysroot/include"
+    ## libstdc++'s configure runs link tests with the build-tree xgcc;
+    ## the staged sysroot has headers only, so the linker needs the real
+    ## SDK for libSystem.
+    LDFLAGS_FOR_TARGET="-Wl,-syslibroot,$sdk"
   )
 fi
 
@@ -2066,8 +2084,60 @@ if [ "${GCC_MODERN_PACKAGE_ONLY:-0}" != 1 ]; then
     MAKEINFO=true \
     "${target_lib_make_args[@]}" \
     $make_targets \
-    > "$bootstrap_share/make.stdout" \
-    2> "$bootstrap_share/make.stderr"
+    2>&1 | tee "$bootstrap_share/make.log"
+  if [ "${GCC_MODERN_BUILD_TARGET_LIBS:-0}" = 1 ]; then
+    ## include-fixed/limits.h includes its sibling syslimits.h; the gcc
+    ## build stages only limits.h.  gsyslimits.h is the stock "no fixes
+    ## needed" syslimits (include_next the system limits.h).  The header
+    ## exists only after the all-gcc make, so the target libs run as a
+    ## second make.
+    if [ -f gcc/include-fixed/limits.h ] && [ ! -f gcc/include-fixed/syslimits.h ] \
+       && [ -f ../src/gcc/gsyslimits.h ]; then
+      cp ../src/gcc/gsyslimits.h gcc/include-fixed/syslimits.h
+    fi
+    MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+      MAKEINFO=true \
+      "${target_lib_make_args[@]}" \
+      all-target-libgcc \
+      2>&1 | tee "$bootstrap_share/make-target-libgcc.log"
+    ## gcc-10's darwin specs link -lemutls_w into every executable; the
+    ## libstdc++ conftests need it in gcc/ or configure degrades to
+    ## GCC_NO_EXECUTABLES.  Copy the built archive; create an empty one
+    ## when the libgcc build doesn't produce it.
+    if [ ! -f gcc/libemutls_w.a ]; then
+      if [ -f "$target/libgcc/libemutls_w.a" ]; then
+        cp "$target/libgcc/libemutls_w.a" gcc/libemutls_w.a
+      else
+        ## This libgcc configuration leaves libemutls_w.a out of
+        ## EXTRA_PARTS; an archive holding one empty object satisfies
+        ## the -lemutls_w in the driver specs (emutls itself lives in
+        ## libgcc.a).
+        : > emutls-stub.c
+        ./gcc/xgcc -B./gcc/ -c emutls-stub.c -o emutls-stub.o
+        "$cctools/bin/ar" rc gcc/libemutls_w.a emutls-stub.o
+        "$cctools/bin/ranlib" gcc/libemutls_w.a || true
+      fi
+    fi
+    ## Logged probe: the exact link the libstdc++ conftests run.  Shows
+    ## the real linker error in the build log if configure would degrade
+    ## to GCC_NO_EXECUTABLES.
+    printf 'int main(void) { return 0; }\n' > target-link-probe.c
+    echo "=== target link probe ==="
+    ./gcc/xgcc -B./gcc/ -isystem "$sysroot/include" -Wl,-syslibroot,"$sdk" \
+      target-link-probe.c -o target-link-probe || echo "=== target link probe FAILED ==="
+    MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$build_cores" \
+      MAKEINFO=true \
+      "${target_lib_make_args[@]}" \
+      all-target-libstdc++-v3 \
+      2>&1 | tee "$bootstrap_share/make-target-libstdcxx.log" || {
+        config_log="$target/libstdc++-v3/config.log"
+        if [ -f "$config_log" ]; then
+          echo "=== $config_log: first failures ==="
+          grep -n -B6 -A12 'cannot create executables\|^ld: \|error: ' "$config_log" | head -120
+        fi
+        exit 1
+      }
+  fi
 else
   printf 'Skipped make for %s package-only handoff\n' "$label" > "$bootstrap_share/make.skipped"
 fi
@@ -2081,8 +2151,7 @@ fi
 if [ "${GCC_MODERN_SKIP_INSTALL:-0}" != 1 ] && [ "$make_dir" = . ] && [ "$make_targets" = all ]; then
   MAKEFLAGS= "$make_tool" -j"$build_cores" install-strip \
     MAKEINFO=true \
-    > "$bootstrap_share/install.stdout" \
-    2> "$bootstrap_share/install.stderr"
+    2>&1 | tee "$bootstrap_share/install.log"
 else
   printf 'Skipped install for %s make_dir=%s targets=%s\n' "$label" "$make_dir" "$make_targets" > "$bootstrap_share/install.skipped"
   exit 0
@@ -2097,6 +2166,5 @@ cat > smoke.c <<'C'
 int main(void) { return 42; }
 C
 "$out/bin/gcc" -S smoke.c -o "$bootstrap_share/smoke.s" \
-  > "$bootstrap_share/smoke.stdout" \
-  2> "$bootstrap_share/smoke.stderr"
+  2>&1 | tee "$bootstrap_share/smoke.log"
 test -s "$bootstrap_share/smoke.s"
