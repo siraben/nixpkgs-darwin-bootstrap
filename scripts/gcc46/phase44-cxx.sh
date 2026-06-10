@@ -128,7 +128,14 @@ if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
   export GCC46_BOOTSTRAP_MACHO_CC="${GCC46_BOOTSTRAP_MACHO_CC:-/usr/bin/cc}"
-  export GCC46_BOOTSTRAP_HOST_CC="${GCC46_BOOTSTRAP_HOST_CC:-/usr/bin/cc}"
+  # Only default the host source-compile shortcut CC when a shortcut mode is
+  # actually enabled; otherwise leave it empty so any code path that would
+  # silently reach for a host compiler fails loudly instead.
+  if [ "${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-0}" = 1 ] || [ "${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-0}" = 1 ]; then
+    export GCC46_BOOTSTRAP_HOST_CC="${GCC46_BOOTSTRAP_HOST_CC:-/usr/bin/cc}"
+  else
+    export GCC46_BOOTSTRAP_HOST_CC="${GCC46_BOOTSTRAP_HOST_CC:-}"
+  fi
   # When GCC46_BOOTSTRAP_LD is not in $PATH (e.g. nixpkgs darwin.binutils-unwrapped),
   # the host C compiler invoked via GCC46_BOOTSTRAP_MACHO_CC can't posix_spawn ld
   # by name. Add the binutils directory to PATH so raw clang can find ld/as.
@@ -353,8 +360,7 @@ if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
     --disable-lto \
     --enable-languages=c,c++ \
     MAKEINFO=true \
-    > "$bootstrap_share/configure.stdout" \
-    2> "$bootstrap_share/configure.stderr"
+    2>&1 | tee "$bootstrap_share/configure.log"
 
   mkdir -p intl
   cat > intl/Makefile <<'MAKE'
@@ -595,8 +601,8 @@ rebuild_macho_archive() {
   fix_darwin_prereq_configs
   env \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
-    GCC46_BOOTSTRAP_HOST_CC_SOURCES=1 \
-    GCC46_BOOTSTRAP_HOST_CC_GENERATED="${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-1}" \
+    GCC46_BOOTSTRAP_HOST_CC_SOURCES="${GCC46_BOOTSTRAP_HOST_CC_SOURCES:-0}" \
+    GCC46_BOOTSTRAP_HOST_CC_GENERATED="${GCC46_BOOTSTRAP_HOST_CC_GENERATED:-0}" \
     GCC46_BOOTSTRAP_AS="$GCC46_BOOTSTRAP_AS" \
     GCC46_BOOTSTRAP_MACHO_CC="$GCC46_BOOTSTRAP_MACHO_CC" \
     GCC46_BOOTSTRAP_HOST_CC="$GCC46_BOOTSTRAP_HOST_CC" \
@@ -823,8 +829,7 @@ ensure_target_libgcc_macho() {
       LIPO="$LIPO" \
       OTOOL="$OTOOL" \
       libgcc-support \
-      > "$bootstrap_share/make-gcc-libgcc-support.stdout" \
-      2> "$bootstrap_share/make-gcc-libgcc-support.stderr"
+      2>&1 | tee "$bootstrap_share/make-gcc-libgcc-support.log"
   fi
   if [ ! -f "$target/libgcc/Makefile" ]; then
     MAKEFLAGS= "$make_tool" -j1 -o Makefile -o config.status -o maybe-all-gcc -o all-gcc \
@@ -844,8 +849,7 @@ ensure_target_libgcc_macho() {
       LIPO="$LIPO" \
       OTOOL="$OTOOL" \
       configure-target-libgcc \
-      > "$bootstrap_share/configure-target-libgcc.stdout" \
-      2> "$bootstrap_share/configure-target-libgcc.stderr"
+      2>&1 | tee "$bootstrap_share/configure-target-libgcc.log"
     postprocess_macho_specs
   fi
   MAKEFLAGS= "$make_tool" -C "$target/libgcc" -j"$main_build_cores" \
@@ -857,8 +861,7 @@ ensure_target_libgcc_macho() {
     RANLIB="$RANLIB" \
     STRIP="$STRIP" \
     all \
-    > "$bootstrap_share/make-target-libgcc.stdout" \
-    2> "$bootstrap_share/make-target-libgcc.stderr"
+    2>&1 | tee "$bootstrap_share/make-target-libgcc.log"
   if [ -f "$target/libgcc/libgcc.a" ]; then
     cp "$target/libgcc/libgcc.a" gcc/libgcc.a
     "$RANLIB" gcc/libgcc.a >/dev/null 2>&1 || true
@@ -917,8 +920,7 @@ configure_direct_libstdcxx() {
         --disable-multilib \
         --disable-nls \
         --disable-libstdcxx-pch \
-        > "$bootstrap_share/configure-direct-libstdcxx.stdout" \
-        2> "$bootstrap_share/configure-direct-libstdcxx.stderr"
+        2>&1 | tee "$bootstrap_share/configure-direct-libstdcxx.log"
   )
 }
 
@@ -931,13 +933,11 @@ build_direct_libstdcxx() {
   MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j"$main_build_cores" \
     MAKEINFO=true \
     all \
-    > "$bootstrap_share/make-direct-libstdcxx.stdout" \
-    2> "$bootstrap_share/make-direct-libstdcxx.stderr"
+    2>&1 | tee "$bootstrap_share/make-direct-libstdcxx.log"
   MAKEFLAGS= "$make_tool" -C "$target/libstdc++-v3" -j"$main_build_cores" \
     MAKEINFO=true \
     install \
-    > "$bootstrap_share/install-direct-libstdcxx.stdout" \
-    2> "$bootstrap_share/install-direct-libstdcxx.stderr"
+    2>&1 | tee "$bootstrap_share/install-direct-libstdcxx.log"
 }
 
 rewrite_phase34_store_refs
@@ -1017,8 +1017,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
         LIPO="$LIPO" \
         OTOOL="$OTOOL" \
         configure-gcc \
-        > "$bootstrap_share/configure-gcc.stdout" \
-        2> "$bootstrap_share/configure-gcc.stderr"
+        2>&1 | tee "$bootstrap_share/configure-gcc.log"
     fi
     MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
       MAKEINFO=true \
@@ -1035,8 +1034,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
       LIPO="$LIPO" \
       OTOOL="$OTOOL" \
       $gcc_make_targets \
-      > "$bootstrap_share/make.stdout" \
-      2> "$bootstrap_share/make.stderr"
+      2>&1 | tee "$bootstrap_share/make.log"
   else
     MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$main_build_cores" \
       MAKEINFO=true \
@@ -1053,8 +1051,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
       LIPO="$LIPO" \
       OTOOL="$OTOOL" \
       $make_targets \
-      > "$bootstrap_share/make.stdout" \
-      2> "$bootstrap_share/make.stderr"
+      2>&1 | tee "$bootstrap_share/make.log"
   fi
 else
   printf 'Skipped main make in resumed phase44 tree\n' > "$bootstrap_share/make.skipped"
@@ -1094,6 +1091,5 @@ int helper(int x) { return x + 40; }
 int main() { return helper(2); }
 CC
 "$out/bin/g++" -S cxx-smoke.cc -o "$bootstrap_share/cxx-smoke.s" \
-  > "$bootstrap_share/cxx-smoke.stdout" \
-  2> "$bootstrap_share/cxx-smoke.stderr"
+  2>&1 | tee "$bootstrap_share/cxx-smoke.log"
 test -s "$bootstrap_share/cxx-smoke.s"
