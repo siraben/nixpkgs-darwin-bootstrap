@@ -1,7 +1,7 @@
 {
-  phase10-hex2,
-  phase26b-elf64-to-m1,
-  phase9-m1,
+  hex2,
+  elf64-to-m1,
+  m1,
   root,
   runCommand,
   ...
@@ -11,7 +11,7 @@ runCommand "phase26b-elf64-to-m1" { } ''
 
   ## Assemble the hand-written ELF→M1 converter through the existing
   ## stage0-derived M1+hex2 pipeline. No Python; no C compiler.
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
     -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
@@ -20,7 +20,7 @@ runCommand "phase26b-elf64-to-m1" { } ''
     > m1.stdout \
     2> m1.stderr
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \

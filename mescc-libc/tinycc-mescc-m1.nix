@@ -2,11 +2,11 @@
   lib,
   mesNyacc,
   nyaccVersion,
-  phase10-hex2,
-  phase13-mes-source,
-  phase16-mes-m2,
-  phase19-tinycc-mescc-m1-probe,
-  phase9-m1,
+  hex2,
+  mes-source,
+  mes-m2,
+  tinycc-mescc-m1-probe,
+  m1,
   runCommand,
   tinyccMesSrc,
   ...
@@ -14,23 +14,23 @@
 runCommand "phase19-tinycc-mescc-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
-  mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
-  MES_PREFIX=${phase13-mes-source} \
+  mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
+  MES_PREFIX=${mes-source} \
     GUILE_LOAD_PATH="$mesLoadPath" \
     MES_STACK=6000000 \
     MES_ARENA=60000000 \
     MES_MAX_ARENA=60000000 \
-    srcdest=${phase13-mes-source}/ \
-    includedir=${phase13-mes-source}/include \
-    libdir=${phase13-mes-source}/lib \
-    M1=${phase9-m1}/bin/M1 \
-    HEX2=${phase10-hex2}/bin/hex2 \
-    ${phase16-mes-m2}/bin/mes-m2 --no-auto-compile -e main ${phase16-mes-m2}/bin/mescc.scm -- \
+    srcdest=${mes-source}/ \
+    includedir=${mes-source}/include \
+    libdir=${mes-source}/lib \
+    M1=${m1}/bin/M1 \
+    HEX2=${hex2}/bin/hex2 \
+    ${mes-m2}/bin/mes-m2 --no-auto-compile -e main ${mes-m2}/bin/mescc.scm -- \
       -S \
       -o tcc.M1 \
       -I ${tinyccMesSrc} \
       -I ${tinyccMesSrc}/include \
-      -I ${phase13-mes-source}/include \
+      -I ${mes-source}/include \
       -D BOOTSTRAP=1 \
       -D HAVE_LONG_LONG=1 \
       -D TCC_TARGET_X86_64=1 \
@@ -40,7 +40,7 @@ runCommand "phase19-tinycc-mescc-m1-probe" { } ''
       -D CONFIG_TCC_CRTPREFIX=\"{B}\" \
       -D CONFIG_TCC_ELFINTERP=\"/mes/loader\" \
       -D CONFIG_TCC_LIBPATHS=\"{B}\" \
-      -D CONFIG_TCC_SYSINCLUDEPATHS=\"${tinyccMesSrc}/include:${phase13-mes-source}/include\" \
+      -D CONFIG_TCC_SYSINCLUDEPATHS=\"${tinyccMesSrc}/include:${mes-source}/include\" \
       -D TCC_LIBGCC=\"libc.a\" \
       -D TCC_LIBTCC1=\"libtcc1.a\" \
       -D CONFIG_TCC_LIBTCC1_MES=0 \

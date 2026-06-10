@@ -4,12 +4,12 @@
   apple-sdk,
   cctools,
   gnumake,
-  phase39-gnumake,
+  bootstrap-gnumake,
   gccModernMpcVersion,
   gccModernMpcTarball,
-  phase26c-bootstrap-gmp,
-  phase26d-bootstrap-mpfr,
-  phase46-gcc-latest-bootstrap,
+  bootstrap-gmp,
+  bootstrap-mpfr,
+  gcc-latest,
   root,
   ...
 }:
@@ -25,9 +25,9 @@ runCommand "phase26e-mpc-${version}" {
   tar -xf ${tarball}
   cd mpc-${version}
 
-  compiler=${phase46-gcc-latest-bootstrap}
-  gmp=${phase26c-bootstrap-gmp}
-  mpfr=${phase26d-bootstrap-mpfr}
+  compiler=${gcc-latest}
+  gmp=${bootstrap-gmp}
+  mpfr=${bootstrap-mpfr}
   sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
   export PATH="$compiler/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -53,11 +53,11 @@ runCommand "phase26e-mpc-${version}" {
     > $out/share/darwin-bootstrap/configure.stdout \
     2> $out/share/darwin-bootstrap/configure.stderr
 
-  ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
+  ${bootstrap-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${phase39-gnumake}/bin/make install \
+  ${bootstrap-gnumake}/bin/make install \
     > $out/share/darwin-bootstrap/install.stdout \
     2> $out/share/darwin-bootstrap/install.stderr
 

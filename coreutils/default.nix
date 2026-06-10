@@ -7,9 +7,9 @@
   coreutilsTarball,
   coreutilsMakefile,
   coreutilsPatches,
-  phase34-tinycc-darwin-cc,
-  phase39-gnumake,
-  phase40-gnupatch,
+  tinycc-darwin-cc,
+  bootstrap-gnumake,
+  gnupatch,
   ...
 }:
 runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
@@ -19,7 +19,7 @@ runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
   cd coreutils-${coreutilsVersion}
 
   for patch_file in ${lib.escapeShellArgs coreutilsPatches}; do
-    ${phase40-gnupatch}/bin/patch -Np0 -i "$patch_file"
+    ${gnupatch}/bin/patch -Np0 -i "$patch_file"
   done
 
   : > config.h
@@ -39,8 +39,8 @@ runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
     done
   } > bootstrap-coreutils.mk
 
-  export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
-  MAKEFLAGS= ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk \
+  export CC=${tinycc-darwin-cc}/bin/tcc-darwin-cc
+  MAKEFLAGS= ${bootstrap-gnumake}/bin/make -f bootstrap-coreutils.mk \
     CC="$CC -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1 -DFILESYSTEM_PREFIX_LEN\(Filename\)=0 -DISSLASH\(C\)=\(\(C\)==47\)" \
     AR=${cctools}/bin/ar \
     PREFIX="$out" \
@@ -50,7 +50,7 @@ runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
   ./src/echo "Hello coreutils!" > coreutils-smoke.stdout 2> coreutils-smoke.stderr
   grep -q "Hello coreutils!" coreutils-smoke.stdout
 
-  MAKEFLAGS= ${phase39-gnumake}/bin/make -f bootstrap-coreutils.mk install \
+  MAKEFLAGS= ${bootstrap-gnumake}/bin/make -f bootstrap-coreutils.mk install \
     PREFIX="$out" \
     > coreutils-install.stdout \
     2> coreutils-install.stderr

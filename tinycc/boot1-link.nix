@@ -1,13 +1,13 @@
 {
   darwin,
-  phase10-hex2,
-  phase11c-hex2-data-relocs,
-  phase26b-elf64-to-m1,
-  phase3-m0,
-  phase30-tinycc-self-link-candidate,
-  phase32-tinycc-boot1-object-probe,
-  phase33-tinycc-boot1-link-candidate,
-  phase9-m1,
+  hex2,
+  hex2-data-relocs,
+  elf64-to-m1,
+  m0,
+  tinycc-self-link-candidate,
+  tinycc-boot1-object-probe,
+  tinycc-boot1-link-candidate,
+  m1,
   root,
   runCommand,
   source,
@@ -16,18 +16,18 @@
 runCommand "phase33-tinycc-boot1-link-candidate" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
-  ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
+  ${tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
     ${root + "/bootstrap/tinycc-sysv-libc.c"} \
     -o tinycc-sysv-libc.o \
     > tinycc-sysv-libc.stdout \
     2> tinycc-sysv-libc.stderr
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
     tinycc-sysv-libc.o \
     tinycc-sysv-libc.M1
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_boot1_ \
-    ${phase32-tinycc-boot1-object-probe}/share/darwin-bootstrap/tcc-boot1.o \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_boot1_ \
+    ${tinycc-boot1-object-probe}/share/darwin-bootstrap/tcc-boot1.o \
     tcc-boot1.M1
 
   cp ${root + "/tinycc/fixtures/boot1-link-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
@@ -58,21 +58,21 @@ runCommand "phase33-tinycc-boot1-link-candidate" { } ''
     emit_data tinycc-sysv-libc.M1
   } > tcc-boot1-combined.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
     -f tcc-boot1-combined.M1 \
     -o tcc-boot1.hex2
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \
-    -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
     -f tcc-boot1.hex2 \
     -o tcc-boot1
 
-  ${phase11c-hex2-data-relocs}/bin/hex2-data-relocs patch tcc-boot1.hex2 tcc-boot1
+  ${hex2-data-relocs}/bin/hex2-data-relocs patch tcc-boot1.hex2 tcc-boot1
 
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=tcc-boot1 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

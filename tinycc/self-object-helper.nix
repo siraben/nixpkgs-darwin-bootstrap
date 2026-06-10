@@ -1,5 +1,5 @@
 {
-  phase13-mes-source,
+  mes-source,
   runCommand,
   tinyccMesSrc,
   ...
@@ -12,7 +12,7 @@
 runCommand "${phase}-tinycc-${boot}-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
-  cp -R ${phase13-mes-source}/include/. include/
+  cp -R ${mes-source}/include/. include/
   chmod -R u+w include
   cp -R ${tinyccMesSrc}/include/. include/
 

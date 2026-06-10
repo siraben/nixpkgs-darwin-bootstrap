@@ -1,12 +1,12 @@
 {
   darwin,
   mkDarwin,
-  phase10-hex2,
-  phase11c-hex2-data-relocs,
-  phase26g-macho-patcher,
-  phase3-m0,
-  phase5-m2,
-  phase9-m1,
+  hex2,
+  hex2-data-relocs,
+  macho-patcher,
+  m0,
+  m2,
+  m1,
   root,
   source,
   stage0Sources,
@@ -17,7 +17,7 @@ mkDarwin {
   buildPhase = ''
     runHook preBuild
 
-    ${phase5-m2}/bin/M2-darwin \
+    ${m2}/bin/M2-darwin \
       --architecture amd64 \
       -f ${stage0Sources}/M2libc/sys/types.h \
       -f ${stage0Sources}/M2libc/stddef.h \
@@ -35,7 +35,7 @@ mkDarwin {
       -f ${root + "/bootstrap/hex2-data-relocs.c"} \
       -o hex2-data-relocs.M1
 
-    ${phase9-m1}/bin/M1 \
+    ${m1}/bin/M1 \
       --architecture amd64 \
       --little-endian \
       -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
@@ -43,14 +43,14 @@ mkDarwin {
       -f hex2-data-relocs.M1 \
       -o hex2-data-relocs.hex2
 
-    ${phase10-hex2}/bin/hex2 \
+    ${hex2}/bin/hex2 \
       --architecture amd64 \
       --little-endian \
       --base-address 0x600000 \
-      -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
       -f hex2-data-relocs.hex2 \
       -o hex2-data-relocs
-    ${phase26g-macho-patcher}/bin/macho-patcher m2-segments hex2-data-relocs.hex2 hex2-data-relocs
+    ${macho-patcher}/bin/macho-patcher m2-segments hex2-data-relocs.hex2 hex2-data-relocs
 
     linkeditOffset="$((0x800000 + 0x2000000))"
     dd if=/dev/zero of=hex2-data-relocs bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

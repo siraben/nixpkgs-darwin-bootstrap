@@ -4,11 +4,11 @@
   apple-sdk,
   cctools,
   gnumake,
-  phase39-gnumake,
+  bootstrap-gnumake,
   gccModernMpfrVersion,
   gccModernMpfrTarball,
-  phase26c-bootstrap-gmp,
-  phase46-gcc-latest-bootstrap,
+  bootstrap-gmp,
+  gcc-latest,
   root,
   ...
 }:
@@ -24,8 +24,8 @@ runCommand "phase26d-mpfr-${version}" {
   tar -xf ${tarball}
   cd mpfr-${version}
 
-  compiler=${phase46-gcc-latest-bootstrap}
-  gmp=${phase26c-bootstrap-gmp}
+  compiler=${gcc-latest}
+  gmp=${bootstrap-gmp}
   sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
   export PATH="$compiler/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
@@ -51,11 +51,11 @@ runCommand "phase26d-mpfr-${version}" {
     > $out/share/darwin-bootstrap/configure.stdout \
     2> $out/share/darwin-bootstrap/configure.stderr
 
-  ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
+  ${bootstrap-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${phase39-gnumake}/bin/make install \
+  ${bootstrap-gnumake}/bin/make install \
     > $out/share/darwin-bootstrap/install.stdout \
     2> $out/share/darwin-bootstrap/install.stderr
 

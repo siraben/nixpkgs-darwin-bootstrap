@@ -3,11 +3,11 @@
   lib,
   mesNyacc,
   nyaccVersion,
-  phase10-hex2,
-  phase13-mes-source,
-  phase16-mes-m2,
-  phase22-mescc-libc-tcc-probe,
-  phase9-m1,
+  hex2,
+  mes-source,
+  mes-m2,
+  mescc-libc-tcc-probe,
+  m1,
   runCommand,
   root,
   source,
@@ -16,24 +16,24 @@
 runCommand "phase22-mescc-libc-tcc-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap m1 logs
 
-  mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
+  mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
   mescc() {
-    MES_PREFIX=${phase13-mes-source} \
+    MES_PREFIX=${mes-source} \
       GUILE_LOAD_PATH="$mesLoadPath" \
-      srcdest=${phase13-mes-source}/ \
-      includedir=${phase13-mes-source}/include \
-      libdir=${phase13-mes-source}/lib \
-      M1=${phase9-m1}/bin/M1 \
-      HEX2=${phase10-hex2}/bin/hex2 \
+      srcdest=${mes-source}/ \
+      includedir=${mes-source}/include \
+      libdir=${mes-source}/lib \
+      M1=${m1}/bin/M1 \
+      HEX2=${hex2}/bin/hex2 \
       MES_STACK=6000000 \
       MES_ARENA=60000000 \
       MES_MAX_ARENA=60000000 \
-      ${phase16-mes-m2}/bin/mes-m2 --no-auto-compile -e main ${phase16-mes-m2}/bin/mescc.scm -- "$@"
+      ${mes-m2}/bin/mes-m2 --no-auto-compile -e main ${mes-m2}/bin/mescc.scm -- "$@"
   }
 
   cp ${root + "/mescc-libc/fixtures/libc-tcc-config.sh"} config.sh
   . ./config.sh
-  . ${phase13-mes-source}/build-aux/configure-lib.sh
+  . ${mes-source}/build-aux/configure-lib.sh
 
   map_source() {
     source="$1"
@@ -48,7 +48,7 @@ runCommand "phase22-mescc-libc-tcc-probe" { } ''
         mapped="$source"
         ;;
     esac
-    if test -f "${phase13-mes-source}/$mapped"; then
+    if test -f "${mes-source}/$mapped"; then
       printf '%s\n' "$mapped"
     else
       printf '%s\n' "$source"
@@ -58,11 +58,11 @@ runCommand "phase22-mescc-libc-tcc-probe" { } ''
   compile_m1() {
     source="$1"
     mapped="$(map_source "$source")"
-    source_path="${phase13-mes-source}/$mapped"
+    source_path="${mes-source}/$mapped"
     object_name="$(printf '%s\n' "$mapped" | sed -e 's|/|-|g' -e 's|[.]c$||').M1"
     output_path="m1/$object_name"
     echo "$source -> $mapped" >> logs/sources.map
-    mescc -S -I ${phase13-mes-source}/include -D HAVE_CONFIG_H=1 "$source_path" -o "$output_path" \
+    mescc -S -I ${mes-source}/include -D HAVE_CONFIG_H=1 "$source_path" -o "$output_path" \
       > "$output_path.stdout" 2> "$output_path.stderr"
     test -s "$output_path"
     sed -i.bak '/^<$/d' "$output_path"

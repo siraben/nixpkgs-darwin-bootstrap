@@ -1,9 +1,9 @@
 {
   darwin,
   lib,
-  phase12-m2-planet,
-  phase13-mes-source,
-  phase14-mes-m2-probe,
+  m2-planet,
+  mes-source,
+  mes-m2-probe,
   runCommand,
   ...
 }:
@@ -39,13 +39,13 @@ runCommand "phase14-mes-m2-probe" { } ''
     -e 's|lib/linux/dup2.c|lib/darwin/dup2.c|g' \
     -e 's|lib/linux/uname.c|lib/darwin/uname.c|g' \
     -e 's|lib/linux/unlink.c|lib/darwin/unlink.c|g' \
-    ${phase13-mes-source}/kaem.run \
+    ${mes-source}/kaem.run \
     | awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
     > mes-m2-only.sh
 
   set +e
-  PATH=${phase12-m2-planet}/bin:$PATH \
-    srcdest=${phase13-mes-source}/ \
+  PATH=${m2-planet}/bin:$PATH \
+    srcdest=${mes-source}/ \
     cc_cpu=x86_64 \
     mes_cpu=x86_64 \
     stage0_cpu=amd64 \

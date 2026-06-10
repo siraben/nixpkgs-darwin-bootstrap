@@ -1,16 +1,16 @@
 {
-  phase25-tinycc-self-object-probe,
-  phase26b-elf64-to-m1,
-  phase28-tinycc-self-m1-probe,
-  phase9-m1,
+  tinycc-self-object-probe,
+  elf64-to-m1,
+  tinycc-self-m1-probe,
+  m1,
   runCommand,
   ...
 }:
 runCommand "phase28-tinycc-self-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \
-    ${phase25-tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \
+    ${tinycc-self-object-probe}/share/darwin-bootstrap/tcc.o \
     tcc-from-elf.M1
 
   grep -q '^:main$' tcc-from-elf.M1
@@ -19,7 +19,7 @@ runCommand "phase28-tinycc-self-m1-probe" { } ''
   grep -q '^%vsnprintf$' tcc-from-elf.M1
   grep -q '^:ELF_data$' tcc-from-elf.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
     -f tcc-from-elf.M1 \

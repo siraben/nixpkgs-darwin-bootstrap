@@ -1,13 +1,13 @@
 {
   gcc46Version,
-  phase26-gcc46-source,
+  gcc46-source,
   root,
   runCommand,
   ...
 }:
     runCommand "gcc-${gcc46Version}-darwin-bootstrap-source" { } ''
       mkdir -p $out
-      cp -R ${phase26-gcc46-source}/. $out/
+      cp -R ${gcc46-source}/. $out/
       chmod -R u+w $out
       cd $out
       patch -p1 < ${root + "/patches/gcc46-genconditions-tcc-safe.patch"}

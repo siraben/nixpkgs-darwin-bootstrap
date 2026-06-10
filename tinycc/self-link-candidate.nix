@@ -1,11 +1,11 @@
 {
   darwin,
   lib,
-  phase10-hex2,
-  phase11c-hex2-data-relocs,
-  phase26b-elf64-to-m1,
-  phase3-m0,
-  phase9-m1,
+  hex2,
+  hex2-data-relocs,
+  elf64-to-m1,
+  m0,
+  m1,
   root,
   runCommand,
   source,
@@ -26,11 +26,11 @@ runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
     > tinycc-sysv-libc.stdout \
     2> tinycc-sysv-libc.stderr
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
     tinycc-sysv-libc.o \
     tinycc-sysv-libc.M1
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix ${lib.replaceStrings [ "-" ] [ "_" ] boot}_ \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix ${lib.replaceStrings [ "-" ] [ "_" ] boot}_ \
     ${objectProbe}/share/darwin-bootstrap/${boot}.o \
     ${boot}.M1
 
@@ -62,21 +62,21 @@ runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
     emit_data tinycc-sysv-libc.M1
   } > ${boot}-combined.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
     -f ${boot}-combined.M1 \
     -o ${boot}.hex2
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \
-    -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
     -f ${boot}.hex2 \
     -o ${boot}
 
-  ${phase11c-hex2-data-relocs}/bin/hex2-data-relocs patch ${boot}.hex2 ${boot}
+  ${hex2-data-relocs}/bin/hex2-data-relocs patch ${boot}.hex2 ${boot}
 
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=${boot} bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

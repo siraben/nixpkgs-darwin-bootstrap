@@ -5,7 +5,7 @@
   hex0,
   hostPlatform,
   lib,
-  phase37-gcc46-bootstrap,
+  gcc46,
   raw-syscall-hello,
   raw-syscall-hello-unsigned,
   root,
@@ -156,8 +156,8 @@
     fi
     mkdir $out
   '';
-} // lib.optionalAttrs (phase37-gcc46-bootstrap != null) {
-  gcc46-bootstrap-smoke = phase37-gcc46-bootstrap;
+} // lib.optionalAttrs (gcc46 != null) {
+  gcc46-bootstrap-smoke = gcc46;
 } // lib.optionalAttrs (gnu-hello-hash-comparison != null) {
   gnu-hello-hash-comparison = gnu-hello-hash-comparison;
 }

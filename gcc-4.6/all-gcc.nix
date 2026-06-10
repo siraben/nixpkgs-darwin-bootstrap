@@ -3,7 +3,7 @@
   gcc46DarwinBootstrapSrc,
   gcc46Version,
   perl,
-  phase34-tinycc-darwin-cc,
+  tinycc-darwin-cc,
   root,
   runCommand,
   ...
@@ -15,11 +15,11 @@
         cp -R ${gcc46DarwinBootstrapSrc}/. src/
         chmod -R u+w src
         sed -i \
-          's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = ${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap|' \
+          's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = ${tinycc-darwin-cc}/include/tcc-darwin-bootstrap|' \
           src/gcc/Makefile.in
         bash ${root + "/scripts/gcc46/phase35-prepare-source.sh"}
 
-        export CC=${phase34-tinycc-darwin-cc}/bin/tcc-darwin-cc
+        export CC=${tinycc-darwin-cc}/bin/tcc-darwin-cc
         export CPP="$CC -E"
         export CC_FOR_BUILD="$CC"
         export AR=${cctools}/bin/ar
@@ -65,8 +65,8 @@
           --build=x86_64-apple-darwin \
           --host=x86_64-apple-darwin \
           --target=x86_64-apple-darwin \
-          --with-native-system-header-dir=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
-          --with-build-sysroot=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
+          --with-native-system-header-dir=${tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
+          --with-build-sysroot=${tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
           --disable-bootstrap \
           --disable-shared \
           --disable-multilib \
@@ -89,7 +89,7 @@
 
         make all-gcc -j"$buildCores" \
           MAKEINFO=true \
-          NATIVE_SYSTEM_HEADER_DIR=${phase34-tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
+          NATIVE_SYSTEM_HEADER_DIR=${tinycc-darwin-cc}/include/tcc-darwin-bootstrap \
           CPP="$CPP" \
           AR="$AR" \
           NM="$NM" \

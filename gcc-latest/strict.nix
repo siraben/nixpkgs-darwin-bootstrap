@@ -5,13 +5,13 @@
   gccLatestVersion,
   gnumake,
   perl,
-  phase26c-bootstrap-gmp,
-  phase26d-bootstrap-mpfr,
-  phase26e-bootstrap-mpc,
-  phase26f-bootstrap-isl,
-  phase39-gnumake,
-  phase43-gcc-latest-source,
-  phase46-gcc-latest-bootstrap,
+  bootstrap-gmp,
+  bootstrap-mpfr,
+  bootstrap-mpc,
+  bootstrap-isl,
+  bootstrap-gnumake,
+  gcc-latest-source,
+  gcc-latest,
   root,
   runCommand,
   stdenv,
@@ -21,10 +21,10 @@ runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
-  export GCC_MODERN_EXTERNAL_GMP=${phase26c-bootstrap-gmp}
-  export GCC_MODERN_EXTERNAL_MPFR=${phase26d-bootstrap-mpfr}
-  export GCC_MODERN_EXTERNAL_MPC=${phase26e-bootstrap-mpc}
-  export GCC_MODERN_EXTERNAL_ISL=${phase26f-bootstrap-isl}
+  export GCC_MODERN_EXTERNAL_GMP=${bootstrap-gmp}
+  export GCC_MODERN_EXTERNAL_MPFR=${bootstrap-mpfr}
+  export GCC_MODERN_EXTERNAL_MPC=${bootstrap-mpc}
+  export GCC_MODERN_EXTERNAL_ISL=${bootstrap-isl}
   export GCC_MODERN_HOST_CC=${stdenv.cc.cc}/bin/clang
   export GCC_MODERN_HOST_CXX=${stdenv.cc.cc}/bin/clang++
   export GCC_MODERN_LD=${darwin.binutils-unwrapped}/bin/ld
@@ -40,12 +40,12 @@ runCommand "phase47-gcc-${gccLatestVersion}-strict" {
   ## fork/exec.
   export ac_cv_func_posix_spawn=no
   export ac_cv_func_posix_spawnp=no
-  export BOOTSTRAP_MAKE=${phase39-gnumake}/bin/make
+  export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
-    ${phase43-gcc-latest-source} \
-    ${phase46-gcc-latest-bootstrap} \
-    ${phase39-gnumake} \
-    ${phase46-gcc-latest-bootstrap} \
+    ${gcc-latest-source} \
+    ${gcc-latest} \
+    ${bootstrap-gnumake} \
+    ${gcc-latest} \
     ${cctools} \
     "$out" \
     ${gccLatestVersion} \

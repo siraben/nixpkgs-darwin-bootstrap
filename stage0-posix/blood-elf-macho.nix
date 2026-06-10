@@ -1,12 +1,12 @@
 {
   darwin,
   mkDarwin,
-  phase11e-macho-patcher-early,
-  phase2-catm,
-  phase2-hex2,
-  phase3-m0,
-  phase5-m2,
-  phase6-blood-macho-0,
+  macho-patcher-early,
+  catm,
+  hex2-0,
+  m0,
+  m2,
+  blood-macho-0,
   root,
   source,
   stage0Sources,
@@ -17,7 +17,7 @@ mkDarwin {
   buildPhase = ''
     runHook preBuild
 
-    ${phase5-m2}/bin/M2-darwin \
+    ${m2}/bin/M2-darwin \
       --architecture amd64 \
       -f ${root + "/M2libc/amd64/Darwin/bootstrap.c"} \
       -f ${stage0Sources}/M2libc/bootstrappable.c \
@@ -25,22 +25,22 @@ mkDarwin {
       -f ${stage0Sources}/mescc-tools/blood-elf.c \
       --bootstrap-mode \
       -o blood-macho-0.M1
-    ${phase2-catm}/bin/catm-darwin blood-macho-0-0.M1 \
+    ${catm}/bin/catm-darwin blood-macho-0-0.M1 \
       ${root + "/M2libc/amd64/amd64_defs.M1"} \
       ${root + "/M2libc/amd64/libc-core-Darwin.M1"} \
       blood-macho-0.M1
-    ${phase3-m0}/bin/M0-darwin blood-macho-0-0.M1 blood-macho-0.hex2
+    ${m0}/bin/M0-darwin blood-macho-0-0.M1 blood-macho-0.hex2
 
     if grep -q 'sub_rdi\|lea_r9\|mov_rdi,rbp\|DWORD\|DEFINE' blood-macho-0.hex2; then
       echo "blood-macho-0 hex2 contains untranslated M1 tokens" >&2
       exit 1
     fi
 
-    ${phase2-catm}/bin/catm-darwin blood-macho-0-0.hex2 \
-      ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    ${catm}/bin/catm-darwin blood-macho-0-0.hex2 \
+      ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
       blood-macho-0.hex2
-    ${phase2-hex2}/bin/hex2-darwin blood-macho-0-0.hex2 blood-macho-0
-    ${phase11e-macho-patcher-early}/bin/macho-patcher m2-segments blood-macho-0.hex2 blood-macho-0
+    ${hex2-0}/bin/hex2-darwin blood-macho-0-0.hex2 blood-macho-0
+    ${macho-patcher-early}/bin/macho-patcher m2-segments blood-macho-0.hex2 blood-macho-0
 
     linkeditOffset="$((0x800000 + 0x2000000))"
     dd if=/dev/zero of=blood-macho-0 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

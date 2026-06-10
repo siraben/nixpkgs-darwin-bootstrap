@@ -8,7 +8,7 @@
 {
   hostPlatform,
   mkDarwin,
-  phase2-hex2,
+  hex2-0,
   root,
   ...
 }:
@@ -19,7 +19,7 @@ let
       derivation {
         name = "phase2-catm-raw";
         system = "x86_64-darwin";
-        builder = phase2-hex2.hex2-raw;
+        builder = hex2-0.hex2-raw;
         args = [
           (root + "/hex0/sources/catm/catm_AMD64_darwin_combined.hex2")
           (placeholder "out")

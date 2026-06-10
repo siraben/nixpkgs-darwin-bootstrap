@@ -1,6 +1,6 @@
 {
   cctools,
-  phase47-gcc-latest-strict-bootstrap,
+  gcc-latest-strict,
   runCommand,
   ...
 }:
@@ -17,8 +17,8 @@ runCommand "phase39b-cctools-ar" { } ''
   mkdir -p build "$out/bin" "$out/share/darwin-bootstrap"
   cd build
 
-  export PATH="${phase47-gcc-latest-strict-bootstrap}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-  export CC="${phase47-gcc-latest-strict-bootstrap}/bin/gcc"
+  export PATH="${gcc-latest-strict}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  export CC="${gcc-latest-strict}/bin/gcc"
   export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
   ## -std=gnu11: gcc-15 defaults to gnu23 where `bool` is a keyword, breaking
   ## cctools' `enum bool`. -D__private_extern__: Apple visibility keyword gcc lacks.

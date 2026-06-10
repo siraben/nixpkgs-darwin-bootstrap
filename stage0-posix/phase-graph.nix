@@ -28,7 +28,7 @@ let
       builder = "hex1";
       inputs = [ "stage0-posix/<arch>/hex2_<arch>.hex1" ];
       output = "hex2-0";
-      darwinStatus = "implemented for amd64 Darwin as phase2-hex2";
+      darwinStatus = "implemented for amd64 Darwin as hex2-0";
     }
     {
       number = 3;
@@ -36,7 +36,7 @@ let
       builder = "hex1 or hex2-0";
       inputs = [ "stage0-posix/<arch>/catm_<arch>.hex{1,2}" ];
       output = "catm";
-      darwinStatus = "implemented for amd64 Darwin as phase2-catm";
+      darwinStatus = "implemented for amd64 Darwin as catm";
     }
     {
       number = 4;
@@ -44,7 +44,7 @@ let
       builder = "hex2-0";
       inputs = [ (macho "<arch>") "stage0-posix/<arch>/M0_<arch>.hex2" ];
       output = "M0";
-      darwinStatus = "implemented for amd64 Darwin as phase3-m0";
+      darwinStatus = "implemented for amd64 Darwin as m0";
     }
     {
       number = 5;
@@ -52,7 +52,7 @@ let
       builder = "M0 then hex2-0";
       inputs = [ (macho "<arch>") "stage0-posix/<arch>/cc_<arch>.M1" ];
       output = "cc_arch";
-      darwinStatus = "implemented for amd64 Darwin as phase4-cc-arch";
+      darwinStatus = "implemented for amd64 Darwin as cc-arch";
     }
     {
       number = 6;
@@ -60,7 +60,7 @@ let
       builder = "cc_arch then M0 then hex2-0";
       inputs = [ (darwinM2libc "<arch>") (defs "<arch>") (libcCore "<arch>") (macho "<arch>") "M2-Planet/*.c" ];
       output = "M2";
-      darwinStatus = "implemented for amd64 Darwin as phase5-m2";
+      darwinStatus = "implemented for amd64 Darwin as m2";
     }
     {
       number = 7;
@@ -68,7 +68,7 @@ let
       builder = "M2 then M0 then hex2-0";
       inputs = [ (darwinM2libc "<arch>") (defs "<arch>") (libcCore "<arch>") (macho "<arch>") "mescc-tools/blood-elf.c" ];
       output = "blood-macho-0";
-      darwinStatus = "implemented for amd64 Darwin as phase6-blood-macho-0; ELF debug footer use remains disabled for Mach-O-linked tools";
+      darwinStatus = "implemented for amd64 Darwin as blood-macho-0; ELF debug footer use remains disabled for Mach-O-linked tools";
     }
     {
       number = 8;
@@ -76,7 +76,7 @@ let
       builder = "M2, blood-macho-0, M0, hex2-0";
       inputs = [ "mescc-tools/M1-macro.c" ];
       output = "M1-0";
-      darwinStatus = "implemented for amd64 Darwin as phase7-m1-0";
+      darwinStatus = "implemented for amd64 Darwin as m1-0";
     }
     {
       number = 9;
@@ -84,7 +84,7 @@ let
       builder = "M2, blood-macho-0, M1-0, hex2-0";
       inputs = [ "mescc-tools/hex2*.c" ];
       output = "hex2-1";
-      darwinStatus = "implemented for amd64 Darwin as phase8-hex2-1 using the Mach-O low-data header";
+      darwinStatus = "implemented for amd64 Darwin as hex2-1 using the Mach-O low-data header";
     }
     {
       number = 10;
@@ -92,7 +92,7 @@ let
       builder = "M2, blood-macho-0, M1-0, hex2-1";
       inputs = [ "mescc-tools/M1-macro.c" ];
       output = "M1";
-      darwinStatus = "implemented for amd64 Darwin as phase9-m1";
+      darwinStatus = "implemented for amd64 Darwin as m1";
     }
     {
       number = 11;
@@ -100,7 +100,7 @@ let
       builder = "M2, blood-macho-0, M1, hex2-1";
       inputs = [ "mescc-tools/hex2*.c" ];
       output = "hex2";
-      darwinStatus = "implemented for amd64 Darwin as phase10-hex2 using the Mach-O low-data header";
+      darwinStatus = "implemented for amd64 Darwin as hex2 using the Mach-O low-data header";
     }
     {
       number = 12;
@@ -108,7 +108,7 @@ let
       builder = "M2, blood-macho-0, M1, hex2";
       inputs = [ "mescc-tools/Kaem/*.c" ];
       output = "kaem";
-      darwinStatus = "implemented for amd64 Darwin as phase11-kaem";
+      darwinStatus = "implemented for amd64 Darwin as kaem";
     }
     {
       number = 13;
@@ -116,7 +116,7 @@ let
       builder = "M2, blood-macho, M1, hex2";
       inputs = [ (darwinM2libc "<arch>") "M2-Planet/*.c" ];
       output = "M2-Planet";
-      darwinStatus = "implemented for amd64 Darwin as phase12-m2-planet";
+      darwinStatus = "implemented for amd64 Darwin as m2-planet";
     }
     {
       number = 14;

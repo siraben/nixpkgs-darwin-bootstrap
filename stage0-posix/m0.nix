@@ -8,7 +8,7 @@
 {
   hostPlatform,
   mkDarwin,
-  phase2-hex2,
+  hex2-0,
   root,
   ...
 }:
@@ -19,7 +19,7 @@ let
       derivation {
         name = "phase3-m0-raw";
         system = "x86_64-darwin";
-        builder = phase2-hex2.hex2-raw;
+        builder = hex2-0.hex2-raw;
         args = [
           (root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2")
           (placeholder "out")

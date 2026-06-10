@@ -9,7 +9,7 @@
 {
   hostPlatform,
   runCommand,
-  phase12-m2-planet,
+  m2-planet,
   stage0Sources,
   tinyccBootstrappableSrc,
   root,
@@ -18,7 +18,7 @@
 if hostPlatform.isx86_64 then
   runCommand "tinycc-m2-negative-probe" { } ''
     set +e
-    ${phase12-m2-planet}/bin/M2-Planet \
+    ${m2-planet}/bin/M2-Planet \
       --architecture amd64 \
       -I ${tinyccBootstrappableSrc} \
       -I ${tinyccBootstrappableSrc}/include \

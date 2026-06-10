@@ -1,12 +1,12 @@
 {
   darwin,
   mkDarwin,
-  phase10-hex2,
-  phase12-m2-planet,
-  phase26g-macho-patcher,
-  phase3-m0,
-  phase5-m2,
-  phase9-m1,
+  hex2,
+  m2-planet,
+  macho-patcher,
+  m0,
+  m2,
+  m1,
   root,
   source,
   stage0Sources,
@@ -17,7 +17,7 @@ mkDarwin {
   buildPhase = ''
     runHook preBuild
 
-    ${phase5-m2}/bin/M2-darwin \
+    ${m2}/bin/M2-darwin \
       --architecture amd64 \
       -f ${stage0Sources}/M2libc/sys/types.h \
       -f ${stage0Sources}/M2libc/stddef.h \
@@ -44,7 +44,7 @@ mkDarwin {
       -f ${stage0Sources}/M2-Planet/cc.c \
       -o M2-Planet.M1
 
-    ${phase9-m1}/bin/M1 \
+    ${m1}/bin/M1 \
       --architecture amd64 \
       --little-endian \
       -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
@@ -57,14 +57,14 @@ mkDarwin {
       exit 1
     fi
 
-    ${phase10-hex2}/bin/hex2 \
+    ${hex2}/bin/hex2 \
       --architecture amd64 \
       --little-endian \
       --base-address 0x600000 \
-      -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
       -f M2-Planet.hex2 \
       -o M2-Planet
-    ${phase26g-macho-patcher}/bin/macho-patcher m2-segments M2-Planet.hex2 M2-Planet
+    ${macho-patcher}/bin/macho-patcher m2-segments M2-Planet.hex2 M2-Planet
 
     linkeditOffset="$((0x800000 + 0x2000000))"
     dd if=/dev/zero of=M2-Planet bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

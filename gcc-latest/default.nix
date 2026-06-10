@@ -6,10 +6,10 @@
   gnumake,
   lib,
   perl,
-  phase34-tinycc-darwin-cc,
-  phase39-gnumake,
-  phase43-gcc-latest-source,
-  phase45-gcc10-bootstrap,
+  tinycc-darwin-cc,
+  bootstrap-gnumake,
+  gcc-latest-source,
+  gcc10,
   root,
   runCommand,
   stdenv,
@@ -57,10 +57,10 @@ runCommand "phase46-gcc-${gccLatestVersion}" {
   export GCC_MODERN_BUILD_TARGET_LIBS=1
   export BOOTSTRAP_MAKE=${gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
-    ${phase43-gcc-latest-source} \
-    ${phase45-gcc10-bootstrap} \
-    ${phase39-gnumake} \
-    ${phase34-tinycc-darwin-cc} \
+    ${gcc-latest-source} \
+    ${gcc10} \
+    ${bootstrap-gnumake} \
+    ${tinycc-darwin-cc} \
     ${cctools} \
     "$out" \
     ${gccLatestVersion} \

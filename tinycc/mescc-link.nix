@@ -1,14 +1,14 @@
 {
   darwin,
   lib,
-  phase10-hex2,
-  phase13-mes-source,
-  phase19-tinycc-mescc-m1-probe,
-  phase22-mescc-libc-tcc-probe,
-  phase23-tinycc-mescc-link-probe,
-  phase26g-macho-patcher,
-  phase3-m0,
-  phase9-m1,
+  hex2,
+  mes-source,
+  tinycc-mescc-m1-probe,
+  mescc-libc-tcc-probe,
+  tinycc-mescc-link-probe,
+  macho-patcher,
+  m0,
+  m1,
   runCommand,
   source,
   ...
@@ -32,8 +32,8 @@ runCommand "phase23-tinycc-mescc-link-probe" { } ''
     ' "$input" > "$data"
   }
 
-  split_m1 ${phase22-mescc-libc-tcc-probe}/share/darwin-bootstrap/libc+tcc.M1 libc-tcc.code.M1 libc-tcc.data.M1
-  split_m1 ${phase19-tinycc-mescc-m1-probe}/share/darwin-bootstrap/tcc.M1 tcc.code.M1 tcc.data.M1
+  split_m1 ${mescc-libc-tcc-probe}/share/darwin-bootstrap/libc+tcc.M1 libc-tcc.code.M1 libc-tcc.data.M1
+  split_m1 ${tinycc-mescc-m1-probe}/share/darwin-bootstrap/tcc.M1 tcc.code.M1 tcc.data.M1
 
   {
     cat libc-tcc.code.M1
@@ -44,24 +44,24 @@ runCommand "phase23-tinycc-mescc-link-probe" { } ''
     cat tcc.data.M1
   } > tcc-combined.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
-    -f ${phase13-mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
-    -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
-    -f ${phase13-mes-source}/lib/darwin/x86_64-mes-mescc/crt1-libc.M1 \
+    -f ${mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
+    -f ${mes-source}/lib/x86_64-mes/x86_64.M1 \
+    -f ${mes-source}/lib/darwin/x86_64-mes-mescc/crt1-libc.M1 \
     -f tcc-combined.M1 \
     -o tcc.hex2
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \
-    -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
     -f tcc.hex2 \
     -o tcc
 
-  ${phase26g-macho-patcher}/bin/macho-patcher m2-segments tcc.hex2 tcc
+  ${macho-patcher}/bin/macho-patcher m2-segments tcc.hex2 tcc
 
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=tcc bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

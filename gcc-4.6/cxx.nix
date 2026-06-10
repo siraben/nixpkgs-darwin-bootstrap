@@ -15,10 +15,10 @@
   gcc46Version,
   gnumake,
   perl,
-  phase34-tinycc-darwin-cc,
-  phase35-gcc46-all-gcc,
-  phase37-gcc46-bootstrap,
-  phase39-gnumake,
+  tinycc-darwin-cc,
+  gcc46-all-gcc,
+  gcc46,
+  bootstrap-gnumake,
   root,
   runCommand,
   stdenv,
@@ -39,10 +39,10 @@ runCommand "phase44-gcc-${gcc46Version}-cxx" {
     PHASE44_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
     PHASE44_REBUILD_MACHO_PREREQS=1 \
     ${root + "/scripts/gcc46/phase44-cxx.sh"} \
-    ${phase35-gcc46-all-gcc} \
-    ${phase37-gcc46-bootstrap} \
-    ${phase39-gnumake} \
-    ${phase34-tinycc-darwin-cc} \
+    ${gcc46-all-gcc} \
+    ${gcc46} \
+    ${bootstrap-gnumake} \
+    ${tinycc-darwin-cc} \
     ${cctools} \
     "$out" \
     ${gcc46Version}

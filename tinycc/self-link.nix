@@ -1,13 +1,13 @@
 {
   darwin,
-  phase10-hex2,
-  phase11c-hex2-data-relocs,
-  phase23-tinycc-mescc-link-probe,
-  phase26b-elf64-to-m1,
-  phase28-tinycc-self-m1-probe,
-  phase3-m0,
-  phase30-tinycc-self-link-candidate,
-  phase9-m1,
+  hex2,
+  hex2-data-relocs,
+  tinycc-mescc-link-probe,
+  elf64-to-m1,
+  tinycc-self-m1-probe,
+  m0,
+  tinycc-self-link-candidate,
+  m1,
   root,
   runCommand,
   source,
@@ -16,13 +16,13 @@
 runCommand "phase30-tinycc-self-link-candidate" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
-  ${phase23-tinycc-mescc-link-probe}/bin/tcc -c \
+  ${tinycc-mescc-link-probe}/bin/tcc -c \
     ${root + "/bootstrap/tinycc-sysv-libc.c"} \
     -o tinycc-sysv-libc.o \
     > tinycc-sysv-libc.stdout \
     2> tinycc-sysv-libc.stderr
 
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
     tinycc-sysv-libc.o \
     tinycc-sysv-libc.M1
 
@@ -46,29 +46,29 @@ runCommand "phase30-tinycc-self-link-candidate" { } ''
   {
     cat crt1-tcc-sysv.M1
     cat ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"}
-    emit_code ${phase28-tinycc-self-m1-probe}/share/darwin-bootstrap/tcc-from-elf.M1
+    emit_code ${tinycc-self-m1-probe}/share/darwin-bootstrap/tcc-from-elf.M1
     emit_code tinycc-sysv-libc.M1
     echo ':ELF_data'
     echo ':HEX2_data'
-    emit_data ${phase28-tinycc-self-m1-probe}/share/darwin-bootstrap/tcc-from-elf.M1
+    emit_data ${tinycc-self-m1-probe}/share/darwin-bootstrap/tcc-from-elf.M1
     emit_data tinycc-sysv-libc.M1
   } > tcc-self-combined.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
     -f tcc-self-combined.M1 \
     -o tcc-self.hex2
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \
-    -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
     -f tcc-self.hex2 \
     -o tcc-self
 
-  ${phase11c-hex2-data-relocs}/bin/hex2-data-relocs patch tcc-self.hex2 tcc-self
+  ${hex2-data-relocs}/bin/hex2-data-relocs patch tcc-self.hex2 tcc-self
 
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=tcc-self bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

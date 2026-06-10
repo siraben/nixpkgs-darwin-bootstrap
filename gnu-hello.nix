@@ -5,10 +5,10 @@
   gnuHelloVersion,
   gnumake,
   hostPlatform,
-  phase39-gnumake,
-  phase39b-cctools,
-  phase46-gcc-latest-bootstrap,
-  phase47-gcc-latest-strict-bootstrap,
+  bootstrap-gnumake,
+  cctools-ar,
+  gcc-latest,
+  gcc-latest-strict,
   runCommand,
   ...
 }:
@@ -25,11 +25,11 @@ let
         ## prepend so the chain ar resolves first. ARFLAGS=rcS keeps ar from
         ## auto-exec'ing ranlib (Make runs $(RANLIB) separately); the chain ar
         ## is downstream of gcc-15 so it can't replace host ar in the gcc chain.
-        export PATH="${phase39b-cctools}/bin:${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        export PATH="${cctools-ar}/bin:${compiler}/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         export CC="${compiler}/bin/gcc"
         export CXX="${compiler}/bin/g++"
-        export AR="${phase39b-cctools}/bin/ar"
-        export RANLIB="${phase39b-cctools}/bin/ranlib"
+        export AR="${cctools-ar}/bin/ar"
+        export RANLIB="${cctools-ar}/bin/ranlib"
         export GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0
         export GCC_MODERN_CONFTEST_TIMEOUT=120
         export CFLAGS="-O2 -g0"
@@ -41,7 +41,7 @@ let
         ## chain-built make (phase39-gnumake, from tcc). It now builds GNU Hello's
         ## Automake recipe graph cleanly incl. parallel -j (the old segfault is
         ## gone with GNU Make 4.4.1).
-        ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
+        ${bootstrap-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
           > make.stdout \
           2> make.stderr
 
@@ -65,12 +65,12 @@ let
   gnu-hello-gcc-latest-bootstrap =
     buildWithBootstrapGcc
       "darwin-minimal-bootstrap-gnu-hello-${gnuHelloVersion}-gcc-latest"
-      phase46-gcc-latest-bootstrap;
+      gcc-latest;
 
   gnu-hello-gcc-latest-strict =
     buildWithBootstrapGcc
       "darwin-minimal-bootstrap-gnu-hello-${gnuHelloVersion}-gcc-latest-strict"
-      phase47-gcc-latest-strict-bootstrap;
+      gcc-latest-strict;
 
   gnu-hello-nixpkgs-gcc-latest =
     if hostPlatform.isx86_64 then

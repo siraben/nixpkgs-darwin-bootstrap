@@ -4,10 +4,10 @@
   apple-sdk,
   cctools,
   gnumake,
-  phase39-gnumake,
+  bootstrap-gnumake,
   gccLatestGmpVersion,
   gccLatestGmpTarball,
-  phase46-gcc-latest-bootstrap,
+  gcc-latest,
   root,
   ...
 }:
@@ -57,7 +57,7 @@ runCommand "phase26c-gmp-${version}" {
   ## $out/x86_64-apple-darwin/include/ (stdio.h, limits.h, etc.) which
   ## external configure tests can resolve.  Apple SDK still needed for
   ## libSystem at link time; see todos #11/#13.
-  compiler=${phase46-gcc-latest-bootstrap}
+  compiler=${gcc-latest}
   sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
   ## Match the configuration that gnu-hello.nix uses successfully —
@@ -96,11 +96,11 @@ runCommand "phase26c-gmp-${version}" {
     > $out/share/darwin-bootstrap/configure.stdout \
     2> $out/share/darwin-bootstrap/configure.stderr
 
-  ${phase39-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
+  ${bootstrap-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" \
     > $out/share/darwin-bootstrap/make.stdout \
     2> $out/share/darwin-bootstrap/make.stderr
 
-  ${phase39-gnumake}/bin/make install \
+  ${bootstrap-gnumake}/bin/make install \
     > $out/share/darwin-bootstrap/install.stdout \
     2> $out/share/darwin-bootstrap/install.stderr
 

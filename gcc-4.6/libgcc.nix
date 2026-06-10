@@ -2,8 +2,8 @@
   cctools,
   gcc46Version,
   perl,
-  phase34-tinycc-darwin-cc,
-  phase35-gcc46-all-gcc,
+  tinycc-darwin-cc,
+  gcc46-all-gcc,
   root,
   runCommand,
   ...
@@ -12,8 +12,8 @@ runCommand "phase36-gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''
   ${root + "/scripts/gcc46/phase36-libgcc.sh"} \
-    ${phase35-gcc46-all-gcc} \
-    ${phase34-tinycc-darwin-cc} \
+    ${gcc46-all-gcc} \
+    ${tinycc-darwin-cc} \
     ${cctools} \
     ${perl}/bin/perl \
     ${root + "/scripts/gcc46/phase36-libgcc.pl"} \

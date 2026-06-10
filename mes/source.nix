@@ -7,7 +7,7 @@
   mesVersion,
   mkDarwin,
   perl,
-  phase13-mes-source,
+  mes-source,
   root,
   source,
   ...

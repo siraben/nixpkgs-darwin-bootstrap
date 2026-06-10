@@ -5,10 +5,10 @@
   gcc10Version,
   gnumake,
   perl,
-  phase34-tinycc-darwin-cc,
-  phase39-gnumake,
-  phase42-gcc10-source,
-  phase44-gcc46-cxx-bootstrap,
+  tinycc-darwin-cc,
+  bootstrap-gnumake,
+  gcc10-source,
+  gcc46-cxx,
   root,
   runCommand,
   stdenv,
@@ -41,12 +41,12 @@ runCommand "phase45-gcc-${gcc10Version}" {
   ## compile against these headers.  Mirrors phase46's BUILD_TARGET_LIBS
   ## role for phase47.
   export GCC_MODERN_BUILD_TARGET_LIBS=1
-  export BOOTSTRAP_MAKE=${phase39-gnumake}/bin/make
+  export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
-    ${phase42-gcc10-source} \
-    ${phase44-gcc46-cxx-bootstrap} \
-    ${phase39-gnumake} \
-    ${phase34-tinycc-darwin-cc} \
+    ${gcc10-source} \
+    ${gcc46-cxx} \
+    ${bootstrap-gnumake} \
+    ${tinycc-darwin-cc} \
     ${cctools} \
     "$out" \
     ${gcc10Version} \

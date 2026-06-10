@@ -1,7 +1,7 @@
 {
-  phase13-mes-source,
-  phase30-tinycc-self-link-candidate,
-  phase32-tinycc-boot1-object-probe,
+  mes-source,
+  tinycc-self-link-candidate,
+  tinycc-boot1-object-probe,
   runCommand,
   tinyccMesSrc,
   ...
@@ -9,11 +9,11 @@
 runCommand "phase32-tinycc-boot1-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
-  cp -R ${phase13-mes-source}/include/. include/
+  cp -R ${mes-source}/include/. include/
   chmod -R u+w include
   cp -R ${tinyccMesSrc}/include/. include/
 
-  ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
+  ${tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
     -I$PWD/include \
     -DBOOTSTRAP=1 \
     -DHAVE_LONG_LONG=1 \

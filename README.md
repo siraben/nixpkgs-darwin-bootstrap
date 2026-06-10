@@ -72,7 +72,7 @@ The implemented amd64 chain is:
   file references `/usr/bin` or the Command Line Tools install dir.
   Pinning the SDK headers to a Nix fetch is a future hardening step.
 - `gcc-4.6/cxx` compiles GCC 4.6 sources with the chain compiler
-  (phase35 cc1 via the phase37 driver) and uses nixpkgs clang and
+  (the gcc46-all-gcc cc1 via the gcc46 driver) and uses nixpkgs clang and
   binutils for assembling and linking only.  `gcc-10`, `gcc-latest`, and
   `gcc-latest/strict` all compile their build-helper binaries
   (genmatch, gengtype, build-libcpp) with the chain input compiler
@@ -81,12 +81,13 @@ The implemented amd64 chain is:
   libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
   participates in any chain compile; nixpkgs clang/binutils remain at
   the assemble/link boundary only.
-- The chain runs on the chain-built `phase39-gnumake` in `gnu-hello`,
-  `bootstrap-deps`, `gcc-10`, and `gcc-latest/strict`.  `gcc-latest`
-  (phase46) and `gcc-4.6/cxx` (phase44) run nixpkgs `gnumake`; under
-  phase39-gnumake, GCC 15's libstdc++ C++23-module rule emits
-  self-referential `bits/std.cc` symlinks and the install `cp -RL`
-  fails with ELOOP.
+- The chain runs on the chain-built `bootstrap-gnumake` in `gnu-hello`,
+  `bootstrap-deps`, `gcc-10`, and `gcc-latest/strict`.  `gcc-latest` and
+  `gcc-4.6/cxx` run nixpkgs `gnumake`: the bootstrap libc's getcwd stub
+  makes `$(abspath)` return relative paths under `bootstrap-gnumake`, so
+  GCC 15's libstdc++ C++23-module rule emits self-referential
+  `bits/std.cc` symlinks and the install `cp -RL` fails with ELOOP.  The
+  getcwd fix and the make swaps are batched into the next full rebuild.
 - The modern GCC packages carry a staged, patched bootstrap sysroot and
   wrapper metadata sufficient for the current proofs; a full nixpkgs
   compiler/runtime/bintools closure is future work.
@@ -102,16 +103,16 @@ nix build .#gnu-hello-hash-comparison     # verify against baseline hash
 nix flake check
 ```
 
-Outputs are exposed under both nixpkgs-style per-directory names and
-legacy `phaseN-` aliases — pick whichever fits your scripts:
+Outputs are exposed under plain semantic names and nixpkgs-style
+per-directory aliases — pick whichever fits your scripts:
 
 ```sh
-nix build .#"stage0-posix/kaem"           # = .#phase11-kaem
-nix build .#"mescc-tools/macho-patcher"   # = .#phase26g-macho-patcher
-nix build .#"mes/m2"                      # = .#phase16-mes-m2
-nix build .#"tinycc/darwin-cc"            # = .#phase34-tinycc-darwin-cc
-nix build .#"gcc-4.6/bootstrap"           # = .#phase37-gcc46-bootstrap
-nix build .#"gcc-latest/strict"           # = .#phase47-gcc-latest-strict-bootstrap
+nix build .#kaem                          # = .#"stage0-posix/kaem"
+nix build .#macho-patcher                 # = .#"mescc-tools/macho-patcher"
+nix build .#mes-m2                        # = .#"mes/m2"
+nix build .#tinycc-darwin-cc              # = .#"tinycc/darwin-cc"
+nix build .#gcc46                         # = .#"gcc-4.6/bootstrap"
+nix build .#gcc-latest-strict             # = .#"gcc-latest/strict"
 ```
 
 From another Darwin host, select the amd64 package set explicitly when needed:

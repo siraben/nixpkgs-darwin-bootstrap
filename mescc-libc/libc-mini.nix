@@ -3,13 +3,13 @@
   lib,
   mesNyacc,
   nyaccVersion,
-  phase10-hex2,
-  phase13-mes-source,
-  phase16-mes-m2,
-  phase18-mescc-libc-mini-probe,
-  phase26g-macho-patcher,
-  phase3-m0,
-  phase9-m1,
+  hex2,
+  mes-source,
+  mes-m2,
+  mescc-libc-mini-probe,
+  macho-patcher,
+  m0,
+  m1,
   runCommand,
   root,
   source,
@@ -18,25 +18,25 @@
 runCommand "phase18-mescc-libc-mini-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap m1
 
-  mesLoadPath=${phase13-mes-source}/module:${phase13-mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
+  mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
   mescc() {
-    MES_PREFIX=${phase13-mes-source} \
+    MES_PREFIX=${mes-source} \
       GUILE_LOAD_PATH="$mesLoadPath" \
-      srcdest=${phase13-mes-source}/ \
-      includedir=${phase13-mes-source}/include \
-      libdir=${phase13-mes-source}/lib \
-      M1=${phase9-m1}/bin/M1 \
-      HEX2=${phase10-hex2}/bin/hex2 \
+      srcdest=${mes-source}/ \
+      includedir=${mes-source}/include \
+      libdir=${mes-source}/lib \
+      M1=${m1}/bin/M1 \
+      HEX2=${hex2}/bin/hex2 \
       MES_STACK=6000000 \
       MES_ARENA=60000000 \
       MES_MAX_ARENA=60000000 \
-      ${phase16-mes-m2}/bin/mes-m2 --no-auto-compile -e main ${phase16-mes-m2}/bin/mescc.scm -- "$@"
+      ${mes-m2}/bin/mes-m2 --no-auto-compile -e main ${mes-m2}/bin/mescc.scm -- "$@"
   }
 
   compile_m1() {
     source_path="$1"
     output_path="$2"
-    mescc -S -I ${phase13-mes-source}/include -D HAVE_CONFIG_H=1 "$source_path" -o "$output_path" \
+    mescc -S -I ${mes-source}/include -D HAVE_CONFIG_H=1 "$source_path" -o "$output_path" \
       > "$output_path.stdout" 2> "$output_path.stderr"
     test -s "$output_path"
     sed -i.bak '/^<$/d' "$output_path"
@@ -44,16 +44,16 @@ runCommand "phase18-mescc-libc-mini-probe" { } ''
     chmod 444 "$output_path"
   }
 
-  compile_m1 ${phase13-mes-source}/lib/mes/__init_io.c m1/__init_io.M1
-  compile_m1 ${phase13-mes-source}/lib/mes/eputs.c m1/eputs.M1
-  compile_m1 ${phase13-mes-source}/lib/mes/oputs.c m1/oputs.M1
-  compile_m1 ${phase13-mes-source}/lib/mes/globals.c m1/globals.M1
-  compile_m1 ${phase13-mes-source}/lib/stdlib/exit.c m1/exit.M1
-  compile_m1 ${phase13-mes-source}/lib/darwin/x86_64-mes-mescc/_exit.c m1/_exit.M1
-  compile_m1 ${phase13-mes-source}/lib/darwin/x86_64-mes-mescc/_write.c m1/_write.M1
-  compile_m1 ${phase13-mes-source}/lib/stdlib/puts.c m1/puts.M1
-  compile_m1 ${phase13-mes-source}/lib/string/strlen.c m1/strlen.M1
-  compile_m1 ${phase13-mes-source}/lib/mes/write.c m1/write.M1
+  compile_m1 ${mes-source}/lib/mes/__init_io.c m1/__init_io.M1
+  compile_m1 ${mes-source}/lib/mes/eputs.c m1/eputs.M1
+  compile_m1 ${mes-source}/lib/mes/oputs.c m1/oputs.M1
+  compile_m1 ${mes-source}/lib/mes/globals.c m1/globals.M1
+  compile_m1 ${mes-source}/lib/stdlib/exit.c m1/exit.M1
+  compile_m1 ${mes-source}/lib/darwin/x86_64-mes-mescc/_exit.c m1/_exit.M1
+  compile_m1 ${mes-source}/lib/darwin/x86_64-mes-mescc/_write.c m1/_write.M1
+  compile_m1 ${mes-source}/lib/stdlib/puts.c m1/puts.M1
+  compile_m1 ${mes-source}/lib/string/strlen.c m1/strlen.M1
+  compile_m1 ${mes-source}/lib/mes/write.c m1/write.M1
 
   cp ${root + "/mescc-libc/fixtures/libc-mini-puts-smoke.c"} puts-smoke.c
   compile_m1 puts-smoke.c puts-smoke.M1
@@ -106,24 +106,24 @@ runCommand "phase18-mescc-libc-mini-probe" { } ''
     cat puts-smoke.data.M1
   } > puts-smoke-combined.M1
 
-  ${phase9-m1}/bin/M1 \
+  ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
-    -f ${phase13-mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
-    -f ${phase13-mes-source}/lib/x86_64-mes/x86_64.M1 \
-    -f ${phase13-mes-source}/lib/darwin/x86_64-mes-mescc/crt1-libc.M1 \
+    -f ${mes-source}/lib/m2/x86_64/x86_64_defs.M1 \
+    -f ${mes-source}/lib/x86_64-mes/x86_64.M1 \
+    -f ${mes-source}/lib/darwin/x86_64-mes-mescc/crt1-libc.M1 \
     -f puts-smoke-combined.M1 \
     -o puts-smoke.hex2
 
-  ${phase10-hex2}/bin/hex2 \
+  ${hex2}/bin/hex2 \
     --architecture amd64 \
     --little-endian \
     --base-address 0x1000000 \
-    -f ${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+    -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
     -f puts-smoke.hex2 \
     -o puts-smoke
 
-  ${phase26g-macho-patcher}/bin/macho-patcher m2-segments puts-smoke.hex2 puts-smoke
+  ${macho-patcher}/bin/macho-patcher m2-segments puts-smoke.hex2 puts-smoke
 
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=puts-smoke bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc

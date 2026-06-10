@@ -168,91 +168,91 @@ let
 
   phaseDefs = {
     ## stage0-posix — hex0 through kaem (phases 1-11)
-    phase1-hex1                  = callPhase ./stage0-posix/hex1.nix;
-    phase2-hex2                  = callPhase ./stage0-posix/hex2.nix;
-    phase2-catm                  = callPhase ./stage0-posix/catm.nix;
-    phase3-m0                    = callPhase ./stage0-posix/m0.nix;
-    phase4-cc-arch               = callPhase ./stage0-posix/cc-arch.nix;
-    phase5-m2                    = callPhase ./stage0-posix/m2-planet.nix;
-    phase6-blood-macho-0         = callPhase ./stage0-posix/blood-elf-macho.nix;
-    phase7-m1-0                  = callPhase ./stage0-posix/M1-0.nix;
-    phase8-hex2-1                = callPhase ./stage0-posix/hex2-1.nix;
-    phase9-m1                    = callPhase ./stage0-posix/M1.nix;
-    phase10-hex2                 = callPhase ./stage0-posix/hex2-linker.nix;
-    phase11-kaem                 = callPhase ./stage0-posix/kaem.nix;
+    hex1                  = callPhase ./stage0-posix/hex1.nix;
+    hex2-0                  = callPhase ./stage0-posix/hex2.nix;
+    catm                  = callPhase ./stage0-posix/catm.nix;
+    m0                    = callPhase ./stage0-posix/m0.nix;
+    cc-arch               = callPhase ./stage0-posix/cc-arch.nix;
+    m2                    = callPhase ./stage0-posix/m2-planet.nix;
+    blood-macho-0         = callPhase ./stage0-posix/blood-elf-macho.nix;
+    m1-0                  = callPhase ./stage0-posix/M1-0.nix;
+    hex2-1                = callPhase ./stage0-posix/hex2-1.nix;
+    m1                    = callPhase ./stage0-posix/M1.nix;
+    hex2                 = callPhase ./stage0-posix/hex2-linker.nix;
+    kaem                 = callPhase ./stage0-posix/kaem.nix;
 
     ## mescc-tools — Darwin Mach-O helpers (M0/M1 + macho patcher)
-    phase11b-m1-to-hex2          = callPhase ./mescc-tools/m1-to-hex2.nix;
-    phase11c-hex2-data-relocs    = callPhase ./mescc-tools/hex2-data-relocs.nix;
-    phase11d-cc-arch-helper      = callPhase ./mescc-tools/cc-arch-helper.nix;
-    phase11e-macho-patcher-early = callPhase ./mescc-tools/macho-patcher-early.nix;
-    phase26b-elf64-to-m1         = callPhase ./mescc-tools/elf64-to-m1.nix;
-    phase26g-macho-patcher       = callPhase ./mescc-tools/macho-patcher.nix;
+    m1-to-hex2          = callPhase ./mescc-tools/m1-to-hex2.nix;
+    hex2-data-relocs    = callPhase ./mescc-tools/hex2-data-relocs.nix;
+    cc-arch-helper      = callPhase ./mescc-tools/cc-arch-helper.nix;
+    macho-patcher-early = callPhase ./mescc-tools/macho-patcher-early.nix;
+    elf64-to-m1         = callPhase ./mescc-tools/elf64-to-m1.nix;
+    macho-patcher       = callPhase ./mescc-tools/macho-patcher.nix;
 
     ## mes — M2-Planet wrapper + mes-m2 build (phases 12-16)
-    phase12-m2-planet            = callPhase ./mes/m2-planet.nix;
-    phase13-mes-source           = callPhase ./mes/source.nix;
-    phase14-mes-m2-probe         = callPhase ./mes/m2-compile.nix;
-    phase15-mes-macho-link-probe = callPhase ./mes/m2-link.nix;
-    phase16-mes-m2               = callPhase ./mes/m2.nix;
+    m2-planet            = callPhase ./mes/m2-planet.nix;
+    mes-source           = callPhase ./mes/source.nix;
+    mes-m2-probe         = callPhase ./mes/m2-compile.nix;
+    mes-macho-link-probe = callPhase ./mes/m2-link.nix;
+    mes-m2               = callPhase ./mes/m2.nix;
 
     ## mescc-libc — Mescc libc layers (phases 17-22)
-    phase17-mescc-macho-probe       = callPhase ./mescc-libc/mescc-macho.nix;
-    phase18-mescc-libc-mini-probe   = callPhase ./mescc-libc/libc-mini.nix;
-    phase19-tinycc-mescc-m1-probe   = callPhase ./mescc-libc/tinycc-mescc-m1.nix;
-    phase20-mescc-libmescc-probe    = callPhase ./mescc-libc/libmescc.nix;
-    phase21-mescc-libc-probe        = callPhase ./mescc-libc/libc.nix;
-    phase22-mescc-libc-tcc-probe    = callPhase ./mescc-libc/libc-tcc.nix;
+    mescc-macho-probe       = callPhase ./mescc-libc/mescc-macho.nix;
+    mescc-libc-mini-probe   = callPhase ./mescc-libc/libc-mini.nix;
+    tinycc-mescc-m1-probe   = callPhase ./mescc-libc/tinycc-mescc-m1.nix;
+    mescc-libmescc-probe    = callPhase ./mescc-libc/libmescc.nix;
+    mescc-libc-probe        = callPhase ./mescc-libc/libc.nix;
+    mescc-libc-tcc-probe    = callPhase ./mescc-libc/libc-tcc.nix;
 
     ## tinycc — Mescc-built TCC through full self-hosting (phases 23-38)
-    phase23-tinycc-mescc-link-probe     = callPhase ./tinycc/mescc-link.nix;
-    phase24-tinycc-compile-probe        = callPhase ./tinycc/compile.nix;
-    phase25-tinycc-self-object-probe    = callPhase ./tinycc/self-object.nix;
-    phase27-tinycc-elf-to-macho-probe   = callPhase ./tinycc/elf-to-macho.nix;
-    phase28-tinycc-self-m1-probe        = callPhase ./tinycc/self-m1.nix;
-    phase29-tinycc-sysv-libc-probe      = callPhase ./tinycc/sysv-libc.nix;
-    phase30-tinycc-self-link-candidate  = callPhase ./tinycc/self-link.nix;
-    phase31-tinycc-self-compile-probe   = callPhase ./tinycc/self-compile.nix;
-    phase32-tinycc-boot1-object-probe   = callPhase ./tinycc/boot1-object.nix;
-    phase33-tinycc-boot1-link-candidate = callPhase ./tinycc/boot1-link.nix;
-    phase34-tinycc-darwin-cc            = callPhase ./tinycc/darwin-cc.nix;
-    phase35-tinycc-boot2-object-probe   = callPhase ./tinycc/boot2-object.nix;
-    phase36-tinycc-boot2-link-candidate = callPhase ./tinycc/boot2-link.nix;
-    phase37-tinycc-boot3-object-probe   = callPhase ./tinycc/boot3-object.nix;
-    phase38-tinycc-boot3-link-candidate = callPhase ./tinycc/boot3-link.nix;
+    tinycc-mescc-link-probe     = callPhase ./tinycc/mescc-link.nix;
+    tinycc-compile-probe        = callPhase ./tinycc/compile.nix;
+    tinycc-self-object-probe    = callPhase ./tinycc/self-object.nix;
+    tinycc-elf-to-macho-probe   = callPhase ./tinycc/elf-to-macho.nix;
+    tinycc-self-m1-probe        = callPhase ./tinycc/self-m1.nix;
+    tinycc-sysv-libc-probe      = callPhase ./tinycc/sysv-libc.nix;
+    tinycc-self-link-candidate  = callPhase ./tinycc/self-link.nix;
+    tinycc-self-compile-probe   = callPhase ./tinycc/self-compile.nix;
+    tinycc-boot1-object-probe   = callPhase ./tinycc/boot1-object.nix;
+    tinycc-boot1-link-candidate = callPhase ./tinycc/boot1-link.nix;
+    tinycc-darwin-cc            = callPhase ./tinycc/darwin-cc.nix;
+    tinycc-boot2-object-probe   = callPhase ./tinycc/boot2-object.nix;
+    tinycc-boot2-link-candidate = callPhase ./tinycc/boot2-link.nix;
+    tinycc-boot3-object-probe   = callPhase ./tinycc/boot3-object.nix;
+    tinycc-boot3-link-candidate = callPhase ./tinycc/boot3-link.nix;
     tinyccSelfObjectProbe               = callPhase ./tinycc/self-object-helper.nix;
     tinyccSelfLinkCandidate             = callPhase ./tinycc/self-link-candidate.nix;
 
     ## gnumake / gnupatch / coreutils (phases 39-41)
-    phase39-gnumake   = callPhase ./gnumake;
-    phase40-gnupatch  = callPhase ./gnupatch;
-    phase41-coreutils = callPhase ./coreutils;
+    bootstrap-gnumake   = callPhase ./gnumake;
+    gnupatch  = callPhase ./gnupatch;
+    coreutils-boot = callPhase ./coreutils;
 
     ## bootstrap-deps — GMP/MPFR/MPC/ISL built by phase34-tcc (phases 26c-26f)
-    phase26c-bootstrap-gmp  = callPhase ./bootstrap-deps/gmp.nix;
-    phase26d-bootstrap-mpfr = callPhase ./bootstrap-deps/mpfr.nix;
-    phase26e-bootstrap-mpc  = callPhase ./bootstrap-deps/mpc.nix;
-    phase26f-bootstrap-isl  = callPhase ./bootstrap-deps/isl.nix;
+    bootstrap-gmp  = callPhase ./bootstrap-deps/gmp.nix;
+    bootstrap-mpfr = callPhase ./bootstrap-deps/mpfr.nix;
+    bootstrap-mpc  = callPhase ./bootstrap-deps/mpc.nix;
+    bootstrap-isl  = callPhase ./bootstrap-deps/isl.nix;
 
     ## gcc-4.6 — TCC builds GCC 4.6 (phases 26, 35-37, 44)
-    phase26-gcc46-source        = callPhase ./gcc-4.6/source.nix;
+    gcc46-source        = callPhase ./gcc-4.6/source.nix;
     gcc46DarwinBootstrapSrc     = callPhase ./gcc-4.6/darwin-bootstrap-src.nix;
-    phase35-gcc46-all-gcc       = callPhase ./gcc-4.6/all-gcc.nix;
-    phase36-gcc46-libgcc        = callPhase ./gcc-4.6/libgcc.nix;
-    phase37-gcc46-bootstrap     = callPhase ./gcc-4.6/bootstrap.nix;
-    phase44-gcc46-cxx-bootstrap = callPhase ./gcc-4.6/cxx.nix;
+    gcc46-all-gcc       = callPhase ./gcc-4.6/all-gcc.nix;
+    gcc46-libgcc        = callPhase ./gcc-4.6/libgcc.nix;
+    gcc46     = callPhase ./gcc-4.6/bootstrap.nix;
+    gcc46-cxx = callPhase ./gcc-4.6/cxx.nix;
 
     ## gcc-10 — GCC 4.6 builds GCC 10 (phases 42, 45)
-    phase42-gcc10-source    = callPhase ./gcc-10/source.nix;
-    phase45-gcc10-bootstrap = callPhase ./gcc-10;
+    gcc10-source    = callPhase ./gcc-10/source.nix;
+    gcc10 = callPhase ./gcc-10;
 
     ## gcc-latest — GCC 10 builds GCC 16 + strict re-bootstrap (phases 43, 46, 47)
-    phase43-gcc-latest-source           = callPhase ./gcc-latest/source.nix;
-    phase46-gcc-latest-bootstrap        = callPhase ./gcc-latest;
-    phase47-gcc-latest-strict-bootstrap = callPhase ./gcc-latest/strict.nix;
+    gcc-latest-source           = callPhase ./gcc-latest/source.nix;
+    gcc-latest        = callPhase ./gcc-latest;
+    gcc-latest-strict = callPhase ./gcc-latest/strict.nix;
 
     ## cctools ar/ranlib chain-built from source via gcc-15 (downstream of gcc-15)
-    phase39b-cctools = callPhase ./cctools/ar.nix;
+    cctools-ar = callPhase ./cctools/ar.nix;
   };
 
   tinycc-m2-negative-probe = import ./tinycc/m2-negative-probe.nix (phaseContext // phaseDefs);

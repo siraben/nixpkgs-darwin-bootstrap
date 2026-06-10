@@ -1,13 +1,13 @@
 {
   cctools,
   darwin,
-  phase10-hex2,
-  phase11b-m1-to-hex2,
-  phase26b-elf64-to-m1,
-  phase3-m0,
-  phase30-tinycc-self-link-candidate,
-  phase34-tinycc-darwin-cc,
-  phase38-tinycc-boot3-link-candidate,
+  hex2,
+  m1-to-hex2,
+  elf64-to-m1,
+  m0,
+  tinycc-self-link-candidate,
+  tinycc-darwin-cc,
+  tinycc-boot3-link-candidate,
   root,
   runCommand,
   stdenv,
@@ -19,12 +19,12 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
   cp -R ${root + "/bootstrap/headers/tcc-darwin-bootstrap"}/. \
     $out/include/tcc-darwin-bootstrap/
 
-  ${phase30-tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
+  ${tinycc-self-link-candidate}/bin/tcc-self-candidate -c \
     ${root + "/bootstrap/tinycc-sysv-libc.c"} \
     -o tinycc-sysv-libc.o \
     > tinycc-sysv-libc.stdout \
     2> tinycc-sysv-libc.stderr
-  ${phase26b-elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
+  ${elf64-to-m1}/bin/elf64-to-m1 --prefix tinycc_sysv_libc_ \
     tinycc-sysv-libc.o \
     tinycc-sysv-libc.M1
 
@@ -34,7 +34,7 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
   ## (7 segment-field byte substitutions each).  tcc-darwin-cc tries the
   ## SMALL layout first (fast, minimal text padding) and falls back to
   ## LARGE only when a binary's text overruns it (e.g. gcc-4.6 cc1plus).
-  lowdata=${phase3-m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
+  lowdata=${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
   ## SMALL: __TEXT vmsize 0x1100000, __DATA @0x1700000, linkedit @0x3100000
   awk '
   NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
@@ -66,12 +66,12 @@ runCommand "phase34-tinycc-darwin-cc" { } ''
 
   substituteInPlace $out/bin/tcc-darwin-cc \
     --replace-fail @SHELL@ ${stdenv.shell} \
-    --replace-fail @TCC@ ${phase38-tinycc-boot3-link-candidate}/bin/tcc-boot3-candidate \
+    --replace-fail @TCC@ ${tinycc-boot3-link-candidate}/bin/tcc-boot3-candidate \
     --replace-fail @AR@ ${cctools}/bin/ar \
     --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \
-    --replace-fail @ELF_TO_M1@ ${phase26b-elf64-to-m1}/bin/elf64-to-m1 \
-    --replace-fail @M1_TO_HEX2@ ${phase11b-m1-to-hex2}/bin/m1-to-hex2 \
-    --replace-fail @HEX2@ ${phase10-hex2}/bin/hex2 \
+    --replace-fail @ELF_TO_M1@ ${elf64-to-m1}/bin/elf64-to-m1 \
+    --replace-fail @M1_TO_HEX2@ ${m1-to-hex2}/bin/m1-to-hex2 \
+    --replace-fail @HEX2@ ${hex2}/bin/hex2 \
     --replace-fail @MACHO@ $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2 \
     --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \
     --replace-fail @SYSCALLS@ ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"} \
