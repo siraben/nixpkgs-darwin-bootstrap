@@ -6,7 +6,7 @@
   tinyccMesSrc,
   ...
 }:
-runCommand "phase32-tinycc-boot1-object-probe" { } ''
+runCommand "tinycc-boot1-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
   cp -R ${mes-source}/include/. include/

@@ -21,7 +21,7 @@ let
   hex1-raw =
     if hostPlatform.isx86_64 then
       derivation {
-        name = "phase1-hex1-raw";
+        name = "hex1-raw";
         system = "x86_64-darwin";
         builder = hex0.hex0-raw;
         args = [
@@ -38,7 +38,7 @@ in
 
 if hostPlatform.isx86_64 then
   mkDarwin {
-    pname = "phase1-hex1";
+    pname = "hex1";
     version = "0-unstable-2026-05-27";
 
     buildPhase = ''
@@ -82,7 +82,7 @@ if hostPlatform.isx86_64 then
   }
 else if hostPlatform.isAarch64 then
   mkDarwin {
-    pname = "phase1-hex1";
+    pname = "hex1";
     buildPhase = ''
       runHook preBuild
 

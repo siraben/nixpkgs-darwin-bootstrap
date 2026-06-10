@@ -6,7 +6,7 @@
   tinyccMesSrc,
   ...
 }:
-runCommand "phase25-tinycc-self-object-probe" { } ''
+runCommand "tinycc-self-object-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap include
 
   cp -R ${mes-source}/include/. include/

@@ -12,7 +12,7 @@
   source,
   ...
 }:
-runCommand "phase31-tinycc-self-compile-probe" { } ''
+runCommand "tinycc-self-compile-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   cp ${root + "/tinycc/fixtures/self-compile-hello.c"} hello.c

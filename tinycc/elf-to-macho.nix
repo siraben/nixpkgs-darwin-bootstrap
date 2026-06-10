@@ -12,7 +12,7 @@
   source,
   ...
 }:
-runCommand "phase27-tinycc-elf-to-macho-probe" { } ''
+runCommand "tinycc-elf-to-macho-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   cp ${root + "/tinycc/fixtures/elf-to-macho-hello.c"} hello.c

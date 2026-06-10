@@ -6,7 +6,7 @@
   runCommand,
   ...
 }:
-runCommand "phase26c-macho-patcher" { } ''
+runCommand "macho-patcher" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ## Assemble the hand-written generic Mach-O patcher through the

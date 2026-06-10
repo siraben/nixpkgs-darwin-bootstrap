@@ -12,7 +12,7 @@
   source,
   ...
 }:
-runCommand "phase15-mes-macho-link-probe" { } ''
+runCommand "mes-macho-link-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   ${m1}/bin/M1 \

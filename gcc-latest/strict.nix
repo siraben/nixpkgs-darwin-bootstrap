@@ -17,7 +17,7 @@
   stdenv,
   ...
 }:
-runCommand "phase47-gcc-${gccLatestVersion}-strict" {
+runCommand "gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk

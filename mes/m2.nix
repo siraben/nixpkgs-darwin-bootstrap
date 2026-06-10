@@ -13,7 +13,7 @@
   root,
   ...
 }:
-runCommand "phase16-mes-m2" { } ''
+runCommand "mes-m2" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   cp ${mes-macho-link-probe}/share/darwin-bootstrap/mes-m2 $out/bin/mes-m2

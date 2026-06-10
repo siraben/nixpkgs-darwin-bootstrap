@@ -28,7 +28,7 @@ let
   cc-arch-raw =
     if hostPlatform.isx86_64 then
       derivation {
-        name = "phase4-cc-arch-raw";
+        name = "cc-arch-raw";
         system = "x86_64-darwin";
         builder = hex0.hex0-raw;
         args = [
@@ -44,7 +44,7 @@ let
 in
 
 mkDarwin {
-  pname = "phase4-cc-arch";
+  pname = "cc-arch";
   version = "0-unstable-2026-05-27";
 
   buildPhase = ''

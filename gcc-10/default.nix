@@ -14,7 +14,7 @@
   stdenv,
   ...
 }:
-runCommand "phase45-gcc-${gcc10Version}" {
+runCommand "gcc-${gcc10Version}" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk

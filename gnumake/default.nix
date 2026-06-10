@@ -7,7 +7,7 @@
   tinycc-darwin-cc,
   ...
 }:
-runCommand "phase39-gnumake-${gnumakeVersion}" {
+runCommand "gnumake-${gnumakeVersion}" {
   nativeBuildInputs = [ perl ];
 } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
@@ -31,8 +31,6 @@ runCommand "phase39-gnumake-${gnumakeVersion}" {
     --replace-fail '  /* Find the real system load average.  */' '  return 0; /* Find the real system load average.  */'
   substituteInPlace src/main.c \
     --replace-fail '              putenv (b);' '              (void) b;'
-  substituteInPlace src/main.c \
-    --replace-fail '  if (getcwd (current_directory, GET_PATH_MAX) == 0)' '  if (strcpy (current_directory, "."), 0)'
   substituteInPlace src/main.c \
     --replace-fail '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
   substituteInPlace src/main.c \

@@ -17,7 +17,7 @@ let
   catm-raw =
     if hostPlatform.isx86_64 then
       derivation {
-        name = "phase2-catm-raw";
+        name = "catm-raw";
         system = "x86_64-darwin";
         builder = hex2-0.hex2-raw;
         args = [
@@ -33,7 +33,7 @@ let
 in
 
 mkDarwin {
-  pname = "phase2-catm";
+  pname = "catm";
   version = "0-unstable-2026-05-27";
 
   buildPhase = ''

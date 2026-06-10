@@ -6,7 +6,7 @@
   runCommand,
   ...
 }:
-runCommand "phase26b-elf64-to-m1" { } ''
+runCommand "elf64-to-m1" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ## Assemble the hand-written ELF→M1 converter through the existing

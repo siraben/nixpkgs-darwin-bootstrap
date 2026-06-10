@@ -13,7 +13,7 @@
   ...
 }:
 mkDarwin {
-  pname = "phase11d-cc-arch-helper";
+  pname = "cc-arch-helper";
   buildPhase = ''
     runHook preBuild
 

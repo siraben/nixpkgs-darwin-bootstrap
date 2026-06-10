@@ -11,7 +11,7 @@
   tinyccMesSrc,
   ...
 }:
-runCommand "phase19-tinycc-mescc-m1-probe" { } ''
+runCommand "tinycc-mescc-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module

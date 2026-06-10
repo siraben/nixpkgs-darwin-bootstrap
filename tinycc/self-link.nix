@@ -13,7 +13,7 @@
   source,
   ...
 }:
-runCommand "phase30-tinycc-self-link-candidate" { } ''
+runCommand "tinycc-self-link-candidate" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   ${tinycc-mescc-link-probe}/bin/tcc -c \

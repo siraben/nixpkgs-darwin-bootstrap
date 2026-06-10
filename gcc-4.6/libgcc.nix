@@ -8,7 +8,7 @@
   runCommand,
   ...
 }:
-runCommand "phase36-gcc-${gcc46Version}-libgcc" {
+runCommand "gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''
   ${root + "/scripts/gcc46/phase36-libgcc.sh"} \

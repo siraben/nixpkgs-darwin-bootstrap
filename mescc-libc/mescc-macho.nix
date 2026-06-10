@@ -11,7 +11,7 @@
   source,
   ...
 }:
-runCommand "phase17-mescc-macho-probe" { } ''
+runCommand "mescc-macho-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   sed '/^<$/d' ${mes-m2}/share/darwin-bootstrap/trivial.M1 > trivial.M1

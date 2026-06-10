@@ -3,7 +3,6 @@
   cctools,
   darwin,
   gccLatestVersion,
-  gnumake,
   lib,
   perl,
   tinycc-darwin-cc,
@@ -15,7 +14,7 @@
   stdenv,
   ...
 }:
-runCommand "phase46-gcc-${gccLatestVersion}" {
+runCommand "gcc-${gccLatestVersion}" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
@@ -55,7 +54,7 @@ runCommand "phase46-gcc-${gccLatestVersion}" {
   ## Known downstream follow-up: phase47 may then hit cfn-operators.pd
   ## 'BUILT_IN_CBR' (a float128/genmatch mismatch) — fixed separately.
   export GCC_MODERN_BUILD_TARGET_LIBS=1
-  export BOOTSTRAP_MAKE=${gnumake}/bin/make
+  export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
   ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${gcc-latest-source} \
     ${gcc10} \

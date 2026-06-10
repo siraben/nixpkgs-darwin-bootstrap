@@ -12,7 +12,7 @@
 ## as gcc-4.6/10/15 themselves. Used only downstream of gcc-15 (gnu-hello),
 ## since ar is also needed by the earlier tinycc/gcc-4.6 phases that predate any
 ## capable chain compiler.
-runCommand "phase39b-cctools-ar" { } ''
+runCommand "cctools-ar" { } ''
   src=${cctools.src}
   mkdir -p build "$out/bin" "$out/share/darwin-bootstrap"
   cd build

@@ -8,7 +8,7 @@
   runCommand,
   ...
 }:
-      runCommand "phase35-gcc-${gcc46Version}-all-gcc" {
+      runCommand "gcc-${gcc46Version}-all-gcc" {
         nativeBuildInputs = [ perl ];
       } ''
         mkdir -p src build $out/bin $out/share/darwin-bootstrap

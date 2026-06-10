@@ -11,7 +11,7 @@
   runCommand,
   ...
 }:
-runCommand "phase20-mescc-libmescc-probe" { } ''
+runCommand "mescc-libmescc-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap m1
 
   mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module

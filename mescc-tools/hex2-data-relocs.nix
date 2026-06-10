@@ -13,7 +13,7 @@
   ...
 }:
 mkDarwin {
-  pname = "phase11c-hex2-data-relocs";
+  pname = "hex2-data-relocs";
   buildPhase = ''
     runHook preBuild
 

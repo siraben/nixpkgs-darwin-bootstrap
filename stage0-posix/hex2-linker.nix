@@ -13,7 +13,7 @@
   ...
 }:
 mkDarwin {
-  pname = "phase10-hex2";
+  pname = "hex2";
   buildPhase = ''
     runHook preBuild
 

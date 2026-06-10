@@ -12,7 +12,7 @@
   source,
   ...
 }:
-runCommand "phase29-tinycc-sysv-libc-probe" { } ''
+runCommand "tinycc-sysv-libc-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   cp ${root + "/tinycc/fixtures/sysv-libc-hello.c"} hello.c

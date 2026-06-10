@@ -8,7 +8,7 @@
   runCommand,
   ...
 }:
-runCommand "phase37-gcc-${gcc46Version}-bootstrap" { } ''
+runCommand "gcc-${gcc46Version}-bootstrap" { } ''
   ${root + "/scripts/gcc46/phase37-driver.sh"} \
     ${gcc46-all-gcc} \
     ${gcc46-libgcc} \

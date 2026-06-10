@@ -456,7 +456,27 @@ int utime(const char *p, const void *times) { return 0; }
 int utimes(const char *p, const void *times) { return 0; }
 char *mktemp(char *template) { return template; }
 char *getenv(const char *n) { size_t len; char **e; if (!n || !*n) return 0; len = strlen(n); for (e = environ; e && *e; e++) if (!strncmp(*e, n, len) && (*e)[len] == '=') return *e + len + 1; return 0; }
-char *getcwd(char *b, size_t n) { if (n >= 2) { b[0] = '.'; b[1] = 0; return b; } return 0; }
+/* Darwin has no getcwd syscall; recover the path of "." via
+   fcntl(F_GETPATH) on a directory fd, like Apple libc does.  GNU Make's
+   $(abspath)/$(realpath)/CURDIR depend on this returning a real path. */
+char *getcwd(char *b, size_t n) {
+  char cwd_tmp[1024];
+  size_t len;
+  long fd = sys_open(".", 0, 0);
+  if (fd < 0) return 0;
+  if (sys_fcntl((int)fd, 50 /* F_GETPATH */, (long)cwd_tmp) < 0) { close((int)fd); return 0; }
+  close((int)fd);
+  len = strlen(cwd_tmp) + 1;
+  if (!b) {
+    b = malloc(len < n ? n : len);
+    if (!b) return 0;
+  } else if (n < len) {
+    errno = 34; /* ERANGE */
+    return 0;
+  }
+  memcpy(b, cwd_tmp, len);
+  return b;
+}
 char *getwd(char *b) { return getcwd(b, 1024); }
 int chdir(const char *p) { return stat_result(sys_chdir(p)); }
 int fchdir(int fd) { return 0; }

@@ -12,7 +12,7 @@
   runCommand,
   ...
 }:
-    runCommand "phase42-gcc-${gcc10Version}-source" { } ''
+    runCommand "gcc-${gcc10Version}-source" { } ''
       mkdir -p work $out
       cd work
 

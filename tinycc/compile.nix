@@ -5,7 +5,7 @@
   root,
   ...
 }:
-runCommand "phase24-tinycc-compile-probe" { } ''
+runCommand "tinycc-compile-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   cp ${root + "/tinycc/fixtures/compile-hello.c"} hello.c

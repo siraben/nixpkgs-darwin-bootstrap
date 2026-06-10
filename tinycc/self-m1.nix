@@ -6,7 +6,7 @@
   runCommand,
   ...
 }:
-runCommand "phase28-tinycc-self-m1-probe" { } ''
+runCommand "tinycc-self-m1-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   ${elf64-to-m1}/bin/elf64-to-m1 --prefix tcc_self_ \

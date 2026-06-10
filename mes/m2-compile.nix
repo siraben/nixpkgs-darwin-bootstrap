@@ -7,7 +7,7 @@
   runCommand,
   ...
 }:
-runCommand "phase14-mes-m2-probe" { } ''
+runCommand "mes-m2-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap
 
   # Stop Mes' bootstrap script immediately after the first M2-Planet

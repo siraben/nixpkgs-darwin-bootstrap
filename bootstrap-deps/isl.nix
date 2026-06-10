@@ -15,7 +15,7 @@ let
   version = gccModernIslVersion;
   tarball = gccModernIslTarball;
 in
-runCommand "phase26f-isl-${version}" {
+runCommand "isl-${version}" {
   nativeBuildInputs = [ perl ];
 } ''
   mkdir -p work $out/share/darwin-bootstrap

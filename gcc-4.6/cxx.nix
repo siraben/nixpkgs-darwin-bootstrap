@@ -13,7 +13,6 @@
   cctools,
   darwin,
   gcc46Version,
-  gnumake,
   perl,
   tinycc-darwin-cc,
   gcc46-all-gcc,
@@ -24,10 +23,10 @@
   stdenv,
   ...
 }:
-runCommand "phase44-gcc-${gcc46Version}-cxx" {
+runCommand "gcc-${gcc46Version}-cxx" {
   nativeBuildInputs = [ perl ];
 } ''
-  BOOTSTRAP_MAKE=${gnumake}/bin/make \
+  BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
     BOOTSTRAP_JOBS=$NIX_BUILD_CORES \
     GCC46_BOOTSTRAP_HOST_CC_SOURCES=0 \

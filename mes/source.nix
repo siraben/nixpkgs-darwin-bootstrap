@@ -13,7 +13,7 @@
   ...
 }:
 mkDarwin {
-  pname = "phase13-mes-source";
+  pname = "mes-source";
   version = mesVersion;
 
   src = mesTarball;

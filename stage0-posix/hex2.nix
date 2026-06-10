@@ -16,7 +16,7 @@ let
   hex2-raw =
     if hostPlatform.isx86_64 then
       derivation {
-        name = "phase2-hex2-raw";
+        name = "hex2-raw";
         system = "x86_64-darwin";
         builder = hex0.hex0-raw;
         args = [
@@ -32,7 +32,7 @@ let
 in
 
 mkDarwin {
-  pname = "phase2-hex2";
+  pname = "hex2-0";
   version = "0-unstable-2026-05-27";
 
   buildPhase = ''

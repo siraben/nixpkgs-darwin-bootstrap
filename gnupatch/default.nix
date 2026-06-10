@@ -6,7 +6,7 @@
   root,
   ...
 }:
-runCommand "phase40-gnupatch-${gnupatchVersion}" { } ''
+runCommand "gnupatch-${gnupatchVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   tar -xzf ${gnupatchTarball}

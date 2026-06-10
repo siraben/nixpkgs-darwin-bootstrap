@@ -13,7 +13,7 @@
   source,
   ...
 }:
-runCommand "phase22-mescc-libc-tcc-probe" { } ''
+runCommand "mescc-libc-tcc-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap m1 logs
 
   mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module

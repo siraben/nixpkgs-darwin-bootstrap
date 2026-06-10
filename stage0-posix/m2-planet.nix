@@ -13,7 +13,7 @@
   ...
 }:
 mkDarwin {
-  pname = "phase5-m2";
+  pname = "m2";
   buildPhase = ''
     runHook preBuild
 

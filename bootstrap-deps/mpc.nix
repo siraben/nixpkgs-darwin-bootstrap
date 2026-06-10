@@ -17,7 +17,7 @@ let
   version = gccModernMpcVersion;
   tarball = gccModernMpcTarball;
 in
-runCommand "phase26e-mpc-${version}" {
+runCommand "mpc-${version}" {
   nativeBuildInputs = [ perl ];
 } ''
   mkdir -p work $out/share/darwin-bootstrap

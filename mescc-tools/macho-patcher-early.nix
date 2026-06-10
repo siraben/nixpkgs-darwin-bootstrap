@@ -24,7 +24,7 @@ let
   macho-patcher-early-raw =
     if hostPlatform.isx86_64 then
       derivation {
-        name = "phase11e-macho-patcher-early-raw";
+        name = "macho-patcher-early-raw";
         system = "x86_64-darwin";
         builder = hex2-0.hex2-raw;
         args = [
@@ -40,7 +40,7 @@ let
 in
 
 mkDarwin {
-  pname = "phase11e-macho-patcher-early";
+  pname = "macho-patcher-early";
   version = "0-unstable-2026-05-27";
 
   buildPhase = ''

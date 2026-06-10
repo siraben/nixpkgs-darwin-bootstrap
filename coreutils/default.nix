@@ -12,7 +12,7 @@
   gnupatch,
   ...
 }:
-runCommand "phase41-coreutils-${coreutilsVersion}" { } ''
+runCommand "coreutils-${coreutilsVersion}" { } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   tar -xzf ${coreutilsTarball}

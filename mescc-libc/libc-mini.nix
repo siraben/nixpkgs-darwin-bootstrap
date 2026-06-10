@@ -15,7 +15,7 @@
   source,
   ...
 }:
-runCommand "phase18-mescc-libc-mini-probe" { } ''
+runCommand "mescc-libc-mini-probe" { } ''
   mkdir -p $out/share/darwin-bootstrap m1
 
   mesLoadPath=${mes-source}/module:${mes-source}/mes/module:${mesNyacc}/share/nyacc-${nyaccVersion}/module
