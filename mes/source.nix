@@ -6,7 +6,6 @@
   mesTarball,
   mesVersion,
   mkDarwin,
-  perl,
   mes-source,
   root,
   source,
@@ -21,8 +20,6 @@ mkDarwin {
   dontConfigure = true;
   dontBuild = true;
   dontFixup = true;
-
-  nativeBuildInputs = [ perl ];
 
   installPhase = ''
     runHook preInstall

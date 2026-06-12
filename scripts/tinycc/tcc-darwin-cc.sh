@@ -22,17 +22,14 @@ dep_dummy_headers=0
 
 # M1 code/data section split. elf64-to-m1 emits each object/member's code
 # section, then a ':ELF_data' marker, then the data section; the chain-built
-# m1-split (bake/sources/tools/m1-split.c, compiled at phase34 to @M1_SPLIT@)
-# partitions them. The host awk runs ONLY as a fallback while m1-split is itself
-# being bootstrapped (its binary not yet present) — this honours the "no host
-# awk as a translator" rule: every gcc link's split goes through chain-built C.
+# m1-split (bootstrap/m1-split.c, M2-Planet-built before this wrapper exists)
+# partitions them.  Every link's split goes through chain-built C; the build
+# uses no awk.
 m1_split_code() {
-  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --code < "$1"
-  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data != 1 { print }' "$1"; fi
+  "@M1_SPLIT@" --code < "$1"
 }
 m1_split_data() {
-  if [ -x "@M1_SPLIT@" ]; then "@M1_SPLIT@" --data < "$1"
-  else awk '/^:ELF_data$/ { data = 1; next } /^:HEX2_data$/ { next } data == 1 { print }' "$1"; fi
+  "@M1_SPLIT@" --data < "$1"
 }
 
 while (($#)); do
@@ -157,7 +154,7 @@ materialize_one_quote_header_dir() {
   [ "$abs_dir" = "$PWD" ] && return 0
 
   mkdir -p .tcc-darwin-header-stamps
-  key="$(printf '%s\n' "$abs_dir" | cksum | awk '{ print $1 "-" $2 }')"
+  key="$(printf '%s\n' "$abs_dir" | cksum)"; set -- $key; key="$1-$2"
   stamp_dir=".tcc-darwin-header-stamps/$key"
   if [ -f "$stamp_dir/.complete" ]; then
     return 0
@@ -350,7 +347,7 @@ add_archive_m1_files() {
   local cache_root cache_key cache_dir checksum prefix_key member_index member_name symbols
   cache_root="${TCC_DARWIN_CACHE_DIR:-$PWD/.tcc-darwin-archive-cache}"
   mkdir -p "$cache_root"
-  checksum="$(cksum "$archive" | awk '{ print $1 "-" $2 }')"
+  checksum="$(cksum "$archive")"; set -- $checksum; checksum="$1-$2"
   cache_key="$(basename "$archive" | sed 's/[^A-Za-z0-9_.-]/_/g')-$checksum-resolve-v3"
   cache_dir="$cache_root/$cache_key"
   prefix_key="$(printf '%s' "$checksum" | tr -c 'A-Za-z0-9_' '_')"
@@ -538,11 +535,10 @@ done
 # but prints NOTHING (-dumpversion/-E/-dM all empty), failing the gcc-4.6
 # `s-macro_list` step.  Scan the whole link for referenced-but-undefined
 # `<sym>_plus_<hex>` labels and inject each def at byte (<sym> + hex).  No-op
-# (verbatim) for small links.  Flatten to one token per line first (`tr`) so awk
-# streams instead of building a multi-GB array on gcc's huge data lines.
+# (verbatim) for small links.  Flatten to one token per line first (`tr`) so the
+# injector streams instead of buffering gcc's huge data lines.
 synth_inject() {
-  if [ -x "@SYNTH_INJECT_BIN@" ]; then "@SYNTH_INJECT_BIN@" "$1"
-  else awk -f @SYNTH_INJECT@ "$1"; fi
+  "@SYNTH_INJECT_BIN@" "$1"
 }
 if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
    && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then

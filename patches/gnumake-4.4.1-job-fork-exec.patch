@@ -1,0 +1,48 @@
+--- a/src/job.c
++++ b/src/job.c
+@@ -2334,37 +2334,19 @@
+ 
+ #if !defined(USE_POSIX_SPAWN)
+ 
+-  {
+-    /* The child may clobber environ so remember ours and restore it.  */
+-    char **parent_env = environ;
+-    pid = vfork ();
+-    if (pid != 0)
+-      {
+-        environ = parent_env;
+-        return pid;
+-      }
+-  }
++  pid = fork ();
++  if (pid != 0)
++    return pid;
+ 
+-  /* We are the child.  */
+-  unblock_all_sigs ();
+-
+-#ifdef SET_STACK_SIZE
+-  /* Reset limits, if necessary.  */
+-  if (stack_limit.rlim_cur)
+-    setrlimit (RLIMIT_STACK, &stack_limit);
+-#endif
+-
+-  /* For any redirected FD, dup2() it to the standard FD.
+-     They are all marked close-on-exec already.  */
+   if (fdin >= 0 && fdin != FD_STDIN)
+-    EINTRLOOP (r, dup2 (fdin, FD_STDIN));
++    dup2 (fdin, FD_STDIN);
+   if (fdout != FD_STDOUT)
+-    EINTRLOOP (r, dup2 (fdout, FD_STDOUT));
++    dup2 (fdout, FD_STDOUT);
+   if (fderr != FD_STDERR)
+-    EINTRLOOP (r, dup2 (fderr, FD_STDERR));
++    dup2 (fderr, FD_STDERR);
+ 
+-  /* Run the command.  */
+-  exec_command (argv, child->environment);
++  environ = child->environment;
++  execvp (argv[0], argv);
+   _exit (127);
+ 
+ #else /* USE_POSIX_SPAWN */

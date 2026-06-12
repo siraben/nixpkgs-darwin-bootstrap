@@ -3,6 +3,8 @@
   darwin,
   hex2,
   m1-to-hex2,
+  m1-split,
+  synth-inject,
   elf64-to-m1,
   m0,
   tinycc-self-link-candidate,
@@ -30,36 +32,22 @@ runCommand "tinycc-darwin-cc" { } ''
 
   cp ${root + "/scripts/tinycc/crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
 
-  ## Generate two Mach-O layout templates from MACHO-amd64-lowdata.hex2
-  ## (7 segment-field byte substitutions each).  tcc-darwin-cc tries the
-  ## SMALL layout first (fast, minimal text padding) and falls back to
-  ## LARGE only when a binary's text overruns it (e.g. gcc-4.6 cc1plus).
+  ## Two Mach-O layout templates derived from MACHO-amd64-lowdata.hex2
+  ## (7 segment-field substitutions each), committed under M2libc/amd64/.
+  ## tcc-darwin-cc tries the SMALL layout first (fast, minimal text
+  ## padding) and falls back to LARGE only when a binary's text overruns
+  ## it (e.g. gcc-4.6 cc1plus).  The committed copies must stay in sync
+  ## with the m0 template: verified by line count and shared lines here.
   lowdata=${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
-  ## SMALL: __TEXT vmsize 0x1100000, __DATA @0x1700000, linkedit @0x3100000
-  awk '
-  NR==10 { print "00 00 60 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-  NR==11 { print "00 00 00 00 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-  NR==15 { print "00 04 60 00 00 00 00 00 00 fc 0f 01 00 00 00 00"; next }
-  NR==19 { print "00 00 00 00 00 00 00 00 00 00 70 01 00 00 00 00"; next }
-  NR==20 { print "00 00 00 02 00 00 00 00 00 00 10 01 00 00 00 00"; next }
-  NR==24 { print "00 00 70 03 00 00 00 00 00 10 00 00 00 00 00 00"; next }
-  NR==25 { print "00 00 10 03 00 00 00 00 00 00 00 00 00 00 00 00"; next }
-  { print }
-  ' "$lowdata" > $out/share/darwin-bootstrap/MACHO-amd64-smalldata.hex2
-  ## LARGE: __TEXT vmsize 0x2800000, __DATA @0x2E00000, linkedit @0x4800000
-  awk '
-  NR==10 { print "00 00 60 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-  NR==11 { print "00 00 00 00 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-  NR==15 { print "00 04 60 00 00 00 00 00 00 fc 7f 02 00 00 00 00"; next }
-  NR==19 { print "00 00 00 00 00 00 00 00 00 00 e0 02 00 00 00 00"; next }
-  NR==20 { print "00 00 00 02 00 00 00 00 00 00 80 02 00 00 00 00"; next }
-  NR==24 { print "00 00 e0 04 00 00 00 00 00 10 00 00 00 00 00 00"; next }
-  NR==25 { print "00 00 80 04 00 00 00 00 00 00 00 00 00 00 00 00"; next }
-  { print }
-  ' "$lowdata" > $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
+  for tpl in ${root + "/M2libc/amd64/MACHO-amd64-smalldata.hex2"} ${root + "/M2libc/amd64/MACHO-amd64-largedata.hex2"}; do
+    test "$(wc -l < "$tpl")" = "$(wc -l < "$lowdata")"
+    test "$(sed -n 1p "$tpl")" = "$(sed -n 1p "$lowdata")"
+    test "$(sed -n 30p "$tpl")" = "$(sed -n 30p "$lowdata")"
+  done
+  cp ${root + "/M2libc/amd64/MACHO-amd64-smalldata.hex2"} $out/share/darwin-bootstrap/MACHO-amd64-smalldata.hex2
+  cp ${root + "/M2libc/amd64/MACHO-amd64-largedata.hex2"} $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
 
   cp crt1-tcc-sysv.M1 tinycc-sysv-libc.M1 $out/share/darwin-bootstrap/
-  cp ${root + "/scripts/tinycc/synth-inject.awk"} $out/share/darwin-bootstrap/synth-inject.awk
 
   cp ${root + "/scripts/tinycc/tcc-darwin-cc.sh"} $out/bin/tcc-darwin-cc
   chmod u+w $out/bin/tcc-darwin-cc
@@ -76,32 +64,20 @@ runCommand "tinycc-darwin-cc" { } ''
     --replace-fail @CRT1@ $out/share/darwin-bootstrap/crt1-tcc-sysv.M1 \
     --replace-fail @SYSCALLS@ ${root + "/bootstrap/tinycc-sysv-syscalls-amd64-darwin.M1"} \
     --replace-fail @LIBC_M1@ $out/share/darwin-bootstrap/tinycc-sysv-libc.M1 \
-    --replace-fail @SYNTH_INJECT@ $out/share/darwin-bootstrap/synth-inject.awk \
-    --replace-fail @M1_SPLIT@ $out/bin/m1-split \
-    --replace-fail @SYNTH_INJECT_BIN@ $out/bin/synth-inject \
+    --replace-fail @M1_SPLIT@ ${m1-split}/bin/m1-split \
+    --replace-fail @SYNTH_INJECT_BIN@ ${synth-inject}/bin/synth-inject \
     --replace-fail @SIGNING@ ${darwin.signingUtils}
   chmod +x $out/bin/tcc-darwin-cc
 
-  ## Chain-built C replacements for the host-awk M1 split + synth-label inject
-  ## (the "no host awk as a translator" rule). The just-built wrapper compiles
-  ## them; for these two small links the @M1_SPLIT@/@SYNTH_INJECT_BIN@ binaries
-  ## are not present yet, so the wrapper uses its awk fallback — the LAST host
-  ## awk in the chain. Every later link (tcc self-host, gcc-4.6/10/15) then goes
-  ## through the C tools.
-  $out/bin/tcc-darwin-cc ${root + "/bake/sources/tools/m1-split.c"} -o $out/bin/m1-split
-  chmod +x $out/bin/m1-split
-  $out/bin/tcc-darwin-cc ${root + "/bake/sources/tools/synth-inject.c"} -o $out/bin/synth-inject
-  chmod +x $out/bin/synth-inject
-
-  ## Smoke-test the C tools against the awk they replace.
-  printf 'CODE1\n:HEX2_data\nCODE2\n:ELF_data\nDATA1\nDATA2\n' > split-in.M1
-  test "$($out/bin/m1-split --code < split-in.M1)" = "$(printf 'CODE1\nCODE2')"
-  test "$($out/bin/m1-split --data < split-in.M1)" = "$(printf 'DATA1\nDATA2')"
-  printf ':mysym\n!0x01\n!0x02\n!0x03\n&mysym_plus_2>base\n' > synth-in.M1
-  awk -f $out/share/darwin-bootstrap/synth-inject.awk synth-in.M1 > synth-awk.out
-  $out/bin/synth-inject synth-in.M1 > synth-c.out
-  cmp -s synth-awk.out synth-c.out
-  cp split-in.M1 synth-in.M1 synth-awk.out synth-c.out $out/share/darwin-bootstrap/
+  ## m1-split + synth-inject are M2-Planet-built (mescc-tools/) and exist
+  ## before this wrapper's first link; the wrapper has no awk path.
+  ${m1-split}/bin/m1-split --code \
+    < ${root + "/mescc-tools/fixtures/m1-split-smoke.M1"} > split-code.out
+  cmp split-code.out ${root + "/mescc-tools/fixtures/m1-split-smoke.code.expected"}
+  ${synth-inject}/bin/synth-inject \
+    ${root + "/mescc-tools/fixtures/synth-inject-smoke.M1"} > synth-c.out
+  cmp synth-c.out ${root + "/mescc-tools/fixtures/synth-inject-smoke.expected"}
+  cp split-code.out synth-c.out $out/share/darwin-bootstrap/
 
   cp ${root + "/scripts/tinycc/selftest/hello.c"} hello.c
   $out/bin/tcc-darwin-cc hello.c -o hello

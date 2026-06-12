@@ -1,6 +1,6 @@
 {
   runCommand,
-  perl,
+  gnupatch,
   root,
   gnumakeVersion,
   gnumakeTarball,
@@ -8,7 +8,6 @@
   ...
 }:
 runCommand "gnumake-${gnumakeVersion}" {
-  nativeBuildInputs = [ perl ];
 } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
@@ -35,7 +34,9 @@ runCommand "gnumake-${gnumakeVersion}" {
     --replace-fail '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
   substituteInPlace src/main.c \
     --replace-fail "  /* Set up 'MAKEFLAGS' again for the normal targets.  */" "skip_bootstrap_remake_makefiles: /* Set up 'MAKEFLAGS' again for the normal targets.  */"
-  bash ${root + "/scripts/gnumake/phase39-patch-job.sh"}
+  ## fork/exec child_execute_job: the minimal Mach-O libc has no
+  ## posix_spawn.  Applied with the chain-built gnupatch.
+  ${gnupatch}/bin/patch -p1 < ${root + "/patches/gnumake-4.4.1-job-fork-exec.patch"}
   substituteInPlace src/misc.c \
     --replace-fail "if (*mktemp (path) == '\\0')" 'if (!strcmp (mktemp (path), ""))'
   substituteInPlace src/misc.c \

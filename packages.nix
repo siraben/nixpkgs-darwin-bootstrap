@@ -188,6 +188,8 @@ let
     macho-patcher-early = callPhase ./mescc-tools/macho-patcher-early.nix;
     elf64-to-m1         = callPhase ./mescc-tools/elf64-to-m1.nix;
     macho-patcher       = callPhase ./mescc-tools/macho-patcher.nix;
+    m1-split            = callPhase ./mescc-tools/m1-split.nix;
+    synth-inject        = callPhase ./mescc-tools/synth-inject.nix;
 
     ## mes — M2-Planet wrapper + mes-m2 build (phases 12-16)
     m2-planet            = callPhase ./mes/m2-planet.nix;

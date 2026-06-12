@@ -1,0 +1,6 @@
+:mysym
+!0x01
+!0x02
+:mysym_plus_2
+!0x03
+&mysym_plus_2>base
