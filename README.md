@@ -81,13 +81,10 @@ The implemented amd64 chain is:
   libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
   participates in any chain compile; nixpkgs clang/binutils remain at
   the assemble/link boundary only.
-- The chain runs on the chain-built `bootstrap-gnumake` in `gnu-hello`,
-  `bootstrap-deps`, `gcc-10`, and `gcc-latest/strict`.  `gcc-latest` and
-  `gcc-4.6/cxx` run nixpkgs `gnumake`: the bootstrap libc's getcwd stub
-  makes `$(abspath)` return relative paths under `bootstrap-gnumake`, so
-  GCC 15's libstdc++ C++23-module rule emits self-referential
-  `bits/std.cc` symlinks and the install `cp -RL` fails with ELOOP.  The
-  getcwd fix and the make swaps are batched into the next full rebuild.
+- Every phase that shells out to make runs the chain-built
+  `bootstrap-gnumake` (GNU Make 4.4.1 compiled by the chain tcc).  The
+  bootstrap libc implements getcwd via `fcntl(F_GETPATH)`, so
+  `$(abspath)`/`$(realpath)`/`CURDIR` return real paths.
 - The modern GCC packages carry a staged, patched bootstrap sysroot and
   wrapper metadata sufficient for the current proofs; a full nixpkgs
   compiler/runtime/bintools closure is future work.
