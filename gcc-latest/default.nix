@@ -18,6 +18,7 @@ runCommand "gcc-${gccLatestVersion}" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+  export GCC_MODERN_PREPARED_SYSROOT=${root + "/bootstrap/headers/gcc-modern-sysroot"}
   ## phase46 keeps in-tree gmp/mpfr/mpc/isl: it's the compiler used
   ## to build phase26c-f, so we can't reference them here without a
   ## cycle. phase47 strict consumes external libs (the goal lands

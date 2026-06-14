@@ -21,6 +21,7 @@ runCommand "gcc-${gccLatestVersion}-strict" {
   nativeBuildInputs = [ perl ];
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+  export GCC_MODERN_PREPARED_SYSROOT=${root + "/bootstrap/headers/gcc-modern-sysroot"}
   export GCC_MODERN_EXTERNAL_GMP=${bootstrap-gmp}
   export GCC_MODERN_EXTERNAL_MPFR=${bootstrap-mpfr}
   export GCC_MODERN_EXTERNAL_MPC=${bootstrap-mpc}
