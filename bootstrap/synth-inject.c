@@ -36,6 +36,29 @@ struct node {
 	struct node *next;
 };
 
+/* Bump allocator: M2libc malloc rounds every allocation to a >=256-byte
+ * power-of-2 block, which exhausts the 1 GiB brk region on cc1-scale
+ * streams (millions of label nodes).  Carve small allocations out of
+ * 16 MiB slabs instead; nothing here is ever freed (the run is short). */
+char *arena_cur;
+char *arena_end;
+
+void *arena_alloc(int n) {
+	char *p;
+	int chunk;
+	n = (n + 7) & -8;
+	if (arena_cur == 0) arena_end = 0;
+	if (arena_cur + n > arena_end) {
+		chunk = 16777216;
+		if (n > chunk) chunk = n;
+		arena_cur = calloc(chunk, sizeof(char));
+		arena_end = arena_cur + chunk;
+	}
+	p = arena_cur;
+	arena_cur = arena_cur + n;
+	return p;
+}
+
 struct node **set_refd;
 struct node **set_defd;
 struct node **need;
@@ -59,7 +82,7 @@ char *dup_str(char *s) {
 	int n;
 	char *d;
 	n = strlen(s);
-	d = calloc(n + 1, sizeof(char));
+	d = arena_alloc(n + 1);
 	memcpy(d, s, n);
 	return d;
 }
@@ -83,7 +106,10 @@ void set_add(struct node **t, char *k) {
 		if (strcmp(n->key, k) == 0) return;
 		n = n->next;
 	}
-	n = calloc(1, sizeof(struct node));
+	n = arena_alloc(sizeof(struct node));
+	n->next = 0;
+	n->val = 0;
+	n->nkey = 0;
 	n->key = dup_str(k);
 	n->next = t[h];
 	t[h] = n;
@@ -106,11 +132,10 @@ void val_append(struct node *n, int sep, char *s) {
 	char *v;
 	l = strlen(n->val);
 	sl = strlen(s);
-	v = calloc(l + 1 + sl + 1, sizeof(char));
+	v = arena_alloc(l + 1 + sl + 1);
 	memcpy(v, n->val, l);
 	v[l] = sep;
 	memcpy(v + l + 1, s, sl);
-	free(n->val);
 	n->val = v;
 }
 
@@ -124,9 +149,12 @@ void need_append(char *base, char *hex) {
 		n = n->next;
 	}
 	if (n == 0) {
-		n = calloc(1, sizeof(struct node));
+		n = arena_alloc(sizeof(struct node));
+		n->next = 0;
+		n->nkey = 0;
 		n->key = dup_str(base);
-		n->val = calloc(1, sizeof(char));
+		n->val = arena_alloc(1);
+		n->val[0] = 0;
 		n->next = need[h];
 		need[h] = n;
 	}
@@ -153,9 +181,12 @@ void sched_append(long k, char *lab) {
 		n = n->next;
 	}
 	if (n == 0) {
-		n = calloc(1, sizeof(struct node));
+		n = arena_alloc(sizeof(struct node));
+		n->next = 0;
+		n->key = 0;
 		n->nkey = k;
-		n->val = calloc(1, sizeof(char));
+		n->val = arena_alloc(1);
+		n->val[0] = 0;
 		n->next = sched[idx];
 		sched[idx] = n;
 	}
@@ -173,8 +204,6 @@ void sched_delete(long k) {
 		if (n->nkey == k) {
 			if (prev == 0) sched[idx] = n->next;
 			else prev->next = n->next;
-			free(n->val);
-			free(n);
 			return;
 		}
 		prev = n;

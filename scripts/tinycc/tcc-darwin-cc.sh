@@ -540,10 +540,12 @@ done
 synth_inject() {
   "@SYNTH_INJECT_BIN@" "$1"
 }
-if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
-   && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
-  mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
+tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1"
+if ! synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
+  echo "tcc-darwin-cc: synth-inject failed on $tmp/combined.tok.M1" >&2
+  exit 1
 fi
+mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
 rm -f "$tmp/combined.tok.M1"
 
 # Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text

@@ -73,8 +73,7 @@
           --disable-nls \
           --enable-languages=c \
           MAKEINFO=true \
-          > $out/share/darwin-bootstrap/configure.stdout \
-          2> $out/share/darwin-bootstrap/configure.stderr
+          2>&1 | tee $out/share/darwin-bootstrap/configure.log
 
         {
           echo '#include "bconfig.h"'
@@ -97,8 +96,7 @@
           STRIP="$STRIP" \
           LIPO="$LIPO" \
           OTOOL="$OTOOL" \
-          > $out/share/darwin-bootstrap/make-all-gcc.stdout \
-          2> $out/share/darwin-bootstrap/make-all-gcc.stderr
+          2>&1 | tee $out/share/darwin-bootstrap/make-all-gcc.log
 
         test -x gcc/xgcc
         test -x gcc/cc1
@@ -107,8 +105,7 @@
         cp ${root + "/gcc-4.6/fixtures/all-gcc-xgcc-smoke.c"} xgcc-smoke.c
         rm -f gccdump.s
         ./gcc/xgcc -B"$PWD/gcc/" -S xgcc-smoke.c -o xgcc-smoke.s \
-          > $out/share/darwin-bootstrap/xgcc-smoke.stdout \
-          2> $out/share/darwin-bootstrap/xgcc-smoke.stderr
+          2>&1 | tee $out/share/darwin-bootstrap/xgcc-smoke.log
         if test ! -s xgcc-smoke.s && test -s gccdump.s; then
           mv gccdump.s xgcc-smoke.s
         fi

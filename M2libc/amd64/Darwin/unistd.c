@@ -174,9 +174,14 @@ int brk(void *addr)
 {
 	if(NULL == __darwin_brk_ptr)
 	{
-		__darwin_brk_ptr = __darwin_mmap(0, 536870912, 3, 4098, -1, 0);
+		/* 1 GiB virtual reservation; Darwin pages it lazily.  512 MiB ran
+		 * out under synth-inject on a gcc cc1-scale link.  Literals past
+		 * 32 bits miscompile under M2-Planet (a 4 GiB attempt segfaulted
+		 * every M2-built tool), so 1 GiB is the ceiling here and
+		 * synth-inject packs its tables with a bump allocator. */
+		__darwin_brk_ptr = __darwin_mmap(0, 0x40000000, 3, 4098, -1, 0);
 		if(-1 == __darwin_brk_ptr) return -1;
-		__darwin_brk_end = __darwin_brk_ptr + 536870912;
+		__darwin_brk_end = __darwin_brk_ptr + 0x40000000;
 	}
 
 	if(NULL == addr) return __darwin_brk_ptr;
