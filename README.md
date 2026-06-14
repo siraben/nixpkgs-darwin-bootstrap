@@ -135,7 +135,17 @@ The bootstrap consumes only committed source files; helper scripts under
   tests into checkPhase, convert headers to explicit-args).  Kept for
   future similar passes.
 
-Build-time has zero perl/awk/python for `stage0-posix/` (phases 1-11).
+No host `awk` or `python` runs at build time anywhere in the chain.  The
+M1 code/data split and the cross-object synth-label injection that the
+TinyCC link path needs are chain-built C tools (`bootstrap/m1-split.c`,
+`bootstrap/synth-inject.c`, compiled through M2-Planet → M1 → hex2);
+deterministic source/configure edits use committed `.patch` files
+applied by the chain-built `gnupatch`.  `python3` appears only in
+design-time `scripts/stage0/regen-*.sh` maintainer scripts, never in a
+build closure.  Host `perl` still performs bootstrap-sysroot header
+preparation for the modern GCC phases (adding C++ `extern "C"` guards
+and missing declarations); replacing it with committed patches is a
+remaining hardening step.
 
 ## aarch64 status
 
