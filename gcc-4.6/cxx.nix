@@ -18,6 +18,7 @@
   gcc46-all-gcc,
   gcc46,
   bootstrap-gnumake,
+  gnupatch,
   root,
   runCommand,
   stdenv,
@@ -26,6 +27,8 @@
 runCommand "gcc-${gcc46Version}-cxx" {
   nativeBuildInputs = [ perl ];
 } ''
+  GNUPATCH=${gnupatch}/bin/patch \
+  PHASE44_MPC_PATCH=${root + "/patches/gcc-4.6.4-mpc-assume-mpfr.patch"} \
   BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
     BOOTSTRAP_JOBS=$NIX_BUILD_CORES \

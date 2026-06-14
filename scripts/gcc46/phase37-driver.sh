@@ -5,7 +5,7 @@ phase35=$1
 phase36=$2
 phase34=$3
 as_filter_src=$4   # C source for the Mach-O/GAS->tcc assembly translator
-python=$5
+# $5: reserved (legacy python slot, unused — the chain has no python)
 elf_to_m1=$6
 out=$7
 gcc_version=$8
@@ -90,7 +90,6 @@ merged_include="$merged_include"
 assembler="$out/bin/gcc46-bootstrap-as"
 linker="$phase34/bin/tcc-darwin-cc"
 sysroot="$phase34/include/tcc-darwin-bootstrap"
-python="$python"
 elf_to_m1="$elf_to_m1"
 libgcc_objects="$gcc_lib/libgcc-objects"
 libgcc_symbols="$gcc_lib/libgcc-symbols"
@@ -595,12 +594,14 @@ normalize_symbols() {
   comm -23 "\$tmpdir/unresolved.all" "\$tmpdir/defined.sorted" > "\$tmpdir/unresolved.sorted"
 }
 
-# Extract column 2 of a D/U symbol TSV (\$1 = D|U, \$2 = file).  Prefer the
-# chain-built tsv-col (sources/tools/tsv-col.c, on PATH as \$TARGET/bin once
-# step 44d ran) over host awk for this libgcc symbol selection.
+# Extract column 2 of a D/U symbol TSV (\$1 = D|U, \$2 = file) where column 1
+# matches \$1.  Pure shell — no host awk for this libgcc symbol selection.
 dusym() {
-  if command -v tsv-col >/dev/null 2>&1; then tsv-col "\$1" < "\$2"
-  else awk -F '\t' -v t="\$1" '\$1 == t { print \$2 }' "\$2"; fi
+  local want="\$1" col1 col2
+  while IFS="\$(printf '\t')" read -r col1 col2; do
+    [ "\$col1" = "\$want" ] && printf '%s\n' "\$col2"
+  done < "\$2"
+  return 0   # the while-loop's exit status is read's EOF (non-zero); set -e would abort
 }
 
 add_object_symbols() {

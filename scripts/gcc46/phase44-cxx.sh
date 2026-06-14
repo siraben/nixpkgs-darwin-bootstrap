@@ -85,24 +85,10 @@ for stale_c_header in \
 done
 rm -f src/gcc/.darwin-bootstrap-root-header-overlays
 if ! grep -q DARWIN_BOOTSTRAP_ASSUME_MPFR src/mpc/configure; then
-  awk '
-    !skip && /checking for MPFR/ {
-      print "{ $as_echo \"$as_me:${as_lineno-$LINENO}: checking for MPFR\" >&5"
-      print "$as_echo_n \"checking for MPFR... \" >&6; }"
-      print "LIBS=\"-lmpfr $LIBS\""
-      print "{ $as_echo \"$as_me:${as_lineno-$LINENO}: result: yes (DARWIN_BOOTSTRAP_ASSUME_MPFR)\" >&5"
-      print "$as_echo \"yes (DARWIN_BOOTSTRAP_ASSUME_MPFR)\" >&6; }"
-      skip = 1
-      next
-    }
-    skip && /Check for a recent GMP/ {
-      skip = 0
-      print
-      next
-    }
-    !skip { print }
-  ' src/mpc/configure > src/mpc/configure.bootstrap
-  mv src/mpc/configure.bootstrap src/mpc/configure
+  ## mpc's configure runs an MPFR link conftest that can't link in the
+  ## bootstrap sysroot; assume MPFR present.  Committed patch applied by
+  ## the chain-built gnupatch (no host awk).
+  "${GNUPATCH:?}" -p1 -d src < "$PHASE44_MPC_PATCH"
   chmod +x src/mpc/configure
 fi
 
