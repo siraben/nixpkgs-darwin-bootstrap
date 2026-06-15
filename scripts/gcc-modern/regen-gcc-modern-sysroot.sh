@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # regen-gcc-modern-sysroot.sh — regenerate the committed prepared sysroot
-# headers (bootstrap/headers/gcc-modern-sysroot) from the phase34 TinyCC
+# headers (bootstrap/headers/gcc-modern-sysroot) from the chain TinyCC
 # bootstrap headers.
 #
 # Design-time maintainer script; the Nix build never runs it.  Run it
 # whenever bootstrap/headers/tcc-darwin-bootstrap changes.
 #
 # The modern GCC phases (gcc-10, gcc-latest, gcc-latest/strict) compile
-# their C/C++ sources against this sysroot.  Relative to the phase34 tcc
+# their C/C++ sources against this sysroot.  Relative to the chain tcc
 # headers it adds: nine created headers (crt_externs.h, sys/times.h,
 # ftw.h, getopt.h, wchar.h, wctype.h, AvailabilityMacros.h, xlocale.h,
 # locale.h) and C++ `extern "C"` guards plus missing declarations on ~17

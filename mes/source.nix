@@ -33,7 +33,7 @@ mkDarwin {
     cp $out/include/darwin/x86_64/kernel-stat.h $out/include/arch/kernel-stat.h
     cp $out/include/darwin/x86_64/signal.h $out/include/arch/signal.h
     cp $out/include/darwin/x86_64/syscall.h $out/include/arch/syscall.h
-    bash ${root + "/scripts/mes/phase13-patch-assert-fail.sh"}
+    bash ${root + "/scripts/mes/patch-assert-fail.sh"}
 
     install -Dm644 ${root + "/mes/fixtures/darwin-mes-next.txt"} \
       $out/share/darwin-bootstrap/darwin-mes-next.txt

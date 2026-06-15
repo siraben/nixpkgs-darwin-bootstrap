@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-phase35=$1
-phase37=$2
-phase39=$3
-phase34=$4
+all_gcc=$1
+gcc46=$2
+make=$3
+tcc=$4
 cctools=$5
 out=$6
 gcc_version=$7
@@ -14,7 +14,7 @@ bootstrap_share="$out/share/darwin-bootstrap"
 
 mkdir -p src build "$out/bin" "$bootstrap_share"
 if [ ! -f src/configure ]; then
-  cp -R "$phase35/share/darwin-bootstrap/work/src/." src/
+  cp -R "$all_gcc/share/darwin-bootstrap/work/src/." src/
 fi
 chmod -R u+w src
 if grep -q '^#if (GCC_VERSION >= 4005).*defined(__x86_64__)' src/libcpp/lex.c; then
@@ -54,10 +54,10 @@ for gcc_subdir in \
   done
 done
 
-# The phase37 wrapper may install temporary bootstrap C/POSIX header overlays
+# The gcc46 driver may install temporary bootstrap C/POSIX header overlays
 # into src/gcc while repairing GCC 4.6's include search.  Those headers are
 # good enough for building the C driver, but they are not C++-safe: libsupc++
-# needs the current phase34 sysroot headers with extern "C" declarations.
+# needs the current tcc sysroot headers with extern "C" declarations.
 for stale_c_header in \
   assert.h \
   ctype.h \
@@ -88,11 +88,11 @@ if ! grep -q DARWIN_BOOTSTRAP_ASSUME_MPFR src/mpc/configure; then
   ## mpc's configure runs an MPFR link conftest that can't link in the
   ## bootstrap sysroot; assume MPFR present.  Committed patch applied by
   ## the chain-built gnupatch (no host awk).
-  "${GNUPATCH:?}" -p1 -d src < "$PHASE44_MPC_PATCH"
+  "${GNUPATCH:?}" -p1 -d src < "$GCC46_CXX_MPC_PATCH"
   chmod +x src/mpc/configure
 fi
 
-export CC="$phase37/bin/gcc"
+export CC="$gcc46/bin/gcc"
 export CPP="$CC -E"
 export CC_FOR_BUILD="$CC"
 export AR="$cctools/bin/ar"
@@ -103,13 +103,13 @@ export LIPO="$cctools/bin/lipo"
 export OTOOL="$cctools/bin/otool"
 export PATH="$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.8
-phase44_cflags="${PHASE44_CFLAGS:--g0}"
-phase44_cflags_for_build="${PHASE44_CFLAGS_FOR_BUILD:-$phase44_cflags}"
-phase44_cflags_for_target="${PHASE44_CFLAGS_FOR_TARGET:--O2 -g0}"
-export CFLAGS="$phase44_cflags"
-export CFLAGS_FOR_BUILD="$phase44_cflags_for_build"
-export CFLAGS_FOR_TARGET="$phase44_cflags_for_target"
-export CXXFLAGS_FOR_TARGET="$phase44_cflags_for_target"
+cxx_cflags="${GCC46_CXX_CFLAGS:--g0}"
+cxx_cflags_for_build="${GCC46_CXX_CFLAGS_FOR_BUILD:-$cxx_cflags}"
+cxx_cflags_for_target="${GCC46_CXX_CFLAGS_FOR_TARGET:--O2 -g0}"
+export CFLAGS="$cxx_cflags"
+export CFLAGS_FOR_BUILD="$cxx_cflags_for_build"
+export CFLAGS_FOR_TARGET="$cxx_cflags_for_target"
+export CXXFLAGS_FOR_TARGET="$cxx_cflags_for_target"
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
@@ -133,8 +133,8 @@ if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   # nixpkgs clang doesn't pick the host SDK automatically; export SDKROOT so
   # clang adds -isysroot to ld for finding libSystem and friends. This is a
   # no-op for Apple /usr/bin/cc which uses its built-in default SDK.
-  if [ -n "${PHASE44_SDK_PATH:-}" ] && [ -z "${SDKROOT:-}" ]; then
-    export SDKROOT="$PHASE44_SDK_PATH"
+  if [ -n "${GCC46_CXX_SDK_PATH:-}" ] && [ -z "${SDKROOT:-}" ]; then
+    export SDKROOT="$GCC46_CXX_SDK_PATH"
   fi
 fi
 export TCC_DARWIN_CACHE_DIR="$PWD/.tcc-darwin-cache"
@@ -297,7 +297,7 @@ fi
 cd build
 target_include="$PWD/bootstrap-target-include"
 mkdir -p "$target_include"
-cp -R "$phase34/include/tcc-darwin-bootstrap/." "$target_include/"
+cp -R "$tcc/include/tcc-darwin-bootstrap/." "$target_include/"
 chmod -R u+w "$target_include"
 if [ -f "$target_include/sys/types.h" ]; then
   perl -0pi -e 's/^typedef struct \{ int quot; int rem; \} div_t;\n//m; s/^typedef struct \{ long quot; long rem; \} ldiv_t;\n//m' "$target_include/sys/types.h"
@@ -305,7 +305,7 @@ fi
 if [ -f "$target_include/time.h" ] && ! grep -q '^typedef unsigned long size_t;$' "$target_include/time.h"; then
   perl -0pi -e 's/^(#define _DARWIN_BOOTSTRAP_TIME_H\n)/$1typedef unsigned long size_t;\n/m' "$target_include/time.h"
 fi
-if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
+if [ "${GCC46_CXX_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
   for cache_dir in \
     gcc \
     libiberty \
@@ -319,10 +319,10 @@ if [ "${PHASE44_RESUME:-0}" != 1 ] || [ ! -f Makefile ]; then
     libdecnumber \
     zlib \
     intl; do
-    if [ -f "$phase35/share/darwin-bootstrap/work/build/$cache_dir/config.cache" ]; then
+    if [ -f "$all_gcc/share/darwin-bootstrap/work/build/$cache_dir/config.cache" ]; then
       mkdir -p "$cache_dir"
       grep -v '^ac_cv_env_' \
-        "$phase35/share/darwin-bootstrap/work/build/$cache_dir/config.cache" \
+        "$all_gcc/share/darwin-bootstrap/work/build/$cache_dir/config.cache" \
         | grep -v -E '^(ac_cv_prog_(CC|CPP|CXX|CXXCPP|cc_|cxx_)|ac_cv_sys_largefile_CC)=' \
         > "$cache_dir/config.cache"
       chmod u+w "$cache_dir/config.cache"
@@ -369,7 +369,7 @@ MAKE
     libdecnumber; do
     rm -rf "$prereq_dir"
     mkdir -p "$(dirname "$prereq_dir")"
-    cp -R "$phase35/share/darwin-bootstrap/work/build/$prereq_dir" "$prereq_dir"
+    cp -R "$all_gcc/share/darwin-bootstrap/work/build/$prereq_dir" "$prereq_dir"
     chmod -R u+w "$prereq_dir"
   done
   find \
@@ -411,7 +411,7 @@ MAKE
       {} +
 
   mkdir -p gcc
-  phase35_gcc="$phase35/share/darwin-bootstrap/work/build/gcc"
+  all_gcc_build="$all_gcc/share/darwin-bootstrap/work/build/gcc"
   for generated_name in \
     bversion.h \
     build/gencondmd.c \
@@ -447,21 +447,21 @@ MAKE
     tm-constrs.h \
     tm-preds.h \
     tree-check.h; do
-    if [ -e "$phase35_gcc/$generated_name" ] || [ -L "$phase35_gcc/$generated_name" ]; then
+    if [ -e "$all_gcc_build/$generated_name" ] || [ -L "$all_gcc_build/$generated_name" ]; then
       rm -f "gcc/$generated_name"
       mkdir -p "$(dirname "gcc/$generated_name")"
-      cp -R "$phase35_gcc/$generated_name" "gcc/$generated_name"
+      cp -R "$all_gcc_build/$generated_name" "gcc/$generated_name"
       chmod -R u+w "gcc/$generated_name" 2>/dev/null || true
     fi
   done
-  for generated_name in "$phase35_gcc"/gt-*.h "$phase35_gcc"/gtype-*.h "$phase35_gcc"/s-*; do
+  for generated_name in "$all_gcc_build"/gt-*.h "$all_gcc_build"/gtype-*.h "$all_gcc_build"/s-*; do
     [ -e "$generated_name" ] || [ -L "$generated_name" ] || continue
     base_name="$(basename "$generated_name")"
     rm -f "gcc/$base_name"
     cp -R "$generated_name" "gcc/$base_name"
     chmod -R u+w "gcc/$base_name" 2>/dev/null || true
   done
-  for generated_name in "$phase35_gcc"/build/gen*; do
+  for generated_name in "$all_gcc_build"/build/gen*; do
     [ -f "$generated_name" ] || continue
     base_name="$(basename "$generated_name")"
     rm -f "gcc/build/$base_name"
@@ -470,21 +470,21 @@ MAKE
     chmod u+w "gcc/build/$base_name" 2>/dev/null || true
     touch "gcc/build/$base_name"
   done
-  if [ -f "$phase35_gcc/build/gcov-iov" ]; then
+  if [ -f "$all_gcc_build/build/gcov-iov" ]; then
     rm -f gcc/build/gcov-iov
     mkdir -p gcc/build
-    cp "$phase35_gcc/build/gcov-iov" gcc/build/gcov-iov
+    cp "$all_gcc_build/build/gcov-iov" gcc/build/gcov-iov
     chmod u+wx gcc/build/gcov-iov 2>/dev/null || true
     touch gcc/build/gcov-iov
   fi
   for generated_name in gcov gcov-dump; do
-    [ -f "$phase35_gcc/$generated_name" ] || continue
+    [ -f "$all_gcc_build/$generated_name" ] || continue
     rm -f "gcc/$generated_name"
-    cp "$phase35_gcc/$generated_name" "gcc/$generated_name"
+    cp "$all_gcc_build/$generated_name" "gcc/$generated_name"
     chmod u+wx "gcc/$generated_name" 2>/dev/null || true
     touch "gcc/$generated_name"
   done
-  for generated_name in "$phase35_gcc"/build/*.o; do
+  for generated_name in "$all_gcc_build"/build/*.o; do
     [ -f "$generated_name" ] || continue
     base_name="$(basename "$generated_name")"
     rm -f "gcc/build/$base_name"
@@ -537,25 +537,25 @@ configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-l
 	@:
 MAKE
 else
-  printf 'Reusing existing phase44 configure state in %s\n' "$PWD" > "$bootstrap_share/configure.resume"
+  printf 'Reusing existing gcc-4.6 cxx configure state in %s\n' "$PWD" > "$bootstrap_share/configure.resume"
 fi
 
-remove_phase34_header_symlinks() {
+remove_tcc_header_symlinks() {
   local dir="$1"
   [ -d "$dir" ] || return 0
   find "$dir" -type l | while read -r link; do
     target="$(readlink "$link")"
     case "$target" in
-      "$phase34"/include/tcc-darwin-bootstrap/*)
+      "$tcc"/include/tcc-darwin-bootstrap/*)
         rm -f "$link"
         ;;
     esac
   done
 }
 
-rewrite_phase34_store_refs() {
+rewrite_tcc_store_refs() {
   find . -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.log \) \
-    -exec perl -0pi -e "s#/nix/store/[A-Za-z0-9]+-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64#$phase34#g" {} +
+    -exec perl -0pi -e "s#/nix/store/[A-Za-z0-9]+-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64#$tcc#g" {} +
 }
 
 fix_darwin_prereq_configs() {
@@ -582,7 +582,7 @@ fix_darwin_prereq_configs() {
 rebuild_macho_archive() {
   local dir="$1"
   shift
-  remove_phase34_header_symlinks "$dir"
+  remove_tcc_header_symlinks "$dir"
   MAKEFLAGS= "$make_tool" -C "$dir" -j"$build_cores" clean >/dev/null 2>&1 || true
   fix_darwin_prereq_configs
   env \
@@ -693,12 +693,12 @@ postprocess_macho_specs() {
       gcc/libgcc.mvars
   fi
   if [ -f x86_64-apple-darwin/libgcc/Makefile ]; then
-    local phase34_include_escaped
-    phase34_include_escaped="$(printf '%s\n' "$target_include" | sed 's/[\/&]/\\&/g')"
+    local tcc_include_escaped
+    tcc_include_escaped="$(printf '%s\n' "$target_include" | sed 's/[\/&]/\\&/g')"
     perl -0 -p -i \
       -e 's/^LIBGCOV = .*?\\n\\s*_gcov_merge_ior$/LIBGCOV =/ms;' \
       -e 's/^GCC_EXTRA_PARTS = .*$/GCC_EXTRA_PARTS =/m;' \
-      -e "s@^(INCLUDES = .*?)(\\n\\s*-I\\\$\\(srcdir\\)/\\.\\./include \\$\\(DECNUMINC\\))@\$1\$2 -isystem $phase34_include_escaped@ms;" \
+      -e "s@^(INCLUDES = .*?)(\\n\\s*-I\\\$\\(srcdir\\)/\\.\\./include \\$\\(DECNUMINC\\))@\$1\$2 -isystem $tcc_include_escaped@ms;" \
       x86_64-apple-darwin/libgcc/Makefile
   fi
 }
@@ -769,31 +769,31 @@ configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-l
 MAKE
 }
 
-make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
-# The phase39 GNU Make is intentionally minimal and does not yet have a
+make_tool=${BOOTSTRAP_MAKE:-"$make/bin/make"}
+# The chain GNU Make is intentionally minimal and does not yet have a
 # bootstrap-proven jobserver/pipe path.  Keep Nix builds serial by default, but
 # allow impure debug runs to override both the make executable and job count.
 build_cores=${BOOTSTRAP_JOBS:-${NIX_BUILD_CORES:-1}}
-main_build_cores=${PHASE44_MAIN_JOBS:-1}
-make_dir=${PHASE44_MAKE_DIR:-.}
-make_targets=${PHASE44_TARGETS:-"all-gcc"}
-gcc_make_targets=${PHASE44_GCC_TARGETS:-"xgcc cc1 c++ g++"}
+main_build_cores=${GCC46_CXX_MAIN_JOBS:-1}
+make_dir=${GCC46_CXX_MAKE_DIR:-.}
+make_targets=${GCC46_CXX_TARGETS:-"all-gcc"}
+gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc cc1 c++ g++"}
 
 sdk_path() {
-  if [ -n "${PHASE44_SDK_PATH:-}" ]; then
-    printf '%s\n' "$PHASE44_SDK_PATH"
+  if [ -n "${GCC46_CXX_SDK_PATH:-}" ]; then
+    printf '%s\n' "$GCC46_CXX_SDK_PATH"
   elif command -v xcrun >/dev/null 2>&1; then
     xcrun --sdk macosx --show-sdk-path
   elif [ -d /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk ]; then
     printf '%s\n' /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
   else
-    echo "phase44: set PHASE44_SDK_PATH or make xcrun visible" >&2
+    echo "gcc-4.6 cxx: set GCC46_CXX_SDK_PATH or make xcrun visible" >&2
     exit 1
   fi
 }
 
 ensure_target_libgcc_macho() {
-  [ "${PHASE44_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
+  [ "${GCC46_CXX_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
   [ "$make_dir" = . ] || return 0
   [ -f gcc/xgcc ] || return 0
   if [ ! -f gcc/libgcc.mvars ] || [ ! -f gcc/tconfig.h ]; then
@@ -889,8 +889,8 @@ configure_direct_libstdcxx() {
       CXX="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
       CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
       CXXCPP="$PWD/../../gcc/g++ -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
-      CFLAGS="$phase44_cflags_for_target" \
-      CXXFLAGS="$phase44_cflags_for_target" \
+      CFLAGS="$cxx_cflags_for_target" \
+      CXXFLAGS="$cxx_cflags_for_target" \
       LDFLAGS="-nostartfiles -nodefaultlibs -L$PWD/../../gcc -lgcc -Wl,-syslibroot,$sdk -lSystem" \
       AR="$AR" \
       RANLIB="$RANLIB" \
@@ -911,7 +911,7 @@ configure_direct_libstdcxx() {
 }
 
 build_direct_libstdcxx() {
-  [ "${PHASE44_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
+  [ "${GCC46_CXX_DIRECT_TARGET_RUNTIMES:-1}" = 1 ] || return 0
   [ "$make_dir" = . ] || return 0
   [ -f gcc/g++ ] || return 0
   ensure_target_libgcc_macho
@@ -926,14 +926,14 @@ build_direct_libstdcxx() {
     2>&1 | tee "$bootstrap_share/install-direct-libstdcxx.log"
 }
 
-rewrite_phase34_store_refs
+rewrite_tcc_store_refs
 fix_darwin_prereq_configs
 append_top_prereq_stubs
 install_macho_tool_wrappers
 postprocess_macho_specs
 
-if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${PHASE44_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
-  for prereq_name in ${PHASE44_REBUILD_MACHO_PREREQS_LIST:-libiberty zlib gmp mpfr mpc libcpp libdecnumber}; do
+if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${GCC46_CXX_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
+  for prereq_name in ${GCC46_CXX_REBUILD_MACHO_PREREQS_LIST:-libiberty zlib gmp mpfr mpc libcpp libdecnumber}; do
     case "$prereq_name" in
       libiberty|zlib|libdecnumber)
         rebuild_macho_archive "$prereq_name" all
@@ -957,7 +957,7 @@ if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${PHASE44_REBUILD_M
           libmpc.la
         ;;
       *)
-        echo "unknown phase44 Mach-O prerequisite: $prereq_name" >&2
+        echo "unknown gcc-4.6 cxx Mach-O prerequisite: $prereq_name" >&2
         exit 1
         ;;
     esac
@@ -985,8 +985,8 @@ if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
     2> "$bootstrap_share/configure-$make_dir.stderr"
 fi
 
-if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
-  if [ "$make_dir" = . ] && [ "$make_targets" = "all-gcc" ] && [ "${PHASE44_DIRECT_GCC_MAKE:-1}" = 1 ]; then
+if [ "${GCC46_CXX_SKIP_MAIN_MAKE:-0}" != 1 ]; then
+  if [ "$make_dir" = . ] && [ "$make_targets" = "all-gcc" ] && [ "${GCC46_CXX_DIRECT_GCC_MAKE:-1}" = 1 ]; then
     if [ ! -f gcc/Makefile ]; then
       MAKEFLAGS= "$make_tool" -j1 \
         MAKEINFO=true \
@@ -1040,7 +1040,7 @@ if [ "${PHASE44_SKIP_MAIN_MAKE:-0}" != 1 ]; then
       2>&1 | tee "$bootstrap_share/make.log"
   fi
 else
-  printf 'Skipped main make in resumed phase44 tree\n' > "$bootstrap_share/make.skipped"
+  printf 'Skipped main make in resumed gcc-4.6 cxx tree\n' > "$bootstrap_share/make.skipped"
 fi
 
 install_macho_tool_wrappers
@@ -1048,7 +1048,7 @@ postprocess_macho_specs
 ensure_gcc_internal_headers
 build_direct_libstdcxx
 
-if [ "${PHASE44_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then
+if [ "${GCC46_CXX_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then
   exit 0
 fi
 

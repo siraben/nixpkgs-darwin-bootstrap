@@ -12,18 +12,18 @@ Environment overrides:
   IMPURE_ROOT     Local work root, default: $PWD/work/impure
   BOOTSTRAP_MAKE  Make executable, default: host make for impure speed
   BOOTSTRAP_JOBS  Parallel jobs, default: min(host CPUs, 8)
-  PHASE44_RESUME  If 1, reuse existing phase44 build/gcc Makefiles
-  PHASE44_MAKE_DIR Make subdirectory for phase44 target iteration, e.g. gcc
-  PHASE44_TARGETS Make targets for phase44, e.g. "c-lang.o c-family/stub-objc.o"
-  PHASE44_SKIP_INSTALL If 1, stop after phase44 make targets
-  PHASE34         phase34 tinycc Darwin cc store path
-  PHASE35         phase35 GCC 4.6 all-gcc store path
-  PHASE37         phase37 GCC 4.6 bootstrap store path
-  PHASE39         phase39 GNU make store path
-  PHASE42         phase42 GCC 10 source store path
-  PHASE43         phase43 latest GCC source store path
-  PHASE44_OUT     local phase44 output path
-  PHASE45_OUT     local phase45 output path
+  GCC46_CXX_RESUME  If 1, reuse existing phase44 build/gcc Makefiles
+  GCC46_CXX_MAKE_DIR Make subdirectory for phase44 target iteration, e.g. gcc
+  GCC46_CXX_TARGETS Make targets for phase44, e.g. "c-lang.o c-family/stub-objc.o"
+  GCC46_CXX_SKIP_INSTALL If 1, stop after phase44 make targets
+  TCC_OUT         phase34 tinycc Darwin cc store path
+  ALL_GCC_OUT         phase35 GCC 4.6 all-gcc store path
+  GCC46_OUT         phase37 GCC 4.6 bootstrap store path
+  MAKE_OUT         phase39 GNU make store path
+  GCC10_SRC_OUT         phase42 GCC 10 source store path
+  GCC_LATEST_SRC_OUT         phase43 latest GCC source store path
+  GCC46_CXX_OUT     local phase44 output path
+  GCC10_OUT     local phase45 output path
   CCTOOLS         cctools store path
   BOOTSTRAP_SYSTEM flake package system, default: x86_64-darwin
 EOF
@@ -49,12 +49,12 @@ nixpkgs_path() {
     "let flake = builtins.getFlake (toString $repo_root); pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; }; in pkgs.$attr.outPath"
 }
 
-phase34=${PHASE34:-}
-phase35=${PHASE35:-}
-phase37=${PHASE37:-}
-phase39=${PHASE39:-}
-phase42=${PHASE42:-}
-phase43=${PHASE43:-}
+phase34=${TCC_OUT:-}
+phase35=${ALL_GCC_OUT:-}
+phase37=${GCC46_OUT:-}
+phase39=${MAKE_OUT:-}
+phase42=${GCC10_SRC_OUT:-}
+phase43=${GCC_LATEST_SRC_OUT:-}
 cctools=${CCTOOLS:-}
 
 mkdir -p "$impure_root"
@@ -80,10 +80,10 @@ case "$phase" in
     if [ -z "$phase35" ]; then phase35=$(attr_path phase35-gcc46-all-gcc); fi
     if [ -z "$phase37" ]; then phase37=$(attr_path phase37-gcc46-bootstrap); fi
     work_dir="$impure_root/phase44-gcc46-cxx"
-    out=${PHASE44_OUT:-"$work_dir/out"}
+    out=${GCC46_CXX_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
-    "$repo_root/scripts/gcc46/phase44-cxx.sh" \
+    "$repo_root/scripts/gcc-4.6/cxx.sh" \
       "$phase35" \
       "$phase37" \
       "$phase39" \
@@ -94,10 +94,10 @@ case "$phase" in
     ;;
   phase45)
     if [ -z "$phase42" ]; then phase42=$(attr_path phase42-gcc10-source); fi
-    phase44_out=${PHASE44_OUT:-"$impure_root/phase44-gcc46-cxx/out"}
+    phase44_out=${GCC46_CXX_OUT:-"$impure_root/phase44-gcc46-cxx/out"}
     if [ -z "$phase34" ]; then phase34="$phase44_out"; fi
     work_dir="$impure_root/phase45-gcc10"
-    out=${PHASE45_OUT:-"$work_dir/out"}
+    out=${GCC10_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
     export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}
@@ -114,10 +114,10 @@ case "$phase" in
     ;;
   phase46)
     if [ -z "$phase43" ]; then phase43=$(attr_path phase43-gcc-latest-source); fi
-    phase45_out=${PHASE45_OUT:-"$impure_root/phase45-gcc10/out"}
+    phase45_out=${GCC10_OUT:-"$impure_root/phase45-gcc10/out"}
     if [ -z "$phase34" ]; then phase34="$phase45_out"; fi
     work_dir="$impure_root/phase46-gcc-latest"
-    out=${PHASE46_OUT:-"$work_dir/out"}
+    out=${GCC_LATEST_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
     export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}

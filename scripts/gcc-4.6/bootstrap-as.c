@@ -1,7 +1,7 @@
-/* phase36-bootstrap-as — translate the Mach-O / GAS assembly that
+/* bootstrap-as — translate the Mach-O / GAS assembly that
  * gcc-4.6's cc1 emits into the subset tcc's integrated assembler accepts.
  *
- * This is a faithful C re-implementation of phase36-bootstrap-as.awk.  It
+ * This is a faithful C re-implementation of the former bootstrap-as.awk.  It
  * exists so the bootstrap `as` shim does NOT depend on the host's
  * /usr/bin/awk for what is really compiler-frontend work: by the gcc-4.6
  * libgcc stage the chain has already built tcc-darwin-cc, so this filter

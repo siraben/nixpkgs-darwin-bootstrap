@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-phase35=$1
-phase34=$2
+all_gcc=$1
+tcc=$2
 cctools=$3
 perl=$4
 helper=$5
@@ -20,13 +20,13 @@ soft_fp_objects=(
 eh_objects=(unwind-dw2 unwind-dw2-fde-darwin unwind-sjlj unwind-c emutls)
 
 mkdir -p work "$out/lib/gcc/x86_64-apple-darwin/$gcc_version" "$out/share/darwin-bootstrap"
-cp -R "$phase35/share/darwin-bootstrap/work/src" work/src
-cp -R "$phase35/share/darwin-bootstrap/work/build" work/build
+cp -R "$all_gcc/share/darwin-bootstrap/work/src" work/src
+cp -R "$all_gcc/share/darwin-bootstrap/work/build" work/build
 chmod -R u+w work
 
-"$perl" "$helper" --root "$PWD" --phase34 "$phase34"
+"$perl" "$helper" --root "$PWD" --tcc "$tcc"
 
-export CC="$phase34/bin/tcc-darwin-cc"
+export CC="$tcc/bin/tcc-darwin-cc"
 export CPP="$CC -E"
 export CC_FOR_BUILD="$CC"
 export AR="${AR:-$cctools/bin/ar}"
@@ -47,12 +47,12 @@ mkdir -p "$TCC_DARWIN_CACHE_DIR" "$TMPDIR"
 ## compiler (tcc-darwin-cc), so the bootstrap `as` does not depend on the
 ## host's awk for what is really compiler-frontend work.
 as_filter="$PWD/work/build/gcc/as-filter"
-"$phase34/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
+"$tcc/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
 
 cat > work/build/gcc/as <<SH_AS
 #! /bin/sh
 set -eu
-compiler="$phase34/bin/tcc-darwin-cc"
+compiler="$tcc/bin/tcc-darwin-cc"
 as_filter="$as_filter"
 out=""
 input=""
@@ -96,7 +96,7 @@ find "$libgcc_dir" \( -name '*.o' -o -name '*.a' -o -name '*.dep' \) -print0 | x
 
 cd "$libgcc_dir"
 export MACOSX_DEPLOYMENT_TARGET=10.6
-target_cc="env GCC46_PHASE36_CC1=$PWD/../../gcc/cc1 GCC46_PHASE36_AS=$PWD/../../gcc/as GCC46_PHASE36_VERSION=$gcc_version $PWD/../../gcc/xgcc-bootstrap -isystem $phase34/include/tcc-darwin-bootstrap -isystem $PWD/include"
+target_cc="env GCC46_PHASE36_CC1=$PWD/../../gcc/cc1 GCC46_PHASE36_AS=$PWD/../../gcc/as GCC46_PHASE36_VERSION=$gcc_version $PWD/../../gcc/xgcc-bootstrap -isystem $tcc/include/tcc-darwin-bootstrap -isystem $PWD/include"
 CC="$target_cc" \
 CPP="$target_cc -E" \
 AR="$AR" \
@@ -104,9 +104,9 @@ RANLIB="$RANLIB" \
 NM="$PWD/../../gcc/nm" \
 sh ../../../src/libgcc/configure \
   --cache-file=./config.cache \
-  --prefix="$phase35" \
-  --with-native-system-header-dir="$phase34/include/tcc-darwin-bootstrap" \
-  --with-build-sysroot="$phase34/include/tcc-darwin-bootstrap" \
+  --prefix="$all_gcc" \
+  --with-native-system-header-dir="$tcc/include/tcc-darwin-bootstrap" \
+  --with-build-sysroot="$tcc/include/tcc-darwin-bootstrap" \
   --disable-bootstrap \
   --disable-shared \
   --disable-multilib \

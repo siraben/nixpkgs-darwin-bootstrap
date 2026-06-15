@@ -101,7 +101,7 @@ common_args=(
 cc1_input=$input
 case "$(basename "$input")" in
   conftest.c|conftest.i)
-    staged_tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/phase36-xgcc-src.XXXXXX")"
+    staged_tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/gcc46-xgcc-src.XXXXXX")"
     trap 'rm -rf "$staged_tmpdir"' EXIT HUP INT TERM
     cc1_input="$staged_tmpdir/$(basename "$input")"
     cp "$input" "$cc1_input"
@@ -127,7 +127,7 @@ case "$mode" in
         out="${input%.*}.o"
       fi
     fi
-    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/phase36-xgcc.XXXXXX")"
+    tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/gcc46-xgcc.XXXXXX")"
     trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
     asm="$tmpdir/input.s"
     "$cc1" "${common_args[@]}" "$cc1_input" -o "$asm"

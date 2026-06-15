@@ -9,7 +9,7 @@
 ##   3. patch libgcc/Makefile.in + libgcc.mvars to disable EH/multilib/etc.
 ##      so libgcc can build with our pinned tinycc-cc.
 ##
-## Args:   --root <dir>   --phase34 <phase34-tcc-cc-output>
+## Args:   --root <dir>   --tcc <tcc-tcc-cc-output>
 use strict;
 use warnings;
 use File::Find;
@@ -18,16 +18,16 @@ use File::Path qw(make_path);
 use File::Spec;
 
 my $root;
-my $phase34;
+my $tcc;
 
 while (@ARGV) {
     my $a = shift @ARGV;
     if    ($a eq '--root')    { $root    = shift @ARGV; }
-    elsif ($a eq '--phase34') { $phase34 = shift @ARGV; }
+    elsif ($a eq '--tcc') { $tcc = shift @ARGV; }
     else  { die "unknown arg: $a\n"; }
 }
 die "missing --root\n"    unless defined $root;
-die "missing --phase34\n" unless defined $phase34;
+die "missing --tcc\n" unless defined $tcc;
 
 my @SOFT_FP_SOURCES = qw(
     addtf3 divtf3 eqtf2 getf2 letf2 multf3 negtf2
@@ -39,7 +39,7 @@ my @SOFT_FP_SOURCES = qw(
 my @EH_SOURCES = qw(unwind-dw2 unwind-dw2-fde-darwin unwind-sjlj unwind-c emutls);
 
 relocate_build_paths($root);
-materialize_headers($root, $phase34);
+materialize_headers($root, $tcc);
 patch_sources($root);
 exit 0;
 
@@ -126,7 +126,7 @@ sub append_text_latin1 {
 }
 
 sub materialize_headers {
-    my ($root, $phase34) = @_;
+    my ($root, $tcc) = @_;
     my $build_gcc   = "$root/work/build/gcc";
     my $src_gcc     = "$root/work/src/gcc";
     my $src_include = "$root/work/src/include";
@@ -209,7 +209,7 @@ sub materialize_headers {
         close($df);
     }
 
-    my $fcntl = read_text("$phase34/include/tcc-darwin-bootstrap/fcntl.h");
+    my $fcntl = read_text("$tcc/include/tcc-darwin-bootstrap/fcntl.h");
     $fcntl .=
           "\n#ifndef F_RDLCK\n#define F_RDLCK 1\n#define F_WRLCK 3\n#define F_SETLKW 9\n"
         . "struct flock { long l_start; long l_len; int l_pid; short l_type; short l_whence; };\n#endif\n";
@@ -217,7 +217,7 @@ sub materialize_headers {
 
     my $fixed_include = "$build_gcc/include";
     make_path("$fixed_include/sys") unless -d "$fixed_include/sys";
-    my $bootstrap_include = "$phase34/include/tcc-darwin-bootstrap";
+    my $bootstrap_include = "$tcc/include/tcc-darwin-bootstrap";
     if (opendir(my $dh, $bootstrap_include)) {
         for my $entry (readdir $dh) {
             next unless $entry =~ /\.h$/;

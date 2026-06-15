@@ -11,14 +11,14 @@
 runCommand "gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''
-  ${root + "/scripts/gcc46/phase36-libgcc.sh"} \
+  ${root + "/scripts/gcc-4.6/libgcc.sh"} \
     ${gcc46-all-gcc} \
     ${tinycc-darwin-cc} \
     ${cctools} \
     ${perl}/bin/perl \
-    ${root + "/scripts/gcc46/phase36-libgcc.pl"} \
-    ${root + "/scripts/gcc46/phase36-bootstrap-as.c"} \
+    ${root + "/scripts/gcc-4.6/libgcc.pl"} \
+    ${root + "/scripts/gcc-4.6/bootstrap-as.c"} \
     "$out" \
     ${gcc46Version} \
-    ${root + "/scripts/gcc46/phase36-xgcc-wrapper.sh"}
+    ${root + "/scripts/gcc-4.6/xgcc-wrapper.sh"}
 ''

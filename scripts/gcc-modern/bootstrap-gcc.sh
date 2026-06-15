@@ -3,8 +3,8 @@ set -euo pipefail
 
 source_dir=$1
 compiler=$2
-phase39=$3
-phase34=$4
+make_in=$3
+tcc_in=$4
 cctools=$5
 out=$6
 version=$7
@@ -141,7 +141,7 @@ sysroot="$PWD/bootstrap-sysroot"
 rm -rf "$sysroot"
 mkdir -p "$sysroot/include"
 ## The bootstrap sysroot is a committed, fully-prepared header set
-## (bootstrap/headers/gcc-modern-sysroot): the phase34 tcc headers plus
+## (bootstrap/headers/gcc-modern-sysroot): the tcc headers plus
 ## the C++ extern-C guards and missing declarations the modern GCC build
 ## needs.  No host perl edits headers at build time; see
 ## scripts/gcc-modern/regen-gcc-modern-sysroot.sh for how it is derived.
@@ -442,7 +442,7 @@ configure_flags=(
 )
 
 # Task #12: when external GMP/MPFR/MPC/ISL are available via env vars
-# (phase26c/d/e/f), point GCC's configure at them and remove the
+# (the chain-built gmp/mpfr/mpc/isl), point GCC's configure at them and remove the
 # in-tree variant from the source tree so configure picks the
 # external paths.  Mirrors nixpkgs gcc_latest's structure.
 if [ -n "${GCC_MODERN_EXTERNAL_GMP:-}" ]; then
@@ -903,7 +903,7 @@ fi
 add_default_link_args
 ld_args+=(-L"\$root/lib/gcc/$target/$version" -L"\$root/lib" -lgcc)
 case "\$PWD" in
-  */phase46-gcc-latest/build/gcc*)
+  */build/gcc*)
     if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
       cxx_link_args
       exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
@@ -1326,7 +1326,7 @@ else
   ld_args+=(-L"\$root/lib/gcc/$target/$version" -L"\$root/lib" -lgcc -lstdc++ -lsupc++)
 fi
 case "\$PWD" in
-  */phase46-gcc-latest/build/gcc*)
+  */build/gcc*)
     if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
       cxx_link_args
       exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
@@ -1358,7 +1358,7 @@ else
   printf 'Reusing existing %s configure state in %s\n' "$label" "$PWD" > "$bootstrap_share/configure.resume"
 fi
 
-make_tool=${BOOTSTRAP_MAKE:-"$phase39/bin/make"}
+make_tool=${BOOTSTRAP_MAKE:-"$make_in/bin/make"}
 # The bootstrapped GNU Make available at this point is still serial-only for
 # this chain: its parallel jobserver needs pipe coverage that has not been made
 # part of the bootstrap ABI yet.  Impure debug runs may override this.
@@ -1650,7 +1650,7 @@ fi
 ## Task #13: when GCC_MODERN_BUILD_TARGET_LIBS=1, also build libgcc +
 ## libstdc++ from the just-built xgcc, passing -isystem $sysroot/include
 ## via the same LIBGCC2_INCLUDES / CRTSTUFF_T_CFLAGS knobs that
-## phase44-cxx.sh uses for the GCC 4.6 chain. Without these the target
+## gcc-4.6/cxx.sh uses for the GCC 4.6 chain. Without these the target
 ## libgcc compile can't find <stdio.h> (the bundled $out/$target/include
 ## doesn't exist yet at build time).
 target_lib_make_args=()

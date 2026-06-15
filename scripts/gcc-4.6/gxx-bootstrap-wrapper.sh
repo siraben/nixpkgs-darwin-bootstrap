@@ -2,7 +2,7 @@
 ## gxx-bootstrap-wrapper — a g++ driver that BYPASSES the gcc-4.6 xgcc
 ## driver (which segfaults at startup when built c,c++ by tcc) and drives
 ## cc1plus + the bootstrap-as filter + tcc-darwin-cc directly.  Same idea
-## as phase37-driver.sh's gcc wrapper, but for C++.
+## as the gcc-4.6 driver's gcc wrapper, but for C++.
 ##
 ## A bake step substitutes the @PLACEHOLDERS@.  Validated: separate
 ## compilation of a multi-file self-contained C++ program links + runs.
@@ -11,7 +11,7 @@
 set -eo pipefail
 
 CC1PLUS="@CC1PLUS@"          # gcc-4.6 cc1plus
-ASFILTER="@ASFILTER@"        # tcc-compiled phase36-bootstrap-as
+ASFILTER="@ASFILTER@"        # tcc-compiled bootstrap-as
 TCC="@TCC@"                  # tcc-darwin-cc (assemble + link)
 SYSROOT="@SYSROOT@"          # tcc-darwin-bootstrap C headers
 LIBSTDCXX="@LIBSTDCXX@"      # gcc-4.6 libstdc++ build dir (headers + .a)

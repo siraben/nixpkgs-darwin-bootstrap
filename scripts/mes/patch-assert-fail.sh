@@ -16,7 +16,7 @@ content="$(cat "$target")"$'\n'
 new="${content//"$a1"/$b1}"
 new="${new//"$a2"/$b2}"
 if [ "$new" = "$content" ]; then
-  echo "phase13-patch-assert-fail: no substitution applied to $target" >&2
+  echo "-patch-assert-fail: no substitution applied to $target" >&2
   exit 1
 fi
 printf '%s' "$new" > "$target"

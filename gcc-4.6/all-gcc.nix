@@ -17,7 +17,7 @@
         sed -i \
           's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = ${tinycc-darwin-cc}/include/tcc-darwin-bootstrap|' \
           src/gcc/Makefile.in
-        bash ${root + "/scripts/gcc46/phase35-prepare-source.sh"}
+        bash ${root + "/scripts/gcc-4.6/prepare-source.sh"}
 
         export CC=${tinycc-darwin-cc}/bin/tcc-darwin-cc
         export CPP="$CC -E"

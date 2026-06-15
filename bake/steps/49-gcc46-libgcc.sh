@@ -1,6 +1,6 @@
 #!/bin/sh
 ## 49-gcc46-libgcc — build libgcc using xgcc + cc1 from phase 48.
-## Mirrors gcc-4.6/libgcc.nix which just calls scripts/gcc46/phase36-libgcc.sh.
+## Mirrors gcc-4.6/libgcc.nix which just calls scripts/gcc-4.6/libgcc.sh.
 set -eu
 
 phase35="$TARGET/gcc46-all-gcc"

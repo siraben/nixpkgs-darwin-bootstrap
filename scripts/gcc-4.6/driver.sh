@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-phase35=$1
-phase36=$2
-phase34=$3
+all_gcc=$1
+libgcc_in=$2
+tcc=$3
 as_filter_src=$4   # C source for the Mach-O/GAS->tcc assembly translator
 # $5: reserved (legacy python slot, unused — the chain has no python)
 elf_to_m1=$6
@@ -17,11 +17,11 @@ merged_include="$out/include/gcc46-bootstrap"
 bootstrap_share="$out/share/darwin-bootstrap"
 
 mkdir -p "$out/bin" "$gcc_lib/include" "$gcc_exec" "$merged_include" "$bootstrap_share"
-cp "$phase35/share/darwin-bootstrap/work/build/gcc/xgcc" "$gcc_exec/xgcc"
-cp "$phase35/share/darwin-bootstrap/work/build/gcc/cc1" "$gcc_exec/cc1"
-cp "$phase35/share/darwin-bootstrap/work/build/gcc/cpp" "$gcc_exec/cpp"
-cp -R "$phase35/share/darwin-bootstrap/work/build/gcc/include/." "$gcc_lib/include/"
-for include_dir in "$gcc_lib/include" "$phase34/include/tcc-darwin-bootstrap"; do
+cp "$all_gcc/share/darwin-bootstrap/work/build/gcc/xgcc" "$gcc_exec/xgcc"
+cp "$all_gcc/share/darwin-bootstrap/work/build/gcc/cc1" "$gcc_exec/cc1"
+cp "$all_gcc/share/darwin-bootstrap/work/build/gcc/cpp" "$gcc_exec/cpp"
+cp -R "$all_gcc/share/darwin-bootstrap/work/build/gcc/include/." "$gcc_lib/include/"
+for include_dir in "$gcc_lib/include" "$tcc/include/tcc-darwin-bootstrap"; do
   for include_entry in "$include_dir"/*; do
     [ -e "$include_entry" ] || continue
     include_name="$(basename "$include_entry")"
@@ -31,9 +31,9 @@ for include_dir in "$gcc_lib/include" "$phase34/include/tcc-darwin-bootstrap"; d
     [ -e "$merged_include/$include_name" ] || [ -L "$merged_include/$include_name" ] || ln -s "$include_entry" "$merged_include/$include_name"
   done
 done
-cp "$phase36/lib/gcc/$target/$gcc_version/libgcc.a" "$gcc_lib/libgcc.a"
-cp "$phase36/lib/gcc/$target/$gcc_version/libgcov.a" "$gcc_lib/libgcov.a"
-cp -R "$phase36/lib/gcc/$target/$gcc_version/libgcc-objects" "$gcc_lib/libgcc-objects"
+cp "$libgcc_in/lib/gcc/$target/$gcc_version/libgcc.a" "$gcc_lib/libgcc.a"
+cp "$libgcc_in/lib/gcc/$target/$gcc_version/libgcov.a" "$gcc_lib/libgcov.a"
+cp -R "$libgcc_in/lib/gcc/$target/$gcc_version/libgcc-objects" "$gcc_lib/libgcc-objects"
 mkdir -p "$gcc_lib/libgcc-symbols"
 for object in "$gcc_lib/libgcc-objects"/*.o; do
   "$elf_to_m1" --symbols "$object" 2>/dev/null | sort -u > "$gcc_lib/libgcc-symbols/$(basename "$object").tsv"
@@ -42,7 +42,7 @@ done
 ## Compile the assembly-translation filter with the chain's own compiler
 ## (tcc-darwin-cc) rather than depending on the host's awk.
 as_filter="$out/bin/gcc46-bootstrap-as-filter"
-"$phase34/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
+"$tcc/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
 
 cat > "$out/bin/gcc46-bootstrap-as" <<EOF_AS
 #!$BASH
@@ -74,7 +74,7 @@ if [ -z "\$input" ] || [ "\$input" = - ]; then
   input="\$tmpdir/input.s"
 fi
 "$as_filter" < "\$input" > "\$tmpdir/filtered.s"
-exec "$phase34/bin/tcc-darwin-cc" -c "\$tmpdir/filtered.s" -o "\$out"
+exec "$tcc/bin/tcc-darwin-cc" -c "\$tmpdir/filtered.s" -o "\$out"
 EOF_AS
 chmod +x "$out/bin/gcc46-bootstrap-as"
 
@@ -88,8 +88,8 @@ xgcc="$gcc_exec/xgcc"
 gcc_exec="$gcc_exec"
 merged_include="$merged_include"
 assembler="$out/bin/gcc46-bootstrap-as"
-linker="$phase34/bin/tcc-darwin-cc"
-sysroot="$phase34/include/tcc-darwin-bootstrap"
+linker="$tcc/bin/tcc-darwin-cc"
+sysroot="$tcc/include/tcc-darwin-bootstrap"
 elf_to_m1="$elf_to_m1"
 libgcc_objects="$gcc_lib/libgcc-objects"
 libgcc_symbols="$gcc_lib/libgcc-symbols"
@@ -778,7 +778,7 @@ chmod +x "$out/bin/gcc"
 ln -s gcc "$out/bin/cc"
 ln -s gcc "$out/bin/gcc-4.6"
 
-if [ "${PHASE37_SKIP_SELF_TESTS:-0}" = 1 ]; then
+if [ "${GCC46_SKIP_SELF_TESTS:-0}" = 1 ]; then
   exit 0
 fi
 
@@ -793,7 +793,7 @@ grep -q '^_main:' "$bootstrap_share/smoke.s"
 "$out/bin/gcc" -c smoke.c -o smoke.o
 test "$(od -An -tx1 -N4 smoke.o | tr -d ' \n')" = "7f454c46"
 if grep -q 'libgcc[.]a' "$out/bin/gcc"; then
-  echo "phase37 gcc wrapper still links libgcc archive" >&2
+  echo "gcc46 driver wrapper still links libgcc archive" >&2
   exit 1
 fi
 set +e

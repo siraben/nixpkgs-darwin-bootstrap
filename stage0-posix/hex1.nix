@@ -89,7 +89,7 @@ else if hostPlatform.isAarch64 then
       awk 'seen { print } /^#:ELF_text/ { seen = 1 }' \
         ${stage0Sources}/AArch64/hex1_AArch64.hex0 > hex1-body.hex0
 
-      bash ${root + "/scripts/stage0/phase1-aarch64-hex1-darwin.sh"}
+      bash ${root + "/scripts/stage0/aarch64-hex1-darwin.sh"}
 
       grep -v '^:' ${root + "/M2libc"}/aarch64/MACHO-aarch64.hex2 > hex1-darwin.hex0
       cat hex1-body.hex0 >> hex1-darwin.hex0
