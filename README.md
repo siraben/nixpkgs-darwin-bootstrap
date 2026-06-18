@@ -26,7 +26,14 @@ The active, runnable bootstrap path is `x86_64-darwin`/amd64.  The Nixified
 chain reaches a strict self-hosted modern GCC handoff whose GCC source version
 is matched to nixpkgs `gcc_latest.version` (`15.2.0` with the current lock),
 and verifies a `gnu-hello-hash-comparison` output at the baseline
-`5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`.
+`0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a` (the
+`gcc-latest` and `gcc-latest/strict` GNU Hello builds are byte-identical).
+
+No host compiler compiles any chain source: GCC 4.6 is built entirely by
+the chain `cc1`, and the modern GCC build helpers compile with the chain
+input compiler.  Host `clang`/`binutils`/`cctools` participate only at the
+Mach-O assemble/link boundary.  No host `awk` or `python` runs at build
+time; the chain runs on its own `gnumake` and `gnupatch`.
 
 The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
 layout: 12 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
@@ -49,13 +56,17 @@ The implemented amd64 chain is:
    `tinycc/*` boot-cycle culminate in `tinycc/darwin-cc` (the working TCC
    used by every downstream GCC build).
 4. GCC 4.6 (`gcc-4.6/`): source, all-gcc frontend, libgcc, the bootstrap
-   handoff, and `cxx` (C/C++ packaging).  Currently uses `stdenv.cc.cc/clang`
-   as bootstrap-host CC because the bootstrapped TCC takes >20h to self-host
-   GCC 4.6's frontend.
+   handoff, and `cxx` (C/C++ packaging).  Every GCC 4.6 source compiles
+   with the chain `cc1` (the all-gcc frontend driven through the gcc-4.6
+   driver, parallelised across cores); host clang and binutils assemble
+   and link only.
 5. Modern GCC (`gcc-10/`, `gcc-latest/`): `gcc-10/default.nix` builds a
    compiler-only GCC 10.4.0 handoff; `gcc-latest/default.nix` builds the
    nixpkgs-matched `gcc_latest`; `gcc-latest/strict.nix` rebuilds that same
-   GCC with the wrapper host shortcuts disabled.
+   GCC with external GMP/MPFR/MPC/ISL.  All three compile their build
+   helpers with the chain input compiler (no host clang in any chain
+   compile) and the modern GCC source is compiled against a committed,
+   fully-prepared bootstrap sysroot (`bootstrap/headers/gcc-modern-sysroot`).
 6. Package proof: GNU Hello 2.12.2 builds and runs with the `gcc-latest`
    bootstrap and strict handoffs, alongside a nixpkgs `gcc_latest` reference
    for comparison; the `gnu-hello-hash-comparison` output records all three
@@ -81,6 +92,11 @@ The implemented amd64 chain is:
   libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
   participates in any chain compile; nixpkgs clang/binutils remain at
   the assemble/link boundary only.
+- Host `perl` performs the remaining deterministic GCC source/configure
+  edits (and the gcc-4.6 libgcc-tree staging in `gcc-4.6/libgcc.pl`).
+  This is build-orchestration — applying known diffs to known files,
+  the role `gnupatch` plays elsewhere — not translation; converting it
+  to committed patches is a remaining hardening step.
 - Every phase that shells out to make runs the chain-built
   `bootstrap-gnumake` (GNU Make 4.4.1 compiled by the chain tcc).  The
   bootstrap libc implements getcwd via `fcntl(F_GETPATH)`, so
