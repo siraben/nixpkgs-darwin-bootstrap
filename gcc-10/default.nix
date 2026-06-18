@@ -5,6 +5,7 @@
   gcc10Version,
   gnumake,
   perl,
+  gnupatch,
   tinycc-darwin-cc,
   bootstrap-gnumake,
   gcc10-source,
@@ -19,6 +20,8 @@ runCommand "gcc-${gcc10Version}" {
 } ''
   export GCC_MODERN_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
   export GCC_MODERN_PREPARED_SYSROOT=${root + "/bootstrap/headers/gcc-modern-sysroot"}
+  export GCC_MODERN_SOURCE_PATCHES=${root + "/patches/gcc-modern"}
+  export GNUPATCH=${gnupatch}/bin/patch
   ## phase45 keeps in-tree gmp/mpfr/mpc/isl: it's the compiler that
   ## *builds* the standalone phase26c-f, so we can't reference them
   ## here without a cycle. phase46/47 use external (next-stage gain).

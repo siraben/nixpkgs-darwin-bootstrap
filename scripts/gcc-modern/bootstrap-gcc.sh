@@ -28,102 +28,15 @@ for generated_subdir in gmp mpfr mpc isl; do
     find "src/$generated_subdir" -type f \( -name 'configure.ac' -o -name 'Makefile.am' -o -name '*.m4' \) -exec touch -t 200001010000 {} +
   fi
 done
-if [ -f src/gmp/Makefile.in ] && grep -q '^SUBDIRS = .*demos' src/gmp/Makefile.in; then
-  perl -0pi -e 's@^SUBDIRS = .*$@SUBDIRS = mpn mpz mpq mpf printf scanf rand cxx@m' src/gmp/Makefile.in
-fi
-if [ -f src/mpfr/Makefile.in ] && grep -q '^SUBDIRS = .*tests' src/mpfr/Makefile.in; then
-  perl -0pi -e 's@^SUBDIRS = .*$@SUBDIRS = src@m' src/mpfr/Makefile.in
-fi
-if [ -f src/mpc/Makefile.in ] && grep -q '^SUBDIRS = .*tests' src/mpc/Makefile.in; then
-  perl -0pi -e 's@^SUBDIRS = .*$@SUBDIRS = src@m' src/mpc/Makefile.in
-fi
-if [ -f src/Makefile.in ] && grep -q '@extra_mpfr_configure_flags@ @host_libs_picflag@' src/Makefile.in; then
-  perl -0pi -e 's#\@extra_mpfr_configure_flags\@ \@host_libs_picflag\@#\@extra_mpfr_configure_flags\@ --disable-float128 \@host_libs_picflag\@#g' src/Makefile.in
-fi
-if [ -d src/gcc ]; then
-  find src/gcc -type f \( -name 'gengtype-lex.c' -o -name 'gengtype-parse.c' -o -name 'gengtype-parse.h' \) -exec touch {} +
-  find src/gcc -type f \( -name 'gengtype-lex.l' -o -name 'gengtype-parse.y' \) -exec touch -t 200001010000 {} +
-fi
-if [ -f src/gcc/diagnostic.c ] && grep -q 'isatty (fileno (pp_buffer (context->printer)->stream))' src/gcc/diagnostic.c; then
-  perl -0pi -e 's@value = value \? value - 1\s*: \(isatty \(fileno \(pp_buffer \(context->printer\)->stream\)\)\s*\? get_terminal_width \(\) - 1: INT_MAX\);@value = value ? value - 1 : INT_MAX;@s' src/gcc/diagnostic.c
-fi
-if [ -f src/gcc/diagnostic.c ] && grep -q 'get_terminal_width (void)' src/gcc/diagnostic.c; then
-  perl -0pi -e 's@int\nget_terminal_width \(void\)\n\{.*?\n\}@int\nget_terminal_width (void)\n{\n  return INT_MAX;\n}@s' src/gcc/diagnostic.c
-fi
-if [ -f src/gcc/gcc.c ] && grep -q 'not configured with sysroot headers suffix' src/gcc/gcc.c; then
-  perl -0pi -e 's@if \(print_sysroot_headers_suffix\)\s*\{\s*if \(\*sysroot_hdrs_suffix_spec\)\s*\{\s*printf\("%s\\n", \(target_sysroot_hdrs_suffix\s*\? target_sysroot_hdrs_suffix\s*: ""\)\);\s*return \(0\);\s*\}\s*else\s*/\* The error status indicates that only one set of fixed\s*headers should be built\.  \*/\s*fatal_error \(input_location,\s*"not configured with sysroot headers suffix"\);\s*\}@if (print_sysroot_headers_suffix)\n    {\n      printf("%s\\n", (*sysroot_hdrs_suffix_spec && target_sysroot_hdrs_suffix\n                      ? target_sysroot_hdrs_suffix\n                      : ""));\n      return (0);\n    }@s' src/gcc/gcc.c
-fi
-if [ -f src/gcc/opts-common.c ] && grep -q 'cl_deferred_option p = {opt_index, arg, value};' src/gcc/opts-common.c; then
-  perl -0pi -e 's@cl_deferred_option p = \{opt_index, arg, value\};@cl_deferred_option p = {opt_index, arg, (int) value};@g' src/gcc/opts-common.c
-fi
-if [ -f src/gcc/pretty-print.c ] && grep -q "const char str \\[2\\] = { chr, '\\\\0' };" src/gcc/pretty-print.c; then
-  perl -0pi -e "s@const char str \\[2\\] = \\{ chr, '\\\\0' \\};@const char str [2] = { (char) chr, '\\\\0' };@g" src/gcc/pretty-print.c
-fi
-if [ -f src/gcc/configure ] && grep -q '#define rlim_t long' src/gcc/configure; then
-  perl -0pi -e 's@\n\$as_echo "#define rlim_t long" >>confdefs\.h\n@\n:\n@g' src/gcc/configure
-fi
-if [ -f src/libgcc/configure ] && grep -q 'grep host_address=' src/libgcc/configure; then
-  perl -0pi -e 's@cat > conftest\.c <<EOF\n#if defined\(__x86_64__\).*?eval `\$\{CC-cc\} -E conftest\.c \| grep host_address=`\nrm -f conftest\.c@host_address=64@s' src/libgcc/configure
-fi
-if [ -f src/libgcc/config.host ] && grep -q 'libemutls_w\.a' src/libgcc/config.host; then
-  perl -0pi -e 's@ libemutls_w\.a@@g' src/libgcc/config.host
-fi
-if [ -f src/libgcc/config.host ] && grep -q 'libheapt_w\.a' src/libgcc/config.host; then
-  perl -0pi -e 's@ libheapt_w\.a@@g' src/libgcc/config.host
-fi
-if [ -f src/libgcc/config.host ] && grep -q 'crt3.o libd10-uwfef.a crttms.o crttme.o' src/libgcc/config.host; then
-  perl -0pi -e 's@extra_parts="crt3\.o libd10-uwfef\.a crttms\.o crttme\.o"@extra_parts="libd10-uwfef.a"@g' src/libgcc/config.host
-fi
-if [ -f src/gcc/config/darwin.h ] && grep -q -- '-lemutls_w' src/gcc/config/darwin.h; then
-  perl -0pi \
-    -e 's@# define DARWIN_SHARED_WEAK_ADDS \\\n"%\{%:version-compare\(>= 10\.11 mmacosx-version-min= -lemutls_w\): \\\n " DARWIN_HEAP_T_LIB "\}@# define DARWIN_SHARED_WEAK_ADDS " "@g;' \
-    -e 's@#define DARWIN_WEAK_CRTS \\\n"%\{static-libgcc\|static:\t\t\t\t\t\t  \\\n    %\{%:version-compare\(>= 10\.6 mmacosx-version-min= -lemutls_w\):\t  \\\n      " DARWIN_HEAP_T_LIB "\} ;\t\t\t\t\t\t  \\\n   : -lemutls_w\t" DARWIN_HEAP_T_LIB "\t\t\t\t\t  \\\n  \}"@#define DARWIN_WEAK_CRTS ""@g' \
-    src/gcc/config/darwin.h
-  perl -0pi -e 's@# define DARWIN_SHARED_WEAK_ADDS " ""@# define DARWIN_SHARED_WEAK_ADDS " "@g' src/gcc/config/darwin.h
-fi
-for glibc_configure in src/gcc/configure src/libgcc/configure; do
-  if [ -f "$glibc_configure" ] && grep -q '__GLIBC__' "$glibc_configure"; then
-    perl -0pi -e 's@if ac_fn_c_compute_int "\$LINENO" "__GLIBC__" "glibc_version_major".*?fi\n\nif ac_fn_c_compute_int "\$LINENO" "__GLIBC_MINOR__" "glibc_version_minor".*?fi@glibc_version_major=0\nglibc_version_minor=0@s' "$glibc_configure"
-  fi
-done
-if [ -f src/gcc/c/Make-lang.in ]; then
-  perl -0pi -e 's@^selftest-c: s-selftest-c$@selftest-c:@m' src/gcc/c/Make-lang.in
-fi
-if [ -f src/gcc/cp/Make-lang.in ]; then
-  perl -0pi -e 's@^selftest-c\+\+: s-selftest-c\+\+$@selftest-c++:@m' src/gcc/cp/Make-lang.in
-fi
-if [ -f src/gcc/c-family/c-opts.c ] && grep -q 'cpp_finish (parse_in, deps_stream);' src/gcc/c-family/c-opts.c; then
-  perl -0pi -e 's@(?:if \(!flag_preprocess_only\) )*cpp_finish \(parse_in, deps_stream\);@if (!flag_preprocess_only) cpp_finish (parse_in, deps_stream);@' src/gcc/c-family/c-opts.c
-fi
-if [ -f src/gcc/c-family/c-opts.c ] && grep -q 'preprocess_file (parse_in);' src/gcc/c-family/c-opts.c; then
-  perl -0pi -e 's@preprocess_file \(parse_in\);\n      return false;@preprocess_file (parse_in);\n      exit (0);@' src/gcc/c-family/c-opts.c
-fi
-if [ -f src/libiberty/fopen_unlocked.c ] && grep -q '#ifdef HAVE_STDIO_EXT_H' src/libiberty/fopen_unlocked.c; then
-  perl -0pi -e 's@#ifdef HAVE_STDIO_EXT_H@#if defined(HAVE_STDIO_EXT_H) && !defined(__APPLE__)@' src/libiberty/fopen_unlocked.c
-fi
-if [ -f src/libiberty/hashtab.c ] && grep -q '#include <malloc.h>' src/libiberty/hashtab.c; then
-  perl -0pi -e 's@#include <malloc.h>@#ifdef __APPLE__\n#include <stdlib.h>\n#else\n#include <malloc.h>\n#endif@' src/libiberty/hashtab.c
-fi
-if [ -f src/libiberty/physmem.c ]; then
-  perl -0pi \
-    -e 's@#if HAVE_SYS_PSTAT_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/pstat\.h>\s*(?:#\s*endif\s*)*#endif@#if HAVE_SYS_PSTAT_H && !defined(__APPLE__)\n# include <sys/pstat.h>\n#endif@s;' \
-    -e 's@#if HAVE_SYS_SYSMP_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/sysmp\.h>\s*(?:#\s*endif\s*)*#endif@#if HAVE_SYS_SYSMP_H && !defined(__APPLE__)\n# include <sys/sysmp.h>\n#endif@s;' \
-    -e 's@#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H\s*(?:#\s*ifndef __APPLE__\s*)*#\s*include <sys/sysinfo\.h>\s*(?:#\s*endif\s*)*#\s*include <machine/hal_sysinfo\.h>\s*#endif@#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H && !defined(__APPLE__)\n# include <sys/sysinfo.h>\n# include <machine/hal_sysinfo.h>\n#endif@s;' \
-    -e 's@#if HAVE_SYS_TABLE_H\s*#\s*include <sys/table\.h>\s*#endif@#if HAVE_SYS_TABLE_H && !defined(__APPLE__)\n# include <sys/table.h>\n#endif@s;' \
-    -e 's@#if HAVE_SYS_SYSTEMCFG_H\s*#\s*include <sys/systemcfg\.h>\s*#endif@#if HAVE_SYS_SYSTEMCFG_H && !defined(__APPLE__)\n# include <sys/systemcfg.h>\n#endif@s;' \
-    src/libiberty/physmem.c
-fi
-if [ -f src/libiberty/setproctitle.c ] && grep -q '#ifdef HAVE_SYS_PRCTL_H' src/libiberty/setproctitle.c; then
-  perl -0pi -e 's@#ifdef HAVE_SYS_PRCTL_H@#if defined(HAVE_SYS_PRCTL_H) && !defined(__APPLE__)@' src/libiberty/setproctitle.c
-fi
-if [ -f src/libiberty/pex-unix.c ] && grep -q '#ifdef HAVE_PROCESS_H' src/libiberty/pex-unix.c; then
-  perl -0pi -e 's@#ifdef HAVE_PROCESS_H@#if defined(HAVE_PROCESS_H) && !defined(__APPLE__)@; s@#ifdef HAVE_VFORK_H@#if defined(HAVE_VFORK_H) && !defined(__APPLE__)@' src/libiberty/pex-unix.c
-fi
-if [ -f src/libcody/configure ] && grep -q '__cplusplus != 201103' src/libcody/configure; then
-  perl -0pi \
-    -e 's@#if __cplusplus != 201103\n#error "C\+\+11 is required"\n#endif@#if __cplusplus < 201103\n#error "C++11 is required"\n#endif@g;' \
-    -e 's@#if __cplusplus > 201103\n#error "C\+\+11 is required"\n#endif@#if __cplusplus < 201103\n#error "C++11 is required"\n#endif@g' \
-    src/libcody/configure
+## Deterministic GCC source/configure edits (C++ guards, Darwin spec
+## fixes, disabled selftests, glibc-version stubs, float128-off): a
+## committed per-version patch applied by the chain-built gnupatch.  No
+## host perl edits source at build time.  See
+## scripts/gcc-modern/regen-gcc-modern-patches.sh for how the patches
+## are derived.
+gcc_source_patch="$GCC_MODERN_SOURCE_PATCHES/gcc-$version-source-edits.patch"
+if [ -f "$gcc_source_patch" ]; then
+  ( cd src && "${GNUPATCH:?}" -p1 < "$gcc_source_patch" )
 fi
 
 if [ ! -x "$compiler/bin/g++" ]; then

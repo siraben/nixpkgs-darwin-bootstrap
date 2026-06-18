@@ -1,0 +1,328 @@
+diff -ru a/gcc/c/Make-lang.in b/gcc/c/Make-lang.in
+--- a/gcc/c/Make-lang.in
++++ b/gcc/c/Make-lang.in
+@@ -114,7 +114,7 @@
+ 
+ # If C is enabled, require the selftests to be run for it
+ # at each stage of the build:
+-selftest-c: s-selftest-c
++selftest-c:
+ 
+ C_SELFTEST_FLAGS = -xc $(SELFTEST_FLAGS)
+ C_SELFTEST_DEPS = cc1$(exeext) $(SELFTEST_DEPS)
+diff -ru a/gcc/c-family/c-opts.c b/gcc/c-family/c-opts.c
+--- a/gcc/c-family/c-opts.c
++++ b/gcc/c-family/c-opts.c
+@@ -1167,7 +1167,7 @@
+     {
+       c_finish_options ();
+       preprocess_file (parse_in);
+-      return false;
++      exit (0);
+     }
+ 
+   return true;
+@@ -1254,7 +1254,7 @@
+ 
+   /* For performance, avoid tearing down cpplib's internal structures
+      with cpp_destroy ().  */
+-  cpp_finish (parse_in, deps_stream);
++  if (!flag_preprocess_only) cpp_finish (parse_in, deps_stream);
+ 
+   if (deps_stream && deps_stream != out_stream && deps_stream != stdout
+       && (ferror (deps_stream) || fclose (deps_stream)))
+diff -ru a/gcc/configure b/gcc/configure
+--- a/gcc/configure
++++ b/gcc/configure
+@@ -11673,7 +11673,7 @@
+ 
+ else
+ 
+-$as_echo "#define rlim_t long" >>confdefs.h
++:
+ 
+ fi
+ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+diff -ru a/gcc/cp/Make-lang.in b/gcc/cp/Make-lang.in
+--- a/gcc/cp/Make-lang.in
++++ b/gcc/cp/Make-lang.in
+@@ -168,7 +168,7 @@
+ 
+ # If C++ is enabled, require the selftests to be run for it
+ # at each stage of the build:
+-selftest-c++: s-selftest-c++
++selftest-c++:
+ 
+ CPP_SELFTEST_DEPS = cc1plus$(exeext) $(SELFTEST_DEPS)
+ CPP_SELFTEST_FLAGS = -xc++ $(SELFTEST_FLAGS)
+diff -ru a/gcc/diagnostic.c b/gcc/diagnostic.c
+--- a/gcc/diagnostic.c
++++ b/gcc/diagnostic.c
+@@ -112,20 +112,6 @@
+ int
+ get_terminal_width (void)
+ {
+-  const char * s = getenv ("COLUMNS");
+-  if (s != NULL) {
+-    int n = atoi (s);
+-    if (n > 0)
+-      return n;
+-  }
+-
+-#ifdef TIOCGWINSZ
+-  struct winsize w;
+-  w.ws_col = 0;
+-  if (ioctl (0, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
+-    return w.ws_col;
+-#endif
+-
+   return INT_MAX;
+ }
+ 
+@@ -134,9 +120,7 @@
+ diagnostic_set_caret_max_width (diagnostic_context *context, int value)
+ {
+   /* One minus to account for the leading empty space.  */
+-  value = value ? value - 1 
+-    : (isatty (fileno (pp_buffer (context->printer)->stream))
+-       ? get_terminal_width () - 1: INT_MAX);
++  value = value ? value - 1 : INT_MAX;
+   
+   if (value <= 0) 
+     value = INT_MAX;
+diff -ru a/gcc/gcc.c b/gcc/gcc.c
+--- a/gcc/gcc.c
++++ b/gcc/gcc.c
+@@ -8004,18 +8004,10 @@
+ 
+   if (print_sysroot_headers_suffix)
+     {
+-      if (*sysroot_hdrs_suffix_spec)
+-	{
+-	  printf("%s\n", (target_sysroot_hdrs_suffix
+-			  ? target_sysroot_hdrs_suffix
+-			  : ""));
+-	  return (0);
+-	}
+-      else
+-	/* The error status indicates that only one set of fixed
+-	   headers should be built.  */
+-	fatal_error (input_location,
+-		     "not configured with sysroot headers suffix");
++      printf("%s\n", (*sysroot_hdrs_suffix_spec && target_sysroot_hdrs_suffix
++                      ? target_sysroot_hdrs_suffix
++                      : ""));
++      return (0);
+     }
+ 
+   if (print_help_list)
+diff -ru a/gcc/opts-common.c b/gcc/opts-common.c
+--- a/gcc/opts-common.c
++++ b/gcc/opts-common.c
+@@ -1517,7 +1517,7 @@
+ 	{
+ 	  vec<cl_deferred_option> *v
+ 	    = (vec<cl_deferred_option> *) *(void **) flag_var;
+-	  cl_deferred_option p = {opt_index, arg, value};
++	  cl_deferred_option p = {opt_index, arg, (int) value};
+ 	  if (!v)
+ 	    v = XCNEW (vec<cl_deferred_option>);
+ 	  v->safe_push (p);
+diff -ru a/gcc/pretty-print.c b/gcc/pretty-print.c
+--- a/gcc/pretty-print.c
++++ b/gcc/pretty-print.c
+@@ -1330,7 +1330,7 @@
+ 	      pp_character (pp, chr);
+ 	    else
+ 	      {
+-		const char str [2] = { chr, '\0' };
++		const char str [2] = { (char) chr, '\0' };
+ 		pp_quoted_string (pp, str, 1);
+ 	      }
+ 	    break;
+diff -ru a/gmp/Makefile.in b/gmp/Makefile.in
+--- a/gmp/Makefile.in
++++ b/gmp/Makefile.in
+@@ -572,7 +572,7 @@
+ LIBGMPXX_LT_CURRENT = 10
+ LIBGMPXX_LT_REVISION = 1
+ LIBGMPXX_LT_AGE = 6
+-SUBDIRS = tests mpn mpz mpq mpf printf scanf rand cxx demos tune doc
++SUBDIRS = mpn mpz mpq mpf printf scanf rand cxx
+ 
+ # Put asl.h here for now.
+ 
+diff -ru a/libgcc/config.host b/libgcc/config.host
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -228,7 +228,7 @@
+       ;;
+   esac
+   tmake_file="$tmake_file t-slibgcc-darwin"
+-  extra_parts="crt3.o libd10-uwfef.a crttms.o crttme.o libemutls_w.a"
++  extra_parts="libd10-uwfef.a"
+   ;;
+ *-*-dragonfly*)
+   tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip"
+diff -ru a/libgcc/configure b/libgcc/configure
+--- a/libgcc/configure
++++ b/libgcc/configure
+@@ -5060,16 +5060,7 @@
+ 
+ # Check 32bit or 64bit.  In the case of MIPS, this really determines the
+ # word size rather than the address size.
+-cat > conftest.c <<EOF
+-#if defined(__x86_64__) || (!defined(__i386__) && defined(__LP64__)) \
+-    || defined(__mips64)
+ host_address=64
+-#else
+-host_address=32
+-#endif
+-EOF
+-eval `${CC-cc} -E conftest.c | grep host_address=`
+-rm -f conftest.c
+ 
+ case ${host} in
+ mips*-*-*)
+@@ -5143,17 +5134,8 @@
+ fi
+ else
+ 
+-if ac_fn_c_compute_int "$LINENO" "__GLIBC__" "glibc_version_major"        "#include <features.h>"; then :
+-
+-else
+-  glibc_version_major=0
+-fi
+-
+-if ac_fn_c_compute_int "$LINENO" "__GLIBC_MINOR__" "glibc_version_minor"        "#include <features.h>"; then :
+-
+-else
+-  glibc_version_minor=0
+-fi
++glibc_version_major=0
++glibc_version_minor=0
+ 
+ fi
+ 
+diff -ru a/libiberty/fopen_unlocked.c b/libiberty/fopen_unlocked.c
+--- a/libiberty/fopen_unlocked.c
++++ b/libiberty/fopen_unlocked.c
+@@ -72,7 +72,7 @@
+ #include "config.h"
+ #endif
+ #include <stdio.h>
+-#ifdef HAVE_STDIO_EXT_H
++#if defined(HAVE_STDIO_EXT_H) && !defined(__APPLE__)
+ #include <stdio_ext.h>
+ #endif
+ 
+diff -ru a/libiberty/hashtab.c b/libiberty/hashtab.c
+--- a/libiberty/hashtab.c
++++ b/libiberty/hashtab.c
+@@ -44,8 +44,12 @@
+ #include <string.h>
+ #endif
+ #ifdef HAVE_MALLOC_H
++#ifdef __APPLE__
++#include <stdlib.h>
++#else
+ #include <malloc.h>
+ #endif
++#endif
+ #ifdef HAVE_LIMITS_H
+ #include <limits.h>
+ #endif
+diff -ru a/libiberty/pex-unix.c b/libiberty/pex-unix.c
+--- a/libiberty/pex-unix.c
++++ b/libiberty/pex-unix.c
+@@ -55,7 +55,7 @@
+ #ifdef HAVE_SYS_STAT_H
+ #include <sys/stat.h>
+ #endif
+-#ifdef HAVE_PROCESS_H
++#if defined(HAVE_PROCESS_H) && !defined(__APPLE__)
+ #include <process.h>
+ #endif
+ 
+@@ -64,7 +64,7 @@
+ #else
+ # define VFORK_STRING "vfork"
+ #endif
+-#ifdef HAVE_VFORK_H
++#if defined(HAVE_VFORK_H) && !defined(__APPLE__)
+ #include <vfork.h>
+ #endif
+ #if defined(VMS) && defined (__LONG_POINTERS)
+diff -ru a/libiberty/physmem.c b/libiberty/physmem.c
+--- a/libiberty/physmem.c
++++ b/libiberty/physmem.c
+@@ -25,20 +25,20 @@
+ # include <unistd.h>
+ #endif
+ 
+-#if HAVE_SYS_PSTAT_H
++#if HAVE_SYS_PSTAT_H && !defined(__APPLE__)
+ # include <sys/pstat.h>
+ #endif
+ 
+-#if HAVE_SYS_SYSMP_H
++#if HAVE_SYS_SYSMP_H && !defined(__APPLE__)
+ # include <sys/sysmp.h>
+ #endif
+ 
+-#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H
++#if HAVE_SYS_SYSINFO_H && HAVE_MACHINE_HAL_SYSINFO_H && !defined(__APPLE__)
+ # include <sys/sysinfo.h>
+ # include <machine/hal_sysinfo.h>
+ #endif
+ 
+-#if HAVE_SYS_TABLE_H
++#if HAVE_SYS_TABLE_H && !defined(__APPLE__)
+ # include <sys/table.h>
+ #endif
+ 
+@@ -52,7 +52,7 @@
+ # include <sys/sysctl.h>
+ #endif
+ 
+-#if HAVE_SYS_SYSTEMCFG_H
++#if HAVE_SYS_SYSTEMCFG_H && !defined(__APPLE__)
+ # include <sys/systemcfg.h>
+ #endif
+ 
+diff -ru a/libiberty/setproctitle.c b/libiberty/setproctitle.c
+--- a/libiberty/setproctitle.c
++++ b/libiberty/setproctitle.c
+@@ -20,7 +20,7 @@
+ #ifdef HAVE_CONFIG_H
+ #include "config.h"
+ #endif
+-#ifdef HAVE_SYS_PRCTL_H
++#if defined(HAVE_SYS_PRCTL_H) && !defined(__APPLE__)
+ #include <sys/types.h>
+ #include <sys/prctl.h>
+ #endif
+diff -ru a/mpc/Makefile.in b/mpc/Makefile.in
+--- a/mpc/Makefile.in
++++ b/mpc/Makefile.in
+@@ -376,7 +376,7 @@
+ top_builddir = @top_builddir@
+ top_srcdir = @top_srcdir@
+ ACLOCAL_AMFLAGS = -I m4
+-SUBDIRS = src tests doc tools
++SUBDIRS = src
+ EXTRA_HEADERS = src/mpc-log.h
+ include_HEADERS = src/mpc.h @MPC_LOG_H@
+ EXTRA_DIST = doc/fdl-1.3.texi src/mpc-log.h
+diff -ru a/mpfr/Makefile.in b/mpfr/Makefile.in
+--- a/mpfr/Makefile.in
++++ b/mpfr/Makefile.in
+@@ -406,7 +406,7 @@
+ # libtoolize and in case some developer needs to switch back to an
+ # old Automake version.
+ ACLOCAL_AMFLAGS = -I m4
+-SUBDIRS = doc src tests tune tools/bench
++SUBDIRS = src
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = mpfr.pc
+ nobase_dist_doc_DATA = AUTHORS BUGS COPYING COPYING.LESSER NEWS TODO \
