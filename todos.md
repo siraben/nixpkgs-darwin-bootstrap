@@ -1,6 +1,30 @@
 # Darwin Bootstrap Todos
 
-## Roadmap / Current Status
+## CURRENT STATUS (2026-06-18) — authoritative; supersedes the older roadmap below
+
+The amd64 Nix chain builds cold from the 4 KB hex0 seed through
+gcc-4.6 → gcc-10 → gcc-15 (15.2.0) → strict re-host; `gnu-hello-hash-comparison`
+reproduces gnu-hello **0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a**
+with the gcc-latest and gcc-latest-strict builds byte-identical.
+
+Done (gated): GCC 4.6 compiles entirely with the chain `cc1` (no host clang);
+gcc-10/15 helpers compile with the chain; the chain runs on chain-built
+`bootstrap-gnumake` + `gnupatch` (no nixpkgs gnumake anywhere); naming
+standardized (no `phaseXX` in attrs/scripts/env/comments); no host `python`
+at build time; host `awk` removed from the tcc wrapper + gcc link path
+(M2-Planet `m1-split`/`synth-inject`); most host `perl` replaced by committed
+patches (`patches/`) + committed sysroot headers
+(`bootstrap/headers/gcc-modern-sysroot`).
+
+Remaining purity work: host `awk` still runs in the `mescc-libc`/`mes`/`tinycc`
+boot phases + `cctools/ar` (same M1 split → port to chain `m1-split`); host
+`perl` still does generated-file edits (bootstrap-gcc.sh/cxx.sh) and the
+gcc-4.6 libgcc-tree staging (`scripts/gcc-4.6/libgcc.pl`); host `as`/`ld`
+(binutils-unwrapped) + `cctools` + apple-sdk at the Mach-O link boundary;
+the orchestration shell is host bash/coreutils/sed/grep (Nix-track scope).
+aarch64 has only the from-hex0 seed milestone; deferred.
+
+## Roadmap / Current Status (HISTORICAL — pre-2026-06; see CURRENT STATUS above)
 
 - [x] Primary path is amd64 Darwin: the Nixified Mach-O chain now reaches GCC 4.6.4 C/C++, GCC 10.4.0, nixpkgs-matched `gcc_latest`, and strict phase47 `gcc_latest`.
 - [x] Current package proof is GNU Hello 2.12.2 built by phase46, strict phase47, and nixpkgs `gcc_latest`; `gnu-hello-hash-comparison` is the formal validation entrypoint.

@@ -1,5 +1,15 @@
 # bake/ status
 
+> CURRENT LAYOUT NOTE (2026-06): this file is an append-only chronological
+> log; older entries cite paths/filenames that have since moved or were
+> Nix-track paths.  The current bake layout: the TinyCC wrapper + awk are
+> `bake/sources/tcc-darwin/{tcc-darwin-cc.sh,synth-inject.awk}` (there is no
+> `tcc-darwin-cc-bash3.sh` and no `bake/scripts/tinycc/`); the archiver is
+> `bake/scripts/bake-ar` backed by chain-built C `bake/sources/tools/bake-ar.c`
+> (not `bake-ar.py`); there are 63 numbered step scripts in `bake/steps/`
+> (01–55 plus 44b–g, 52b, 53b).  "Blocked"/"one remaining blocker" sections
+> below pre-date the gcc-4.6 + gcc-10 resolution and are superseded.
+
 A no-Nix, no-bootstrap-tools Darwin chain that builds, from a 4 KB
 Mach-O seed:
 

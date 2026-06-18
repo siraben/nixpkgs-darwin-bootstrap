@@ -32,14 +32,19 @@ and verifies a `gnu-hello-hash-comparison` output at the baseline
 No host compiler compiles any chain source: GCC 4.6 is built entirely by
 the chain `cc1`, and the modern GCC build helpers compile with the chain
 input compiler.  Host `clang`/`binutils`/`cctools` participate only at the
-Mach-O assemble/link boundary.  No host `awk` or `python` runs at build
-time; the chain runs on its own `gnumake` and `gnupatch`.
+Mach-O assemble/link boundary.  No host `python` runs at build time, and
+the chain runs on its own `gnumake` and `gnupatch`.  Host `awk` is gone
+from the TinyCC-darwin-cc wrapper and the GCC link path but still runs in
+the earlier `mescc-libc`/`mes`/`tinycc` boot phases (see "Maintainer
+scripts" below).  The build scripts themselves run under host `bash` +
+coreutils/`sed`/`grep`; this Nix track's purity claim covers the
+compiler/translator/make trust path, not the orchestration shell.
 
 The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
-layout: 12 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
+layout: 13 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
 `mescc-libc/`, `tinycc/`, `gnumake/`, `gnupatch/`, `coreutils/`,
-`bootstrap-deps/`, `gcc-4.6/`, `gcc-10/`, `gcc-latest/`) totalling ~75 .nix
-files.  Each derivation uses a shared `utils.nix:mkDarwin` helper that bakes
+`bootstrap-deps/`, `cctools/`, `gcc-4.6/`, `gcc-10/`, `gcc-latest/`)
+totalling ~81 .nix files.  Each derivation uses a shared `utils.nix:mkDarwin` helper that bakes
 in `dontUnpack`/`dontStrip`/`strictDeps`/version/platforms defaults; smoke
 tests live in `checkPhase`; every file declares its dependencies explicitly
 in nixpkgs-callPackage style.
@@ -151,17 +156,35 @@ The bootstrap consumes only committed source files; helper scripts under
   tests into checkPhase, convert headers to explicit-args).  Kept for
   future similar passes.
 
-No host `awk` or `python` runs at build time anywhere in the chain.  The
-M1 code/data split and the cross-object synth-label injection that the
-TinyCC link path needs are chain-built C tools (`bootstrap/m1-split.c`,
-`bootstrap/synth-inject.c`, compiled through M2-Planet → M1 → hex2);
-deterministic source/configure edits use committed `.patch` files
-applied by the chain-built `gnupatch`.  `python3` appears only in
-design-time `scripts/stage0/regen-*.sh` maintainer scripts, never in a
-build closure.  Host `perl` still performs bootstrap-sysroot header
-preparation for the modern GCC phases (adding C++ `extern "C"` guards
-and missing declarations); replacing it with committed patches is a
-remaining hardening step.
+No host `python` runs at build time anywhere in the chain (`python3`
+appears only in design-time `scripts/stage0/regen-*.sh` maintainer
+scripts).
+
+Host `awk` has been removed from the **TinyCC-darwin-cc wrapper and the
+GCC link path**: the M1 code/data split and cross-object synth-label
+injection there are chain-built C tools (`bootstrap/m1-split.c`,
+`bootstrap/synth-inject.c`, compiled through M2-Planet → M1 → hex2).
+Host `awk` is **not yet** gone from the earlier bootstrap phases that
+*produce* `tinycc-darwin-cc` — the `mescc-libc/*`, `mes/*`, `tinycc/*`
+boot-cycle, `stage0-posix/hex1` (aarch64 path), and `cctools/ar`
+derivations still call host `awk` for the same M1 split (porting them to
+the chain `m1-split` tool is tracked, remaining work).
+
+Deterministic GCC source/configure edits and the modern-GCC bootstrap
+sysroot are committed `.patch` files and committed headers
+(`patches/`, `bootstrap/headers/gcc-modern-sysroot`) applied/copied at
+build time; the chain-built `gnupatch` applies the patches.  Host `perl`
+no longer prepares the modern-GCC sysroot, but still performs the
+remaining deterministic edits to *generated* configure outputs
+(Makefiles, `config.h`/`config.cache`), a few staged-header tweaks in
+`scripts/gcc-4.6/cxx.sh`, and the gcc-4.6 libgcc-tree staging in
+`scripts/gcc-4.6/libgcc.pl` — converting those is remaining work.
+
+These build scripts run under **host `bash` and host coreutils/`sed`/
+`grep`/`find`** from nixpkgs.  The "no host tools" property of this (Nix)
+track is scoped to the *compiler / translator / make / patch trust
+path* — what produces the chain artifacts — not to the orchestration
+shell.  The fully-from-seed, shell-and-all variant lives in `bake/`.
 
 ## aarch64 status
 

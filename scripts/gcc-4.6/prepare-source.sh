@@ -5,69 +5,16 @@
 ## ship GMP / its generators under an early Mach-O libc.
 set -eu
 
-## 1) i386/darwin.h — drop the -mmacosx-version-min selector from CC1_SPEC.
-perl -i -0pe '
-  my $old = "#define CC1_SPEC \"%(cc1_cpu) \\\n"
-          . "  %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \\\n"
-          . "  %{!mmacosx-version-min=*:-mmacosx-version-min=%(darwin_minversion)} \\\n";
-  my $new = "#define CC1_SPEC \" \\\n"
-          . "  %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \\\n";
-  s/\Q$old\E/$new/g or die "i386/darwin.h CC1_SPEC anchor not found";
-' src/gcc/config/i386/darwin.h
+## Deterministic GCC 4.6 source edits (CC1_SPEC version selector, driver
+## deployment-version block, %B->%b spec, gen-bases libm removal, incpath
+## name-based dedup): a committed patch applied by the chain-built
+## gnupatch.  No host perl edits source.  Regen: re-run the historical
+## perl (git history) against gcc46-darwin-bootstrap-source and diff.
+"${GNUPATCH:?}" -p1 -d src < "${PREPARE_SOURCE_PATCH:?}"
 
-## 2) darwin-driver.c — collapse the deployment-version injection block.
-perl -i -0pe '
-  my $old = "    /* The bootstrap compiler is built on modern Darwin hosts but targets the\n"
-          . "       old x86_64 Darwin ABI used by the bootstrap chain.  GCC 4.6 cannot parse\n"
-          . "       host releases such as macOS 14+ as -mmacosx-version-min values, so keep\n"
-          . "       the native driver deterministic unless the caller set MACOSX_DEPLOYMENT_TARGET\n"
-          . "       to an old 10.x deployment explicitly.  */\n"
-          . "    ++*decoded_options_count;\n"
-          . "    *decoded_options = XNEWVEC (struct cl_decoded_option,\n"
-          . "\t\t\t\t*decoded_options_count);\n"
-          . "    (*decoded_options)[0] = argv[0];\n"
-          . "    generate_option (OPT_mmacosx_version_min_, \"10.8\",\n"
-          . "\t\t     1, CL_DRIVER, &(*decoded_options)[1]);\n"
-          . "    memcpy (*decoded_options + 2, argv + 1,\n"
-          . "\t    (argc - 1) * sizeof (struct cl_decoded_option));\n"
-          . "    return;\n";
-  my $new = "    /* The bootstrap driver leaves deployment-version defaults to later wrappers. */\n";
-  s/\Q$old\E/$new/g or die "darwin-driver.c anchor not found";
-' src/gcc/config/darwin-driver.c
 
-## 3) gcc.c — silence unrecognized-option errors and switch %B to %b in driver spec.
-perl -i -0pe '
-  my $o1 = "  for (i = 0; (int) i < n_switches; i++)\n"
-         . "    if (! switches[i].validated)\n"
-         . "      error (\"unrecognized option %<-%s%>\", switches[i].part1);\n";
-  my $n1 = "  for (i = 0; (int) i < n_switches; i++)\n"
-         . "    if (! switches[i].validated)\n"
-         . "      switches[i].validated = true;\n";
-  s/\Q$o1\E/$n1/g or die "gcc.c validated-loop anchor not found";
 
-  my $o2 = " %{!Q:-quiet} %{!dumpbase:-dumpbase %B} %{d*} %{m*} %{aux-info*}\\\n";
-  my $n2 = " %{!Q:-quiet} %{!dumpbase:-dumpbase %b} %{d*} %{m*} %{aux-info*}\\\n";
-  s/\Q$o2\E/$n2/g or die "gcc.c dumpbase anchor not found";
-' src/gcc/gcc.c
 
-## 4) gmp/gen-bases.c — neutralize libm dependency by hardcoding bases data.
-perl -i -0pe '
-  my $o1 = "  chars_per_bit_exactly = 0.69314718055994530942 / log ((double) base);\n";
-  my $n1 = "  chars_per_bit_exactly = 1.0;\n";
-  s/\Q$o1\E/$n1/g or die "gen-bases.c log() anchor not found";
-
-  my $o2 = "          printf (\"%u, %.16f, 0x%x },\\n\",\n"
-         . "                  chars_per_limb, chars_per_bit_exactly, ulog2 (base) - 1);\n";
-  my $n2 = "          printf (\"%u, 1.0000000000000000, 0x%x },\\n\",\n"
-         . "                  chars_per_limb, ulog2 (base) - 1);\n";
-  s/\Q$o2\E/$n2/g or die "gen-bases.c printf 1 anchor not found";
-
-  my $o3 = "          printf (\"%u, %.16f, CNST_LIMB(0x\",\n"
-         . "                  chars_per_limb, chars_per_bit_exactly);\n";
-  my $n3 = "          printf (\"%u, 1.0000000000000000, CNST_LIMB(0x\",\n"
-         . "                  chars_per_limb);\n";
-  s/\Q$o3\E/$n3/g or die "gen-bases.c printf 2 anchor not found";
-' src/gmp/gen-bases.c
 
 ## 5) gmp/doc/gmp.info — stub out doc to avoid texinfo dependency.
 printf 'Bootstrap placeholder for GMP info docs.\n' > src/gmp/doc/gmp.info
@@ -146,16 +93,3 @@ main (int argc, char **argv)
 }
 PSQR
 
-## 5) incpath.c — make include-dir dedup name-based.  tcc's libc stat()
-## returns unreliable dev/ino, so remove_duplicates() considered every -I
-## directory a duplicate of the first and dropped the rest (cc1/cc1plus then
-## honored only the first -I).  Force HOST_LACKS_INODE_NUMBERS and compare by
-## ->name (canonical_name is NULL here because lrealpath/realpath fail).
-perl -i -0pe '
-  s{/\* Microsoft Windows does not natively support inodes\.}
-   {#define HOST_LACKS_INODE_NUMBERS 1\n\n/* Microsoft Windows does not natively support inodes.}
-   or die "incpath.c VMS-comment anchor not found";
-  s{#define DIRS_EQ\(A, B\) \(!strcmp \(\(A\)->canonical_name, \(B\)->canonical_name\)\)}
-   {#define DIRS_EQ(A, B) (!strcmp ((A)->name, (B)->name))}
-   or die "incpath.c DIRS_EQ anchor not found";
-' src/gcc/incpath.c

@@ -24,12 +24,12 @@
     {
       ## --- Top-level flake outputs --------------------------------------
       ##
-      ## `bootstrapFor` returns the full package set, keyed by both the
-      ## legacy `phaseN-*` names and a few extras (hex0, raw-syscall-hello,
-      ## etc).  We splat that wholesale and then layer on:
+      ## `bootstrapFor` returns the full package set, keyed by semantic
+      ## kebab names (hex1, kaem, gcc46, bootstrap-gnumake, ...) plus a few
+      ## extras (hex0, raw-syscall-hello, etc).  We splat that wholesale and
+      ## then layer on:
       ##   - `default` (chain-tip selector)
       ##   - semantic per-directory keys (e.g. "stage0-posix/hex1")
-      ##   - a few short pname aliases (gcc46-bootstrap, ...)
       packages = forAllSystems (
         system:
         let
@@ -108,7 +108,7 @@
             "gcc-latest/strict"    = b.gcc-latest-strict;
           };
         in
-        ## Phase-N-* keys come from `b`; semantic + canonical names override.
+        ## Base keys come from `b`; semantic + canonical names override.
         ## Drop helpers and camelCase intermediates that have kebab aliases.
         removeAttrs b [
           "callPhase"

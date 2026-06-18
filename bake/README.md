@@ -23,7 +23,7 @@ into a scratch tree reaches a working gcc-10 `cc1` + `xgcc`;
 
 ```
 bake/
-├── seed/hex0-amd64-darwin    # 4 KB Mach-O trust anchor (the one opaque blob)
+├── seed/hex0-amd64-darwin    # 4 KB Mach-O trust anchor (symlink to ../../hex0/seed/)
 ├── sources/                  # auditable text sources
 │   ├── stage0-posix/         #   vendored oriansj/stage0-posix-1.9.1
 │   ├── tcc-darwin/           #   the tcc-darwin-cc link wrapper (template) + headers

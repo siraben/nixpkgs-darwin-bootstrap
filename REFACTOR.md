@@ -5,6 +5,14 @@ semantic packages mirroring `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootst
 
 ## Target layout
 
+> NOTE (2026-06): this is the 2026-05 refactor-time target.  The layout has
+> since grown — `mescc-tools/` added `m1-split.nix` + `synth-inject.nix`;
+> `gcc-4.6/` added `darwin-bootstrap-src.nix`; `gcc-10/` and `gcc-latest/`
+> split into `default.nix` + `source.nix` (+ `gcc-latest/strict.nix`); a
+> top-level `cctools/` was added; and the `phaseNN-` annotations below were
+> dropped from the actual attribute/script names.  Treat the phaseNN labels
+> as historical.
+
 ```
 default.nix                            — top-level scope via lib.makeScope
 flake.nix
@@ -152,13 +160,17 @@ Inside-file cleanups:
 
 ## Verification
 
-The chain still produces the baseline gnu-hello SHA256
-`5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`.
-phase11-kaem (`3b1d3ff0…`), phase10-hex2 (`8c8b68fe…`), phase11e-macho-
-patcher-early (`6112ffa7…`), phase2-catm (`7b546d62…`), phase3-m0
-(`b7f00604…`), and phase4-cc-arch (`4f1ca350…`) are all byte-identical to
-their pre-refactor builds.  drv paths change (pname strip + mkDarwin
-default insertion), but binary contents are unchanged.
+At the time of the 2026-05 layout refactor the chain produced gnu-hello
+SHA256 `5019a64510837fae43fc7238b506ec11011542432c792b4ab7683db2e7ff2f73`,
+with the stage0 tools byte-identical to their pre-refactor builds
+(kaem `3b1d3ff0…`, hex2 `8c8b68fe…`, macho-patcher-early `6112ffa7…`,
+catm `7b546d62…`, m0 `b7f00604…`, cc-arch `4f1ca350…`).
+
+NOTE: the later purity/getcwd/chain-make work (post-refactor) changed the
+gnu-hello binary; the **current** baseline is
+`0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a`.  The
+hashes above are a frozen refactor-time snapshot, not current output, and
+they use the old phaseNN names which the chain has since dropped.
 
 ## Maintainer scripts
 

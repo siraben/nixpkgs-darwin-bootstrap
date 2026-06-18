@@ -1,0 +1,106 @@
+--- a/gcc/config/darwin-driver.c
++++ b/gcc/config/darwin-driver.c
+@@ -82,20 +82,7 @@
+ 	return;
+       }
+ 
+-    /* The bootstrap compiler is built on modern Darwin hosts but targets the
+-       old x86_64 Darwin ABI used by the bootstrap chain.  GCC 4.6 cannot parse
+-       host releases such as macOS 14+ as -mmacosx-version-min values, so keep
+-       the native driver deterministic unless the caller set MACOSX_DEPLOYMENT_TARGET
+-       to an old 10.x deployment explicitly.  */
+-    ++*decoded_options_count;
+-    *decoded_options = XNEWVEC (struct cl_decoded_option,
+-				*decoded_options_count);
+-    (*decoded_options)[0] = argv[0];
+-    generate_option (OPT_mmacosx_version_min_, "10.8",
+-		     1, CL_DRIVER, &(*decoded_options)[1]);
+-    memcpy (*decoded_options + 2, argv + 1,
+-	    (argc - 1) * sizeof (struct cl_decoded_option));
+-    return;
++    /* The bootstrap driver leaves deployment-version defaults to later wrappers. */
+   }
+ 
+   /* Determine the version of the running OS.  If we can't, warn user,
+--- a/gcc/config/i386/darwin.h
++++ b/gcc/config/i386/darwin.h
+@@ -107,9 +107,8 @@
+    the kernel or some such.  */
+ 
+ #undef CC1_SPEC
+-#define CC1_SPEC "%(cc1_cpu) \
++#define CC1_SPEC " \
+   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
+-  %{!mmacosx-version-min=*:-mmacosx-version-min=%(darwin_minversion)} \
+   %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} " \
+   DARWIN_CC1_SPEC
+ 
+--- a/gcc/gcc.c
++++ b/gcc/gcc.c
+@@ -761,7 +761,7 @@
+ static const char *cc1_options =
+ "%{pg:%{fomit-frame-pointer:%e-pg and -fomit-frame-pointer are incompatible}}\
+  %{!iplugindir*:%{fplugin*:%:find-plugindir()}}\
+- %1 %{!Q:-quiet} %{!dumpbase:-dumpbase %B} %{d*} %{m*} %{aux-info*}\
++ %1 %{!Q:-quiet} %{!dumpbase:-dumpbase %b} %{d*} %{m*} %{aux-info*}\
+  %{fcompare-debug-second:%:compare-debug-auxbase-opt(%b)} \
+  %{!fcompare-debug-second:%{c|S:-auxbase-strip %g.o}}%{!c:%{!S:-auxbase-strip %g.s}} \
+  %{g*} %{O*} %{W*&pedantic*} %{w} %{std*&ansi&trigraphs}\
+@@ -6484,7 +6484,7 @@
+ 
+   for (i = 0; (int) i < n_switches; i++)
+     if (! switches[i].validated)
+-      error ("unrecognized option %<-%s%>", switches[i].part1);
++      switches[i].validated = true;
+ 
+   /* Obey some of the options.  */
+ 
+--- a/gcc/incpath.c
++++ b/gcc/incpath.c
+@@ -31,6 +31,8 @@
+ #include "incpath.h"
+ #include "cppdefault.h"
+ 
++#define HOST_LACKS_INODE_NUMBERS 1
++
+ /* Microsoft Windows does not natively support inodes.
+    VMS has non-numeric inodes.  */
+ #ifdef VMS
+@@ -45,7 +47,7 @@
+ #define DIRS_EQ(A, B) ((A)->dev == (B)->dev \
+ 	&& INO_T_EQ((A)->ino, (B)->ino))
+ #else
+-#define DIRS_EQ(A, B) (!strcmp ((A)->canonical_name, (B)->canonical_name))
++#define DIRS_EQ(A, B) (!strcmp ((A)->name, (B)->name))
+ #endif
+ 
+ static const char dir_separator_str[] = { DIR_SEPARATOR, 0 };
+--- a/gmp/gen-bases.c
++++ b/gmp/gen-bases.c
+@@ -59,7 +59,7 @@
+       chars_per_limb++;
+     }
+ 
+-  chars_per_bit_exactly = 0.69314718055994530942 / log ((double) base);
++  chars_per_bit_exactly = 1.0;
+ 
+   mpz_ui_pow_ui (big_base, (long) base, (long) chars_per_limb);
+ 
+@@ -122,13 +122,13 @@
+       printf ("  /* %3u */ { ", base);
+       if (POW2_P (base))
+ 	{
+-          printf ("%u, %.16f, 0x%x },\n",
+-                  chars_per_limb, chars_per_bit_exactly, ulog2 (base) - 1);
++          printf ("%u, 1.0000000000000000, 0x%x },\n",
++                  chars_per_limb, ulog2 (base) - 1);
+ 	}
+       else
+ 	{
+-          printf ("%u, %.16f, CNST_LIMB(0x",
+-                  chars_per_limb, chars_per_bit_exactly);
++          printf ("%u, 1.0000000000000000, CNST_LIMB(0x",
++                  chars_per_limb);
+ 	  mpz_out_str (stdout, 16, big_base);
+           printf ("), CNST_LIMB(0x");
+ 	  mpz_out_str (stdout, 16, big_base_inverted);
