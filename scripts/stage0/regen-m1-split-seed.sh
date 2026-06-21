@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+## Regenerate hex0/sources/m1-split/m1-split_AMD64_darwin_final.hex0 from the
+## current stage0 chain by dumping a byte-identical m1-split binary (M2-Planet
+## -> M1 -> hex2 -> macho-patcher -> dd pad -> ad-hoc codesign) as a packed-hex
+## .hex0 source.  m1-split is signed, so the binary is larger than 0x2800000
+## (0x2800000 base + codesign trailer); the full signed file is captured.
+##
+## Use this when bootstrap/m1-split.c or M2libc/amd64/MACHO-amd64-lowdata.hex2
+## changes.  Run against any byte-identical m1-split binary (e.g. the
+## bin/m1-split from the prior mkDarwin build:
+##   nix build .#packages.x86_64-darwin.m1-split -o /tmp/m1-split-result
+##   scripts/stage0/regen-m1-split-seed.sh /tmp/m1-split-result/bin/m1-split).
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$repo"
+
+bin="${1:-}"
+if [ -z "$bin" ]; then
+  echo "usage: $0 <path-to-m1-split-binary>" >&2
+  exit 1
+fi
+test -f "$bin" || { echo "binary not found: $bin" >&2; exit 1; }
+
+size=$(stat -f%z "$bin" 2>/dev/null || stat -c%s "$bin")
+if [ "$size" -lt "$((0x2800000))" ]; then
+  echo "unexpected size $size (want >= $((0x2800000)) for the dd-padded + signed binary)" >&2
+  exit 1
+fi
+
+target="hex0/sources/m1-split/m1-split_AMD64_darwin_final.hex0"
+mkdir -p "$(dirname "$target")"
+{
+  echo "## m1-split final binary dump as hex0 source ($size bytes, post-hex2 +"
+  echo "## dd-pad (0x2800000) + ad-hoc codesign; signed, so size exceeds 0x2800000)."
+  echo "## Re-emit via: hex0 m1-split_AMD64_darwin_final.hex0 m1-split"
+  od -An -v -tx1 "$bin" | tr -d ' \n'
+  echo
+} > "$target"
+echo "wrote $target ($size bytes -> $((size * 2)) hex chars)"

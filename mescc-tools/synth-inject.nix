@@ -1,64 +1,49 @@
-## synth-inject — cross-object synth-label injector, M2-Planet-built so it exists
-## before tinycc-darwin-cc's first link (no awk fallback in the chain).
+## synth-inject — seed-built cross-object synth-label injector.
+##
+## The old chain ran M2-Planet (bootstrap/synth-inject.c) -> M1 -> hex2
+## (MACHO-amd64-lowdata.hex2 template, base 0x600000) -> macho-patcher
+## m2-segments -> dd pad to 0x2800000 -> ad-hoc codesign.  synth-inject is
+## signed, so the final binary exceeds 0x2800000 by its codesign trailer.
+## Capture the full signed binary as a single .hex0 source and let hex0-raw
+## re-emit it: byte-identical output, no stdenv in the trust path.  The smoke
+## checkPhase still runs against the re-emitted binary.
+##
+## Source regenerator (when bootstrap/synth-inject.c or the MACHO template
+## changes): scripts/stage0/regen-synth-inject-seed.sh.
 {
-  darwin,
+  hex0,
+  hostPlatform,
   mkDarwin,
-  hex2,
-  macho-patcher,
-  m0,
-  m2,
-  m1,
   root,
-  stage0Sources,
   ...
 }:
+
+let
+  synth-inject-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "synth-inject-raw";
+        system = "x86_64-darwin";
+        builder = hex0.hex0-raw;
+        args = [
+          (root + "/hex0/sources/synth-inject/synth-inject_AMD64_darwin_final.hex0")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-hw1C/q1uJpuMzyN2SeIQfX8ZAr5rjFgiU8/DEdg9yOA=";
+      }
+    else
+      null;
+in
+
 mkDarwin {
   pname = "synth-inject";
+  version = "0-unstable-2026-06-20";
+
   buildPhase = ''
     runHook preBuild
-
-    ${m2}/bin/M2-darwin \
-      --architecture amd64 \
-      -f ${stage0Sources}/M2libc/sys/types.h \
-      -f ${stage0Sources}/M2libc/stddef.h \
-      -f ${stage0Sources}/M2libc/sys/utsname.h \
-      -f ${root + "/M2libc/amd64/Darwin/unistd.c"} \
-      -f ${root + "/M2libc/amd64/Darwin/fcntl.c"} \
-      -f ${stage0Sources}/M2libc/fcntl.c \
-      -f ${stage0Sources}/M2libc/ctype.c \
-      -f ${stage0Sources}/M2libc/stdlib.c \
-      -f ${stage0Sources}/M2libc/string.c \
-      -f ${stage0Sources}/M2libc/stdarg.h \
-      -f ${stage0Sources}/M2libc/stdio.h \
-      -f ${stage0Sources}/M2libc/stdio.c \
-      -f ${stage0Sources}/M2libc/bootstrappable.c \
-      -f ${root + "/bootstrap/synth-inject.c"} \
-      -o synth-inject.M1
-
-    ${m1}/bin/M1 \
-      --architecture amd64 \
-      --little-endian \
-      -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
-      -f ${root + "/M2libc/amd64/libc-full-Darwin.M1"} \
-      -f synth-inject.M1 \
-      -o synth-inject.hex2
-
-    ${hex2}/bin/hex2 \
-      --architecture amd64 \
-      --little-endian \
-      --base-address 0x600000 \
-      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
-      -f synth-inject.hex2 \
-      -o synth-inject
-    ${macho-patcher}/bin/macho-patcher m2-segments synth-inject.hex2 synth-inject
-
-    linkeditOffset="$((0x800000 + 0x2000000))"
-    dd if=/dev/zero of=synth-inject bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
-    chmod +x synth-inject
-
-    source ${darwin.signingUtils}
-    sign synth-inject
-
+    install -m755 ${synth-inject-raw} synth-inject
     runHook postBuild
   '';
 
@@ -76,11 +61,14 @@ mkDarwin {
   installPhase = ''
     runHook preInstall
     install -Dm755 synth-inject $out/bin/synth-inject
-    install -Dm644 synth-inject.M1 $out/share/darwin-bootstrap/synth-inject.M1
+    install -Dm644 ${root + "/hex0/sources/synth-inject/synth-inject_AMD64_darwin_final.hex0"} \
+      $out/share/darwin-bootstrap/synth-inject_AMD64_darwin_final.hex0
     runHook postInstall
   '';
 
+  passthru = { inherit synth-inject-raw; };
+
   meta = {
-    description = "Cross-object synth-label injector for the tcc link path (M2-Planet C build)";
+    description = "Seed-built cross-object synth-label injector for the tcc link path (no stdenv in trust path)";
   };
 }

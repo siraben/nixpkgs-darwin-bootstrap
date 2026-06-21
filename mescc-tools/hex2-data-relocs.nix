@@ -1,74 +1,62 @@
+## hex2-data-relocs — seed-built Darwin Mach-O hex2 data-relocation patcher.
+##
+## The old chain ran M2-Planet (bootstrap/hex2-data-relocs.c) -> M1 -> hex2
+## (MACHO-amd64-lowdata.hex2 template, base 0x600000) -> macho-patcher
+## m2-segments -> dd pad to 0x2800000 -> ad-hoc codesign.  hex2-data-relocs is
+## signed, so the final binary exceeds 0x2800000 by its codesign trailer.
+## Capture the full signed binary as a single .hex0 source and let hex0-raw
+## re-emit it: byte-identical output, no stdenv in the trust path.
+##
+## Source regenerator (when bootstrap/hex2-data-relocs.c or the MACHO template
+## changes): scripts/stage0/regen-hex2-data-relocs-seed.sh.
 {
-  darwin,
+  hex0,
+  hostPlatform,
   mkDarwin,
-  hex2,
-  hex2-data-relocs,
-  macho-patcher,
-  m0,
-  m2,
-  m1,
   root,
-  source,
-  stage0Sources,
   ...
 }:
+
+let
+  hex2-data-relocs-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "hex2-data-relocs-raw";
+        system = "x86_64-darwin";
+        builder = hex0.hex0-raw;
+        args = [
+          (root + "/hex0/sources/hex2-data-relocs/hex2-data-relocs_AMD64_darwin_final.hex0")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-W9rLcHYTcH4VTyX6JkmPt2xA9ohgyVXCRAjaSdAm/O8=";
+      }
+    else
+      null;
+in
+
 mkDarwin {
   pname = "hex2-data-relocs";
+  version = "0-unstable-2026-06-20";
+
   buildPhase = ''
     runHook preBuild
-
-    ${m2}/bin/M2-darwin \
-      --architecture amd64 \
-      -f ${stage0Sources}/M2libc/sys/types.h \
-      -f ${stage0Sources}/M2libc/stddef.h \
-      -f ${stage0Sources}/M2libc/sys/utsname.h \
-      -f ${root + "/M2libc/amd64/Darwin/unistd.c"} \
-      -f ${root + "/M2libc/amd64/Darwin/fcntl.c"} \
-      -f ${stage0Sources}/M2libc/fcntl.c \
-      -f ${stage0Sources}/M2libc/ctype.c \
-      -f ${stage0Sources}/M2libc/stdlib.c \
-      -f ${stage0Sources}/M2libc/string.c \
-      -f ${stage0Sources}/M2libc/stdarg.h \
-      -f ${stage0Sources}/M2libc/stdio.h \
-      -f ${stage0Sources}/M2libc/stdio.c \
-      -f ${stage0Sources}/M2libc/bootstrappable.c \
-      -f ${root + "/bootstrap/hex2-data-relocs.c"} \
-      -o hex2-data-relocs.M1
-
-    ${m1}/bin/M1 \
-      --architecture amd64 \
-      --little-endian \
-      -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
-      -f ${root + "/M2libc/amd64/libc-full-Darwin.M1"} \
-      -f hex2-data-relocs.M1 \
-      -o hex2-data-relocs.hex2
-
-    ${hex2}/bin/hex2 \
-      --architecture amd64 \
-      --little-endian \
-      --base-address 0x600000 \
-      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
-      -f hex2-data-relocs.hex2 \
-      -o hex2-data-relocs
-    ${macho-patcher}/bin/macho-patcher m2-segments hex2-data-relocs.hex2 hex2-data-relocs
-
-    linkeditOffset="$((0x800000 + 0x2000000))"
-    dd if=/dev/zero of=hex2-data-relocs bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
-    chmod +x hex2-data-relocs
-
-    source ${darwin.signingUtils}
-    sign hex2-data-relocs
-
+    install -m755 ${hex2-data-relocs-raw} hex2-data-relocs
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
     install -Dm755 hex2-data-relocs $out/bin/hex2-data-relocs
+    install -Dm644 ${root + "/hex0/sources/hex2-data-relocs/hex2-data-relocs_AMD64_darwin_final.hex0"} \
+      $out/share/darwin-bootstrap/hex2-data-relocs_AMD64_darwin_final.hex0
     runHook postInstall
   '';
 
+  passthru = { inherit hex2-data-relocs-raw; };
+
   meta = {
-    description = "Stage0-faithful Darwin Mach-O hex2-data-relocs patcher (M2-Planet C build)";
+    description = "Seed-built Darwin Mach-O hex2-data-relocs patcher (no stdenv in trust path)";
   };
 }

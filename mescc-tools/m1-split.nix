@@ -1,64 +1,49 @@
-## m1-split — M1 code/data section splitter, M2-Planet-built so it exists
-## before tinycc-darwin-cc's first link (no awk fallback in the chain).
+## m1-split — seed-built M1 code/data section splitter.
+##
+## The old chain ran M2-Planet (bootstrap/m1-split.c) -> M1 -> hex2
+## (MACHO-amd64-lowdata.hex2 template, base 0x600000) -> macho-patcher
+## m2-segments -> dd pad to 0x2800000 -> ad-hoc codesign.  m1-split is
+## signed, so the final binary exceeds 0x2800000 by its codesign trailer.
+## Capture the full signed binary as a single .hex0 source and let hex0-raw
+## re-emit it: byte-identical output, no stdenv in the trust path.  The
+## smoke checkPhase still runs against the re-emitted binary.
+##
+## Source regenerator (when bootstrap/m1-split.c or the MACHO template
+## changes): scripts/stage0/regen-m1-split-seed.sh.
 {
-  darwin,
+  hex0,
+  hostPlatform,
   mkDarwin,
-  hex2,
-  macho-patcher,
-  m0,
-  m2,
-  m1,
   root,
-  stage0Sources,
   ...
 }:
+
+let
+  m1-split-raw =
+    if hostPlatform.isx86_64 then
+      derivation {
+        name = "m1-split-raw";
+        system = "x86_64-darwin";
+        builder = hex0.hex0-raw;
+        args = [
+          (root + "/hex0/sources/m1-split/m1-split_AMD64_darwin_final.hex0")
+          (placeholder "out")
+        ];
+        outputHashMode = "recursive";
+        outputHashAlgo = "sha256";
+        outputHash = "sha256-4LzuCZl/XsVvCMsyhd2+QjjN5QfW5Ht/ad69whZwA/s=";
+      }
+    else
+      null;
+in
+
 mkDarwin {
   pname = "m1-split";
+  version = "0-unstable-2026-06-20";
+
   buildPhase = ''
     runHook preBuild
-
-    ${m2}/bin/M2-darwin \
-      --architecture amd64 \
-      -f ${stage0Sources}/M2libc/sys/types.h \
-      -f ${stage0Sources}/M2libc/stddef.h \
-      -f ${stage0Sources}/M2libc/sys/utsname.h \
-      -f ${root + "/M2libc/amd64/Darwin/unistd.c"} \
-      -f ${root + "/M2libc/amd64/Darwin/fcntl.c"} \
-      -f ${stage0Sources}/M2libc/fcntl.c \
-      -f ${stage0Sources}/M2libc/ctype.c \
-      -f ${stage0Sources}/M2libc/stdlib.c \
-      -f ${stage0Sources}/M2libc/string.c \
-      -f ${stage0Sources}/M2libc/stdarg.h \
-      -f ${stage0Sources}/M2libc/stdio.h \
-      -f ${stage0Sources}/M2libc/stdio.c \
-      -f ${stage0Sources}/M2libc/bootstrappable.c \
-      -f ${root + "/bootstrap/m1-split.c"} \
-      -o m1-split.M1
-
-    ${m1}/bin/M1 \
-      --architecture amd64 \
-      --little-endian \
-      -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
-      -f ${root + "/M2libc/amd64/libc-full-Darwin.M1"} \
-      -f m1-split.M1 \
-      -o m1-split.hex2
-
-    ${hex2}/bin/hex2 \
-      --architecture amd64 \
-      --little-endian \
-      --base-address 0x600000 \
-      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
-      -f m1-split.hex2 \
-      -o m1-split
-    ${macho-patcher}/bin/macho-patcher m2-segments m1-split.hex2 m1-split
-
-    linkeditOffset="$((0x800000 + 0x2000000))"
-    dd if=/dev/zero of=m1-split bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
-    chmod +x m1-split
-
-    source ${darwin.signingUtils}
-    sign m1-split
-
+    install -m755 ${m1-split-raw} m1-split
     runHook postBuild
   '';
 
@@ -77,11 +62,14 @@ mkDarwin {
   installPhase = ''
     runHook preInstall
     install -Dm755 m1-split $out/bin/m1-split
-    install -Dm644 m1-split.M1 $out/share/darwin-bootstrap/m1-split.M1
+    install -Dm644 ${root + "/hex0/sources/m1-split/m1-split_AMD64_darwin_final.hex0"} \
+      $out/share/darwin-bootstrap/m1-split_AMD64_darwin_final.hex0
     runHook postInstall
   '';
 
+  passthru = { inherit m1-split-raw; };
+
   meta = {
-    description = "M1 code/data splitter for the tcc link path (M2-Planet C build)";
+    description = "Seed-built M1 code/data splitter for the tcc link path (no stdenv in trust path)";
   };
 }
