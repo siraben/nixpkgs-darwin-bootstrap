@@ -1,4 +1,4 @@
-## phase2-hex2 — seed-built Darwin Mach-O hex2 linker.
+## hex2 — seed-built Darwin Mach-O hex2 linker.
 ##
 ## Built purely by hex0 acting as `derivation.builder`.  Padding to the
 ## LINKEDIT vmaddr (0x1800000) is baked directly into
@@ -67,6 +67,6 @@ mkDarwin {
   passthru = { inherit hex2-raw; };
 
   meta = {
-    description = "Seed-built Darwin Mach-O phase-2 AMD64 hex2 (no clang in trust path)";
+    description = "Seed-built Darwin Mach-O phase-2 AMD64 hex2 (no stdenv in trust path)";
   };
 }

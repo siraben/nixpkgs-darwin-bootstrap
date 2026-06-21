@@ -34,9 +34,9 @@ if [ ! -d "$STAGE0/AMD64" ]; then
 fi
 
 HEX0=$(nix eval --raw '.#packages.x86_64-darwin.hex0' 2>/dev/null)/bin/hex0
-HEX1=$(nix eval --raw '.#packages.x86_64-darwin.phase1-hex1' 2>/dev/null)/bin/hex1-darwin
+HEX1=$(nix eval --raw '.#packages.x86_64-darwin.hex1' 2>/dev/null)/bin/hex1-darwin
 if [ ! -x "$HEX0" ] || [ ! -x "$HEX1" ]; then
-  echo "regen-hex0-sources: hex0 / hex1-darwin must already be built (nix build .#hex0 .#phase1-hex1)" >&2
+  echo "regen-hex0-sources: hex0 / hex1-darwin must already be built (nix build .#hex0 .#hex1)" >&2
   exit 1
 fi
 

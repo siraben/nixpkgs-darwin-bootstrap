@@ -12,31 +12,15 @@
   ...
 }:
 ##
-## WIP — task #12 first attempt.
+## Standalone GMP as a Nix derivation built by a bootstrap-chain compiler,
+## matching the nixpkgs minimal-bootstrap structure.
 ##
-## Goal: build GMP as a standalone Nix derivation using a bootstrap-chain
-## compiler so phase45/46/47 can consume it via --with-gmp instead of
-## extracting it in-tree, matching nixpkgs minimal-bootstrap structure.
-##
-## Status: BLOCKED. Both phase44 (gcc46-cxx) and phase45 (gcc10) fail to
-## build external GMP:
-##
-##  - phase44: ld: library not found for -lgcc_ext.10.5
-##             (gcc 4.6 Darwin specs reference legacy compat lib we don't ship)
-##  - phase45: stddef.h:27: unterminated #if  /
-##             limits.h:34: syslimits.h: No such file or directory
-##             (phase45's compiler-only handoff bundles incomplete headers
-##             that work for the chain's internal compiles but not for
-##             external configure tests)
-##
-## The blocker is the same compiler-only handoff issue documented in
-## task #13: our bootstrap GCCs are frontends-without-complete-runtimes,
-## so they can't build external software. Resolving #13 (phase46 ships
-## its own libgcc + libstdc++ + complete headers) unblocks #12.
-##
-## This file is kept in-tree as the foundation: once #13 lands, swap
-## `compiler` below to the resulting full-closure GCC and the phase
-## should build end-to-end.
+## Status: building. phase46 `gcc-latest` (the full-closure GCC that ships
+## its own libgcc + libstdc++ + complete headers) compiles, installs, and
+## smoke-tests GMP here; strict phase47 consumes it via
+## GCC_MODERN_EXTERNAL_GMP instead of extracting GMP in-tree. (The earlier
+## frontends-without-complete-runtimes GCCs — gcc46-cxx, gcc-10 — could not
+## build external software; that handoff issue is resolved.)
 ##
 let
   version = gccLatestGmpVersion;

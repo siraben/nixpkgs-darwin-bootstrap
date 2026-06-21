@@ -11,18 +11,26 @@ Done (gated): GCC 4.6 compiles entirely with the chain `cc1` (no host clang);
 gcc-10/15 helpers compile with the chain; the chain runs on chain-built
 `bootstrap-gnumake` + `gnupatch` (no nixpkgs gnumake anywhere); naming
 standardized (no `phaseXX` in attrs/scripts/env/comments); no host `python`
-at build time; host `awk` removed from the tcc wrapper + gcc link path
-(M2-Planet `m1-split`/`synth-inject`); most host `perl` replaced by committed
-patches (`patches/`) + committed sysroot headers
-(`bootstrap/headers/gcc-modern-sysroot`).
+at build time; host `awk` removed from the **entire amd64 build-time chain**
+— the M1 code/data split is the chain-built `m1-split` everywhere
+(`mescc-libc`/`mes`/`tinycc` boot-cycle, tcc wrapper, gcc link path,
+`cctools/ar`), with `synth-inject` for cross-object synth labels; all 7
+`mescc-tools` helpers are seed-built (committed `.hex0` Mach-O dumps
+re-emitted by `hex0-raw`, no stdenv in the trust path); the seed `.hex0`
+files are git-LFS tracked (`.gitattributes`); the `gnu-hello-hash-comparison`
+gate is enforced inside the derivation (fails the build on phase46≠phase47
+or baseline drift); most host `perl` replaced by committed patches
+(`patches/`) + committed sysroot headers (`bootstrap/headers/gcc-modern-sysroot`).
 
-Remaining purity work: host `awk` still runs in the `mescc-libc`/`mes`/`tinycc`
-boot phases + `cctools/ar` (same M1 split → port to chain `m1-split`); host
-`perl` still does generated-file edits (bootstrap-gcc.sh/cxx.sh) and the
+Remaining purity work: `cctools/ar` chain-compiles the `ar`/`ranlib` drivers
+but its `libstuff.a`/`libmacho.a` support archives are still host-`$CC`
+compiled + host-`ar` packed (a real boundary on the gnu-hello proof path);
+host `perl` still does generated-file edits (bootstrap-gcc.sh/cxx.sh) and the
 gcc-4.6 libgcc-tree staging (`scripts/gcc-4.6/libgcc.pl`); host `as`/`ld`
 (binutils-unwrapped) + `cctools` + apple-sdk at the Mach-O link boundary;
-the orchestration shell is host bash/coreutils/sed/grep (Nix-track scope).
-aarch64 has only the from-hex0 seed milestone; deferred.
+the only remaining `awk` is the deferred aarch64 `stage0-posix/hex1`
+candidate path; the orchestration shell is host bash/coreutils/sed/grep
+(Nix-track scope). aarch64 has only the from-hex0 seed milestone; deferred.
 
 ## Roadmap / Current Status (HISTORICAL — pre-2026-06; see CURRENT STATUS above)
 

@@ -8,7 +8,6 @@
   hex2-1,
   m1,
   root,
-  source,
   stage0Sources,
   ...
 }:

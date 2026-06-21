@@ -1,4 +1,4 @@
-## phase3-m0 — seed-built Darwin Mach-O M0 assembler.
+## m0 — seed-built Darwin Mach-O M0 assembler.
 ##
 ## Built by feeding the pre-concatenated, pre-padded hex2 source
 ## (`hex0/sources/m0/M0_AMD64_darwin_combined.hex2`) directly to the
@@ -68,6 +68,6 @@ mkDarwin {
   passthru = { inherit m0-raw; };
 
   meta = {
-    description = "Seed-built Darwin Mach-O phase-3 AMD64 M0 (no clang in trust path)";
+    description = "Seed-built Darwin Mach-O phase-3 AMD64 M0 (no stdenv in trust path)";
   };
 }

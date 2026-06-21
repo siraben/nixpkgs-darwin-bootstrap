@@ -1,4 +1,4 @@
-## phase4-cc-arch — seed-built Darwin Mach-O cc_arch.
+## cc-arch — seed-built Darwin Mach-O cc_arch.
 ##
 ## The old chain ran: catm(MACHO_template, cc_arch-0.hex2) → hex2 →
 ## macho-patcher m2-segments (in-place segment vmsize fixup) → dd pad →
@@ -64,6 +64,6 @@ mkDarwin {
   passthru = { inherit cc-arch-raw; };
 
   meta = {
-    description = "Seed-built Darwin Mach-O phase-4 AMD64 cc_arch (no clang in trust path)";
+    description = "Seed-built Darwin Mach-O phase-4 AMD64 cc_arch (no stdenv in trust path)";
   };
 }

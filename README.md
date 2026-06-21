@@ -25,20 +25,34 @@ The repo has **two parallel tracks**:
 The active, runnable bootstrap path is `x86_64-darwin`/amd64.  The Nixified
 chain reaches a strict self-hosted modern GCC handoff whose GCC source version
 is matched to nixpkgs `gcc_latest.version` (`15.2.0` with the current lock),
-and verifies a `gnu-hello-hash-comparison` output at the baseline
+and verifies a `gnu-hello-hash-comparison` output against the pinned baseline
 `0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a` (the
 `gcc-latest` and `gcc-latest/strict` GNU Hello builds are byte-identical).
+The gate is enforced inside the derivation: `gnu-hello-hash-comparison`
+fails the build (and `nix flake check`) if `phase46 != phase47` or if the
+hash drifts from the baseline.
+
+This repo requires **git-LFS**: the committed Mach-O seed binaries under
+`hex0/sources/**/*.hex0` are LFS-tracked, so install `git lfs` before
+cloning/checkout or the seeds arrive as pointer files and the bootstrap
+fails opaquely.
 
 No host compiler compiles any chain source: GCC 4.6 is built entirely by
 the chain `cc1`, and the modern GCC build helpers compile with the chain
 input compiler.  Host `clang`/`binutils`/`cctools` participate only at the
-Mach-O assemble/link boundary.  No host `python` runs at build time, and
-the chain runs on its own `gnumake` and `gnupatch`.  Host `awk` is gone
-from the TinyCC-darwin-cc wrapper and the GCC link path but still runs in
-the earlier `mescc-libc`/`mes`/`tinycc` boot phases (see "Maintainer
-scripts" below).  The build scripts themselves run under host `bash` +
-coreutils/`sed`/`grep`; this Nix track's purity claim covers the
-compiler/translator/make trust path, not the orchestration shell.
+Mach-O assemble/link boundary, with one known exception: `cctools/ar`'s own
+`libstuff.a`/`libmacho.a` support archives are still compiled with host
+`$CC` and packed with host `ar` while the `ar`/`ranlib` drivers themselves
+are chain-compiled (see "Known impurity boundaries").  No host `python`
+runs at build time, and the chain runs on its own `gnumake` and `gnupatch`.
+Host `awk` is gone from the entire amd64 build-time chain — the M1
+code/data split is the chain-built `m1-split` everywhere, and the
+mescc-tools helpers are seed-built from committed `.hex0` binary dumps (no
+stdenv in the trust path).  The only remaining `awk` is the deferred
+aarch64 `stage0-posix/hex1` path and maintainer-only `scripts/`.  The build
+scripts themselves run under host `bash` + coreutils/`sed`/`grep`; this Nix
+track's purity claim covers the compiler/translator/make trust path, not
+the orchestration shell.
 
 The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
 layout: 13 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
@@ -97,6 +111,17 @@ The implemented amd64 chain is:
   libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
   participates in any chain compile; nixpkgs clang/binutils remain at
   the assemble/link boundary only.
+- `cctools/ar` chain-compiles the `ar`/`ranlib` drivers with gcc-15, but
+  their `libstuff.a`/`libmacho.a` support archives are still compiled with
+  host `$CC` and packed with host `${cctools}/bin/ar` (you need an archiver
+  to build an archiver). `cctools-ar` is on the GNU Hello proof path (it is
+  the `AR`/`RANLIB` for the gnu-hello build), so this support-library host
+  compile is a real remaining boundary, tracked for a future from-chain
+  rebuild.
+- `checks.nix`'s `macho-template-hello-runs` is a validation-only check
+  (not a chain artifact): it compiles upstream stage0 `hex2` C with host
+  `$CC` to sanity-check the committed Mach-O template. It is not in the
+  bootstrap trust path.
 - Host `perl` performs the remaining deterministic GCC source/configure
   edits (and the gcc-4.6 libgcc-tree staging in `gcc-4.6/libgcc.pl`).
   This is build-orchestration — applying known diffs to known files,
@@ -160,15 +185,18 @@ No host `python` runs at build time anywhere in the chain (`python3`
 appears only in design-time `scripts/stage0/regen-*.sh` maintainer
 scripts).
 
-Host `awk` has been removed from the **TinyCC-darwin-cc wrapper and the
-GCC link path**: the M1 code/data split and cross-object synth-label
-injection there are chain-built C tools (`bootstrap/m1-split.c`,
-`bootstrap/synth-inject.c`, compiled through M2-Planet → M1 → hex2).
-Host `awk` is **not yet** gone from the earlier bootstrap phases that
-*produce* `tinycc-darwin-cc` — the `mescc-libc/*`, `mes/*`, `tinycc/*`
-boot-cycle, `stage0-posix/hex1` (aarch64 path), and `cctools/ar`
-derivations still call host `awk` for the same M1 split (porting them to
-the chain `m1-split` tool is tracked, remaining work).
+Host `awk` has been removed from the **entire amd64 build-time chain**:
+the M1 code/data split and cross-object synth-label injection are
+chain-built C tools (`bootstrap/m1-split.c`, `bootstrap/synth-inject.c`,
+compiled through M2-Planet → M1 → hex2) used uniformly across the
+`mescc-libc/*`, `mes/*`, `tinycc/*` boot-cycle, the TinyCC-darwin-cc
+wrapper, the GCC link path, and `cctools/ar`.  The `mescc-tools` helpers
+(`m1-split`, `m1-to-hex2`, `hex2-data-relocs`, `cc-arch-helper`,
+`synth-inject`, `elf64-to-m1`, `macho-patcher`) are seed-built: a
+committed `.hex0` dump of each tool's Mach-O binary is re-emitted by
+`hex0-raw`, so no stdenv and no host translator sits in their trust path.
+The only remaining host `awk` is the deferred `stage0-posix/hex1` aarch64
+candidate path and maintainer-only `scripts/`.
 
 Deterministic GCC source/configure edits and the modern-GCC bootstrap
 sysroot are committed `.patch` files and committed headers

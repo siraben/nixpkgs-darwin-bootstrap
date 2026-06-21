@@ -1,4 +1,4 @@
-## phase2-catm — seed-built Darwin Mach-O catm.
+## catm — seed-built Darwin Mach-O catm.
 ##
 ## Concatenation of `MACHO-amd64-catm-header.hex2` + the ported
 ## `catm_AMD64_darwin_body.hex2` lives in
@@ -64,7 +64,7 @@ mkDarwin {
   passthru = { inherit catm-raw; };
 
   meta = {
-    description = "Seed-built Darwin Mach-O phase-2 AMD64 catm (no clang in trust path)";
+    description = "Seed-built Darwin Mach-O phase-2 AMD64 catm (no stdenv in trust path)";
     platforms = [ "x86_64-darwin" ];
   };
 }

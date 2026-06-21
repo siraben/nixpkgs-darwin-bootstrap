@@ -85,13 +85,17 @@ gcc-10/
 gcc-latest/
   default.nix                          — phase43 source + phase46 build + phase47 strict
 
-apple-darwin/                          — Darwin host bits packaged
-  default.nix                          — scope
-  apple-sdk.nix                        — pinned MacOSX.sdk
-  cctools.nix                          — pinned cctools
-  sigtool.nix                          — codesign wrapper
+## NOTE: the planned `apple-darwin/` package dir below was NOT realized.
+## Darwin host bits stayed inline (apple-sdk/cctools/darwin.signingUtils are
+## referenced directly from nixpkgs); only a top-level `cctools/` was added
+## (for the chain-built ar/ranlib). Kept here as the original target sketch.
+# apple-darwin/                        — Darwin host bits packaged
+#   default.nix                        — scope
+#   apple-sdk.nix                      — pinned MacOSX.sdk
+#   cctools.nix                        — pinned cctools
+#   sigtool.nix                        — codesign wrapper
 
-scripts/                               — KEEP (maintainer regen scripts + awk port helpers)
+scripts/                               — KEEP (maintainer regen scripts)
 hex0/                                  — KEEP (hex0 source files)
 M2libc/                                — KEEP (committed M2libc + Darwin variants)
 tools/                                 — KEEP (M1 macro-asm sources + macho-patcher-m0.M1)
@@ -149,13 +153,12 @@ Inside-file cleanups:
 
 ## Deferred
 
-18. Explicit args (callPackage style) + `lib.makeScope newScope` — DEFERRED.
-    The current `args: with args; ...` pattern with a rec block works fine.
-    Switching to explicit `{a, b, c, ...}: ...` headers would require every
-    .nix file to precisely enumerate its dependencies; with callPackage's
-    lib.functionArgs filtering, missing a ref causes eval errors at use site
-    rather than at definition site.  A full sweep across 60 files is a
-    multi-day refactor and offers mainly cosmetic improvement (the current
+18. Explicit args (callPackage style) — DONE; `lib.makeScope newScope` — DEFERRED.
+    The package `.nix` files now use explicit `{a, b, c, ...}: ...` headers
+    (callPackage-style) via `callPhase` in `packages.nix`.  What remains
+    deferred is the scope plumbing: moving from the hand-rolled `phaseDefs`
+    rec set to `lib.makeScope newScope`, and tightening the trailing `...` /
+    arg filtering.  That offers mainly cosmetic improvement (the current
     structure is functionally equivalent to lib.makeScope).
 
 ## Verification

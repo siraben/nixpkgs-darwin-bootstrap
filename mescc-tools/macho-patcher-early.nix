@@ -1,4 +1,4 @@
-## phase11e-macho-patcher-early — seed-built Darwin macho-patcher.
+## macho-patcher-early — seed-built Darwin macho-patcher.
 ##
 ## The trust chain is:
 ##   1. hex0/sources/macho-patcher-early/macho-patcher_AMD64_darwin_combined.hex2
@@ -60,6 +60,6 @@ mkDarwin {
   passthru = { inherit macho-patcher-early-raw; };
 
   meta = {
-    description = "Seed-built Darwin Mach-O macho-patcher (m2-segments mode), no stdenv in trust path";
+    description = "Seed-built Darwin Mach-O macho-patcher m2-segments mode (no stdenv in trust path)";
   };
 }

@@ -3,7 +3,6 @@
   cctools,
   darwin,
   gccLatestVersion,
-  lib,
   perl,
   gnupatch,
   tinycc-darwin-cc,

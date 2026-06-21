@@ -21,7 +21,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."   # repo root
 
 # Locate stage0Sources (via nix).
-STAGE0=$(nix eval --raw '.#packages.x86_64-darwin.phase3-m0.stage0Sources' 2>/dev/null \
+STAGE0=$(nix eval --raw '.#packages.x86_64-darwin.m0.stage0Sources' 2>/dev/null \
   || nix-instantiate --eval --strict -E \
        '(import ./. {}).x86_64-darwin.stage0Sources' 2>/dev/null \
   || true)
@@ -31,7 +31,7 @@ if [ -z "$STAGE0" ] || [ ! -d "$STAGE0" ]; then
   STAGE0="${STAGE0%/AMD64}"
 fi
 if [ ! -d "$STAGE0/AMD64" ]; then
-  echo "regen-preported: couldn't locate stage0-posix-source; run 'nix build .#packages.x86_64-darwin.phase3-m0' first" >&2
+  echo "regen-preported: couldn't locate stage0-posix-source; run 'nix build .#packages.x86_64-darwin.m0' first" >&2
   exit 1
 fi
 echo "Using stage0Sources: $STAGE0"
@@ -49,7 +49,7 @@ awk -f scripts/stage0/port-m0-darwin.awk \
 echo "  wrote M2libc/amd64/M0_AMD64_darwin_body.hex2"
 
 # 3. cc_arch-0 (M0 expand + port)
-M0=$(nix eval --raw '.#packages.x86_64-darwin.phase3-m0' 2>/dev/null)/bin/M0-darwin
+M0=$(nix eval --raw '.#packages.x86_64-darwin.m0' 2>/dev/null)/bin/M0-darwin
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 "$M0" "$STAGE0/AMD64/cc_amd64.M1" "$tmp/cc_arch-0-linux.hex2"

@@ -119,6 +119,12 @@ let
   gnu-hello-hash-comparison =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-gnu-hello-hash-comparison" { } ''
+        ## Reproducibility gate. The bootstrap chain (phase46, gcc-latest) and the
+        ## strict no-host-clang re-bootstrap (phase47) must both produce the SAME
+        ## GNU Hello, and that hash must equal the pinned baseline below. This
+        ## derivation FAILS the build (and `nix flake check`) on any regression.
+        ## Update `expected` only when the chain inputs change intentionally.
+        expected=0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a
         mkdir -p "$out/share/darwin-bootstrap"
         phase46_hash="$(cut -d' ' -f1 ${gnu-hello-gcc-latest-bootstrap}/share/darwin-bootstrap/hello.sha256)"
         phase47_hash="$(cut -d' ' -f1 ${gnu-hello-gcc-latest-strict}/share/darwin-bootstrap/hello.sha256)"
@@ -131,6 +137,19 @@ let
           printf 'phase47_nixpkgs_equal=%s\n' "$([ "$phase47_hash" = "$nixpkgs_hash" ] && echo yes || echo no)"
           cat ${gnu-hello-nixpkgs-gcc-latest}/share/darwin-bootstrap/compiler.txt
         } > "$out/share/darwin-bootstrap/hello-hashes.txt"
+        cat "$out/share/darwin-bootstrap/hello-hashes.txt"
+
+        fail=0
+        if [ "$phase46_hash" != "$phase47_hash" ]; then
+          echo "GATE FAIL: phase46 ($phase46_hash) != phase47 strict ($phase47_hash)" >&2
+          fail=1
+        fi
+        if [ "$phase47_hash" != "$expected" ]; then
+          echo "GATE FAIL: hello hash ($phase47_hash) != pinned baseline ($expected)" >&2
+          echo "  If the chain inputs changed intentionally, update 'expected' in gnu-hello.nix." >&2
+          fail=1
+        fi
+        [ "$fail" = 0 ] || exit 1
       ''
     else
       null;

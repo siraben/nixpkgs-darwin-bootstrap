@@ -1,4 +1,4 @@
-## phase1-hex1 — seed-built Darwin Mach-O hex1.
+## hex1 — seed-built Darwin Mach-O hex1.
 ##
 ## Both the binary bytes AND the LINKEDIT-vmaddr padding now live in
 ## hex0/sources/hex1_AMD64_darwin.hex0.  The pure `derivation{}` builder
@@ -77,7 +77,7 @@ if hostPlatform.isx86_64 then
     passthru = { inherit hex1-raw; };
 
     meta = {
-      description = "Seed-built Darwin Mach-O phase-1 AMD64 hex1 (no clang in trust path)";
+      description = "Seed-built Darwin Mach-O phase-1 AMD64 hex1 (no stdenv in trust path)";
     };
   }
 else if hostPlatform.isAarch64 then

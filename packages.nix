@@ -181,7 +181,8 @@ let
     hex2                 = callPhase ./stage0-posix/hex2-linker.nix;
     kaem                 = callPhase ./stage0-posix/kaem.nix;
 
-    ## mescc-tools — Darwin Mach-O helpers (M0/M1 + macho patcher)
+    ## mescc-tools — seed-built Darwin Mach-O helpers (m1-to-hex2, hex2-data-relocs,
+    ## cc-arch-helper, macho-patcher, elf64-to-m1, m1-split, synth-inject)
     m1-to-hex2          = callPhase ./mescc-tools/m1-to-hex2.nix;
     hex2-data-relocs    = callPhase ./mescc-tools/hex2-data-relocs.nix;
     cc-arch-helper      = callPhase ./mescc-tools/cc-arch-helper.nix;
@@ -248,12 +249,14 @@ let
     gcc10-source    = callPhase ./gcc-10/source.nix;
     gcc10 = callPhase ./gcc-10;
 
-    ## gcc-latest — GCC 10 builds GCC 16 + strict re-bootstrap (phases 43, 46, 47)
+    ## gcc-latest — GCC 10 builds gcc_latest + strict re-bootstrap (phases 43, 46, 47)
     gcc-latest-source           = callPhase ./gcc-latest/source.nix;
     gcc-latest        = callPhase ./gcc-latest;
     gcc-latest-strict = callPhase ./gcc-latest/strict.nix;
 
-    ## cctools ar/ranlib chain-built from source via gcc-15 (downstream of gcc-15)
+    ## cctools ar/ranlib drivers chain-compiled from source via gcc-15; their
+    ## libstuff.a/libmacho.a support archives are still host-$CC compiled +
+    ## host-ar packed (known boundary, see README).
     cctools-ar = callPhase ./cctools/ar.nix;
   };
 

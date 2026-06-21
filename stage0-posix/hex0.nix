@@ -101,7 +101,7 @@ stdenv.mkDerivation {
   '';
 
   meta = {
-    description = "Darwin hex0 assembler (seed-built, no clang in trust path)";
+    description = "Darwin hex0 assembler (seed-built, no stdenv in trust path)";
     teams = [ lib.teams.minimal-bootstrap ];
     platforms = supportedSystems;
   };

@@ -8,7 +8,6 @@
   m2,
   m1-0,
   root,
-  source,
   stage0Sources,
   ...
 }:
