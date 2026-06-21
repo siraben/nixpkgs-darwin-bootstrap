@@ -10,6 +10,7 @@
   macho-patcher,
   m0,
   m1,
+  m1-split,
   runCommand,
   root,
   source,
@@ -63,22 +64,12 @@ runCommand "mescc-libc-mini-probe" { } ''
       cat "$file" >> libc-mini.data.M1
       continue
     fi
-    split_label='^:ELF_data$'
+    split_label=':ELF_data'
     if test "$(basename "$file")" = "exit.M1"; then
-      split_label='^:__call_at_exit$'
+      split_label=':__call_at_exit'
     fi
-    awk '
-      split_re != "" && $0 ~ split_re { data = 1; next }
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data != 1 { print }
-    ' split_re="$split_label" "$file" >> libc-mini.code.M1
-    awk '
-      split_re != "" && $0 ~ split_re { data = 1; print; next }
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data == 1 { print }
-    ' split_re="$split_label" "$file" >> libc-mini.data.M1
+    ${m1-split}/bin/m1-split --code --split-label "$split_label" < "$file" >> libc-mini.code.M1
+    ${m1-split}/bin/m1-split --data --split-label "$split_label" < "$file" >> libc-mini.data.M1
   done
   {
     cat libc-mini.code.M1
@@ -87,16 +78,8 @@ runCommand "mescc-libc-mini-probe" { } ''
     cat libc-mini.data.M1
   } > libc-mini.M1
 
-  awk '
-    /^:ELF_data$/ { data = 1; next }
-    /^:HEX2_data$/ { next }
-    data != 1 { print }
-  ' puts-smoke.M1 > puts-smoke.code.M1
-  awk '
-    /^:ELF_data$/ { data = 1; next }
-    /^:HEX2_data$/ { next }
-    data == 1 { print }
-  ' puts-smoke.M1 > puts-smoke.data.M1
+  ${m1-split}/bin/m1-split --code < puts-smoke.M1 > puts-smoke.code.M1
+  ${m1-split}/bin/m1-split --data < puts-smoke.M1 > puts-smoke.data.M1
   {
     cat libc-mini.code.M1
     cat puts-smoke.code.M1

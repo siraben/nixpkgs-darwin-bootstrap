@@ -6,6 +6,7 @@
   elf64-to-m1,
   m0,
   m1,
+  m1-split,
   root,
   runCommand,
   source,
@@ -36,19 +37,11 @@ runCommand "${phase}-tinycc-${boot}-link-candidate" { } ''
 
   cp ${root + "/tinycc/fixtures/self-link-candidate-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   emit_code() {
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data != 1 { print }
-    ' "$1"
+    ${m1-split}/bin/m1-split --code < "$1"
   }
 
   emit_data() {
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data == 1 { print }
-    ' "$1"
+    ${m1-split}/bin/m1-split --data < "$1"
   }
 
   {

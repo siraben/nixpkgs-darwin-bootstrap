@@ -7,6 +7,7 @@
   tinycc-self-link-candidate,
   tinycc-self-compile-probe,
   m1,
+  m1-split,
   runCommand,
   root,
   source,
@@ -30,18 +31,10 @@ runCommand "tinycc-self-compile-probe" { } ''
   cp ${root + "/tinycc/fixtures/self-compile-crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
   {
     cat crt1-tcc-sysv.M1
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data != 1 { print }
-    ' hello-object.M1
+    ${m1-split}/bin/m1-split --code < hello-object.M1
     echo ':ELF_data'
     echo ':HEX2_data'
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data == 1 { print }
-    ' hello-object.M1
+    ${m1-split}/bin/m1-split --data < hello-object.M1
   } > hello-combined.M1
 
   ${m1}/bin/M1 \

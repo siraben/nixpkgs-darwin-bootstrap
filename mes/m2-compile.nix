@@ -40,7 +40,7 @@ runCommand "mes-m2-probe" { } ''
     -e 's|lib/linux/uname.c|lib/darwin/uname.c|g' \
     -e 's|lib/linux/unlink.c|lib/darwin/unlink.c|g' \
     ${mes-source}/kaem.run \
-    | awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
+    | sed '/-o m2\/mes\.M1/{p;s/.*/exit 99/;q;}' \
     > mes-m2-only.sh
 
   set +e

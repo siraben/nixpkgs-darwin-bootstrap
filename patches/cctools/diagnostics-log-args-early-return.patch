@@ -1,0 +1,10 @@
+--- a/libstuff/diagnostics.c
++++ b/libstuff/diagnostics.c
+@@ -111,6 +111,7 @@
+ 
+ void diagnostics_log_args(int argc, char** argv)
+ {
++    if (diagnostics_state != 1) return;
+     char* buf;
+     size_t len;
+     FILE* stream;

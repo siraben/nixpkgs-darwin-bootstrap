@@ -9,6 +9,7 @@
   macho-patcher,
   m0,
   m1,
+  m1-split,
   runCommand,
   source,
   ...
@@ -20,16 +21,8 @@ runCommand "tinycc-mescc-link-probe" { } ''
     input="$1"
     code="$2"
     data="$3"
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data != 1 { print }
-    ' "$input" > "$code"
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data == 1 { print }
-    ' "$input" > "$data"
+    ${m1-split}/bin/m1-split --code < "$input" > "$code"
+    ${m1-split}/bin/m1-split --data < "$input" > "$data"
   }
 
   split_m1 ${mescc-libc-tcc-probe}/share/darwin-bootstrap/libc+tcc.M1 libc-tcc.code.M1 libc-tcc.data.M1

@@ -8,6 +8,7 @@
   mes-m2,
   mescc-libc-tcc-probe,
   m1,
+  m1-split,
   runCommand,
   root,
   source,
@@ -80,16 +81,11 @@ runCommand "mescc-libc-tcc-probe" { } ''
       *lib-mes-globals.M1)
         ;;
       *)
-        split_label='^:ELF_data$'
+        split_label=':ELF_data'
         if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
-          split_label='^:__call_at_exit$'
+          split_label=':__call_at_exit'
         fi
-        awk '
-          split_re != "" && $0 ~ split_re { data = 1; next }
-          /^:ELF_data$/ { data = 1; next }
-          /^:HEX2_data$/ { next }
-          data != 1 { print }
-        ' split_re="$split_label" "$object"
+        ${m1-split}/bin/m1-split --code --split-label "$split_label" < "$object"
         ;;
     esac
   done < logs/objects.list > logs/code.M1
@@ -104,16 +100,11 @@ runCommand "mescc-libc-tcc-probe" { } ''
           cat "$object"
           ;;
         *)
-          split_label='^:ELF_data$'
+          split_label=':ELF_data'
           if test "$(basename "$object")" = "lib-stdlib-exit.M1"; then
-            split_label='^:__call_at_exit$'
+            split_label=':__call_at_exit'
           fi
-          awk '
-            split_re != "" && $0 ~ split_re { data = 1; print; next }
-            /^:ELF_data$/ { data = 1; next }
-            /^:HEX2_data$/ { next }
-            data == 1 { print }
-          ' split_re="$split_label" "$object"
+          ${m1-split}/bin/m1-split --data --split-label "$split_label" < "$object"
           ;;
       esac
     done < logs/objects.list

@@ -1,6 +1,8 @@
 {
   cctools,
   gcc-latest-strict,
+  gnupatch,
+  root,
   runCommand,
   ...
 }:
@@ -147,11 +149,11 @@ BSDH
   ## diagnostics_log_args() runs open_memstream()/strdup() even when diagnostics
   ## are DISABLED (CC_LOG_DIAGNOSTICS unset, our case); that path has UB that
   ## crashes ranlib under gcc-15. Skip the work when disabled (early return).
-  awk '
-    /void diagnostics_log_args\(/ { f = 1 }
-    f && /^\{/ { print; print "    if (diagnostics_state != 1) return;"; f = 0; next }
-    { print }
-  ' "$src"/libstuff/diagnostics.c > diagnostics_patched.c
+  ## Committed patch applied by the chain-built gnupatch (no host awk).
+  cp "$src"/libstuff/diagnostics.c diagnostics_patched.c
+  ${gnupatch}/bin/patch -p1 --no-backup-if-mismatch \
+    diagnostics_patched.c \
+    < ${root + "/patches/cctools/diagnostics-log-args-early-return.patch"}
 
   ## libstuff.a + libmacho.a (host ar is a build tool here; the OUTPUT ar/ranlib
   ## are the chain-compiled artifacts).

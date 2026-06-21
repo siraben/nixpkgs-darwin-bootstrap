@@ -8,6 +8,7 @@
   mes-m2,
   mescc-libmescc-probe,
   m1,
+  m1-split,
   runCommand,
   ...
 }:
@@ -44,19 +45,11 @@ runCommand "mescc-libmescc-probe" { } ''
   compile_m1 ${mes-source}/lib/darwin/x86_64-mes-mescc/syscall-internal.c m1/syscall-internal.M1
 
   {
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data != 1 { print }
-    ' m1/syscall-internal.M1
+    ${m1-split}/bin/m1-split --code < m1/syscall-internal.M1
     echo ':ELF_data'
     echo ':HEX2_data'
     cat m1/globals.M1
-    awk '
-      /^:ELF_data$/ { data = 1; next }
-      /^:HEX2_data$/ { next }
-      data == 1 { print }
-    ' m1/syscall-internal.M1
+    ${m1-split}/bin/m1-split --data < m1/syscall-internal.M1
   } > libmescc.M1
 
   grep -q '^:__raise' libmescc.M1
