@@ -15,8 +15,8 @@ cf fa ed fe                                     ## 0x0000: MH_MAGIC_64
 07 00 00 01                                     ## 0x0004: CPU_TYPE_X86_64
 03 00 00 00                                     ## 0x0008: CPU_SUBTYPE_X86_64_ALL
 02 00 00 00                                     ## 0x000c: MH_EXECUTE
-07 00 00 00                                     ## 0x0010: seven load commands
-80 01 00 00                                     ## 0x0014: sizeofcmds = 0x180
+08 00 00 00                                     ## 0x0010: eight load commands (added empty LC_DYLD_INFO_ONLY)
+b0 01 00 00                                     ## 0x0014: sizeofcmds = 0x1b0 (0x180 + 0x30)
 85 00 00 00                                     ## 0x0018: MH_NOUNDEFS | MH_DYLDLINK | MH_TWOLEVEL
 00 00 00 00                                     ## 0x001c: reserved
 
@@ -94,10 +94,10 @@ cf fa ed fe                                     ## 0x0000: MH_MAGIC_64
 00 00 01 00                                     ## 0x017c: compatibility_version = 1.0.0
 2f 75 73 72 2f 6c 69 62 2f 6c 69 62 53 79 73 74 65 6d 2e 42 2e 64 79 6c 69 62 00 00 00 00 00 00 ## 0x0180: '/usr/lib/libSystem.B.dylib' plus padding
 
-## zero padding from load commands to entryoff 0x400
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01a0: padding byte; not executed
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01b0: padding byte; not executed (continued)
-00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01c0: padding byte; not executed (continued)
+## LC_DYLD_INFO_ONLY (empty), then zero padding to entryoff 0x400
+22 00 00 80 30 00 00 00 00 00 00 00 00 00 00 00 ## 0x01a0: LC_DYLD_INFO_ONLY cmd 0x80000022, cmdsize 0x30; rebase_off/size start (0)
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01b0: dyld-info offsets/sizes, all zero
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01c0: dyld-info offsets/sizes, all zero (end at 0x1cf); padding resumes
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01d0: padding byte; not executed (continued)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01e0: padding byte; not executed (continued)
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ## 0x01f0: padding byte; not executed (continued)

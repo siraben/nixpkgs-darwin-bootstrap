@@ -42,7 +42,7 @@ let
         ];
         outputHashMode = "recursive";
         outputHashAlgo = "sha256";
-        outputHash = "sha256-HPEKGGeQG+NhM+CL6HIOVSBnmb6oXbPEpOXo4ftqyGk=";
+        outputHash = "sha256-mhpjdYIVBewf7qpZf3cyrJm6wmv2TRNYJ+e7oQ0eIZ0=";
       }
     else if hostPlatform.isAarch64 then
       ## The aarch64 seed is 16 KB of Mach-O plus the mandatory ad-hoc
