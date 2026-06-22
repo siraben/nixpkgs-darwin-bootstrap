@@ -57,7 +57,7 @@ the tool it replaced):
 | `line-rewrite` | 44f | awk Mach-O load-command template rewriter |
 | `synth-inject` | 44g | awk cross-object `:<sym>_plus_<hex>` label injector |
 
-See [`REVIEW.md`](REVIEW.md) for the codex faithfulness audit and the full
+See [`REVIEW.md`](REVIEW.md) for the faithfulness audit and the full
 fix-status.
 
 ## Trust anchors

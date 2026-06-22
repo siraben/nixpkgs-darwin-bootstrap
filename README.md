@@ -11,7 +11,7 @@ The repo has **two parallel tracks**:
   Apple's `/bin/sh`, with no Nix and no prebuilt clang/gcc/as/ld for code
   translation, all the way to a working **gcc-10 `cc1` + `xgcc`** that compile
   and run C. See [`bake/README.md`](bake/README.md), [`bake/STATUS.md`](bake/STATUS.md),
-  and [`bake/REVIEW.md`](bake/REVIEW.md) (a codex faithfulness audit). Every host
+  and [`bake/REVIEW.md`](bake/REVIEW.md) (a faithfulness audit). Every host
   tool that did translation / symbol-resolution / binary-layout in the link path
   has been ported to chain-built C (`bake/sources/tools/*.c`, steps 44b–44g), so
   the gcc link path is host-awk-free.

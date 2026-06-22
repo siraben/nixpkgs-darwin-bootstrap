@@ -120,7 +120,7 @@ a chain-built C tool compiled by tcc-darwin-cc itself (steps 44b–44g): bake-ar
 (archiver), m1-split (code/data split), tsv-col (symbol-set), ctor-table (C++
 ctor table), line-rewrite (Mach-O load-command template), synth-inject
 (cross-object label injector); the layout `sed` and `cksum|awk` are gone too, and
-gcc-4.6 libgcc selection routes through tsv-col. See bake/REVIEW.md for the codex
+gcc-4.6 libgcc selection routes through tsv-col. See bake/REVIEW.md for the
 audit + round-2 verdict. Acknowledged remaining impurities (documented, not in
 the gcc-link translation path): pre-tcc Mes/stage0 M1-split awk in the early
 steps (21/25/26/27/31/33/35/36/38/40/42 — before the C compiler exists); the
