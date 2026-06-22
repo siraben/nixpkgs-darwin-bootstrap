@@ -14,10 +14,17 @@
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: import nixpkgs { inherit system; };
+      ## The trusted chain is x86_64-darwin/amd64 and runs under Rosetta 2 on
+      ## Apple Silicon; there is no native aarch64 chain yet.  Map
+      ## aarch64-darwin to the x86_64-darwin package set so `.#default` and
+      ## every `.#packages.aarch64-darwin.*` attr builds the real chain under
+      ## Rosetta instead of evaluating x86_64-only phases as null.  Building on
+      ## Apple Silicon needs `extra-platforms = x86_64-darwin` in nix.conf.
+      chainSystem = system: if system == "aarch64-darwin" then "x86_64-darwin" else system;
       bootstrapFor =
         system:
         let
-          pkgs = pkgsFor system;
+          pkgs = pkgsFor (chainSystem system);
         in
         pkgs.callPackage ./packages.nix { };
     in
