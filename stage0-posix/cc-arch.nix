@@ -1,47 +1,25 @@
-## cc-arch — seed-built Darwin Mach-O cc_arch.
+## cc-arch — Darwin Mach-O cc_arch, built live from source.
 ##
-## The old chain ran: catm(MACHO_template, cc_arch-0.hex2) → hex2 →
-## macho-patcher m2-segments (in-place segment vmsize fixup) → dd pad →
-## codesign.  None of those steps can be expressed as a single
-## `derivation { builder = ...; args = [...]; }` because macho-patcher
-## modifies its target in place.
+## catm prepends the committed MACHO header template (shipped in m0's share)
+## to the committed cc_arch body (M2libc/amd64/cc_arch-0-darwin.hex2), the
+## seed-built hex2 assembles it, macho-patcher-early applies the m2-segments
+## vmsize fixup in place, then dd pads to the LINKEDIT offset.  Runs unsigned
+## in the Nix sandbox on x86_64.  All translation is done by chain-built
+## tools (catm, hex2, macho-patcher-early); stdenv only orchestrates.  No
+## committed binary dump.
 ##
-## Instead: capture the entire post-patch, pre-sign binary bytes and
-## dump them as a single .hex0 source (`hex0/sources/cc-arch/
-## cc_arch_AMD64_darwin_final.hex0`, ~80 MB ASCII).  hex0-raw acts as
-## the builder; output is byte-identical to what the old chain produced
-## pre-signing.  Verified empirically.
-##
-## Source regenerator (when M2libc/amd64/cc_arch-0-darwin.hex2 or the
-## MACHO template changes): scripts/stage0/regen-cc-arch-seed.sh runs
-## the original stdenv chain end-to-end, strips the codesign trailer
-## (truncate to 0x2800000), and rewrites the .hex0 source.
+## The cc_arch body is regenerated from upstream stage0Sources by the
+## maintainer via scripts/stage0/regen-cc-arch-seed.sh; build-time has no
+## awk/perl/python.
 {
-  hex0,
-  hostPlatform,
   mkDarwin,
+  catm,
+  hex2-0,
+  m0,
+  macho-patcher-early,
   root,
   ...
 }:
-
-let
-  cc-arch-raw =
-    if hostPlatform.isx86_64 then
-      derivation {
-        name = "cc-arch-raw";
-        system = "x86_64-darwin";
-        builder = hex0.hex0-raw;
-        args = [
-          (root + "/hex0/sources/cc-arch/cc_arch_AMD64_darwin_final.hex0")
-          (placeholder "out")
-        ];
-        outputHashMode = "recursive";
-        outputHashAlgo = "sha256";
-        outputHash = "sha256-LSQy3yN3OB2xHiVsGXjp5Blzr1C1C6/Gkhazw3KD3UA=";
-      }
-    else
-      null;
-in
 
 mkDarwin {
   pname = "cc-arch";
@@ -49,21 +27,32 @@ mkDarwin {
 
   buildPhase = ''
     runHook preBuild
-    install -m755 ${cc-arch-raw} cc_arch-darwin
+
+    cp ${root + "/M2libc/amd64/cc_arch-0-darwin.hex2"} cc_arch-0.hex2
+
+    ${catm}/bin/catm-darwin cc_arch.hex2 \
+      ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+      cc_arch-0.hex2
+    ${hex2-0}/bin/hex2-darwin cc_arch.hex2 cc_arch-darwin
+    ${macho-patcher-early}/bin/macho-patcher m2-segments \
+      cc_arch-0.hex2 cc_arch-darwin
+
+    ## linkedit offset = text_size + data_size = 0x800000 + 0x2000000 = 0x2800000.
+    dd if=/dev/zero of=cc_arch-darwin bs=1 count=1 seek="$((0x2800000 - 1))" conv=notrunc
+    chmod +x cc_arch-darwin
+
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
     install -Dm755 cc_arch-darwin $out/bin/cc_arch-darwin
-    install -Dm644 ${root + "/hex0/sources/cc-arch/cc_arch_AMD64_darwin_final.hex0"} \
-      $out/share/darwin-bootstrap/cc_arch_AMD64_darwin_final.hex0
+    install -Dm644 cc_arch.hex2 $out/share/darwin-bootstrap/cc_arch.hex2
+    install -Dm644 cc_arch-0.hex2 $out/share/darwin-bootstrap/cc_arch-0.hex2
     runHook postInstall
   '';
 
-  passthru = { inherit cc-arch-raw; };
-
   meta = {
-    description = "Seed-built Darwin Mach-O phase-4 AMD64 cc_arch (no stdenv in trust path)";
+    description = "Darwin Mach-O cc_arch, built from committed body via catm + chain hex2 + macho-patcher-early";
   };
 }

@@ -1,11 +1,10 @@
-## hex1 — seed-built Darwin Mach-O hex1.
+## hex1 — Darwin Mach-O hex1, assembled live from source.
 ##
-## Both the binary bytes AND the LINKEDIT-vmaddr padding now live in
-## hex0/sources/hex1_AMD64_darwin.hex0.  The pure `derivation{}` builder
-## is hex0 itself; output runs unsigned in the Nix sandbox on x86_64
-## (verified empirically).  A small stdenv wrapper installs the binary
-## at the conventional $out/bin layout for downstream phases that haven't
-## been migrated yet.
+## hex0/sources/hex1_AMD64_darwin.hex0 is the genuine hand-documented hex0
+## source for hex1 (Mach-O header + hex1 machine code + the Darwin EINTR
+## retry stub) — no committed binary/padding blob.  The hex0 seed assembles
+## it and dd pads to the LINKEDIT vmaddr (0x1000000) at build time.  Output
+## runs unsigned in the Nix sandbox on x86_64 (verified empirically).
 {
   darwin,
   hex0,
@@ -16,26 +15,6 @@
   ...
 }:
 
-let
-  ## --- pure seed-built hex1 (no stdenv) ---
-  hex1-raw =
-    if hostPlatform.isx86_64 then
-      derivation {
-        name = "hex1-raw";
-        system = "x86_64-darwin";
-        builder = hex0.hex0-raw;
-        args = [
-          (root + "/hex0/sources/hex1_AMD64_darwin.hex0")
-          (placeholder "out")
-        ];
-        outputHashMode = "recursive";
-        outputHashAlgo = "sha256";
-        outputHash = "sha256-R3UV/XFmb2Q7WE4nSLgHP7LE98pNPL2VPaUIxvirNmw=";
-      }
-    else
-      null;
-in
-
 if hostPlatform.isx86_64 then
   mkDarwin {
     pname = "hex1";
@@ -43,7 +22,12 @@ if hostPlatform.isx86_64 then
 
     buildPhase = ''
       runHook preBuild
-      install -m755 ${hex1-raw} hex1-darwin
+      ## Assemble hex1 from its committed hex0 source (genuine machine-code
+      ## source, no padding blob), then pad to file size 0x1000000 (the
+      ## LINKEDIT vmaddr).  Runs unsigned in the Nix sandbox on x86_64.
+      ${hex0}/bin/hex0 ${root + "/hex0/sources/hex1_AMD64_darwin.hex0"} hex1-darwin
+      dd if=/dev/zero of=hex1-darwin bs=1 count=1 seek="$((0x1000000 - 1))" conv=notrunc
+      chmod +x hex1-darwin
       runHook postBuild
     '';
 
@@ -74,10 +58,8 @@ if hostPlatform.isx86_64 then
       runHook postInstall
     '';
 
-    passthru = { inherit hex1-raw; };
-
     meta = {
-      description = "Seed-built Darwin Mach-O phase-1 AMD64 hex1 (no stdenv in trust path)";
+      description = "Darwin Mach-O hex1, assembled from committed hex0 source via the hex0 seed";
     };
   }
 else if hostPlatform.isAarch64 then

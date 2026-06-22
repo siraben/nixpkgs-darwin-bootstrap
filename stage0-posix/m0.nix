@@ -1,36 +1,22 @@
-## m0 — seed-built Darwin Mach-O M0 assembler.
+## m0 — Darwin Mach-O M0 macro assembler, built live from source.
 ##
-## Built by feeding the pre-concatenated, pre-padded hex2 source
-## (`hex0/sources/m0/M0_AMD64_darwin_combined.hex2`) directly to the
-## seed-built hex2 binary used as `derivation.builder`.  No catm, no
-## dd, no codesign: padding and concatenation are baked into the
-## source.
+## catm prepends the committed Mach-O header template
+## (tools/templates/MACHO-amd64-lowdata.hex2) to the committed M0 body
+## (M2libc/amd64/M0_AMD64_darwin_body.hex2), the seed-built hex2 assembles
+## it, then dd pads to the LINKEDIT offset.  Runs unsigned in the Nix
+## sandbox on x86_64 (verified empirically).  All translation is done by
+## chain-built tools (catm, hex2); stdenv only orchestrates (cp/dd/install).
+## No committed binary dump.
+##
+## The M0 body is regenerated from upstream stage0Sources by the maintainer
+## via scripts/stage0/regen-preported.sh; build-time has no awk/perl/python.
 {
-  hostPlatform,
   mkDarwin,
+  catm,
   hex2-0,
   root,
   ...
 }:
-
-let
-  m0-raw =
-    if hostPlatform.isx86_64 then
-      derivation {
-        name = "m0-raw";
-        system = "x86_64-darwin";
-        builder = hex2-0.hex2-raw;
-        args = [
-          (root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2")
-          (placeholder "out")
-        ];
-        outputHashMode = "recursive";
-        outputHashAlgo = "sha256";
-        outputHash = "sha256-RmNIZjcPcq0JYXP6htCFmNQUGuJanG+vX3F6xoSOUAY=";
-      }
-    else
-      null;
-in
 
 mkDarwin {
   pname = "m0";
@@ -38,7 +24,19 @@ mkDarwin {
 
   buildPhase = ''
     runHook preBuild
-    install -m755 ${m0-raw} M0-darwin
+
+    cp ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} MACHO-amd64-lowdata.hex2
+    cp ${root + "/M2libc/amd64/M0_AMD64_darwin_body.hex2"} M0_AMD64_darwin_body.hex2
+
+    ${catm}/bin/catm-darwin M0-darwin.hex2 \
+      MACHO-amd64-lowdata.hex2 \
+      M0_AMD64_darwin_body.hex2
+    ${hex2-0}/bin/hex2-darwin M0-darwin.hex2 M0-darwin
+
+    ## linkedit offset = text_size + data_size = 0x800000 + 0x2000000 = 0x2800000.
+    dd if=/dev/zero of=M0-darwin bs=1 count=1 seek="$((0x2800000 - 1))" conv=notrunc
+    chmod +x M0-darwin
+
     runHook postBuild
   '';
 
@@ -55,19 +53,17 @@ mkDarwin {
   installPhase = ''
     runHook preInstall
     install -Dm755 M0-darwin $out/bin/M0-darwin
-    install -Dm644 ${root + "/hex0/sources/m0/M0_AMD64_darwin_combined.hex2"} \
-      $out/share/darwin-bootstrap/M0_AMD64_darwin_combined.hex2
-    ## Downstream phases (cc-arch, blood-elf-macho, M1, hex2-1, M2) read
-    ## the MACHO template from $out/share to catm in front of their .hex2
+    install -Dm644 M0-darwin.hex2 $out/share/darwin-bootstrap/M0-darwin.hex2
+    install -Dm644 M0_AMD64_darwin_body.hex2 $out/share/darwin-bootstrap/M0_AMD64_darwin_body.hex2
+    ## Downstream phases (cc-arch, blood-elf-macho, M1, hex2-1, M2, tinycc/*)
+    ## read the MACHO template from $out/share to catm in front of their .hex2
     ## bodies, so keep it shipped here.
-    install -Dm644 ${root + "/tools/templates/MACHO-amd64-lowdata.hex2"} \
+    install -Dm644 MACHO-amd64-lowdata.hex2 \
       $out/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
     runHook postInstall
   '';
 
-  passthru = { inherit m0-raw; };
-
   meta = {
-    description = "Seed-built Darwin Mach-O phase-3 AMD64 M0 (no stdenv in trust path)";
+    description = "Darwin Mach-O M0 assembler, built from committed M0 body via catm + chain hex2";
   };
 }
