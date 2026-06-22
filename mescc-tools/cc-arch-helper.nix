@@ -1,63 +1,74 @@
-## cc-arch-helper — seed-built Darwin Mach-O phase-4 cc-arch port+patch helper.
-##
-## The old chain ran M2-Planet (bootstrap/phase4-amd64-cc-arch.c) -> M1 -> hex2
-## (MACHO-amd64-lowdata.hex2 template, base 0x600000) -> macho-patcher
-## m2-segments -> dd pad to 0x2800000 -> ad-hoc codesign.  The helper is
-## signed, so the final binary exceeds 0x2800000 by its codesign trailer.
-## Capture the full signed binary as a single .hex0 source and let hex0-raw
-## re-emit it: byte-identical output, no stdenv in the trust path.  The binary
-## is installed under its historical name phase4-cc-arch-helper.
-##
-## Source regenerator (when bootstrap/phase4-amd64-cc-arch.c or the MACHO
-## template changes): scripts/stage0/regen-cc-arch-helper-seed.sh.
 {
-  hex0,
-  hostPlatform,
+  darwin,
   mkDarwin,
+  hex2,
+  cc-arch-helper,
+  macho-patcher,
+  m0,
+  m2,
+  m1,
   root,
+  source,
+  stage0Sources,
   ...
 }:
-
-let
-  cc-arch-helper-raw =
-    if hostPlatform.isx86_64 then
-      derivation {
-        name = "cc-arch-helper-raw";
-        system = "x86_64-darwin";
-        builder = hex0.hex0-raw;
-        args = [
-          (root + "/hex0/sources/cc-arch-helper/cc-arch-helper_AMD64_darwin_final.hex0")
-          (placeholder "out")
-        ];
-        outputHashMode = "recursive";
-        outputHashAlgo = "sha256";
-        outputHash = "sha256-XFdOfST+oUfFwSo9i4mb30D85zAFQH/t1tMs0kO4qgo=";
-      }
-    else
-      null;
-in
-
 mkDarwin {
   pname = "cc-arch-helper";
-  version = "0-unstable-2026-06-20";
-
   buildPhase = ''
     runHook preBuild
-    install -m755 ${cc-arch-helper-raw} phase4-cc-arch-helper
+
+    ${m2}/bin/M2-darwin \
+      --architecture amd64 \
+      -f ${stage0Sources}/M2libc/sys/types.h \
+      -f ${stage0Sources}/M2libc/stddef.h \
+      -f ${stage0Sources}/M2libc/sys/utsname.h \
+      -f ${root + "/M2libc/amd64/Darwin/unistd.c"} \
+      -f ${root + "/M2libc/amd64/Darwin/fcntl.c"} \
+      -f ${stage0Sources}/M2libc/fcntl.c \
+      -f ${stage0Sources}/M2libc/ctype.c \
+      -f ${stage0Sources}/M2libc/stdlib.c \
+      -f ${stage0Sources}/M2libc/string.c \
+      -f ${stage0Sources}/M2libc/stdarg.h \
+      -f ${stage0Sources}/M2libc/stdio.h \
+      -f ${stage0Sources}/M2libc/stdio.c \
+      -f ${stage0Sources}/M2libc/bootstrappable.c \
+      -f ${root + "/bootstrap/phase4-amd64-cc-arch.c"} \
+      -o phase4-cc-arch-helper.M1
+
+    ${m1}/bin/M1 \
+      --architecture amd64 \
+      --little-endian \
+      -f ${root + "/M2libc/amd64/amd64_defs.M1"} \
+      -f ${root + "/M2libc/amd64/libc-full-Darwin.M1"} \
+      -f phase4-cc-arch-helper.M1 \
+      -o phase4-cc-arch-helper.hex2
+
+    ${hex2}/bin/hex2 \
+      --architecture amd64 \
+      --little-endian \
+      --base-address 0x600000 \
+      -f ${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2 \
+      -f phase4-cc-arch-helper.hex2 \
+      -o phase4-cc-arch-helper
+    ${macho-patcher}/bin/macho-patcher m2-segments phase4-cc-arch-helper.hex2 phase4-cc-arch-helper
+
+    linkeditOffset="$((0x800000 + 0x2000000))"
+    dd if=/dev/zero of=phase4-cc-arch-helper bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc
+    chmod +x phase4-cc-arch-helper
+
+    source ${darwin.signingUtils}
+    sign phase4-cc-arch-helper
+
     runHook postBuild
   '';
 
   installPhase = ''
     runHook preInstall
     install -Dm755 phase4-cc-arch-helper $out/bin/phase4-cc-arch-helper
-    install -Dm644 ${root + "/hex0/sources/cc-arch-helper/cc-arch-helper_AMD64_darwin_final.hex0"} \
-      $out/share/darwin-bootstrap/cc-arch-helper_AMD64_darwin_final.hex0
     runHook postInstall
   '';
 
-  passthru = { inherit cc-arch-helper-raw; };
-
   meta = {
-    description = "Seed-built Darwin Mach-O phase-4 cc-arch port+patch helper (no stdenv in trust path)";
+    description = "Stage0-faithful Darwin Mach-O phase-4 cc-arch port+patch helper (M2-Planet C build)";
   };
 }
