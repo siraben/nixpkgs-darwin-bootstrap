@@ -55,6 +55,14 @@ done
 ## executable stubs with a far-future mtime so make sees them up to date versus
 ## their freshly-compiled .o and skips the link entirely.  These tools are never
 ## executed on the cc1/xgcc goal path.
+##
+## On a clean from-seed build the gcc/ build subdir does not exist yet (the
+## top-level configure only writes build/Makefile; make creates+configures
+## gcc/ during all-gcc), so create it first — otherwise the stub redirect
+## fails with "gcc/gcov: No such file or directory".  make's configure-gcc
+## still runs (it keys off gcc/config.status, which we don't create) and
+## leaves these future-mtime stubs in place.
+mkdir -p "$GCC10_BUILD/gcc"
 for g in gcov gcov-dump gcov-tool; do
   printf '#!/bin/sh\nexit 0\n' > "$GCC10_BUILD/gcc/$g"
   chmod +x "$GCC10_BUILD/gcc/$g"

@@ -46,7 +46,9 @@ patch_replace src/main.c '  if (getcwd (current_directory, GET_PATH_MAX) == 0)' 
 patch_replace src/main.c '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
 patch_replace src/main.c "  /* Set up 'MAKEFLAGS' again for the normal targets.  */" "skip_bootstrap_remake_makefiles: /* Set up 'MAKEFLAGS' again for the normal targets.  */"
 
-/bin/bash "$ROOT/scripts/phase39-patch-job.sh"
+## fork/exec child_execute_job: the minimal Mach-O libc has no posix_spawn.
+## Apply the committed patch (same one the Nix gnumake/default.nix uses).
+/usr/bin/patch -p1 < "$SOURCES/gnumake/gnumake-4.4.1-job-fork-exec.patch"
 
 patch_replace src/misc.c "if (*mktemp (path) == '\0')" 'if (!strcmp (mktemp (path), ""))'
 patch_replace src/misc.c 'else if (! S_ISDIR (st.st_mode))' 'else if (0 && ! S_ISDIR (st.st_mode))'

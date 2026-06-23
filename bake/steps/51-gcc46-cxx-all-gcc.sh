@@ -27,7 +27,9 @@ chmod -R u+w src
     's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = '"$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap"'|' \
     src/gcc/Makefile.in
 
-/bin/bash "$SOURCES/gcc46-scripts/phase35-prepare-source.sh"
+GNUPATCH=/usr/bin/patch \
+PREPARE_SOURCE_PATCH="$SOURCES/gcc46-patches/gcc46-prepare-source.patch" \
+  /bin/bash "$SOURCES/gcc46-scripts/phase35-prepare-source.sh"
 
 CC="$TARGET/bin/tcc-darwin-cc"
 CPP="$CC -E"
