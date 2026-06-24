@@ -197,6 +197,30 @@ skipped as intended.
 
 ---
 
+## 8. ✅ bake step 55 wedges forever on gmp's "nested variables" configure probe
+
+**Symptom:** after the gcov fix (#7), step 55's `make all-gcc` reaches the
+in-tree gmp sub-configure and hangs indefinitely at `checking whether make
+supports nested variables...` — load drops to ~0, no progress.  `lsof` shows
+the inner chain-make blocked with **stdin = an open PIPE**.
+
+**Root cause:** automake's nested-variables probe runs `make -f -`, feeding a
+tiny makefile through a here-doc pipe.  The chain-built GNU make spools `-f -`
+stdin to a temp file and blocks waiting for an EOF that never arrives on that
+pipe.  build.sh already redirects each step's stdin from `/dev/null`, but the
+gmp configure creates its *own* pipe for this probe, so that mitigation doesn't
+reach it.  A warm tree skips the probe via a cached `config.cache`; a clean
+from-seed build hits it every time (same warm-tree-only blind spot as #7).
+
+**Fix applied:** pre-set `am_cv_make_support_nested_variables=yes` in
+`bake/sources/gcc10-darwin/config.site` (already used to pre-answer the depmode
+probe), so every subdir configure skips the wedging `make -f -` check.  The
+chain make is GNU make 4.4.1, which does support nested variables, so the
+forced answer is correct.  Verified: the probe now prints `(cached) yes` and
+gmp configure proceeds.
+
+---
+
 ## Cross-cutting note
 
 The `nixpkgs-unstable` lock warns: *"Nixpkgs 26.05 will be the last release to
