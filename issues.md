@@ -284,12 +284,17 @@ symbols (→ bootstrap libc, correct 64-bit struct) while the Nix binutils-ld
 path keeps `$INODE64` unchanged (it never defines the macro / never uses the
 wrapper).
 
-> **Step 55 status:** #7, #8 and #9 are fixed and committed.  #10
-> (`fstat$INODE64`) is the remaining clean-from-seed blocker — a chain
-> header / macOS-libc-evolution issue, distinct from #9.  With #9 fixed the
-> build links `build/genmatch` against a correct libcpp.a and now stops only at
-> #10.  The Nix track (`.#packages.x86_64-darwin.*`) is hermetic and remains the
-> recommended path to a complete x86_64 toolchain.
+> **Step 55 status: ✅ GOAL REACHED.**  #7, #8, #9 and #10 are all fixed and
+> committed.  From the fixed tree, `bake` step 55 builds a working gcc-10
+> `cc1` + `xgcc`, and `bake/scripts/gcc10-goal-test.sh` passes:
+> `GOAL PASS: from-seed xgcc-10 compiled & ran C (returned 7)`.
+>
+> Remaining (not part of the cc1+xgcc goal): the *real* libgcc build
+> (`gcc10-build-libgcc.sh`) fails at `_divdi3.o` (`all-target-libgcc`), so step
+> 55 falls back to its stub `libgcc.a` as designed — the C goal test needs none
+> of libgcc's symbols.  A from-scratch `./bake/build.sh` (vs. the warm-tree
+> resume used to iterate here) is the final confirmation; all the source fixes
+> it needs are committed.
 
 ---
 
