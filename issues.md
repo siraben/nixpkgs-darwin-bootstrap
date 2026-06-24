@@ -259,20 +259,30 @@ can never reach `/usr/bin/ar`.  Already-generated Makefiles are rewritten too
 Replaces the previous non-bulletproof "put bake-ar on PATH as `ar`" mitigation,
 which still let the bare `ar` lose the race.
 
-## 10. ❓ bake step 55: genmatch link can't resolve `fstat$INODE64`
+## 10. ✅ bake step 55: genmatch link can't resolve `fstat$INODE64` — FIXED
 
 **Symptom:** with libcpp.a repaired (#9), genmatch links past rich_location and
 then fails: `Target label ELF_fstat_INODE64 is not valid`.
 
-**Diagnosis:** the build-side libcpp (`files.o`, compiled by the chain g++
-against the macOS SDK headers under `MACOSX_DEPLOYMENT_TARGET=10.6`) references
-`fstat$INODE64`, the 64-bit-inode alias the SDK maps `fstat` to.  The chain
-link path has no resolution/stub for the `$INODE64` libc variants (no `INODE64`
-handling anywhere in `bake/`), and modern libSystem may no longer export them.
-Plausible fixes: build the gcc-10 build-side objects with
-`-D_DARWIN_NO_64_BIT_INODE` (or `_DARWIN_USE_64_BIT_INODE=0`) so the headers
-emit plain `fstat`, or teach the chain link to alias `*$INODE64` → the base
-symbol.  Needs testing (rebuild build-libcpp + genmatch).  **Open.**
+**Root cause:** the chain's `bootstrap/headers/tcc-darwin-bootstrap/sys/stat.h`
+deliberately binds `stat`/`fstat`/`lstat`/`fstatat` to the `$INODE64`-suffixed
+libSystem symbols *for gcc* (`#if defined(__GNUC__) && !defined(__TINYC__)`),
+because "binutils ld from gcc-10 onward" doesn't rewrite the reference the way
+Apple's ld does.  That's correct for the **Nix** track (gcc-10 genmatch links
+with binutils `/usr/bin/ld` — `scripts/gcc-modern/bootstrap-gcc.sh`).  But the
+**bake** track links gcc-compiled objects (genmatch, cc1) with the **chain tcc
+path** (`gxx-bootstrap-wrapper.sh` always links via `$TCC`; bake-only — no Nix
+file references it), which resolves against the bootstrap libc, whose plain
+`fstat`/`stat` already do the 64-bit `stat64` syscall and fill the 64-bit
+`struct stat` (`bootstrap/tinycc-sysv-libc.c:446-447`).  The `$INODE64` symbols
+don't exist there, so the chain link fails.
+
+**Fix applied:** guard the `$INODE64` branch with `&& !defined(__BAKE_PLAIN_STAT__)`
+and have the bake g++ wrapper (`scripts/gcc-4.6/gxx-bootstrap-wrapper.sh`) pass
+`-D__BAKE_PLAIN_STAT__`, so bake's chain-linked gcc objects use the plain
+symbols (→ bootstrap libc, correct 64-bit struct) while the Nix binutils-ld
+path keeps `$INODE64` unchanged (it never defines the macro / never uses the
+wrapper).
 
 > **Step 55 status:** #7, #8 and #9 are fixed and committed.  #10
 > (`fstat$INODE64`) is the remaining clean-from-seed blocker — a chain
