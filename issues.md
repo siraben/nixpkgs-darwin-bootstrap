@@ -221,7 +221,7 @@ gmp configure proceeds.
 
 ---
 
-## 9. ❓ bake step 55: build-side libcpp.a intermittently emptied (genmatch link fails)
+## 9. ✅ bake step 55: build-side libcpp.a emptied by Apple's `ar` (genmatch link) — ROOT-CAUSED + FIXED
 
 **Symptom:** with #7/#8 fixed, step 55 reaches `build/genmatch` and the chain
 link fails: `Target label _ZNK13rich_location7get_locEj is not valid`
@@ -230,17 +230,34 @@ link fails: `Target label _ZNK13rich_location7get_locEj is not valid`
 Apple `__.SYMDEF`-only, member-less archive — while the host
 `build/libcpp/libcpp.a` (865 KB) and the build `libiberty.a` (629 KB) are fine.
 
-**Diagnosis (not yet root-caused):** bake-ar (`sources/tools/bake-ar.c`) never
-writes `__.SYMDEF`, so Apple's `ranlib` emptied it (it "chokes on the ELF
-members and rewrites the archive, dropping them" — exactly what
-`bake/scripts/bake-ranlib`'s own comment warns of).  But every Makefile
-(`build-x86_64-.../libcpp/Makefile`, gcc/Makefile) has `RANLIB =
-.../bake-ranlib` (no-op) and `AR = ar`→bake-ar; the build log shows only
-`bake-ar cru` + `bake-ranlib`.  Re-running the exact archive command by hand
-produces a correct 865 KB archive every time, so it's a heisenbug (transient /
-load-related / Rosetta).  Manually rebuilding libcpp.a lets genmatch link.
-**Open:** find what runs Apple `ranlib` (or otherwise empties it) on a clean
-from-seed build, or have bake-ranlib defensively rebuild a dropped archive.
+**Root cause (traced all the way):**
+- The 96-byte `__.SYMDEF` archive is *exactly* what Apple's `/usr/bin/ar`
+  emits when handed ELF objects — it warns `archive member 'charset.o' not a
+  mach-o file` and drops them all (verified directly).  bake-ar never writes
+  `__.SYMDEF`, so Apple's `ar` produced it.
+- But no Makefile configures Apple's tools: every `AR`/`RANLIB`/`*_FOR_BUILD`
+  in the build tree points at `bake/scripts/bake-{ar,ranlib}`.  The culprit is
+  that gcc's **`libcpp/Makefile.in` (and `intl`, `libdecnumber`) hardcode a
+  LITERAL `AR = ar`** — a bare tool name, *not* `@AR@` — so configure, the
+  exported `AR`, and `config.site` are all ignored; the archive rule always
+  runs a bare `ar`, resolved via `PATH`.
+- `PATH` is `target/bin:/usr/bin:/bin` (chain `ar`→bake-ar first), so the bare
+  `ar` *usually* hits bake-ar.  But on the **first full `make all-gcc`** the
+  build-side (`build-x86_64-apple-darwin`) recursion intermittently loses that
+  race and resolves `ar` to `/usr/bin/ar` → empty archive.  `build/genmatch`
+  is the only generator that links the build-side libcpp.a, so it alone fails.
+- Confirmed via a logging chokepoint on the bake-ar binary: on warm/incremental
+  rebuilds both libcpp.a always build via bake-ar → 865 KB (heisenbug dodged),
+  which is why hand-rebuilding the archive always "worked".
+
+**Fix applied:** step 55 now rewrites the literal `AR = ar` in the **source
+templates** (`$GCC10_SRC/{libcpp,intl,libdecnumber}/Makefile.in`) to the
+absolute chain ar (`$TARGET/bin/bake-ar`) *before* configure runs, so every
+generated Makefile (host AND build-side) gets a PATH-independent archiver that
+can never reach `/usr/bin/ar`.  Already-generated Makefiles are rewritten too
+(warm trees), and the `ar`/`ranlib` PATH symlinks stay as belt-and-suspenders.
+Replaces the previous non-bulletproof "put bake-ar on PATH as `ar`" mitigation,
+which still let the bare `ar` lose the race.
 
 ## 10. ❓ bake step 55: genmatch link can't resolve `fstat$INODE64`
 
@@ -257,11 +274,12 @@ Plausible fixes: build the gcc-10 build-side objects with
 emit plain `fstat`, or teach the chain link to alias `*$INODE64` → the base
 symbol.  Needs testing (rebuild build-libcpp + genmatch).  **Open.**
 
-> **Step 55 status:** #7 and #8 are fixed and committed.  #9 and #10 are clean
-> from-seed blockers that the upstream "warm tree" never hit (it carries
-> pre-built archives + hand-placed stubs).  Finishing the from-seed gcc-10 is a
-> larger maintainer-level effort.  The Nix track (`.#packages.x86_64-darwin.*`)
-> is hermetic and is the recommended path to a complete x86_64 toolchain.
+> **Step 55 status:** #7, #8 and #9 are fixed and committed.  #10
+> (`fstat$INODE64`) is the remaining clean-from-seed blocker — a chain
+> header / macOS-libc-evolution issue, distinct from #9.  With #9 fixed the
+> build links `build/genmatch` against a correct libcpp.a and now stops only at
+> #10.  The Nix track (`.#packages.x86_64-darwin.*`) is hermetic and remains the
+> recommended path to a complete x86_64 toolchain.
 
 ---
 

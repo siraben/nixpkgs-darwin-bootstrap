@@ -22,27 +22,35 @@ test -f "$GCC10_BUILD/Makefile" || { echo "55: not configured (run step 54)" >&2
 find "$GCC10_SRC"   -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
 find "$GCC10_BUILD" -print0 | xargs -0 touch -t 202701010000 2>/dev/null || true
 
-## The build-side libcpp Makefile hardcodes literal `AR = ar` (resolved via PATH
-## at build time), and Apple's /usr/bin/ar silently makes an empty __.SYMDEF-only
-## archive from our ELF objects -> genmatch fails to link ("Target label
-## _ZNK13rich_location7get_locEj is not valid").  An AR_FOR_BUILD env override
-## doesn't reach it (a Makefile assignment beats the environment), and a sed on
-## the generated Makefile is racy: build-*/libcpp/Makefile is created DURING this
-## make, after the loop below has already run.  The robust fix: put bake-ar on
-## PATH as `ar`, so the Makefile's literal `ar` resolves to it.  (build-libiberty
-## is unaffected — it uses the passed $(AR).)
-## Symlink `ar` to the self-contained chain-built bake-ar BINARY (not the
-## scripts/bake-ar shim): gcc-10's build-side libcpp sub-make invokes `ar`
-## without TARGET in its environment, and the shim's TARGET fallback
-## (`$dir/../target`) is wrong for a scratch TARGET, so it would silently
-## produce an EMPTY libcpp.a and genmatch would fail to link
-## (`Target label _ZNK13rich_location7get_locEj is not valid`).  The binary
-## needs no env.  bake-ranlib is a pure no-op shim, so it is fine as-is.
+## Force the chain `ar` everywhere the gcc-10 build archives a static lib.
+##
+## gcc's libcpp / intl / libdecnumber Makefile.in templates hardcode a LITERAL
+## `AR = ar` (a bare tool name, NOT @AR@), so configure / the exported AR /
+## config.site cannot change it — the archive rule always runs a bare `ar`,
+## resolved via PATH at build time.  On the first full `make all-gcc` the
+## build-side (build-x86_64-apple-darwin) recursion can lose the PATH race and
+## resolve `ar` to Apple's /usr/bin/ar, which refuses our ELF members
+## ("not a mach-o file") and writes an empty 96-byte __.SYMDEF archive.
+## build/genmatch — the one generator linking the build-side libcpp.a — then
+## fails to link ("Target label _ZNK13rich_location7get_locEj is not valid").
+## It's a heisenbug: it only bites when the bare `ar` loses the race, so warm /
+## incremental rebuilds (Makefiles already generated) usually dodge it.
+##
+## Robust, PATH-independent fix: rewrite the literal `AR = ar` in the SOURCE
+## templates to the absolute chain ar before configure runs, so every Makefile
+## configure generates (host AND build-side) gets an unambiguous archiver.
+## Keep `ar`/`ranlib` on PATH and rewrite any already-generated Makefiles too,
+## as belt-and-suspenders for warm trees.
 ln -sf "$TARGET/bin/bake-ar"        "$TARGET/bin/ar"
 ln -sf "$ROOT/scripts/bake-ranlib" "$TARGET/bin/ranlib"
-## Also keep the sed for any already-configured tree (idempotent; harmless).
-for mk in "$GCC10_BUILD"/build-*/libcpp/Makefile; do
-  [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
+for mkin in "$GCC10_SRC"/libcpp/Makefile.in \
+            "$GCC10_SRC"/intl/Makefile.in \
+            "$GCC10_SRC"/libdecnumber/Makefile.in; do
+  [ -f "$mkin" ] && sed -i.bak "s|^AR = ar\$|AR = $TARGET/bin/bake-ar|" "$mkin" \
+    && rm -f "$mkin.bak"
+done
+for mk in $(grep -rlE '^AR = ar$' "$GCC10_BUILD" --include=Makefile 2>/dev/null); do
+  sed -i.bak "s|^AR = ar\$|AR = $TARGET/bin/bake-ar|" "$mk" && rm -f "$mk.bak"
 done
 
 ## `all-gcc` also links the coverage programs gcov / gcov-dump / gcov-tool,
