@@ -221,6 +221,50 @@ gmp configure proceeds.
 
 ---
 
+## 9. ❓ bake step 55: build-side libcpp.a intermittently emptied (genmatch link fails)
+
+**Symptom:** with #7/#8 fixed, step 55 reaches `build/genmatch` and the chain
+link fails: `Target label _ZNK13rich_location7get_locEj is not valid`
+(`rich_location::get_loc`).  genmatch links the *build* libcpp
+(`build-x86_64-apple-darwin/libcpp/libcpp.a`), which came out **96 bytes** — an
+Apple `__.SYMDEF`-only, member-less archive — while the host
+`build/libcpp/libcpp.a` (865 KB) and the build `libiberty.a` (629 KB) are fine.
+
+**Diagnosis (not yet root-caused):** bake-ar (`sources/tools/bake-ar.c`) never
+writes `__.SYMDEF`, so Apple's `ranlib` emptied it (it "chokes on the ELF
+members and rewrites the archive, dropping them" — exactly what
+`bake/scripts/bake-ranlib`'s own comment warns of).  But every Makefile
+(`build-x86_64-.../libcpp/Makefile`, gcc/Makefile) has `RANLIB =
+.../bake-ranlib` (no-op) and `AR = ar`→bake-ar; the build log shows only
+`bake-ar cru` + `bake-ranlib`.  Re-running the exact archive command by hand
+produces a correct 865 KB archive every time, so it's a heisenbug (transient /
+load-related / Rosetta).  Manually rebuilding libcpp.a lets genmatch link.
+**Open:** find what runs Apple `ranlib` (or otherwise empties it) on a clean
+from-seed build, or have bake-ranlib defensively rebuild a dropped archive.
+
+## 10. ❓ bake step 55: genmatch link can't resolve `fstat$INODE64`
+
+**Symptom:** with libcpp.a repaired (#9), genmatch links past rich_location and
+then fails: `Target label ELF_fstat_INODE64 is not valid`.
+
+**Diagnosis:** the build-side libcpp (`files.o`, compiled by the chain g++
+against the macOS SDK headers under `MACOSX_DEPLOYMENT_TARGET=10.6`) references
+`fstat$INODE64`, the 64-bit-inode alias the SDK maps `fstat` to.  The chain
+link path has no resolution/stub for the `$INODE64` libc variants (no `INODE64`
+handling anywhere in `bake/`), and modern libSystem may no longer export them.
+Plausible fixes: build the gcc-10 build-side objects with
+`-D_DARWIN_NO_64_BIT_INODE` (or `_DARWIN_USE_64_BIT_INODE=0`) so the headers
+emit plain `fstat`, or teach the chain link to alias `*$INODE64` → the base
+symbol.  Needs testing (rebuild build-libcpp + genmatch).  **Open.**
+
+> **Step 55 status:** #7 and #8 are fixed and committed.  #9 and #10 are clean
+> from-seed blockers that the upstream "warm tree" never hit (it carries
+> pre-built archives + hand-placed stubs).  Finishing the from-seed gcc-10 is a
+> larger maintainer-level effort.  The Nix track (`.#packages.x86_64-darwin.*`)
+> is hermetic and is the recommended path to a complete x86_64 toolchain.
+
+---
+
 ## Cross-cutting note
 
 The `nixpkgs-unstable` lock warns: *"Nixpkgs 26.05 will be the last release to
