@@ -548,13 +548,20 @@ fi
 mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
 rm -f "$tmp/combined.tok.M1"
 
-# Two-tier Mach-O layout: try the SMALL/fast layout first (minimal text
-# padding → fast); fall back to LARGE only when the text overruns it
-# (m1-to-hex2 prints "align target before current address" and exits 1),
-# e.g. for gcc-4.6 cc1plus.  Keeps configure conftests fast.
+# Three-tier Mach-O layout: try the TINY layout first (data at base+0x100000,
+# so the text->data gap is ~1MB), falling back to SMALL then LARGE as the text
+# overruns each (m1-to-hex2 prints "align target before current address" and
+# exits 1), e.g. for gcc-4.6 cc1plus.  The gap is emitted as zero tokens that
+# the M2-Planet-built hex2 re-parses every link, so a small gap makes configure
+# conftests ~7x faster (hex2 was 8s of a 12s conftest, parsing a 53MB mostly-
+# zero combined.hex2; the tiny tier cuts that input to ~3MB).
 macho_large="@MACHO@"
 macho_small="$(dirname "@MACHO@")/MACHO-amd64-smalldata.hex2"
-if @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>/dev/null; then
+macho_tiny="$(dirname "@MACHO@")/MACHO-amd64-tinydata.hex2"
+if @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>/dev/null; then
+  macho="$macho_tiny"
+  linkeditOffset="$((0x100000 + 0x2000000))"
+elif @M1_TO_HEX2@ --architecture amd64 --little-endian --base-address 0x600400 --align-label ELF_data=0x1700000 -f "$tmp/combined.M1" -o "$tmp/combined.hex2" 2>/dev/null; then
   macho="$macho_small"
   linkeditOffset="$((0x1100000 + 0x2000000))"
 else

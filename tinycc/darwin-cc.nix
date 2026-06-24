@@ -32,18 +32,22 @@ runCommand "tinycc-darwin-cc" { } ''
 
   cp ${root + "/scripts/tinycc/crt1-tcc-sysv.M1"} crt1-tcc-sysv.M1
 
-  ## Two Mach-O layout templates derived from MACHO-amd64-lowdata.hex2
-  ## (7 segment-field substitutions each), committed under M2libc/amd64/.
-  ## tcc-darwin-cc tries the SMALL layout first (fast, minimal text
-  ## padding) and falls back to LARGE only when a binary's text overruns
-  ## it (e.g. gcc-4.6 cc1plus).  The committed copies must stay in sync
-  ## with the m0 template: verified by line count and shared lines here.
+  ## Three Mach-O layout templates derived from MACHO-amd64-lowdata.hex2
+  ## (segment-field substitutions each), committed under M2libc/amd64/.
+  ## tcc-darwin-cc tries the TINY layout first (data at base+0x100000, so a
+  ## conftest's text->data gap is ~1MB instead of ~18MB), falling back to
+  ## SMALL then LARGE when a binary's text overruns each (e.g. gcc-4.6
+  ## cc1plus).  The gap is materialized as zero tokens that hex2 re-parses
+  ## every link, so the tiny tier makes configure conftests ~7x faster.
+  ## The committed copies must stay in sync with the m0 template: verified
+  ## by line count and shared lines here.
   lowdata=${m0}/share/darwin-bootstrap/MACHO-amd64-lowdata.hex2
-  for tpl in ${root + "/M2libc/amd64/MACHO-amd64-smalldata.hex2"} ${root + "/M2libc/amd64/MACHO-amd64-largedata.hex2"}; do
+  for tpl in ${root + "/M2libc/amd64/MACHO-amd64-tinydata.hex2"} ${root + "/M2libc/amd64/MACHO-amd64-smalldata.hex2"} ${root + "/M2libc/amd64/MACHO-amd64-largedata.hex2"}; do
     test "$(wc -l < "$tpl")" = "$(wc -l < "$lowdata")"
     test "$(sed -n 1p "$tpl")" = "$(sed -n 1p "$lowdata")"
     test "$(sed -n 30p "$tpl")" = "$(sed -n 30p "$lowdata")"
   done
+  cp ${root + "/M2libc/amd64/MACHO-amd64-tinydata.hex2"} $out/share/darwin-bootstrap/MACHO-amd64-tinydata.hex2
   cp ${root + "/M2libc/amd64/MACHO-amd64-smalldata.hex2"} $out/share/darwin-bootstrap/MACHO-amd64-smalldata.hex2
   cp ${root + "/M2libc/amd64/MACHO-amd64-largedata.hex2"} $out/share/darwin-bootstrap/MACHO-amd64-largedata.hex2
 
