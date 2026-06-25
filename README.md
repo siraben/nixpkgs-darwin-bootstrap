@@ -251,7 +251,10 @@ byte-identical.  The only remaining host `awk` is the deferred
 Deterministic GCC source/configure edits and the modern-GCC bootstrap
 sysroot are committed `.patch` files and committed headers
 (`patches/`, `bootstrap/headers/gcc-modern-sysroot`) applied/copied at
-build time; the chain-built `gnupatch` applies the patches.  Host `perl`
+build time; the chain-built `gnupatch` applies the GCC patches.  (One
+earlier source-prep step, the `tinyccMesSrc` derivation in `packages.nix`,
+still applies its committed `patches/tinycc-mes-bootstrap.patch` with the
+stdenv host `patch` — chain `gnupatch` does not exist that early.)  Host `perl`
 no longer prepares the modern-GCC sysroot, but still performs the
 remaining deterministic edits to *generated* configure outputs
 (Makefiles, `config.h`/`config.cache`), a few staged-header tweaks in
