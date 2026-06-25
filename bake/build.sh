@@ -17,6 +17,13 @@
 ##                                   tar, cp, nm, system cc/ld for the final
 ##                                   goal-test exe link — the chain has no native
 ##                                   Mach-O exe linker)
+##   - host source-prep tools       (NOT yet ported to the chain in the bake
+##                                   track: host awk for the early M1 code/data
+##                                   splits; host python3 in step 53b and host
+##                                   perl in scripts/phase13-* for gcc text edits;
+##                                   host /usr/bin/patch in step 22; host /usr/bin/
+##                                   cc + ar for the libgcc EH/unwind stub archive
+##                                   in step 55 — see bake/REVIEW.md / STATUS.md)
 ##   - Darwin kernel + /usr/lib/dyld
 set -eu
 

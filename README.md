@@ -46,34 +46,46 @@ On Apple Silicon the whole chain is `x86_64`/amd64 and runs under **Rosetta
 No host compiler compiles any chain source: GCC 4.6 is built entirely by
 the chain `cc1`, and the modern GCC build helpers compile with the chain
 input compiler.  Host `clang`/`binutils`/`cctools` participate only at the
-Mach-O assemble/link boundary, with one known exception: `cctools/ar`'s own
-`libstuff.a`/`libmacho.a` support archives are still compiled with host
-`$CC` and packed with host `ar` while the `ar`/`ranlib` drivers themselves
-are chain-compiled (see "Known impurity boundaries").  No host `python`
-runs at build time, and the chain runs on its own `gnumake` and `gnupatch`.
-Host `awk` is gone from the entire amd64 build-time chain — the M1
-code/data split is the chain-built `m1-split` everywhere.  **The only
-committed binary in the trust root is the 4 KB `hex0` seed**: every stage0
-tool (`hex1`, `hex2`, `catm`, `M0`, `cc_arch`, `macho-patcher-early`) and
-every mescc-tools helper (`m1-split`, `m1-to-hex2`, `elf64-to-m1`,
-`synth-inject`, `hex2-data-relocs`, `cc-arch-helper`, `macho-patcher`) is
-now built live from committed source (C / `.M1` / `.hex2`) through the
-chain, byte-identical to the old frozen binary dumps.  `hex1`/`hex2` carry
-genuine hand-documented `hex0` machine-code source (no padding blob — the
-LINKEDIT padding is reapplied by `dd` at build time).  The only remaining
-`awk` is the deferred aarch64 `stage0-posix/hex1` path and maintainer-only
-`scripts/`.  The build scripts themselves run under host `bash` +
-coreutils/`sed`/`grep`; this Nix track's purity claim covers the
-compiler/translator/make trust path, not the orchestration shell.
+Mach-O assemble/link/archive boundary.  `cctools/ar`'s `ar`/`ranlib`
+drivers **and** their `libstuff.a`/`libmacho.a` support archives are
+chain-compiled by gcc-15, but those archives are still *packed* with host
+`ar`, and host `ar` is also used to extract/pack archives in the tcc-darwin-cc
+link path and the bootstrap-deps/coreutils builds (see "Known impurity
+boundaries").  No host `python` runs in the **Nix-track** build at run time,
+and the chain runs on its own chain-built `gnumake`/`gnupatch` — with the
+exception that gcc-4.6's `all-gcc` step still invokes the stdenv (nixpkgs)
+`make` (gcc-4.6/cxx, gcc-10/15 and gnu-hello use `bootstrap-gnumake`).
+
+Host `awk` is gone from the entire amd64 build-time chain (Nix track) — the
+M1 code/data split is the chain-built `m1-split` everywhere.  **The trust
+root is a single 4 KB `hex0` seed** (`hex0/seed/hex0-amd64-darwin`); a
+second committed seed, the 34 KB `hex0/seed/hex0-aarch64-darwin`, exists only
+for the deferred *native* aarch64 path and is not on the Rosetta default
+chain.  Every stage0 tool (`hex1`, `hex2`, `catm`, `M0`, `cc_arch`,
+`macho-patcher-early`) and every mescc-tools helper (`m1-split`, `m1-to-hex2`,
+`elf64-to-m1`, `synth-inject`, `hex2-data-relocs`, `cc-arch-helper`,
+`macho-patcher`) is now built live from committed source (C / hand-written
+`.M1` / `.hex2`) through the chain, byte-identical to the old frozen binary
+dumps.  `hex1`/`hex2` carry genuine hand-documented `hex0` machine-code source
+(no padding blob — the LINKEDIT padding is reapplied by `dd` at build time).
+The only remaining `awk` is the deferred aarch64 `stage0-posix/hex1` path and
+maintainer-only `scripts/`.  The build scripts themselves run under host
+`bash` + coreutils/`sed`/`grep`; this Nix track's purity claim covers the
+compiler/translator trust path, not the orchestration shell.  (The `bake/`
+track makes the same chain claim but additionally uses host `python3`/`perl`/
+`awk`/`patch` and a host-`cc` EH-stub compile in source-prep — see
+`bake/README.md` / `bake/REVIEW.md`.)
 
 The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
 layout: 13 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
 `mescc-libc/`, `tinycc/`, `gnumake/`, `gnupatch/`, `coreutils/`,
 `bootstrap-deps/`, `cctools/`, `gcc-4.6/`, `gcc-10/`, `gcc-latest/`)
-totalling ~81 .nix files.  Each derivation uses a shared `utils.nix:mkDarwin` helper that bakes
-in `dontUnpack`/`dontStrip`/`strictDeps`/version/platforms defaults; smoke
-tests live in `checkPhase`; every file declares its dependencies explicitly
-in nixpkgs-callPackage style.
+totalling ~81 .nix files.  The stage0/mescc-tools/tinycc derivations use a
+shared `utils.nix:mkDarwin` helper that bakes in `dontUnpack`/`dontStrip`/
+`strictDeps`/version/platforms defaults; the later phases (gcc-*, gnu-hello,
+bootstrap-deps, cctools) use `runCommand` directly.  Smoke tests live in
+`checkPhase`; every file declares its dependencies explicitly in
+nixpkgs-callPackage style.
 
 The implemented amd64 chain is:
 
@@ -84,11 +96,13 @@ The implemented amd64 chain is:
    25 dyld took the classic-relocations path and dereferenced a null
    dysymtab → SIGSEGV).
 2. Stage0 tools (`stage0-posix/`): `hex1`, `hex2`, `catm`, `M0`, `cc_arch`,
-   `M2`, `blood-macho`, `M1`, full `hex2`, `kaem` — all built live from
-   committed source through the chain (unsigned; they run under the Nix
-   sandbox on x86_64).  `hex1` and `hex2` are assembled from hand-rolled
-   `hex0/sources/*.hex0` files and `dd`-padded — no perl/awk at build time
-   for the stage0 chain.
+   `M2`, `blood-macho`, `M1`, full `hex2` (linker), `kaem` — all built live
+   from committed source through the chain.  The earliest ones
+   (`hex1`/`hex2`/`catm`/`M0`/`cc_arch`/`macho-patcher-early`) run **unsigned**
+   in the Nix sandbox; the later ones (`M2`, `blood-macho`, `M1`, the full
+   `hex2` linker, `kaem`) are ad-hoc **signed** via `darwin.signingUtils`.
+   `hex1` and `hex2` are assembled from hand-rolled `hex0/sources/*.hex0`
+   files and `dd`-padded — no perl/awk at build time for the stage0 chain.
 3. Mes / mescc-libc / TinyCC: `mes/m2`, the `mescc-libc/*` probes, and the
    `tinycc/*` boot-cycle culminate in `tinycc/darwin-cc` (the working TCC
    used by every downstream GCC build).  Its link path picks the smallest
@@ -120,9 +134,12 @@ The implemented amd64 chain is:
   ABI and ad-hoc signs generated Mach-O binaries through nixpkgs
   `darwin.signingUtils`.
 - GCC phases use the macOS SDK headers and Apple `as`/`ld`/`cc` tools at
-  selected bootstrap boundaries.  All of these are store-pinned
-  (`${apple-sdk}`, `${cctools}`, `${darwin.binutils-unwrapped}`); no .nix
-  file references `/usr/bin` or the Command Line Tools install dir.
+  selected bootstrap boundaries.  The compiler/assembler/linker/SDK paths are
+  store-pinned (`${apple-sdk}`, `${cctools}`, `${darwin.binutils-unwrapped}`)
+  and no .nix file references the Command Line Tools install dir; some
+  derivations (gnu-hello, bootstrap-deps, cctools/ar) do append
+  `/usr/bin:/bin:/usr/sbin:/sbin` to `PATH` as a fallback for plain shell
+  utilities, but no chain compiler/translator is resolved from there.
   Pinning the SDK headers to a Nix fetch is a future hardening step.
 - `gcc-4.6/cxx` compiles GCC 4.6 sources with the chain compiler
   (the gcc46-all-gcc cc1 via the gcc46 driver) and uses nixpkgs clang and
@@ -134,13 +151,16 @@ The implemented amd64 chain is:
   libstdc++ (GCC_MODERN_BUILD_TARGET_LIBS=1).  No host compiler
   participates in any chain compile; nixpkgs clang/binutils remain at
   the assemble/link boundary only.
-- `cctools/ar` chain-compiles the `ar`/`ranlib` drivers with gcc-15, but
-  their `libstuff.a`/`libmacho.a` support archives are still compiled with
-  host `$CC` and packed with host `${cctools}/bin/ar` (you need an archiver
-  to build an archiver). `cctools-ar` is on the GNU Hello proof path (it is
-  the `AR`/`RANLIB` for the gnu-hello build), so this support-library host
-  compile is a real remaining boundary, tracked for a future from-chain
-  rebuild.
+- `cctools/ar` chain-compiles the `ar`/`ranlib` drivers **and** their
+  `libstuff.a`/`libmacho.a` support archives with chain gcc-15
+  (`gcc-latest-strict`); the only host step is *packing* those support
+  archives with host `${cctools}/bin/ar` (you need an archiver to build an
+  archiver).  More broadly, host `cctools` archive tools (`ar`/`ranlib`/
+  `libtool`) are used to extract and pack `.a` archives in the
+  `tcc-darwin-cc` link path and in the bootstrap-deps (GMP/MPFR/MPC/ISL) and
+  coreutils builds.  `cctools-ar` is on the GNU Hello proof path (it is the
+  `AR`/`RANLIB` for the gnu-hello build), so the host archive-packing remains
+  a real boundary, tracked for a future from-chain `ar`.
 - `checks.nix`'s `macho-template-hello-runs` is a validation-only check
   (not a chain artifact): it compiles upstream stage0 `hex2` C with host
   `$CC` to sanity-check the committed Mach-O template. It is not in the
@@ -150,10 +170,13 @@ The implemented amd64 chain is:
   This is build-orchestration — applying known diffs to known files,
   the role `gnupatch` plays elsewhere — not translation; converting it
   to committed patches is a remaining hardening step.
-- Every phase that shells out to make runs the chain-built
-  `bootstrap-gnumake` (GNU Make 4.4.1 compiled by the chain tcc).  The
-  bootstrap libc implements getcwd via `fcntl(F_GETPATH)`, so
-  `$(abspath)`/`$(realpath)`/`CURDIR` return real paths.
+- The GCC packaging phases that shell out to make — `gcc-4.6/cxx`,
+  `gcc-10`, `gcc-latest`, `gcc-latest/strict`, and gnu-hello — run the
+  chain-built `bootstrap-gnumake` (GNU Make 4.4.1 compiled by the chain
+  tcc); its libc implements getcwd via `fcntl(F_GETPATH)` so
+  `$(abspath)`/`$(realpath)`/`CURDIR` return real paths.  The one exception
+  is gcc-4.6's intermediate `all-gcc` step, which still invokes the stdenv
+  (nixpkgs) `make` — a remaining orchestration boundary.
 - The modern GCC packages carry a staged, patched bootstrap sysroot and
   wrapper metadata sufficient for the current proofs; a full nixpkgs
   compiler/runtime/bintools closure is future work.
@@ -190,8 +213,11 @@ nix build .#packages.x86_64-darwin.gnu-hello-hash-comparison
 
 ## Maintainer scripts
 
-The bootstrap consumes only committed source files; helper scripts under
-`scripts/` regenerate the derived inputs when their upstream sources change:
+The bootstrap's stage0/glue inputs are committed source files (it also
+fetches a fixed set of pinned upstream release tarballs — Mes, GCC 4.6/10/
+latest, GNU Hello, make, patch, coreutils, nyacc — as fixed-output
+derivations in `sources.nix`).  Helper scripts under `scripts/` regenerate
+the derived committed inputs when their upstream sources change:
 
 - `scripts/stage0/regen-hex0-sources.sh` — regenerates
   `hex0/sources/hex{1,2}_AMD64_darwin.hex0` from the legacy perl helpers
@@ -199,25 +225,25 @@ The bootstrap consumes only committed source files; helper scripts under
 - `scripts/stage0/regen-preported.sh` — regenerates the committed
   `M2libc/amd64/{catm,M0,cc_arch-0}_AMD64_darwin*.hex2` and
   `tools/macho-patcher-m0.M1` from the awk port scripts in `scripts/stage0/`.
-- `scripts/refactor/*.py` — the one-shot tools used to do the
-  nixpkgs-style layout refactor (drop dead aarch64 branches, hoist smoke
-  tests into checkPhase, convert headers to explicit-args).  Kept for
-  future similar passes.
+- `scripts/refactor/{drop-isx86-wrapper,extract-smoke}.py` — one-shot tools
+  from the nixpkgs-style layout refactor (drop dead aarch64 branches, hoist
+  smoke tests into checkPhase), kept for future similar passes.
 
 No host `python` runs at build time anywhere in the chain (`python3`
 appears only in design-time `scripts/stage0/regen-*.sh` maintainer
 scripts).
 
-Host `awk` has been removed from the **entire amd64 build-time chain**:
-the M1 code/data split and cross-object synth-label injection are
-chain-built C tools (`bootstrap/m1-split.c`, `bootstrap/synth-inject.c`,
+Host `awk` has been removed from the **entire amd64 build-time chain**
+(Nix track): the M1 code/data split and cross-object synth-label injection
+are chain-built C tools (`bootstrap/m1-split.c`, `bootstrap/synth-inject.c`,
 compiled through M2-Planet → M1 → hex2) used uniformly across the
 `mescc-libc/*`, `mes/*`, `tinycc/*` boot-cycle, the TinyCC-darwin-cc
-wrapper, the GCC link path, and `cctools/ar`.  The `mescc-tools` helpers
-(`m1-split`, `m1-to-hex2`, `hex2-data-relocs`, `cc-arch-helper`,
-`synth-inject`, `elf64-to-m1`, `macho-patcher`) are built live from their
-committed C sources (`bootstrap/*.c`) through M2-Planet → M1 → hex2, with
-stdenv only orchestrating (`cp`/`dd`/`install`); the previous committed
+wrapper, the GCC link path, and `cctools/ar`.  The `mescc-tools` helpers are
+built live in two forms: **C → M2-Planet → M1 → hex2** for `m1-split`,
+`m1-to-hex2`, `hex2-data-relocs`, `cc-arch-helper`, `synth-inject` (from
+`bootstrap/*.c`); and **hand-written Mach-O `.M1` → M1 → hex2** for
+`elf64-to-m1`, `macho-patcher` (from `tools/*.M1`).  In both forms stdenv
+only orchestrates (`cp`/`dd`/`install`); the previous committed
 `.hex0` binary dumps were removed once the live builds were verified
 byte-identical.  The only remaining host `awk` is the deferred
 `stage0-posix/hex1` aarch64 candidate path and maintainer-only `scripts/`.

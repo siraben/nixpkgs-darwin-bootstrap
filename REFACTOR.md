@@ -5,9 +5,12 @@ per-package directories mirroring
 `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap`: `stage0-posix/`,
 `mescc-tools/`, `mes/`, `mescc-libc/`, `tinycc/`, `gnumake/`, `gnupatch/`,
 `coreutils/`, `bootstrap-deps/`, `gcc-4.6/`, `gcc-10/`, `gcc-latest/`, plus a
-top-level `cctools/`.  Phase numbers were dropped from attribute/script
-names; validation-only probes became `checks.<system>` attrs; the shared
-`utils.nix:mkDarwin` helper bakes in the common `mkDerivation` defaults.
+top-level `cctools/`.  Phase numbers were dropped from public attribute and
+script names (a few internal `tinycc/boot2-*`/`boot3-*` derivation `name`
+strings and `scripts/impure/*` dev helpers still carry `phaseNN`, but these
+are not flake-output attrs); validation-only probes became `checks.<system>`
+attrs; the shared `utils.nix:mkDarwin` helper bakes in the common
+`mkDerivation` defaults.
 
 ## Open / deferred
 
