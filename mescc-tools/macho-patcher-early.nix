@@ -11,7 +11,7 @@
 ## orchestrates.  No committed binary dump.
 ##
 ## The M0-form of macho-patcher is regenerated from tools/macho-patcher.M1 by
-## the maintainer via scripts/stage0/regen-macho-patcher-seed.sh; build-time
+## the maintainer via scripts/stage0/regen-preported.sh; build-time
 ## has no awk/perl/python.
 {
   mkDarwin,

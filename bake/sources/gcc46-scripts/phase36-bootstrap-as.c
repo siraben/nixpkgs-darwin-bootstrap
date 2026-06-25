@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase36-bootstrap-as.c
+../../../scripts/gcc-4.6/bootstrap-as.c

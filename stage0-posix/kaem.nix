@@ -92,6 +92,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Signed Darwin Mach-O phase-11 AMD64 kaem shell";
+    description = "Signed Darwin Mach-O AMD64 kaem shell";
   };
 }

@@ -98,6 +98,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Signed Darwin Mach-O phase-10 AMD64 full hex2 linker";
+    description = "Signed Darwin Mach-O AMD64 full hex2 linker";
   };
 }

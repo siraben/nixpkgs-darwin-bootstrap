@@ -90,6 +90,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Signed Darwin Mach-O phase-9 AMD64 M1 macro assembler";
+    description = "Signed Darwin Mach-O AMD64 M1 macro assembler";
   };
 }

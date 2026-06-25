@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase37-driver.sh
+../../../scripts/gcc-4.6/driver.sh

@@ -9,7 +9,7 @@
 ## committed binary dump.
 ##
 ## The cc_arch body is regenerated from upstream stage0Sources by the
-## maintainer via scripts/stage0/regen-cc-arch-seed.sh; build-time has no
+## maintainer via scripts/stage0/regen-preported.sh; build-time has no
 ## awk/perl/python.
 {
   mkDarwin,

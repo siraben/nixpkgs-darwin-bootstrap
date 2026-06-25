@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase36-xgcc-wrapper.sh
+../../../scripts/gcc-4.6/xgcc-wrapper.sh

@@ -104,7 +104,7 @@ else if hostPlatform.isAarch64 then
     '';
 
     meta = {
-      description = "Signed Darwin Mach-O phase-1 hex1 candidate";
+      description = "Signed Darwin Mach-O hex1 candidate";
       platforms = [ "aarch64-darwin" ];
     };
   }

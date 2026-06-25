@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase35-prepare-source.sh
+../../../scripts/gcc-4.6/prepare-source.sh

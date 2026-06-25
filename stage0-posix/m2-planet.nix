@@ -85,6 +85,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Signed Darwin Mach-O phase-5 AMD64 M2-Planet candidate";
+    description = "Signed Darwin Mach-O AMD64 M2-Planet candidate";
   };
 }

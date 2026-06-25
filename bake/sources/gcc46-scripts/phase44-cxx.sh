@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase44-cxx.sh
+../../../scripts/gcc-4.6/cxx.sh

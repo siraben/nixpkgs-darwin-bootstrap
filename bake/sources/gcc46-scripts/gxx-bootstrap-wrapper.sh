@@ -1,1 +1,1 @@
-../../../scripts/gcc46/gxx-bootstrap-wrapper.sh
+../../../scripts/gcc-4.6/gxx-bootstrap-wrapper.sh

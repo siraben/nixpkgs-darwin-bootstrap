@@ -1,1 +1,1 @@
-../../../scripts/gcc46/phase36-libgcc.pl
+../../../scripts/gcc-4.6/libgcc.pl

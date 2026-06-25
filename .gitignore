@@ -49,3 +49,5 @@ bake/.tcc-darwin-header-stamps/
 /bake/make-test/
 /bake/sys/
 /bake/gcc46-bootstrap.*
+/.tcc-darwin-cache/
+bake/.tcc-darwin-cache/

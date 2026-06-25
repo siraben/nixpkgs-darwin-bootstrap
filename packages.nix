@@ -159,11 +159,11 @@ let
   ## arg lists so each .nix file declares what it depends on.  Mirrors
   ## nixpkgs's pkgs/os-specific/linux/minimal-bootstrap/default.nix layout.
   ##
-  ## Variable names retain the legacy `phaseN-` prefix during the rec
-  ## bind so existing cross-references inside the package files keep
-  ## resolving.  External consumers (flake outputs) get semantic aliases
-  ## further down via `inherit (phaseDefs) ...`.
-  ## Each phase is `import <path> (phaseContext // phaseDefs)`.
+  ## Attr names are semantic (`hex1`, `m0`, `tinycc-darwin-cc`, …) — no
+  ## `phaseN-` prefix — and the whole `phaseDefs` rec set is splatted into
+  ## the flake outputs directly (see the `in` body below); there is no
+  ## separate alias layer.  Each phase is
+  ## `import <path> (phaseContext // phaseDefs)`.
   callPhase = path: import path (phaseContext // phaseDefs);
 
   phaseDefs = {
@@ -231,7 +231,7 @@ let
     gnupatch  = callPhase ./gnupatch;
     coreutils-boot = callPhase ./coreutils;
 
-    ## bootstrap-deps — GMP/MPFR/MPC/ISL built by phase34-tcc (phases 26c-26f)
+    ## bootstrap-deps — GMP/MPFR/MPC/ISL built by the chain GCC-15 (gcc-latest)
     bootstrap-gmp  = callPhase ./bootstrap-deps/gmp.nix;
     bootstrap-mpfr = callPhase ./bootstrap-deps/mpfr.nix;
     bootstrap-mpc  = callPhase ./bootstrap-deps/mpc.nix;
@@ -254,9 +254,10 @@ let
     gcc-latest        = callPhase ./gcc-latest;
     gcc-latest-strict = callPhase ./gcc-latest/strict.nix;
 
-    ## cctools ar/ranlib drivers chain-compiled from source via gcc-15; their
-    ## libstuff.a/libmacho.a support archives are still host-$CC compiled +
-    ## host-ar packed (known boundary, see README).
+    ## cctools ar/ranlib drivers + their libstuff.a/libmacho.a support archives
+    ## are all chain-compiled from source by gcc-15 (gcc-latest-strict); the
+    ## support archives are still *packed* with host cctools `ar` (you need an
+    ## archiver to build an archiver) — known boundary, see README.
     cctools-ar = callPhase ./cctools/ar.nix;
   };
 

@@ -70,6 +70,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Signed Darwin Mach-O phase-6 AMD64 blood footer generator";
+    description = "Signed Darwin Mach-O AMD64 blood footer generator";
   };
 }

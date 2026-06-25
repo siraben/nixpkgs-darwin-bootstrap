@@ -1,1 +1,0 @@
-../../../scripts/gcc46/phase36-bootstrap-as.awk

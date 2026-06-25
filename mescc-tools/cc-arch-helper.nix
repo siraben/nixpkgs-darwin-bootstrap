@@ -69,6 +69,6 @@ mkDarwin {
   '';
 
   meta = {
-    description = "Stage0-faithful Darwin Mach-O phase-4 cc-arch port+patch helper (M2-Planet C build)";
+    description = "Stage0-faithful Darwin Mach-O cc-arch port+patch helper (M2-Planet C build)";
   };
 }
