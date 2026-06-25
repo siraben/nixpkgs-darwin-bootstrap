@@ -321,6 +321,23 @@ byte-identical to what they'd emit, so build output (and the gnu-hello hash) is
 unchanged.  Applies to gcc-10, gcc-latest and gcc-latest-strict (all use this
 script).
 
+## ✅ Nix gnu-hello gate passes (the headline deliverable)
+
+With #11 fixed, on this branch (rebased on origin/main):
+
+```
+nix build .#packages.x86_64-darwin.gnu-hello-hash-comparison   # exit 0
+  phase46_gcc_latest        = 0854f4ab9cf2…257f90a   (== pinned baseline)
+  phase47_gcc_latest_strict = 0854f4ab9cf2…257f90a   (== pinned baseline)
+  phase46_phase47_equal     = yes                    (byte-identical, determinism check)
+  phase47_nixpkgs_equal     = no                     (expected: from-seed ≠ nixpkgs ref)
+```
+
+The full from-seed Nix chain (stage0 → mes → tinycc → gcc-4.6 → gcc-10 →
+gcc-15 bootstrap + strict → gnu-hello ×3) builds clean on Darwin 25 and
+reproduces the baseline `0854f4ab…` GNU Hello hash.  The from-seed bake
+gcc-10 (cc1+xgcc) goal also passes (Step-55 status above).
+
 ## Cross-cutting note
 
 The `nixpkgs-unstable` lock warns: *"Nixpkgs 26.05 will be the last release to
