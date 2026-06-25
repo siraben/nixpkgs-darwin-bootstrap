@@ -32,10 +32,16 @@ The gate is enforced inside the derivation: `gnu-hello-hash-comparison`
 fails the build (and `nix flake check`) if `phase46 != phase47` or if the
 hash drifts from the baseline.
 
-This repo requires **git-LFS**: the committed Mach-O seed binaries under
-`hex0/sources/**/*.hex0` are LFS-tracked, so install `git lfs` before
-cloning/checkout or the seeds arrive as pointer files and the bootstrap
-fails opaquely.
+This repo uses **git-LFS** for the `hex0/sources/**/*.hex0` files (now just
+the genuine, tiny `hex1`/`hex2` machine-code sources), so install `git lfs`
+before cloning/checkout or they arrive as pointer files and the bootstrap
+fails opaquely.  The one committed binary, the 4 KB `hex0/seed/hex0-amd64-darwin`
+seed, is tracked directly (not LFS).
+
+On Apple Silicon the whole chain is `x86_64`/amd64 and runs under **Rosetta
+2**: the flake maps `aarch64-darwin` to the `x86_64-darwin` package set, so
+`nix build .#default` builds the real chain under Rosetta — add
+`extra-platforms = x86_64-darwin` to `nix.conf` first.
 
 No host compiler compiles any chain source: GCC 4.6 is built entirely by
 the chain `cc1`, and the modern GCC build helpers compile with the chain
@@ -46,13 +52,19 @@ Mach-O assemble/link boundary, with one known exception: `cctools/ar`'s own
 are chain-compiled (see "Known impurity boundaries").  No host `python`
 runs at build time, and the chain runs on its own `gnumake` and `gnupatch`.
 Host `awk` is gone from the entire amd64 build-time chain — the M1
-code/data split is the chain-built `m1-split` everywhere, and the
-mescc-tools helpers are seed-built from committed `.hex0` binary dumps (no
-stdenv in the trust path).  The only remaining `awk` is the deferred
-aarch64 `stage0-posix/hex1` path and maintainer-only `scripts/`.  The build
-scripts themselves run under host `bash` + coreutils/`sed`/`grep`; this Nix
-track's purity claim covers the compiler/translator/make trust path, not
-the orchestration shell.
+code/data split is the chain-built `m1-split` everywhere.  **The only
+committed binary in the trust root is the 4 KB `hex0` seed**: every stage0
+tool (`hex1`, `hex2`, `catm`, `M0`, `cc_arch`, `macho-patcher-early`) and
+every mescc-tools helper (`m1-split`, `m1-to-hex2`, `elf64-to-m1`,
+`synth-inject`, `hex2-data-relocs`, `cc-arch-helper`, `macho-patcher`) is
+now built live from committed source (C / `.M1` / `.hex2`) through the
+chain, byte-identical to the old frozen binary dumps.  `hex1`/`hex2` carry
+genuine hand-documented `hex0` machine-code source (no padding blob — the
+LINKEDIT padding is reapplied by `dd` at build time).  The only remaining
+`awk` is the deferred aarch64 `stage0-posix/hex1` path and maintainer-only
+`scripts/`.  The build scripts themselves run under host `bash` +
+coreutils/`sed`/`grep`; this Nix track's purity claim covers the
+compiler/translator/make trust path, not the orchestration shell.
 
 The repo follows `~/Git/nixpkgs/pkgs/os-specific/linux/minimal-bootstrap/`
 layout: 13 per-package directories (`stage0-posix/`, `mescc-tools/`, `mes/`,
@@ -67,13 +79,24 @@ The implemented amd64 chain is:
 
 1. Raw Darwin/Mach-O seeds: syscall hello probes, a hand-assembled `hex0`,
    Mach-O `hex2` templates using `LC_MAIN`, `/usr/lib/dyld`, and `libSystem`.
-2. Stage0 tools (`stage0-posix/`): signed `hex1`, `hex2`, `catm`, `M0`,
-   `cc_arch`, `M2`, `blood-macho`, `M1`, full `hex2`, `kaem`.  `hex1` and
-   `hex2` are assembled from hand-rolled `hex0/sources/*.hex0` files — no
-   perl/awk at build time for the stage0 chain.
+   The `hex0` seed carries an empty `LC_DYLD_INFO_ONLY` load command so it
+   loads under the Darwin 25 dyld (older dyld tolerated its absence; Darwin
+   25 dyld took the classic-relocations path and dereferenced a null
+   dysymtab → SIGSEGV).
+2. Stage0 tools (`stage0-posix/`): `hex1`, `hex2`, `catm`, `M0`, `cc_arch`,
+   `M2`, `blood-macho`, `M1`, full `hex2`, `kaem` — all built live from
+   committed source through the chain (unsigned; they run under the Nix
+   sandbox on x86_64).  `hex1` and `hex2` are assembled from hand-rolled
+   `hex0/sources/*.hex0` files and `dd`-padded — no perl/awk at build time
+   for the stage0 chain.
 3. Mes / mescc-libc / TinyCC: `mes/m2`, the `mescc-libc/*` probes, and the
    `tinycc/*` boot-cycle culminate in `tinycc/darwin-cc` (the working TCC
-   used by every downstream GCC build).
+   used by every downstream GCC build).  Its link path picks the smallest
+   of three Mach-O layout templates (`tiny`/`small`/`large`): the `tiny`
+   tier puts `__DATA` at `base+0x100000` so a small binary's `__TEXT`→`__DATA`
+   gap — which is materialized as zero tokens that the M2-Planet-built `hex2`
+   re-parses every link — is ~1 MB instead of ~18 MB, making `configure`
+   conftest compile+links ~7× faster (the bulk of GCC build time).
 4. GCC 4.6 (`gcc-4.6/`): source, all-gcc frontend, libgcc, the bootstrap
    handoff, and `cxx` (C/C++ packaging).  Every GCC 4.6 source compiles
    with the chain `cc1` (the all-gcc frontend driven through the gcc-4.6
@@ -192,11 +215,12 @@ compiled through M2-Planet → M1 → hex2) used uniformly across the
 `mescc-libc/*`, `mes/*`, `tinycc/*` boot-cycle, the TinyCC-darwin-cc
 wrapper, the GCC link path, and `cctools/ar`.  The `mescc-tools` helpers
 (`m1-split`, `m1-to-hex2`, `hex2-data-relocs`, `cc-arch-helper`,
-`synth-inject`, `elf64-to-m1`, `macho-patcher`) are seed-built: a
-committed `.hex0` dump of each tool's Mach-O binary is re-emitted by
-`hex0-raw`, so no stdenv and no host translator sits in their trust path.
-The only remaining host `awk` is the deferred `stage0-posix/hex1` aarch64
-candidate path and maintainer-only `scripts/`.
+`synth-inject`, `elf64-to-m1`, `macho-patcher`) are built live from their
+committed C sources (`bootstrap/*.c`) through M2-Planet → M1 → hex2, with
+stdenv only orchestrating (`cp`/`dd`/`install`); the previous committed
+`.hex0` binary dumps were removed once the live builds were verified
+byte-identical.  The only remaining host `awk` is the deferred
+`stage0-posix/hex1` aarch64 candidate path and maintainer-only `scripts/`.
 
 Deterministic GCC source/configure edits and the modern-GCC bootstrap
 sysroot are committed `.patch` files and committed headers

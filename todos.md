@@ -1,6 +1,6 @@
 # Darwin Bootstrap Todos
 
-## CURRENT STATUS (2026-06-21) — authoritative
+## CURRENT STATUS (2026-06-24) — authoritative
 
 The amd64 Nix chain builds cold from the 4 KB hex0 seed through
 gcc-4.6 → gcc-10 → gcc-15 (15.2.0) → strict re-host; `gnu-hello-hash-comparison`
@@ -14,13 +14,29 @@ standardized (no `phaseXX` in attrs/scripts/env/comments); no host `python`
 at build time; host `awk` removed from the **entire amd64 build-time chain**
 — the M1 code/data split is the chain-built `m1-split` everywhere
 (`mescc-libc`/`mes`/`tinycc` boot-cycle, tcc wrapper, gcc link path,
-`cctools/ar`), with `synth-inject` for cross-object synth labels; all 7
-`mescc-tools` helpers are seed-built (committed `.hex0` Mach-O dumps
-re-emitted by `hex0-raw`, no stdenv in the trust path); the seed `.hex0`
-files are git-LFS tracked (`.gitattributes`); the `gnu-hello-hash-comparison`
-gate is enforced inside the derivation (fails the build on phase46≠phase47
-or baseline drift); most host `perl` replaced by committed patches
-(`patches/`) + committed sysroot headers (`bootstrap/headers/gcc-modern-sysroot`).
+`cctools/ar`), with `synth-inject` for cross-object synth labels.
+**The only committed binary in the trust root is the 4 KB `hex0` seed**: all
+6 stage0 phases (`hex1`/`hex2`/`catm`/`M0`/`cc_arch`/`macho-patcher-early`)
+and all 7 `mescc-tools` helpers are now built live from committed source
+(C / `.M1` / `.hex2`) through the chain, byte-identical to the old frozen
+dumps; `hex1`/`hex2` carry genuine hex0 machine-code source with the LINKEDIT
+padding reapplied by `dd`. The seed carries an empty `LC_DYLD_INFO_ONLY` so it
+loads under the Darwin 25 dyld. The genuine `hex1`/`hex2` `.hex0` sources are
+git-LFS tracked (`.gitattributes`); the seed itself is committed directly.
+The `gnu-hello-hash-comparison` gate is enforced inside the derivation (fails
+the build on phase46≠phase47 or baseline drift); most host `perl` replaced by
+committed patches (`patches/`) + committed sysroot headers
+(`bootstrap/headers/gcc-modern-sysroot`). On Apple Silicon the flake maps
+`aarch64-darwin` → the `x86_64-darwin` package set so `.#default` builds the
+real chain under Rosetta 2 (needs `extra-platforms = x86_64-darwin`).
+
+Perf: `tcc-darwin-cc`'s link path uses a 3-tier Mach-O layout (tiny/small/
+large) — the `tiny` tier (data at `base+0x100000`) shrinks the per-link
+`combined.hex2` from ~53 MB to ~3 MB by cutting the `__TEXT`→`__DATA`
+zero-gap from ~18 MB to ~1 MB, making `configure` conftest compile+links ~7×
+faster. (An earlier libc I/O-buffering experiment was reverted — net-negative:
+it bloated the tinycc libc 30× for ~0 runtime gain since the tools are
+tcc-codegen×Rosetta compute-bound, not syscall-bound.)
 
 Remaining purity work: `cctools/ar` chain-compiles the `ar`/`ranlib` drivers
 but its `libstuff.a`/`libmacho.a` support archives are still host-`$CC`
@@ -30,7 +46,7 @@ gcc-4.6 libgcc-tree staging (`scripts/gcc-4.6/libgcc.pl`); host `as`/`ld`
 (binutils-unwrapped) + `cctools` + apple-sdk at the Mach-O link boundary;
 the only remaining `awk` is the deferred aarch64 `stage0-posix/hex1`
 candidate path; the orchestration shell is host bash/coreutils/sed/grep
-(Nix-track scope). aarch64 has only the from-hex0 seed milestone; deferred.
+(Nix-track scope). Native aarch64 chain is deferred (Rosetta is the path).
 
 ## Current Status Update
 
@@ -107,6 +123,30 @@ candidate path; the orchestration shell is host bash/coreutils/sed/grep
 
 ## Running Log
 
+- 2026-06-24: Build-perf + defrost + Darwin-25 session.
+  - **Defrost (only the hex0 seed remains a committed binary):** restored all 7
+    `mescc-tools` helpers and all 6 stage0 phases
+    (`m0`/`catm`/`cc-arch`/`macho-patcher-early` + `hex1`/`hex2`) from committed
+    binary `.hex0` dumps to live builds through the chain; stripped the 16/24 MB
+    LINKEDIT-padding blobs from the `hex1`/`hex2` `.hex0` sources (`dd`-pad at
+    build time). Each rebuilt binary byte-verified identical to its frozen dump.
+    Removed ~820 MB of committed dumps + 2 obsolete regen scripts.
+  - **Darwin 25 reproduction (from /tmp/issues.md):** (1) hex0 seed gained an
+    empty `LC_DYLD_INFO_ONLY` so it loads under Darwin 25 dyld (was SIGSEGV in
+    `dyld4::applyFixups`); regenerated seed + `hex0-raw` outputHash; hex1
+    byte-identical so the chain is unchanged. (2)/(3) `bake/` steps 02-07
+    rewritten to the live constructions + `dd`-pad and `bake/sources` symlinks
+    fixed (bake 01-07 e2e byte-identical to Nix). (4) flake maps
+    `aarch64-darwin` → x86_64 set so `.#default` builds under Rosetta.
+  - **Perf:** profiled the per-TU pipeline — bottleneck was the M2-Planet-built
+    `hex2` re-parsing a ~53 MB `combined.hex2` per link, ~48 MB of it zero
+    tokens for the `__TEXT`→`__DATA` gap (8.3 s = 69% of a 12 s conftest).
+    Added a 3rd "tiny" Mach-O layout tier (`MACHO-amd64-tinydata.hex2`, data at
+    `base+0x100000`) tried first then small/large fallback → conftest
+    compile+link 11.9 s → 1.72 s (~7×), gate reproduces 0854f4…, equal=yes.
+    A libc I/O-buffering experiment was tried and **reverted** (net-negative:
+    bloated the tinycc libc 30× materializing static buffers as M1 zero tokens,
+    for ~0 gain since the tools are tcc-codegen×Rosetta compute-bound).
 - 2026-05-23: Task #12 LANDED for phase47 strict. Goal — promote GMP/MPFR/MPC/ISL from in-tree builds under phase45/46/47 to standalone Nix-store derivations built from the bootstrap compiler chain — achieved end-to-end. New derivations:
     - phase26c-bootstrap-gmp   (GMP 6.3.0, built by phase46)
     - phase26d-bootstrap-mpfr  (MPFR 4.2.2, depends on phase26c)
