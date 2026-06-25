@@ -298,6 +298,29 @@ wrapper).
 
 ---
 
+## 11. ✅ Nix gcc-10/gcc-15: flex regen deletes shipped `gengtype-lex.c`
+
+**Symptom:** `nix build .#packages.x86_64-darwin.gnu-hello-hash-comparison`
+fails building `gcc-10.4.0`: `make[1]: [Makefile:2947: gengtype-lex.c] Error
+127 (ignored)` (flex not found) followed by `g++.real: error: gengtype-lex.c:
+No such file or directory`.
+
+**Root cause:** GCC ships pre-generated `gcc/gengtype-lex.c` (from
+`gengtype-lex.l`), but flex isn't a build input.  `scripts/gcc-modern/
+bootstrap-gcc.sh` stages the source with `cp -R`, giving `.c` and `.l`
+near-identical mtimes, so make sometimes decides the `.l` is newer and runs
+flex; flex is missing (exit 127), the *ignored* rule truncates/removes the
+shipped `.c`, and the next step can't find it.  A clean from-source build hits
+this; a cached gcc-10 (the usual case) never rebuilds and dodges it.
+
+**Fix applied:** after staging+patching the source, `bootstrap-gcc.sh` now
+makes every shipped flex/bison output (`*.l`→`*.c`, `*.y`→`*.c/cc/h/hh`)
+decisively newer than its source (`touch -t 200001010000` the source, `touch`
+the generated file), so make never runs flex/bison.  The committed `.c` is
+byte-identical to what they'd emit, so build output (and the gnu-hello hash) is
+unchanged.  Applies to gcc-10, gcc-latest and gcc-latest-strict (all use this
+script).
+
 ## Cross-cutting note
 
 The `nixpkgs-unstable` lock warns: *"Nixpkgs 26.05 will be the last release to

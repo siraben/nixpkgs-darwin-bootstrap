@@ -39,6 +39,28 @@ if [ -f "$gcc_source_patch" ]; then
   ( cd src && "${GNUPATCH:?}" -p1 < "$gcc_source_patch" )
 fi
 
+## GCC ships pre-generated flex/bison outputs (e.g. gcc/gengtype-lex.c from
+## gengtype-lex.l), but flex/bison are not build inputs.  `cp -R` gives the
+## staged files near-identical mtimes, so make can decide the source (.l/.y)
+## is newer and try to regenerate the .c — flex/bison are missing (exit 127),
+## the (ignored) rule then truncates/removes the shipped .c, and the next
+## step dies with "gengtype-lex.c: No such file or directory".  Make every
+## shipped generated file decisively newer than its source so make never runs
+## flex/bison; the committed .c is byte-identical to what they'd emit, so this
+## doesn't change what gets compiled.
+## best-effort: `set +e` + `|| true` so a no-match `[ -f ]` (e.g. a .y with no
+## shipped .hh) can't trip the script's `set -euo pipefail`.
+( set +e
+  cd src
+  find . -name '*.l' -type f 2>/dev/null | while IFS= read -r l; do
+    c="${l%.l}.c"; [ -f "$c" ] && { touch -t 200001010000 "$l"; touch "$c"; }
+  done
+  find . -name '*.y' -type f 2>/dev/null | while IFS= read -r y; do
+    for o in "${y%.y}.c" "${y%.y}.cc" "${y%.y}.h" "${y%.y}.hh"; do
+      [ -f "$o" ] && { touch -t 200001010000 "$y"; touch "$o"; }
+    done
+  done ) || true
+
 if [ ! -x "$compiler/bin/g++" ]; then
   echo "$label requires a bootstrapped C++ compiler at $compiler/bin/g++" >&2
   exit 1
