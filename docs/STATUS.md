@@ -1,14 +1,15 @@
-# bake/ status
+# Shell-track status log
 
-> CURRENT LAYOUT NOTE (2026-06): this file is an append-only chronological
-> log; older entries cite paths/filenames that have since moved or were
-> Nix-track paths.  The current bake layout: the TinyCC wrapper + awk are
-> `bake/sources/tcc-darwin/{tcc-darwin-cc.sh,synth-inject.awk}` (there is no
-> `tcc-darwin-cc-bash3.sh` and no `bake/scripts/tinycc/`); the archiver is
-> `bake/scripts/boot-ar` backed by chain-built C `bake/sources/tools/boot-ar.c`
-> (not `boot-ar.py`); there are 63 numbered step scripts in `bake/steps/`
-> (01–55 plus 44b–g, 52b, 53b).  "Blocked"/"one remaining blocker" sections
-> below pre-date the gcc-4.6 + gcc-10 resolution and are superseded.
+> CURRENT LAYOUT NOTE (2026-07): this file is an append-only chronological
+> log; entries cite paths as they existed when written.  The shell track
+> lived under `bake/` until 2026-07 and now sits at the repo root: read
+> `bake/steps/` as `steps/`, `bake/sources/` as `sources/`, `bake/scripts/`
+> as `scripts/`, and `bake/target/` as `target/`.  The TinyCC wrapper + awk
+> are `sources/tcc-darwin/{tcc-darwin-cc.sh,synth-inject.awk}`; the archiver
+> is `scripts/boot-ar` backed by chain-built C `sources/tools/boot-ar.c`;
+> there are 63 numbered step scripts in `steps/` (01–55 plus 44b–g, 52b,
+> 53b).  "Blocked"/"one remaining blocker" sections below pre-date the
+> gcc-4.6 + gcc-10 resolution and are superseded.
 
 A no-Nix, no-bootstrap-tools Darwin chain that builds, from a 4 KB
 Mach-O seed:

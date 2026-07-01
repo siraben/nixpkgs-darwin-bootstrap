@@ -1,6 +1,11 @@
-# bake/ faithfulness review (codex, 2026-06-03)
+# Shell-track faithfulness review (codex, 2026-06-03)
 
 Audit of the from-4KB-seed claim. Status tags added after the run.
+
+> LAYOUT NOTE (2026-07): the audit and fix-status below cite paths from the
+> pre-restructure tree, where the shell track lived under `bake/`.  Read
+> `bake/steps/` as `steps/`, `bake/sources/` as `sources/`, and
+> `bake/scripts/` as `scripts/`; `bake-ar` is now `boot-ar`.
 
 ## Fix status (as of HEAD)
 

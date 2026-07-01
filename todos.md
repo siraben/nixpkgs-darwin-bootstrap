@@ -1,5 +1,13 @@
 # Darwin Bootstrap Todos
 
+> LAYOUT NOTE (2026-07): this is an append-only working log; entries cite
+> paths as they existed when written.  The repo was restructured in 2026-07:
+> the shell track moved from `bake/` to the repo root (`steps/`, `sources/`,
+> `scripts/`, `seed/`, `build.sh`) and the Nix track moved under `nix/`
+> (read `patches/` as `nix/patches/`, `scripts/gcc-4.6/` as
+> `nix/scripts/gcc-4.6/`, `bootstrap/headers/` as `nix/bootstrap/headers/`,
+> and so on).  `bake-ar`/`BAKE_*` are now `boot-ar`/`BOOT_*`.
+
 ## CURRENT STATUS (2026-06-24) — authoritative
 
 The amd64 Nix chain builds cold from the 4 KB hex0 seed through
