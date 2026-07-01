@@ -1,6 +1,24 @@
 #!/bin/sh
-## 36-tinycc-self-compile — verify tcc-self can compile + link a
-## hello binary just like the mescc-built tcc.
+## 36-tinycc-self-compile — verify tcc-self compiles and links a
+## working hello binary.
+##
+## Self-hosting property established: the self-built compiler
+## produces working executables — the step-31 detour test repeated
+## with tcc-self in place of tcc, so generation 1's code generation
+## is trusted before it compiles generation 2 (step 37).
+##
+## Runs:     tcc-self (built in step 35), elf64-to-m1 (step 30), M1
+##           (step 12), hex2 (step 13), hex2-data-relocs (step 34);
+##           host awk — trust boundary — M1 code/data split; Apple
+##           /usr/bin cp/od/tr/dd/chmod for orchestration.
+## Inputs:   sources/tinycc-fixtures/self-compile-hello.c and
+##           self-compile-crt1-tcc-sysv.M1,
+##           sources/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2.
+## Outputs:  none installed; scratch hello binary under
+##           target/work/tinycc-self-compile.
+## Verifies: tcc-self -c is silent, hello.o has the ELF magic, and
+##           ./hello exits 42.
+## Trust:    host awk for the M1 code/data split.
 set -eu
 
 work="$TARGET/work/tinycc-self-compile"

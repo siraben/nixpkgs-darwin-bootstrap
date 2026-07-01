@@ -1,6 +1,10 @@
 /* m1-split — split a combined M1 stream into its code or data section.
  *
- * Replaces the host awk:
+ * Link-path role: the tcc-darwin-cc wrapper's @M1_SPLIT@ hook — every
+ * object and archive member converted by elf64-to-m1 is partitioned
+ * into its code and data sections with this tool before the combined
+ * link.  Built in step 44c by tcc-darwin-cc itself.  Replaces the host
+ * awk in the link path:
  *   awk '/^:ELF_data$/{data=1;next} /^:HEX2_data$/{next} data!=1{print}'  (--code)
  *   awk '/^:ELF_data$/{data=1;next} /^:HEX2_data$/{next} data==1{print}'  (--data)
  *

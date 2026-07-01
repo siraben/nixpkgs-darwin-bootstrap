@@ -1,5 +1,23 @@
 #!/bin/sh
 ## 24-libmescc — compile libmescc.M1 (globals + syscall-internal).
+##
+## Smallest mescc library build: two mes lib sources compiled to M1
+## and merged into one code+data-sectioned file.  Exercises the same
+## mescc pipeline and section-merge scheme that steps 25/26 apply to
+## the full libc lists.  No later step reads libmescc.M1.
+##
+## Runs:     mes-m2 (built in step 18) interpreting mescc.scm (step
+##           20) with nyacc (step 19); host awk — trust boundary —
+##           partitions each M1 into code/data sections; Apple
+##           /usr/bin sed/grep/install/cp for orchestration.
+## Inputs:   target/mes-source/lib/mes/globals.c and
+##           lib/darwin/x86_64-mes-mescc/syscall-internal.c.
+## Outputs:  target/share/libmescc/libmescc.M1.
+## Verifies: merged M1 defines :__raise and :__sys_call_internal —
+##           both translation units made it into the output.
+## Trust:    host awk performs the code/data split (semantic M1
+##           surgery); the chain m1-split tool exists only from step
+##           44c onward.
 set -eu
 
 mes_source="$TARGET/mes-source"
@@ -41,6 +59,10 @@ compile_m1() {
 compile_m1 "$mes_source/lib/mes/globals.c" m1/globals.M1
 compile_m1 "$mes_source/lib/darwin/x86_64-mes-mescc/syscall-internal.c" m1/syscall-internal.M1
 
+## Merge into one M1 with a single :ELF_data/:HEX2_data boundary:
+## syscall-internal's code, the markers, then globals.M1 verbatim and
+## syscall-internal's data.  mescc emits per-file section markers; a
+## combined link needs exactly one code→data transition.
 {
     awk '
         /^:ELF_data$/ { data = 1; next }

@@ -1,7 +1,19 @@
 #!/bin/sh
-## 39-tinycc-boot2-object — use tcc-self to compile tinycc again,
-## producing tcc-boot2.o.  This is the second self-compile pass —
-## proves the tinycc bootstrap is stable.
+## 39-tinycc-boot2-object — tcc-boot1 compiles tinycc → tcc-boot2.o.
+##
+## Third self-compile pass (generation 3 object).  Same source tree
+## and -D set as steps 23/29/37; only the producing compiler changes
+## (tcc-boot1, itself built by tcc-self).
+##
+## Runs:     tcc-boot1 (built in step 38); Apple /usr/bin cp/chmod/
+##           od/tr/install for orchestration and checks.
+## Inputs:   target/tinycc-mes-src/tcc.c + include/ (step 22),
+##           target/mes-source/include (step 15) — merged include
+##           dir as in step 29.
+## Outputs:  target/share/tinycc-boot2-object/tcc-boot2.o.
+## Verifies: tcc-boot2.o has the ELF magic and the compile produced
+##           no stdout.
+## Trust:    none beyond prior chain outputs.
 set -eu
 
 mes_source="$TARGET/mes-source"

@@ -1,11 +1,20 @@
 /* boot-ar — a minimal `ar` that stores members verbatim (works with ELF).
  *
- * Chain-built replacement for boot-ar.py: Apple's /usr/bin/ar refuses
- * non-Mach-O members ("not a mach-o file") and silently drops them, which
- * breaks the gcc in-tree static libs (the tcc toolchain emits ELF objects).
- * This writes a 4.4BSD `ar` archive (the container Apple's ar still parses for
- * -x), storing every member byte-for-byte with the BSD extended-name
- * convention "#1/<namelen>", name bytes prepended to the member data.
+ * Link-path role: the tcc-darwin-cc wrapper's @AR@ hook.  The wrapper
+ * extracts archives with `boot-ar -x` during archive symbol resolution,
+ * and the gcc builds (steps 48+) pack their static libs with it.  Built
+ * in step 44b by tcc-darwin-cc itself.  Replaces host python3
+ * (boot-ar.py) in the link path.
+ *
+ * Apple's /usr/bin/ar refuses non-Mach-O members ("not a mach-o file")
+ * and silently drops them, which breaks the gcc in-tree static libs
+ * (the tcc toolchain emits ELF objects).
+ *
+ * Reads/writes: 4.4BSD `ar` archives (the container Apple's ar still
+ * parses for -x) — "!<arch>\n" magic, 60-byte fixed-width member
+ * headers, every member stored byte-for-byte with the BSD extended-name
+ * convention "#1/<namelen>" (name bytes prepended to the member data),
+ * members padded to even offsets with '\n'.
  *
  * Supported ops: create/replace/append (c r q), list (t), extract (x),
  * delete (d).  Symbol-table modifiers (s) are accepted and ignored —
@@ -56,6 +65,8 @@ static void put_header(FILE *f, const char *name, long size) {
 	fwrite(hdr, 1, HDR, f);
 }
 
+/* Serialize the member list: magic, then per member a "#1/<namelen>"
+ * header, the name bytes, the data, and a '\n' pad to an even offset. */
 static void write_archive(const char *path, Member *m, int n) {
 	FILE *f = fopen(path, "wb");
 	int i;
@@ -170,6 +181,8 @@ int main(int argc, char **argv) {
 	archive = argv[2];
 	files = argv + 3;
 	nfiles = argc - 3;
+	/* x/t/d select an explicit op; any other modifier combination
+	 * (c, r, q, s) means create/replace/append, handled as op 0. */
 	for (i = 0; mods[i]; i++)
 		if (mods[i] == 'x' || mods[i] == 't' || mods[i] == 'd') op = mods[i];
 

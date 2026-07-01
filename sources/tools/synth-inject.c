@@ -1,6 +1,13 @@
 /* synth-inject — inject precise cross-object `:<sym>_plus_<hex>` synth-label
  * definitions into a combined (whitespace-flattened) M1 stream.
  *
+ * Link-path role: the tcc-darwin-cc wrapper's @SYNTH_INJECT_BIN@ hook — per
+ * link the wrapper flattens the combined M1 to one token per line with tr
+ * and runs this tool on that file.  Built in step 44g by tcc-darwin-cc
+ * itself.  Replaces host awk (synth-inject.awk) in the link path; the awk
+ * stays as the fallback and as the byte-comparison reference in step 44g's
+ * smoke test.
+ *
  * Chain-built C port of synth-inject.awk (byte-identical).  elf64-to-m1 emits a
  * synthetic label for every `sym+offset` reference but can only DEFINE the ones
  * it predicts; a cross-object reference whose offset the defining object never

@@ -3,8 +3,12 @@
  *
  * Usage: line-rewrite <lineno> <replacement> [<lineno> <replacement> ...] < in
  *
- * Replaces the host awk that rebuilt the per-link Mach-O load-command template
- * from MACHO-amd64-lowdata.hex2:
+ * Link-path role: the tcc-darwin-cc wrapper's @LINE_REWRITE@ hook — per
+ * link it rewrites the 8 segment size/offset lines (10,11,15,19,20,21,
+ * 24,25) of the MACHO-amd64-lowdata.hex2 template with the layout
+ * m1-to-hex2 --auto-data-align reported, producing that binary's Mach-O
+ * load-command block.  Built in step 44f by tcc-darwin-cc itself.
+ * Replaces the host awk that did this template rewrite:
  *   awk -v n10=.. .. 'NR==10{print n10;next} .. NR==25{print n25;next} {print}'
  * Like awk's print, every emitted line is terminated with a newline (the
  * template's final line gets one even if the input lacked it).  Reads stdin —

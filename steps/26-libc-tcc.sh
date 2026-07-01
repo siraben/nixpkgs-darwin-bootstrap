@@ -1,5 +1,28 @@
 #!/bin/sh
-## 26-libc-tcc — compile full mes libc+tcc.M1 with Darwin-mapped sources.
+## 26-libc-tcc — compile the tcc-extended mes libc to libc+tcc.M1
+## with Darwin-mapped sources.
+##
+## Same pipeline as step 25 with the larger libc_tcc_SOURCES list
+## (libc-tcc-config.sh): the extra functions tinycc itself calls
+## (fprintf, setjmp, ...).  Step 27 links this file, plus the tcc.M1
+## from step 23, into the first runnable tcc binary.
+##
+## Runs:     mes-m2 (built in step 18) interpreting mescc.scm (step
+##           20) with nyacc (step 19); host awk — trust boundary —
+##           partitions each M1 into code/data sections; Apple
+##           /usr/bin sed/grep/install/cp for orchestration.
+## Inputs:   sources/mescc-libc-fixtures/libc-tcc-config.sh,
+##           target/mes-source (step 15; build-aux/configure-lib.sh
+##           and the lib/ C sources, incl. the sources/mes-darwin
+##           overlays staged there).
+## Outputs:  target/share/libc-tcc/{libc+tcc.M1,sources.map,
+##           objects.list}.
+## Verifies: libc+tcc.M1 defines :fprintf, :setjmp, :__sys_call4 and
+##           the :ELF_data marker — the tcc-only additions and the
+##           section boundary survived the merge.
+## Trust:    host awk performs the code/data split (semantic M1
+##           surgery); the chain m1-split tool exists only from step
+##           44c onward.
 set -eu
 
 mes_source="$TARGET/mes-source"
@@ -30,6 +53,7 @@ cp "$SOURCES/mescc-libc-fixtures/libc-tcc-config.sh" config.sh
 . ./config.sh
 . "$mes_source/build-aux/configure-lib.sh"
 
+## lib/linux/ → lib/darwin/ mapping, as in step 25.
 map_source() {
     source="$1"
     case "$source" in
@@ -71,6 +95,8 @@ for source in $libc_tcc_SOURCES; do
     compile_m1 "$source"
 done
 
+## Two-pass code/data merge, as in step 25: pass 1 emits code
+## sections (globals.M1 skipped; exit.c split at :__call_at_exit).
 while read -r object; do
     case "$object" in
       *lib-mes-globals.M1)
@@ -90,6 +116,7 @@ while read -r object; do
     esac
 done < logs/objects.list > logs/code.M1
 
+## Pass 2: single section boundary, then every object's data section.
 {
     cat logs/code.M1
     echo ':ELF_data'

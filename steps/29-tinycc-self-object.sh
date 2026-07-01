@@ -2,8 +2,25 @@
 ## 29-tinycc-self-object — use the mescc-built tcc to compile its own
 ## source (tcc.c via ONE_SOURCE) into an ELF object tcc.o.
 ##
-## Verifies that the bootstrap tcc can successfully compile the full
-## tinycc C source even though it can't yet link a runnable binary.
+## Self-hosting property established: tcc compiles the full tinycc C
+## source (its own).  Linking that object into a runnable binary is
+## deferred to step 35, after the elf64-to-m1 detour (steps 30–32)
+## and the data-relocs patcher (step 34) exist.  The -D set matches
+## step 23 exactly, so the self-compiled compiler has the same
+## configuration as the mescc-compiled one.
+##
+## Runs:     tcc (built in step 27); Apple /usr/bin cp/chmod/od/tr/
+##           grep/install for orchestration and checks.
+## Inputs:   target/tinycc-mes-src/tcc.c + include/ (step 22),
+##           target/mes-source/include (step 15) — merged into one
+##           include dir, tinycc's headers copied over mes's.
+## Outputs:  target/share/tinycc-self-object/tcc.o (ELF64
+##           relocatable).
+## Verifies: tcc.o starts with the ELF magic; stderr contains the
+##           expected implicit-declaration warnings (the minimal
+##           headers lack some prototypes) — a pinned expectation, so
+##           a silent or differently-failing compile is caught.
+## Trust:    none beyond prior chain outputs.
 set -eu
 
 mes_source="$TARGET/mes-source"

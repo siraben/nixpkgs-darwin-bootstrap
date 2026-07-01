@@ -1,13 +1,26 @@
 #!/bin/sh
 ## 44f-line-rewrite — compile the template line-rewriter from C.
 ##
-## tcc-darwin-cc builds each link's Mach-O load-command block by rewriting 8
-## size/offset lines of MACHO-amd64-lowdata.hex2 — that was host awk
-## (NR==10..25 field substitution).  sources/tools/line-rewrite.c is the chain-
-## built replacement (generic: stdin template + `lineno replacement` arg pairs;
-## verified byte-identical to the awk on the real template).  Wrapper prefers
-## $TARGET/bin/line-rewrite, awk fallback only while bootstrapping it.  Built
-## after 44e, before the first gcc archive (48).
+## tcc-darwin-cc builds each link's Mach-O load-command block by
+## rewriting 8 size/offset lines of MACHO-amd64-lowdata.hex2 (lines
+## 10,11,15,19,20,21,24,25 — the per-link segment layout from
+## m1-to-hex2 --auto-data-align).  line-rewrite replaces host awk
+## (NR==... field substitution) for that binary-layout step; it is
+## generic — stdin template + `lineno replacement` argument pairs —
+## and verified byte-identical to the awk on the real template.  The
+## wrapper prefers $TARGET/bin/line-rewrite and falls back to awk
+## only while the binary is absent.  Built after 44e, before the
+## first gcc archive (step 48).
+##
+## Runs:     tcc-darwin-cc (installed in step 44); Apple /usr/bin
+##           chmod/printf for orchestration and checks.
+## Inputs:   sources/tools/line-rewrite.c.
+## Outputs:  target/bin/line-rewrite.
+## Verifies: smoke test — replace line 2 of a 3-line input, keep the
+##           rest.
+## Trust:    this step's own link still runs the host fallbacks for
+##           line-rewrite and synth-inject; m1-split (44c), tsv-col
+##           (44d) and ctor-table (44e) are chain tools already.
 set -eu
 
 "$TARGET/bin/tcc-darwin-cc" "$SOURCES/tools/line-rewrite.c" -o "$TARGET/bin/line-rewrite"

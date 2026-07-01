@@ -1,5 +1,31 @@
 #!/bin/sh
-## 25-libc — compile full mes libc.M1 with Darwin-mapped sources.
+## 25-libc — compile the full mes libc to a single libc.M1 with
+## Darwin-mapped sources.
+##
+## Compiles every source in libc_SOURCES (the mes libc file list from
+## the committed libc-config.sh fixture, expanded by mes's own
+## configure-lib.sh) with mescc, mapping each lib/linux/ path to its
+## lib/darwin/ counterpart when one exists, then merges all per-file
+## M1 outputs into one code+data-sectioned libc.M1.  This is the libc
+## that step 27 links into the first runnable tcc.
+##
+## Runs:     mes-m2 (built in step 18) interpreting mescc.scm (step
+##           20) with nyacc (step 19); host awk — trust boundary —
+##           partitions each M1 into code/data sections; Apple
+##           /usr/bin sed/grep/install/cp for orchestration.
+## Inputs:   sources/mescc-libc-fixtures/libc-config.sh,
+##           target/mes-source (step 15; build-aux/configure-lib.sh
+##           and the lib/ C sources, incl. the sources/mes-darwin
+##           overlays staged there).
+## Outputs:  target/share/libc/{libc.M1,sources.map,objects.list}
+##           (the logs record the linux→darwin mapping and compile
+##           order for audit).
+## Verifies: libc.M1 defines :write, :_open3, :__sys_call4 and the
+##           :ELF_data marker — syscall wrappers and the section
+##           boundary survived the merge.
+## Trust:    host awk performs the code/data split (semantic M1
+##           surgery); the chain m1-split tool exists only from step
+##           44c onward.
 set -eu
 
 mes_source="$TARGET/mes-source"
@@ -30,6 +56,9 @@ cp "$SOURCES/mescc-libc-fixtures/libc-config.sh" config.sh
 . ./config.sh
 . "$mes_source/build-aux/configure-lib.sh"
 
+## The mes file lists name lib/linux/ sources; use the lib/darwin/
+## counterpart (staged in step 15) when it exists, so Darwin syscall
+## stubs replace the Linux ones file-by-file.
 map_source() {
     source="$1"
     case "$source" in
@@ -71,6 +100,10 @@ for source in $libc_SOURCES; do
     compile_m1 "$source"
 done
 
+## Merge pass 1: emit every object's code section.  globals.M1 is
+## skipped here (it goes whole into the data region below).  exit.c
+## uses :__call_at_exit as its split label instead of :ELF_data so the
+## __call_at_exit table lands in the data segment.
 while read -r object; do
     case "$object" in
       *lib-mes-globals.M1)
@@ -90,6 +123,10 @@ while read -r object; do
     esac
 done < logs/objects.list > logs/code.M1
 
+## Merge pass 2: one :ELF_data/:HEX2_data boundary, then every
+## object's data section in the same order.  The custom split label's
+## line is kept ({print} in the match) so :__call_at_exit stays
+## defined, in the data region.
 {
     cat logs/code.M1
     echo ':ELF_data'

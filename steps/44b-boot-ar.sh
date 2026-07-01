@@ -1,13 +1,28 @@
 #!/bin/sh
 ## 44b-boot-ar — compile the chain's `ar` from C with tcc-darwin-cc.
 ##
-## Apple's /usr/bin/ar refuses the chain's ELF objects ("not a mach-o file")
-## and silently drops them; boot-ar writes a 4.4BSD `ar` archive storing every
-## member byte-for-byte (BSD "#1/<len>" extended names) so the gcc static libs
-## keep their ELF members.  Built here — after tcc-darwin-cc (44), before the
-## first gcc archive (48) — so the whole gcc build uses a CHAIN-BUILT archiver,
-## not host python3.  (sources/tools/boot-ar.c is verified byte-identical to the
-## retired boot-ar.py across create/replace/append/list/extract/delete.)
+## Apple's /usr/bin/ar rejects the chain's ELF objects ("not a mach-o
+## file") and silently drops them; boot-ar writes a 4.4BSD `ar`
+## archive storing every member byte-for-byte (BSD "#1/<len>"
+## extended names) so the gcc static libs keep their ELF members.
+## The wrapper's @AR@ hook points here, so archive extraction in the
+## tcc-darwin-cc link path and every gcc archive (first one in step
+## 48) use the chain-built archiver.  boot-ar replaces host python3
+## (boot-ar.py) in the link path; its output is verified
+## byte-identical to boot-ar.py across create/replace/append/list/
+## extract/delete.
+##
+## Runs:     tcc-darwin-cc (installed in step 44, driving tcc-boot3
+##           and the detour link path with host-awk fallbacks, since
+##           the 44c–44g chain tools are not built yet); Apple
+##           /usr/bin chmod/grep/printf for orchestration and checks.
+## Inputs:   sources/tools/boot-ar.c.
+## Outputs:  target/bin/boot-ar.
+## Verifies: smoke test — create an archive from one member and list
+##           it back, so a broken chain libc surfaces here instead of
+##           deep in the gcc build.
+## Trust:    host awk runs inside this step's tcc-darwin-cc link
+##           (fallback path); the produced boot-ar is chain code.
 set -eu
 
 "$TARGET/bin/tcc-darwin-cc" "$SOURCES/tools/boot-ar.c" -o "$TARGET/bin/boot-ar"

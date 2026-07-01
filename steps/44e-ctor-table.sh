@@ -1,14 +1,26 @@
 #!/bin/sh
-## 44e-ctor-table — compile the C++ global-constructor table emitter from C.
+## 44e-ctor-table — compile the C++ global-constructor table emitter
+## from C.
 ##
-## gcc (configured x86_64-apple-darwin) registers each TU's global-ctor entry
-## via a .mod_init_func pointer the as-filter/tcc chain drops, so tcc-darwin-cc
-## rebuilds the init table by scanning the code M1s for `<prefix>_GLOBAL__sub_I`
-## labels.  That was a host grep|sed|awk|while pipeline — semantically-
-## significant link-path machinery.  sources/tools/ctor-table.c is the chain-
-## built replacement (verified byte-identical, incl. cross-file dedup-in-order).
-## The wrapper prefers $TARGET/bin/ctor-table, host pipeline fallback only while
-## bootstrapping it.  Built after 44d, before the first gcc archive (48).
+## gcc (configured x86_64-apple-darwin) registers each TU's
+## global-ctor entry via a .mod_init_func pointer the as-filter/tcc
+## chain drops, so tcc-darwin-cc rebuilds the init table by scanning
+## the code M1s for `<prefix>_GLOBAL__sub_I` labels.  ctor-table
+## replaces the host grep|sed|awk|while pipeline for that link-path
+## step; its output is verified byte-identical, including cross-file
+## dedup-in-order.  The wrapper prefers $TARGET/bin/ctor-table and
+## falls back to the host pipeline only while the binary is absent.
+## Built after 44d, before the first gcc archive (step 48).
+##
+## Runs:     tcc-darwin-cc (installed in step 44); Apple /usr/bin
+##           chmod/printf for orchestration and checks.
+## Inputs:   sources/tools/ctor-table.c.
+## Outputs:  target/bin/ctor-table.
+## Verifies: smoke test — dedup-in-order across two fixture files,
+##           non-ctor labels ignored, missing files skipped.
+## Trust:    this step's own link still runs the host fallbacks for
+##           ctor-table, line-rewrite and synth-inject; m1-split
+##           (44c) and tsv-col (44d) are chain tools already.
 set -eu
 
 "$TARGET/bin/tcc-darwin-cc" "$SOURCES/tools/ctor-table.c" -o "$TARGET/bin/ctor-table"

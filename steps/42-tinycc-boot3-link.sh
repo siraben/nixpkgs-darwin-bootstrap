@@ -1,5 +1,27 @@
 #!/bin/sh
-## 42-tinycc-boot3-link — link tcc-boot1.o into tcc-boot3 binary.
+## 42-tinycc-boot3-link — link tcc-boot3.o into the tcc-boot3 binary.
+##
+## Final boot-cycle link: tcc-boot3 (generation 4) is the compiler
+## the tcc-darwin-cc wrapper (step 44) drives for all gcc-era
+## compiles.  Link recipe as in steps 38/40, libc recompiled by
+## tcc-boot2.
+##
+## Runs:     tcc-boot2 (built in step 40), elf64-to-m1 (step 30), M1
+##           (step 12), hex2 (step 13), hex2-data-relocs (step 34);
+##           host awk — trust boundary — M1 code/data splits; Apple
+##           /usr/bin cp/dd/chmod/install/grep/od/tr.
+## Inputs:   target/share/tinycc-boot3-object/tcc-boot3.o (step 41),
+##           sources/bootstrap-c/tinycc-sysv-libc.c and
+##           tinycc-sysv-syscalls-amd64-darwin.M1,
+##           sources/tinycc-fixtures/self-link-candidate-crt1-tcc-sysv.M1
+##           and boot1-link-hello.c,
+##           sources/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2.
+## Outputs:  target/bin/tcc-boot3.
+## Verifies: smoke run — `tcc-boot3 -version` prints the pinned
+##           string and `tcc-boot3 -c hello.c` emits an ELF object.
+##           The boot cycle checks each generation by smoke run; no
+##           step byte-compares successive generations' objects.
+## Trust:    host awk for the M1 code/data splits.
 set -eu
 
 work="$TARGET/work/tinycc-boot3-link"

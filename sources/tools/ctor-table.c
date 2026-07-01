@@ -1,7 +1,12 @@
 /* ctor-table — emit the C++ global-constructor init table from the per-
  * object/member code M1 files passed as arguments.
  *
- * Replaces the host pipeline
+ * Link-path role: the tcc-darwin-cc wrapper's @CTOR_TABLE@ hook — the
+ * wrapper brackets this tool's output with :__boot_init_start /
+ * :__boot_init_end in the combined M1, and crt1 walks that table and
+ * calls each ctor before main (the .mod_init_func pointers gcc emits
+ * are dropped by the as-filter/tcc chain).  Built in step 44e by
+ * tcc-darwin-cc itself.  Replaces the host pipeline in the link path:
  *   grep -hoE '^:[A-Za-z0-9_.$]*_GLOBAL__sub_I[A-Za-z0-9_.$]*' code_files \
  *     | sed 's/^://' | awk '!seen[$0]++' \
  *     | while read ctor; do printf '&%s\n!0x00 !0x00 !0x00 !0x00\n' "$ctor"; done
@@ -11,7 +16,10 @@
  * keeping FIRST-occurrence order and dropping duplicates, prints:
  *   &<ctor>
  *   !0x00 !0x00 !0x00 !0x00
- * Missing files are skipped (matching grep -h ... 2>/dev/null).
+ * (an 8-byte pointer slot: hex2 fills the 4-byte &<ctor> reference and
+ * the four zero bytes pad it to 64 bits).  Missing files are skipped
+ * (matching grep -h ... 2>/dev/null).  Output is byte-identical to the
+ * pipeline, including cross-file first-occurrence dedup order.
  */
 #include <stdio.h>
 #include <stdlib.h>

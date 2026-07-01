@@ -1,5 +1,23 @@
 #!/bin/sh
-## 40-tinycc-boot2-link — link tcc-boot1.o into tcc-boot2 binary.
+## 40-tinycc-boot2-link — link tcc-boot2.o into the tcc-boot2 binary.
+##
+## Self-hosting property established: generation 3 runs.  Link recipe
+## as in step 38, with the libc recompiled by tcc-boot1.
+##
+## Runs:     tcc-boot1 (built in step 38), elf64-to-m1 (step 30), M1
+##           (step 12), hex2 (step 13), hex2-data-relocs (step 34);
+##           host awk — trust boundary — M1 code/data splits; Apple
+##           /usr/bin cp/dd/chmod/install/grep/od/tr.
+## Inputs:   target/share/tinycc-boot2-object/tcc-boot2.o (step 39),
+##           sources/bootstrap-c/tinycc-sysv-libc.c and
+##           tinycc-sysv-syscalls-amd64-darwin.M1,
+##           sources/tinycc-fixtures/self-link-candidate-crt1-tcc-sysv.M1
+##           and boot1-link-hello.c,
+##           sources/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2.
+## Outputs:  target/bin/tcc-boot2.
+## Verifies: smoke run — `tcc-boot2 -version` prints the pinned
+##           string and `tcc-boot2 -c hello.c` emits an ELF object.
+## Trust:    host awk for the M1 code/data splits.
 set -eu
 
 work="$TARGET/work/tinycc-boot2-link"

@@ -1,7 +1,11 @@
 /* tsv-col — print column 2 of a tab-separated symbol table where column 1
  * equals the requested tag (D = defined, U = undefined), skipping empty col2.
  *
- * Replaces the host awk in tcc-darwin-cc's symbol-set machinery:
+ * Link-path role: the tcc-darwin-cc wrapper's @TSV_COL@ hook — it reads
+ * the `elf64-to-m1 --symbols` TSVs ("D\t<sym>" / "U\t<sym>" lines) and
+ * feeds the defined/unresolved symbol-set machinery that decides which
+ * archive members join a link.  Built in step 44d by tcc-darwin-cc
+ * itself.  Replaces the host awk in that machinery:
  *   awk -F'\t' '$1 == "D" && $2 != "" { print $2 }'   (tsv-col D)
  *   awk -F'\t' '$1 == "U" && $2 != "" { print $2 }'   (tsv-col U)
  * The output is piped to `sort -u`, so only the SET of col2 values matters; we

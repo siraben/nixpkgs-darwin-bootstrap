@@ -1,13 +1,45 @@
 #!/bin/sh
-## 44-tinycc-darwin-cc — the final Darwin-native tcc wrapper.
+## 44-tinycc-darwin-cc — install the Darwin-native C compiler
+## wrapper.
 ##
-## Generates MACHO-amd64-largedata.hex2 (segment-resized variant of
-## the lowdata template), substitutes paths into tcc-darwin-cc.sh,
-## and verifies it compiles+links a hello binary that runs.
+## tcc-darwin-cc is the cc the whole gcc era (steps 45+) drives.  Per
+## invocation it runs tcc-boot3 to compile, then replays the detour
+## link: elf64-to-m1 per object/archive member, m1-split code/data
+## partition, tsv-col + boot-ar archive symbol resolution, ctor-table
+## C++ init-table synthesis, synth-inject cross-object label fixups,
+## m1-to-hex2 --auto-data-align for a per-link Mach-O layout
+## (line-rewrite patches 8 size/offset lines of the lowdata
+## template), and hex2 for the final link.  This step stages the
+## wrapper's file tree and substitutes the @PLACEHOLDER@ paths.
 ##
-## Note: tcc-darwin-cc.sh requires bash (uses arrays).  We use
-## /bin/bash for the shebang.  The signing step from the Nix recipe
-## is skipped (Apple-signed binaries aren't necessary for runtime).
+## The chain link-path tools (boot-ar, m1-split, tsv-col, ctor-table,
+## line-rewrite, synth-inject) are compiled in steps 44b–44g by this
+## wrapper itself; until each binary exists the wrapper falls back to
+## the host tool it replaces (awk / the synth-inject.awk fixture).
+## The fallbacks therefore run in this step's smoke test and in
+## steps 44b–44g; from step 45 on, every link uses the chain tools.
+##
+## Runs:     tcc-self (built in step 35) to compile the wrapper's
+##           libc M1; elf64-to-m1 (step 30); Apple /usr/bin cp/sed/
+##           chmod/install for staging; /bin/bash executes the
+##           installed wrapper (arrays are used, so the shebang is
+##           bash).
+## Inputs:   sources/tcc-darwin/tcc-darwin-cc.sh (wrapper source),
+##           headers/ (bootstrap C headers), crt1-tcc-sysv.M1,
+##           synth-inject.awk (fallback for step 44g's build),
+##           sources/bootstrap-c/tinycc-sysv-libc.c and
+##           tinycc-sysv-syscalls-amd64-darwin.M1,
+##           sources/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2.
+## Outputs:  target/tcc-darwin-cc-root/ (bin/tcc-darwin-cc, include/,
+##           share/ with libc M1 + crt1 + template + awk fallback)
+##           and target/bin/tcc-darwin-cc.
+## Verifies: smoke run — the wrapper compiles and links hello.c and
+##           ./hello exits 42, covering the whole per-link pipeline.
+## Trust:    the installed wrapper runs under host /bin/bash with
+##           Apple /usr/bin utilities for orchestration; host awk
+##           fallbacks are exercised only while steps 44b–44g build
+##           their chain replacements.  The Nix recipe's codesigning
+##           step is dropped (unsigned binaries run here).
 set -eu
 
 mes_source="$TARGET/mes-source"
@@ -18,7 +50,8 @@ mkdir -p "$out/bin" "$out/include/tcc-darwin-bootstrap" "$out/share"
 ## Copy headers
 cp -R "$SOURCES/tcc-darwin/headers/." "$out/include/tcc-darwin-bootstrap/"
 
-## Compile tinycc-sysv-libc.c → .o → .M1
+## Compile tinycc-sysv-libc.c → .o → .M1: the libc M1 every
+## tcc-darwin-cc link pulls in (compiled once here by tcc-self).
 tcc-self -c "$SOURCES/bootstrap-c/tinycc-sysv-libc.c" -o "$out/tinycc-sysv-libc.o"
 elf64-to-m1 --prefix tinycc_sysv_libc_ "$out/tinycc-sysv-libc.o" "$out/share/tinycc-sysv-libc.M1"
 
@@ -33,7 +66,10 @@ cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 lowdata="$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2"
 cp "$lowdata" "$out/share/MACHO-amd64-lowdata.hex2"
 
-## Install the precise cross-object synth-label injector (awk post-pass).
+## Install the precise cross-object synth-label injector (awk
+## post-pass) — the wrapper's fallback until step 44g builds the
+## chain synth-inject binary, and the byte-comparison reference in
+## 44g's smoke test.
 cp "$SOURCES/tcc-darwin/synth-inject.awk" "$out/share/synth-inject.awk"
 
 ## Install the wrapper script with placeholders substituted.
@@ -42,6 +78,8 @@ cp "$SOURCES/tcc-darwin/tcc-darwin-cc.sh" "$out/bin/tcc-darwin-cc"
 ## Must be executable: the gcc-4.6 bootstrap `as` shim invokes this
 ## copy in tcc-darwin-cc-root/bin directly (not the one in target/bin).
 chmod 755 "$out/bin/tcc-darwin-cc"
+## Substitute the @PLACEHOLDER@ tool paths; drop `-u` from the
+## wrapper's set line and delete the Nix-track signing hook lines.
 sed -i.bak \
     -e 's|^set -euo pipefail$|set -eo pipefail|' \
     -e "s|@SHELL@|/bin/bash|g" \
