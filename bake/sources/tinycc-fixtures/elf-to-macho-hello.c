@@ -1,1 +1,0 @@
-../../../tinycc/fixtures/elf-to-macho-hello.c

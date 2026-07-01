@@ -1,1 +1,0 @@
-../../../scripts/gcc-4.6/bootstrap-as.c

@@ -1,0 +1,1 @@
+../../nix/gcc-4.6/fixtures/all-gcc-xgcc-smoke.c

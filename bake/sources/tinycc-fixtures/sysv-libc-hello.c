@@ -1,1 +1,0 @@
-../../../tinycc/fixtures/sysv-libc-hello.c

@@ -1,0 +1,1 @@
+../../nix/scripts/gcc-4.6/prepare-source.sh

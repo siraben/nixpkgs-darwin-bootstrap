@@ -1,0 +1,1 @@
+../../nix/gnumake/fixtures/default-bootstrap-smoke.mk

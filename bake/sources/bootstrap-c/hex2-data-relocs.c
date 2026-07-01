@@ -1,1 +1,0 @@
-../../../bootstrap/hex2-data-relocs.c

@@ -26,7 +26,7 @@
         let
           pkgs = pkgsFor (chainSystem system);
         in
-        pkgs.callPackage ./packages.nix { };
+        pkgs.callPackage ./nix/packages.nix { };
     in
     {
       ## --- Top-level flake outputs --------------------------------------
@@ -121,6 +121,9 @@
           "callPhase"
           "tests"
           "supportedSystems"
+          "override"
+          "overrideDerivation"
+          "stage0-posix"
           "gcc46DarwinBootstrapSrc"
           "tinyccBootstrappableSrc"
           "tinyccMesSrc"

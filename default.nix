@@ -3,4 +3,4 @@
 let
   pkgs = import nixpkgs { inherit system; };
 in
-pkgs.callPackage ./packages.nix { }
+pkgs.callPackage ./nix/packages.nix { }

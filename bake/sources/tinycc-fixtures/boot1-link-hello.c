@@ -1,1 +1,0 @@
-../../../tinycc/fixtures/boot1-link-hello.c

@@ -1,0 +1,1 @@
+../../nix/scripts/tinycc/synth-inject.awk

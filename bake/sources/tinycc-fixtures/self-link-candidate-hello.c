@@ -1,1 +1,0 @@
-../../../tinycc/fixtures/self-link-candidate-hello.c

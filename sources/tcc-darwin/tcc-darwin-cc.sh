@@ -1,0 +1,1 @@
+../../nix/scripts/tinycc/tcc-darwin-cc-bash3.sh

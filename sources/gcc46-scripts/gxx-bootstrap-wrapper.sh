@@ -1,0 +1,1 @@
+../../nix/scripts/gcc-4.6/gxx-bootstrap-wrapper.sh

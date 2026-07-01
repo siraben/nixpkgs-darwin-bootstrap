@@ -1,0 +1,1 @@
+../../nix/tinycc/fixtures/compile-hello.c

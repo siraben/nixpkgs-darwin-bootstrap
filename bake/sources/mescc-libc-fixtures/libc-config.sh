@@ -1,1 +1,0 @@
-../../../mescc-libc/fixtures/libc-config.sh
