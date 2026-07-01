@@ -46,7 +46,7 @@ sed -i.bak \
     -e 's|^set -euo pipefail$|set -eo pipefail|' \
     -e "s|@SHELL@|/bin/bash|g" \
     -e "s|@TCC@|$TARGET/bin/tcc-boot3|g" \
-    -e "s|@AR@|$TARGET/bin/bake-ar|g" \
+    -e "s|@AR@|$TARGET/bin/boot-ar|g" \
     -e "s|@INCLUDE@|$out/include/tcc-darwin-bootstrap|g" \
     -e "s|@ELF_TO_M1@|$TARGET/bin/elf64-to-m1|g" \
     -e "s|@M1_TO_HEX2@|$TARGET/bin/m1-to-hex2|g" \

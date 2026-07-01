@@ -31,11 +31,11 @@ chmod -R u+w src
 CC="$TARGET/bin/tcc-darwin-cc"
 CPP="$CC -E"
 ## Apple's /usr/bin/ar refuses our ELF objects (it warns "not a mach-o
-## file" and produces an empty archive); use the ELF-capable bake-ar and
+## file" and produces an empty archive); use the ELF-capable boot-ar and
 ## a no-op ranlib (tcc-darwin-cc indexes archive members itself).
-AR="$ROOT/scripts/bake-ar"
+AR="$ROOT/scripts/boot-ar"
 NM=/usr/bin/nm
-RANLIB="$ROOT/scripts/bake-ranlib"
+RANLIB="$ROOT/scripts/boot-ranlib"
 STRIP=/usr/bin/strip
 LIPO=/usr/bin/lipo
 OTOOL=/usr/bin/otool

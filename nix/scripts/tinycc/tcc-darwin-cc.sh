@@ -518,14 +518,14 @@ done
   echo ':HEX2_data'
   for file in "${data_files[@]}"; do cat "$file"; done
   m1_split_data @LIBC_M1@
-  # C++ static-init array brackets. crt1-tcc-sysv.M1 references __bake_init_start
-  # /__bake_init_end and walks [start,end) calling each ctor before main. This
+  # C++ static-init array brackets. crt1-tcc-sysv.M1 references __boot_init_start
+  # /__boot_init_end and walks [start,end) calling each ctor before main. This
   # wrapper compiles only C (no global constructors), so emit an EMPTY array
   # (start == end → the crt1 loop is a no-op). Without these labels the link
-  # fails "Target label __bake_init_start is not valid": crt1 added the
-  # references in commit b016ef9 (the bake bash3 wrapper emits a real array).
-  echo ':__bake_init_start'
-  echo ':__bake_init_end'
+  # fails "Target label __boot_init_start is not valid": crt1 added the
+  # references in commit b016ef9 (the shell-track bash3 wrapper emits a real array).
+  echo ':__boot_init_start'
+  echo ':__boot_init_end'
 } > "$tmp/combined.M1"
 
 # Cross-object synth labels: elf64-to-m1's per-object blanket only DEFINES a

@@ -2,7 +2,7 @@
 ## 27-tinycc-mescc-link — link tcc.M1 + libc+tcc.M1 → runnable tcc.
 ##
 ## This is the first working tcc binary in the chain — built ONLY by
-## tools from the bake/ seed-derived chain (mes-m2 produced the .M1s,
+## tools from the seed-derived chain (mes-m2 produced the .M1s,
 ## stage0 M1+hex2+macho-patcher link them into a Mach-O).
 set -eu
 

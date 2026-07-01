@@ -1,6 +1,6 @@
 #!/bin/sh
 ## 53b-gcc10-patches — apply the in-tree gcc-10 source patches required to build
-## cc1/xgcc with the from-seed bake toolchain.  Run after 53-gcc10-source.
+## cc1/xgcc with the from-seed toolchain.  Run after 53-gcc10-source.
 ##
 ## These are NOT compiler-correctness fixes for gcc itself; they work around two
 ## bootstrap-environment constraints:
@@ -54,7 +54,7 @@ patch("system.h", [(
     '#endif /* ! __FUNCTION__ */\n'
     '#endif\n',
     '/* Various error reporting routines want to use __FUNCTION__.  */\n'
-    '#if 1 /* bake: from-seed cc1plus miscompiles the synthetic __FUNCTION__ decl */\n'
+    '#if 1 /* boot: from-seed cc1plus miscompiles the synthetic __FUNCTION__ decl */\n'
     '#undef __FUNCTION__\n'
     '#define __FUNCTION__ "?"\n'
     '#define __func__ "?"\n'
@@ -74,7 +74,7 @@ patch("config/host-darwin.c", [
      'static char pch_address_space[1048576] __attribute__((aligned (16384)));'),
     ('  gcc_assert ((size_t)pch_address_space % pagesize == 0\n'
      '\t      && sizeof (pch_address_space) % pagesize == 0);\n',
-     '  /* bake: hex2 does not honour aligned(16384); PCH is never used in the\n'
+     '  /* boot: hex2 does not honour aligned(16384); PCH is never used in the\n'
      '     from-seed bootstrap, so disable it gracefully if unaligned.  */\n'
      '  if ((size_t) pch_address_space % pagesize != 0\n'
      '      || sizeof (pch_address_space) % pagesize != 0)\n'

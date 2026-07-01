@@ -1,7 +1,7 @@
 /* synth-inject — inject precise cross-object `:<sym>_plus_<hex>` synth-label
  * definitions into a combined (whitespace-flattened) M1 stream.
  *
- * M2-Planet-dialect port of bake/sources/tools/synth-inject.c
+ * M2-Planet-dialect port of sources/tools/synth-inject.c
  * (byte-identical output), built through the m2 → m1 → hex2 →
  * macho-patcher pipeline so the tcc-darwin-cc wrapper never needs an awk
  * fallback.  elf64-to-m1 emits a synthetic label for every `sym+offset`

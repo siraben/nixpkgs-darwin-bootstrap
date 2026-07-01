@@ -1,0 +1,14 @@
+#!/bin/sh
+## boot-ar — ELF-capable `ar` for the from-seed gcc build.  Apple's /usr/bin/ar
+## refuses non-Mach-O members; this stores ELF objects verbatim (4.4BSD ar).
+##
+## The implementation is the CHAIN-BUILT binary at $TARGET/bin/boot-ar, compiled
+## from sources/tools/boot-ar.c by tcc-darwin-cc in step 44b — no host tools.
+## This shim only resolves $TARGET and forwards.
+d=$(cd "$(dirname "$0")" && pwd)
+TARGET="${TARGET:-$(cd "$d/../target" && pwd)}"
+[ -x "$TARGET/bin/boot-ar" ] || {
+  echo "boot-ar: $TARGET/bin/boot-ar not built (run step 44b first)" >&2
+  exit 1
+}
+exec "$TARGET/bin/boot-ar" "$@"

@@ -2,11 +2,11 @@
 # SOURCE this (do not execute); it expects ROOT and TARGET in the environment
 # (set by build.sh) and defines the toolchain env + standard path variables.
 #
-# Everything here is from the bake chain — nothing from the host toolchain:
+# Everything here is from the from-seed chain — nothing from the host toolchain:
 #   CC   = tcc-darwin-cc            (our tinycc-derived C compiler driver)
 #   CXX  = gcc46-cxx/bin/g++        (our from-seed gcc-4.6 g++)
 #   CPP/CXXCPP = chain preprocessors
-#   AR/RANLIB  = bake-ar/bake-ranlib (deterministic, produce ELF .a the chain reads)
+#   AR/RANLIB  = boot-ar/boot-ranlib (deterministic, produce ELF .a the chain reads)
 #   NM/STRIP/LIPO/OTOOL = Apple system binutils (inspection only, no codegen)
 
 ROOT="${ROOT:?gcc10-env.sh: ROOT must be set}"
@@ -34,7 +34,7 @@ export CXXCPP="$ROOT/scripts/gxx-cpp"
 export CC_FOR_BUILD="$CC"
 export CXX_FOR_BUILD="$CXX"
 
-# GC tuning + flag rationale: see bake/scripts/gcc10-resume-make.sh and STATUS.md.
+# GC tuning + flag rationale: see scripts/gcc10-resume-make.sh and docs/shell-track-STATUS.md.
 # -O0 keeps cc1plus (running under Rosetta 2) tractable; -fpermissive downgrades
 # gcc-10's C++11 narrowing errors that gcc-4.6 cc1plus treats as hard errors.
 GCC10_GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
@@ -46,8 +46,8 @@ export CFLAGS="-O0 $GCC10_GGC"
 # these scripts are faithful even when run standalone (outside build.sh's PATH).
 export MAKE="${MAKE:-$TARGET/bin/make}"
 
-export AR="$ROOT/scripts/bake-ar"
-export RANLIB="$ROOT/scripts/bake-ranlib"
+export AR="$ROOT/scripts/boot-ar"
+export RANLIB="$ROOT/scripts/boot-ranlib"
 export AR_FOR_BUILD="$AR"
 export RANLIB_FOR_BUILD="$RANLIB"
 export NM=/usr/bin/nm

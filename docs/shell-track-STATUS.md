@@ -5,8 +5,8 @@
 > Nix-track paths.  The current bake layout: the TinyCC wrapper + awk are
 > `bake/sources/tcc-darwin/{tcc-darwin-cc.sh,synth-inject.awk}` (there is no
 > `tcc-darwin-cc-bash3.sh` and no `bake/scripts/tinycc/`); the archiver is
-> `bake/scripts/bake-ar` backed by chain-built C `bake/sources/tools/bake-ar.c`
-> (not `bake-ar.py`); there are 63 numbered step scripts in `bake/steps/`
+> `bake/scripts/boot-ar` backed by chain-built C `bake/sources/tools/boot-ar.c`
+> (not `boot-ar.py`); there are 63 numbered step scripts in `bake/steps/`
 > (01–55 plus 44b–g, 52b, 53b).  "Blocked"/"one remaining blocker" sections
 > below pre-date the gcc-4.6 + gcc-10 resolution and are superseded.
 
@@ -57,8 +57,8 @@ Repro bugs found & fixed while making the manual build reproduce from scratch:
 - **gcc-10 source patches** matched to pristine 10.4.0 (`__FUNCTION__`, PCH) — `steps/53b`.
 - **`make -f -` hang** fixed by running each step with stdin `</dev/null` — `build.sh`.
 - **gcc-4.6 libstdc++** built + **published to top-level `libstdc++.a`** (the g++ wrapper silently skips a missing top-level `.a`, which dropped every libstdc++ symbol and made hex2 abort at `std::_Rb_tree_increment`, truncating cc1) — `steps/52b`.
-- **`AR=ar` in build-libcpp** resolved to `bake-ar` via PATH so genmatch links — `steps/55`.
-- **libgcc/emutls stubs** built as x86_64 Mach-O (system ld rejects bake-ar ELF) — `steps/55`.
+- **`AR=ar` in build-libcpp** resolved to `boot-ar` via PATH so genmatch links — `steps/55`.
+- **libgcc/emutls stubs** built as x86_64 Mach-O (system ld rejects boot-ar ELF) — `steps/55`.
 - **M2libc heap cap** — the chain link tools' fixed bump-allocator pool (1.79 GB `brk` + 512 MB `bootstrap.c`) overflowed on the 335 MB combined M1 → silent `malloc` NULL → cc1 link crash; enlarged both to 4 GB (commit ab4ebf1) — `M2libc/amd64/Darwin/{unistd,bootstrap}.c`.
 
 Step ordering matters: 52b (libstdc++) precedes 54 (gcc-10 configure) so the
@@ -69,7 +69,7 @@ keep headroom (a clean `sh build.sh` re-preps fine with space).
 ## Clean-clean from-seed audit (2026-06-04/05, `TARGET=/tmp/bake-verify2`)
 
 > **✅ CONFIRMED (2026-06-05): a fully COLD archive cache reproduces a working
-> gcc-10 cc1 + xgcc.** After the four fixes below, a `BAKE_START_FROM=55` run with
+> gcc-10 cc1 + xgcc.** After the four fixes below, a `BOOT_START_FROM=55` run with
 > the archive resolve-cache **deleted** rebuilt cc1 (insn-emit.o/member-160 now
 > correctly selected and built, 11.9 MB M1), installed the real 146-member core
 > libgcc.a, and `scripts/gcc10-goal-test.sh` returned **7**. The cold-cache cc1
@@ -79,11 +79,11 @@ A second from-seed run into a **pristine** tree (separate from the warm
 `/tmp/bake-verify`) confirmed the chain reproduces seed → gcc-4.6 → gcc-10
 `all-gcc` *compile*, and caught four genuine reproducibility bugs, all now fixed:
 
-- **bake-ar symlink (commit ac097b8)** — step 55 symlinked `ar` to the
-  `scripts/bake-ar` *shim*, whose `TARGET` fallback (`$dir/../target`) is wrong
+- **boot-ar symlink (commit ac097b8)** — step 55 symlinked `ar` to the
+  `scripts/boot-ar` *shim*, whose `TARGET` fallback (`$dir/../target`) is wrong
   for a scratch `TARGET`, so gcc-10's build-side libcpp sub-make (no `TARGET` in
   its env) produced an EMPTY `libcpp.a` and genmatch failed to link. Now points
-  at the self-contained `$TARGET/bin/bake-ar` binary.
+  at the self-contained `$TARGET/bin/boot-ar` binary.
 
 Two further end-stage blockers surfaced that the warm tree had only gotten past
 via hand-placed artifacts — both are real gaps in the committed step 55:
@@ -116,7 +116,7 @@ via hand-placed artifacts — both are real gaps in the committed step 55:
 
 Faithfulness (2026-06-03): the gcc-10/gcc-4.6 LINK PATH is now host-awk-free.
 Every host tool that did translation/symbol-resolution/layout in tcc-darwin-cc is
-a chain-built C tool compiled by tcc-darwin-cc itself (steps 44b–44g): bake-ar
+a chain-built C tool compiled by tcc-darwin-cc itself (steps 44b–44g): boot-ar
 (archiver), m1-split (code/data split), tsv-col (symbol-set), ctor-table (C++
 ctor table), line-rewrite (Mach-O load-command template), synth-inject
 (cross-object label injector); the layout `sed` and `cksum|awk` are gone too, and
@@ -231,7 +231,7 @@ and **no host awk** in the assembly path.  Steps 48→49→50 all green.
 
 Bugs fixed to get here (each surfaced the next):
 1. tcc libc self-recursive int↔float helpers (make stack overflow) — e2161fc
-2. Apple ar can't archive ELF (empty libs) → bake-ar — 65431d7
+2. Apple ar can't archive ELF (empty libs) → boot-ar — 65431d7
 3. UTF-8 collation broke gcc's option dedup → LC_ALL=C — 5066486
 4. root tcc-darwin-cc not executable (libgcc `as`) — 0c0c876
 5. tcc assembler chokes on DWARF .file/.loc and GAS .p2align — 57240ca/.p2align
@@ -252,8 +252,8 @@ surfacing the next as the build progressed:
    `bootstrap/tinycc-sysv-libc.c` (commit e2161fc).
 2. **Apple ar can't archive ELF** — `/usr/bin/ar` silently drops our
    ELF objects, leaving libgmp/libmpfr/libmpc empty (mpc configure then
-   fails its MPFR ABI link).  Added `bake/scripts/bake-ar.py` (BSD-format
-   ELF archiver) + no-op `bake-ranlib` (commit 65431d7).
+   fails its MPFR ABI link).  Added `bake/scripts/boot-ar.py` (BSD-format
+   ELF archiver) + no-op `boot-ranlib` (commit 65431d7).
 3. **UTF-8 collation broke gcc's option dedup** — opt-gather.awk sorts
    .opt records and opth-gen.awk merges *adjacent* identical option
    names; UTF-8 collation separated the two `-C` records → duplicate
@@ -791,7 +791,7 @@ the bake-native step-48 pattern.
 Planned bake steps (51+):
 1. **51-gcc46-cxx-all** — rerun the step-48 configure/build but with
    `--enable-languages=c,c++` and target `all-gcc` (builds cc1plus +
-   xg++).  Reuse step 48's env: tcc-darwin-cc, bake-ar/bake-ranlib,
+   xg++).  Reuse step 48's env: tcc-darwin-cc, boot-ar/boot-ranlib,
    LC_ALL=C, config.cache fixtures.  Expected to behave like step 48.
 2. **52-gcc46-libstdc++** — build libstdc++-v3 with the new g++ (via the
    phase36-style xgcc/bootstrap-as wrapper, but g++).  The big C++ unknown

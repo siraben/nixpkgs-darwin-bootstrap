@@ -31,9 +31,9 @@ chmod -R u+w src
 
 CC="$TARGET/bin/tcc-darwin-cc"
 CPP="$CC -E"
-AR="$ROOT/scripts/bake-ar"
+AR="$ROOT/scripts/boot-ar"
 NM=/usr/bin/nm
-RANLIB="$ROOT/scripts/bake-ranlib"
+RANLIB="$ROOT/scripts/boot-ranlib"
 STRIP=/usr/bin/strip
 LIPO=/usr/bin/lipo
 OTOOL=/usr/bin/otool

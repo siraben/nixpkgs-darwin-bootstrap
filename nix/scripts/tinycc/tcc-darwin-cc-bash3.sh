@@ -589,12 +589,12 @@ done
   # TU's global-constructor entry point `<prefix>_GLOBAL__sub_I_<name>` via a
   # Mach-O `.mod_init_func` pointer that the as-filter/tcc chain drops, so the
   # ctors never run and global objects keep NULL vtable pointers.  Collect every
-  # such ctor label (in link order) into an array bracketed by __bake_init_start
-  # /__bake_init_end; _start (crt1) walks it and calls each before main.  Pure-C
+  # such ctor label (in link order) into an array bracketed by __boot_init_start
+  # /__boot_init_end; _start (crt1) walks it and calls each before main.  Pure-C
   # links emit an empty array (start==end), so the crt1 loop is a no-op.
-  echo ':__bake_init_start'
+  echo ':__boot_init_start'
   emit_ctor_table "${code_files[@]}"
-  echo ':__bake_init_end'
+  echo ':__boot_init_end'
 } > "$tmp/combined.M1"
 
 # Precise cross-object synth labels: elf64-to-m1's per-object blanket only

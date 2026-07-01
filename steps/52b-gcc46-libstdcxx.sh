@@ -31,8 +31,8 @@ export CC="$TARGET/bin/tcc-darwin-cc"
 export CXX="$TARGET/gcc46-cxx/bin/g++"
 export CPPFLAGS="-isystem $TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap"
 export CXXFLAGS="-g"
-export AR="$ROOT/scripts/bake-ar"
-export RANLIB="$ROOT/scripts/bake-ranlib"
+export AR="$ROOT/scripts/boot-ar"
+export RANLIB="$ROOT/scripts/boot-ranlib"
 export NM=/usr/bin/nm
 
 echo "== configuring gcc-4.6 libstdc++-v3 (slow: C++ conftests) =="

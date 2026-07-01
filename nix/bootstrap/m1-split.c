@@ -1,6 +1,6 @@
 /* m1-split — split a combined M1 stream into its code or data section.
  *
- * M2-Planet-dialect port of bake/sources/tools/m1-split.c, built through
+ * M2-Planet-dialect port of sources/tools/m1-split.c, built through
  * the m2 → m1 → hex2 → macho-patcher pipeline so the tcc-darwin-cc
  * wrapper never needs an awk fallback: the binary exists before the
  * wrapper's first link.

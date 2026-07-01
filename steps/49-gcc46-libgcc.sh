@@ -10,10 +10,10 @@ out="$TARGET/gcc46-libgcc"
 rm -rf "$out"
 mkdir -p "$out"
 
-## Use the ELF-capable bake-ar / no-op bake-ranlib (Apple's ar drops our
+## Use the ELF-capable boot-ar / no-op boot-ranlib (Apple's ar drops our
 ## ELF objects); phase36-libgcc.sh honors a pre-set AR/RANLIB.
-export AR="$ROOT/scripts/bake-ar"
-export RANLIB="$ROOT/scripts/bake-ranlib"
+export AR="$ROOT/scripts/boot-ar"
+export RANLIB="$ROOT/scripts/boot-ranlib"
 export LC_ALL=C LANG=C
 
 /bin/bash "$SOURCES/gcc46-scripts/phase36-libgcc.sh" \

@@ -7,7 +7,7 @@
 ## (verified byte-identical to the awk).  The wrapper prefers $TARGET/bin/
 ## m1-split and only falls back to awk while m1-split itself is being built here
 ## (its binary not yet present) — so this self-build is the LAST awk split; every
-## subsequent gcc link uses chain-built C.  Built after 44b (bake-ar) so the
+## subsequent gcc link uses chain-built C.  Built after 44b (boot-ar) so the
 ## whole gcc toolchain (steps 45+) has it.
 set -eu
 

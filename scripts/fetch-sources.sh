@@ -1,8 +1,8 @@
 #!/bin/sh
-## Fetch upstream tarballs needed for bake/ phases beyond stage0.
+## Fetch upstream tarballs needed for the chain phases beyond stage0.
 ##
 ## All downloads verified by SHA256 against pinned hashes (the same
-## ones Nix uses).  Falls back to user-provided $BAKE_TARBALL_DIR if
+## ones Nix uses).  Falls back to user-provided $BOOT_TARBALL_DIR if
 ## set so this can be run offline.
 set -eu
 
@@ -25,9 +25,9 @@ fetch() {
             "$name" "$actual" "$expected_sha"
     fi
 
-    if [ -n "${BAKE_TARBALL_DIR:-}" ] && [ -f "$BAKE_TARBALL_DIR/$name" ]; then
-        printf '  %s: copying from $BAKE_TARBALL_DIR\n' "$name"
-        cp "$BAKE_TARBALL_DIR/$name" "$target"
+    if [ -n "${BOOT_TARBALL_DIR:-}" ] && [ -f "$BOOT_TARBALL_DIR/$name" ]; then
+        printf '  %s: copying from $BOOT_TARBALL_DIR\n' "$name"
+        cp "$BOOT_TARBALL_DIR/$name" "$target"
     else
         printf '  %s: downloading %s\n' "$name" "$url"
         /usr/bin/curl -fsSL "$url" -o "$target.tmp"

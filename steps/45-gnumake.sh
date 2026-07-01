@@ -63,10 +63,10 @@ cp lib/fnmatch.in.h lib/fnmatch.h
 ## redefinition error).  As #defines inside config.h they go through a
 ## more reliable path.  (NB: this is unrelated to the libiberty
 ## stack-overflow, whose real cause was self-recursive 64-bit int<->float
-## helpers in the tcc libc — see bake/STATUS.md.)
-cat >> src/config.h <<'BAKECFG'
-#ifndef BAKE_EXTRA_DEFS
-#define BAKE_EXTRA_DEFS 1
+## helpers in the tcc libc — see docs/shell-track-STATUS.md.)
+cat >> src/config.h <<'BOOTCFG'
+#ifndef BOOT_EXTRA_DEFS
+#define BOOT_EXTRA_DEFS 1
 #define HAVE_ATEXIT 1
 #define HAVE_DIRENT_H 1
 #define HAVE_DUP2 1
@@ -103,7 +103,7 @@ cat >> src/config.h <<'BAKECFG'
 #define STDC_HEADERS 1
 #define MAKE_SYMLINKS 1
 #endif
-BAKECFG
+BOOTCFG
 
 CC="$TARGET/bin/tcc-darwin-cc"
 CFLAGS='-I./src -I./lib -DHAVE_CONFIG_H -DLIBDIR="/fake-libdir" -DLOCALEDIR="/fake-locale" -DPOSIX=1 -DNO_ARCHIVES=1 -DNO_OUTPUT_SYNC=1 -DO_TMPFILE=020000000 -DFILE_TIMESTAMP_HI_RES=0 -Dalloca=malloc -DHAVE_DECL_BSD_SIGNAL=0 -DHAVE_DECL_GETLOADAVG=0 -DHAVE_DECL_SYS_SIGLIST=0 -DHAVE_DECL__SYS_SIGLIST=0 -DHAVE_DECL___SYS_SIGLIST=0 -DPATH_SEPARATOR_CHAR=0x3a -DSCCS_GET="get"'

@@ -42,15 +42,15 @@ GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
 # by the g++ wrapper, which strips -W*; -fpermissive forwards via the -f* rule.)
 export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 -fpermissive $GGC"
 export CFLAGS="-O0 $GGC"
-export AR=$ROOT/scripts/bake-ar
-export RANLIB=$ROOT/scripts/bake-ranlib
+export AR=$ROOT/scripts/boot-ar
+export RANLIB=$ROOT/scripts/boot-ranlib
 # Build-side subdirs (build-x86_64-apple-darwin/libcpp, libiberty) archive
 # their .o with AR_FOR_BUILD/RANLIB_FOR_BUILD, NOT AR/RANLIB. Their Makefiles
 # default these to plain `ar`, which silently makes an empty archive from our
 # ELF members (only __.SYMDEF, zero members) -> "Target label _ZNK... not valid"
-# when genmatch links libcpp.a. Force the bake shims here too.
-export AR_FOR_BUILD=$ROOT/scripts/bake-ar
-export RANLIB_FOR_BUILD=$ROOT/scripts/bake-ranlib
+# when genmatch links libcpp.a. Force the boot-ar/boot-ranlib shims here too.
+export AR_FOR_BUILD=$ROOT/scripts/boot-ar
+export RANLIB_FOR_BUILD=$ROOT/scripts/boot-ranlib
 export NM=/usr/bin/nm
 export STRIP=/usr/bin/strip
 export LIPO=/usr/bin/lipo
@@ -74,14 +74,14 @@ if [ -d "$SRC" ]; then
   find "$SRC" -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
 fi
 
-# Force build-side archives to use bake-ar. The build-x86_64-apple-darwin/libcpp
+# Force build-side archives to use boot-ar. The build-x86_64-apple-darwin/libcpp
 # Makefile hardcodes `AR = ar` (Apple's), which silently produces an empty
 # __.SYMDEF-only archive from our ELF objects -> genmatch fails to link
 # ("Target label _ZNK13rich_location7get_locEj is not valid"). A command-line
 # AR_FOR_BUILD override does NOT reach it: the top Makefile only EXPORTS
 # AR=$(AR_FOR_BUILD) into the sub-make environment, and a Makefile `AR =`
 # assignment beats an environment variable. So patch the generated Makefile
-# directly (idempotent; the regex no-ops once already pointing at bake-ar).
+# directly (idempotent; the regex no-ops once already pointing at boot-ar).
 for mk in "$B"/build-*/libcpp/Makefile; do
   [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
 done

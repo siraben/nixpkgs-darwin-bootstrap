@@ -97,7 +97,7 @@ object_format="\${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}"
 # Quarantine: the dormant macho/host-source code paths must NOT silently fall
 # back to the host as/cc/ld.  Default these empty (instead of $(command -v ...))
 # so the guards below ("requires GCC46_BOOTSTRAP_AS/MACHO_CC/HOST_CC") refuse
-# loudly unless a developer EXPLICITLY opts in.  Faithful bake uses
+# loudly unless a developer EXPLICITLY opts in.  Faithful from-seed runs use
 # object_format=elf and never touches them.
 macho_as="\${GCC46_BOOTSTRAP_AS:-}"
 macho_linker="\${GCC46_BOOTSTRAP_MACHO_CC:-}"

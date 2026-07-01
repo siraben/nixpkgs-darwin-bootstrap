@@ -1,6 +1,6 @@
-/* bake-ar — a minimal `ar` that stores members verbatim (works with ELF).
+/* boot-ar — a minimal `ar` that stores members verbatim (works with ELF).
  *
- * Chain-built replacement for bake-ar.py: Apple's /usr/bin/ar refuses
+ * Chain-built replacement for boot-ar.py: Apple's /usr/bin/ar refuses
  * non-Mach-O members ("not a mach-o file") and silently drops them, which
  * breaks the gcc in-tree static libs (the tcc toolchain emits ELF objects).
  * This writes a 4.4BSD `ar` archive (the container Apple's ar still parses for
@@ -11,7 +11,7 @@
  * delete (d).  Symbol-table modifiers (s) are accepted and ignored —
  * tcc-darwin-cc indexes members itself, so no ranlib index is needed.
  *
- * Output is byte-identical to bake-ar.py for the same inputs.
+ * Output is byte-identical to boot-ar.py for the same inputs.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,7 +23,7 @@ static const char MAGIC[8] = { '!','<','a','r','c','h','>','\n' };
 typedef struct { char *base; unsigned char *data; long len; } Member;
 
 static void die(const char *msg, const char *arg) {
-	fprintf(stderr, "bake-ar: %s%s%s\n", msg, arg ? ": " : "", arg ? arg : "");
+	fprintf(stderr, "boot-ar: %s%s%s\n", msg, arg ? ": " : "", arg ? arg : "");
 	exit(1);
 }
 
@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
 	char **files;
 	int nfiles, i;
 	char op = 0;
-	if (argc < 3) die("usage: bake-ar <[cqrxtds]...> archive [members...]", 0);
+	if (argc < 3) die("usage: boot-ar <[cqrxtds]...> archive [members...]", 0);
 	mods = argv[1];
 	while (*mods == '-') mods++;
 	archive = argv[2];

@@ -1,5 +1,5 @@
 #!/bin/sh
-## 55-gcc10-all-gcc — build gcc-10 `all-gcc` with the bake chain and produce a
+## 55-gcc10-all-gcc — build gcc-10 `all-gcc` with the from-seed chain and produce a
 ## working cc1 + xgcc that compile & run real C from the seed.
 ##
 ## Long step: cc1plus runs x86-64 under Rosetta 2, so the generated files
@@ -8,7 +8,7 @@
 ## parallel-safe.
 ##
 ## NB: this assumes step 54 configured $GCC10_BUILD and step 53b patched the
-## source.  The four bake-toolchain fixes behind a working cc1 (synth-label
+## source.  The four from-seed-toolchain fixes behind a working cc1 (synth-label
 ## injector, C++ static-init crt1, crt1 argc/argv, elf64-to-m1 data-reloc
 ## addend) live in the chain itself (steps 30/44 + tools), not here.
 set -eu
@@ -28,18 +28,18 @@ find "$GCC10_BUILD" -print0 | xargs -0 touch -t 202701010000 2>/dev/null || true
 ## _ZNK13rich_location7get_locEj is not valid").  An AR_FOR_BUILD env override
 ## doesn't reach it (a Makefile assignment beats the environment), and a sed on
 ## the generated Makefile is racy: build-*/libcpp/Makefile is created DURING this
-## make, after the loop below has already run.  The robust fix: put bake-ar on
+## make, after the loop below has already run.  The robust fix: put boot-ar on
 ## PATH as `ar`, so the Makefile's literal `ar` resolves to it.  (build-libiberty
 ## is unaffected — it uses the passed $(AR).)
-## Symlink `ar` to the self-contained chain-built bake-ar BINARY (not the
-## scripts/bake-ar shim): gcc-10's build-side libcpp sub-make invokes `ar`
+## Symlink `ar` to the self-contained chain-built boot-ar BINARY (not the
+## scripts/boot-ar shim): gcc-10's build-side libcpp sub-make invokes `ar`
 ## without TARGET in its environment, and the shim's TARGET fallback
 ## (`$dir/../target`) is wrong for a scratch TARGET, so it would silently
 ## produce an EMPTY libcpp.a and genmatch would fail to link
 ## (`Target label _ZNK13rich_location7get_locEj is not valid`).  The binary
-## needs no env.  bake-ranlib is a pure no-op shim, so it is fine as-is.
-ln -sf "$TARGET/bin/bake-ar"        "$TARGET/bin/ar"
-ln -sf "$ROOT/scripts/bake-ranlib" "$TARGET/bin/ranlib"
+## needs no env.  boot-ranlib is a pure no-op shim, so it is fine as-is.
+ln -sf "$TARGET/bin/boot-ar"        "$TARGET/bin/ar"
+ln -sf "$ROOT/scripts/boot-ranlib" "$TARGET/bin/ranlib"
 ## Also keep the sed for any already-configured tree (idempotent; harmless).
 for mk in "$GCC10_BUILD"/build-*/libcpp/Makefile; do
   [ -f "$mk" ] && sed -i.bak "s|^AR = ar\$|AR = $AR|" "$mk"
@@ -94,10 +94,10 @@ test -x "$GCC10_BUILD/gcc/xgcc" || { echo "55: xgcc not produced" >&2; exit 1; }
 ## --sysroot, so libgcc_eh / libgcc_s / libemutls_w stay symbol-less x86_64
 ## Mach-O stubs (xgcc references them for -lgcc_eh/-lemutls_w but the C goal test
 ## needs none of their symbols; the final exe link uses the SYSTEM ld, which
-## requires Mach-O archives — a bake-ar ELF archive or a memberless macOS-ar
+## requires Mach-O archives — a boot-ar ELF archive or a memberless macOS-ar
 ## archive would be rejected).
-stubo="$GCC10_BUILD/gcc/.bake-stub.o"
-printf 'static int _bake_stub;\n' > "$stubo.c"
+stubo="$GCC10_BUILD/gcc/.boot-stub.o"
+printf 'static int _boot_stub;\n' > "$stubo.c"
 /usr/bin/cc -arch x86_64 -c "$stubo.c" -o "$stubo"
 for L in libgcc_eh libgcc_s libemutls_w; do
   rm -f "$GCC10_BUILD/gcc/$L.a"

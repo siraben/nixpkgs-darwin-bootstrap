@@ -17,13 +17,13 @@
 ##                                   tar, cp, nm, system cc/ld for the final
 ##                                   goal-test exe link — the chain has no native
 ##                                   Mach-O exe linker)
-##   - host source-prep tools       (NOT yet ported to the chain in the bake
+##   - host source-prep tools       (NOT yet ported to the chain in the shell
 ##                                   track: host awk for the early M1 code/data
 ##                                   splits; host python3 in step 53b and host
 ##                                   perl in scripts/phase13-* for gcc text edits;
 ##                                   host /usr/bin/patch in step 22; host /usr/bin/
 ##                                   cc + ar for the libgcc EH/unwind stub archive
-##                                   in step 55 — see bake/REVIEW.md / STATUS.md)
+##                                   in step 55 — see docs/shell-track-REVIEW.md / -STATUS.md)
 ##   - Darwin kernel + /usr/lib/dyld
 set -eu
 
@@ -33,15 +33,15 @@ SOURCES="$ROOT/sources"
 STEPS="$ROOT/steps"
 ## TARGET defaults to $ROOT/target but may be overridden, so a reproducibility
 ## verification run can build into a scratch dir without destroying an existing
-## target tree:  TARGET=/path/to/scratch sh bake/build.sh
+## target tree:  TARGET=/path/to/scratch sh build.sh
 TARGET="${TARGET:-$ROOT/target}"
 
 export ROOT SEED SOURCES STEPS TARGET
 
 ## Reset target on each run for a clean build — UNLESS resuming via
-## $BAKE_START_FROM (skip the wipe so an existing partial target is reused, e.g.
+## $BOOT_START_FROM (skip the wipe so an existing partial target is reused, e.g.
 ## to re-run a fixed late step without redoing the multi-hour gcc builds).
-if [ -z "${BAKE_START_FROM:-}" ]; then
+if [ -z "${BOOT_START_FROM:-}" ]; then
   rm -rf "$TARGET"
 fi
 mkdir -p "$TARGET/bin" "$TARGET/share"
@@ -58,27 +58,27 @@ export PATH="$TARGET/bin:/usr/bin:/bin"
 ## options.h.  C collation keeps identical names adjacent.
 export LC_ALL=C LANG=C
 
-printf '== bake driver ==\n'
+printf '== bootstrap driver ==\n'
 printf '   seed: %s\n' "$SEED"
 printf '   target: %s\n' "$TARGET"
 printf '   PATH: %s\n' "$PATH"
 printf '\n'
 
-## Optional: stop after the step whose name starts with $BAKE_STOP_AFTER, e.g.
-##   BAKE_STOP_AFTER=14 TARGET=/tmp/bake-verify sh bake/build.sh
+## Optional: stop after the step whose name starts with $BOOT_STOP_AFTER, e.g.
+##   BOOT_STOP_AFTER=14 TARGET=/tmp/boot-verify sh build.sh
 ## runs phases up to and including 14-kaem.  Useful for incremental
 ## reproducibility verification without a full multi-hour run.
 ## Optional: skip every step before the one whose name starts with
-## $BAKE_START_FROM (combined with not wiping TARGET above, this resumes a
-## partial build), e.g.  BAKE_START_FROM=54 TARGET=/tmp/bake-verify sh build.sh
+## $BOOT_START_FROM (combined with not wiping TARGET above, this resumes a
+## partial build), e.g.  BOOT_START_FROM=54 TARGET=/tmp/boot-verify sh build.sh
 step_count=0
 started=1
-[ -n "${BAKE_START_FROM:-}" ] && started=0
+[ -n "${BOOT_START_FROM:-}" ] && started=0
 for step in "$STEPS"/*.sh; do
   step_name=$(basename "$step" .sh)
   if [ "$started" -eq 0 ]; then
     case "$step_name" in
-      "$BAKE_START_FROM"*) started=1 ;;
+      "$BOOT_START_FROM"*) started=1 ;;
       *) continue ;;
     esac
   fi
@@ -94,10 +94,10 @@ for step in "$STEPS"/*.sh; do
   ( cd "$ROOT" && /bin/sh "$step" </dev/null )
   step_count=$((step_count + 1))
   printf '   ok\n\n'
-  case "${BAKE_STOP_AFTER:-}" in
+  case "${BOOT_STOP_AFTER:-}" in
     '') ;;
     *) case "$step_name" in
-         "$BAKE_STOP_AFTER"*) printf '== stopping after %s (BAKE_STOP_AFTER) ==\n' "$step_name"; break ;;
+         "$BOOT_STOP_AFTER"*) printf '== stopping after %s (BOOT_STOP_AFTER) ==\n' "$step_name"; break ;;
        esac ;;
   esac
 done

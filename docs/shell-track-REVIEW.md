@@ -7,11 +7,11 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 - #1 host-awk linker machinery in tcc-darwin-cc — DONE: every host tool in the
   active link path is now chain-built C (compiled by tcc-darwin-cc in a 44X step,
   @PLACEHOLDER@ + wrapper helper; awk/host fallback runs ONLY while the tool
-  itself bootstraps): bake-ar (44b, 9ad4a83); m1-split :ELF_data/:HEX2_data
+  itself bootstraps): boot-ar (44b, 9ad4a83); m1-split :ELF_data/:HEX2_data
   splitter (44c, 273a3f2); tsv-col symbol-set TSV extractor (44d, 15b5d65);
   ctor-table C++ GLOBAL__sub_I init table (44e, 664ee8c); line-rewrite Mach-O
   load-command template (44f, b4f1fe2); synth-inject cross-object `_plus_<hex>`
-  injector (44g, e7b43af). @AR@ extraction = bake-ar (bcba3cf). Each verified
+  injector (44g, e7b43af). @AR@ extraction = boot-ar (bcba3cf). Each verified
   byte-identical to its predecessor. A full cc1 relink with the de-awk'd wrapper
   COMPLETES: the de-awk'd from-seed xgcc passes the goal test (7), cc1 is the full
   44 MB Mach-O. (Earlier relinks died mid-`m1-to-hex2`; root cause was the M2libc
@@ -32,7 +32,7 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
   bugs — specs-file driver segfault, -O1 overflow-routine cc1 crash, broken TLS
   asm). Verified a __float128 program links against it but not the stub. The
   EH/unwind libgcc_eh stays a stub (unwind-dw2.c needs <pthread.h>).
-- #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, bake-ar).
+- #6 @AR@=/usr/bin/ar extraction — FIXED (bcba3cf, boot-ar).
 - #7 phase37-driver.sh dormant host as/cc hatches — FIXED (be25b5b, default empty
   so the macho/host-source guards refuse unless explicitly opted in).
 - #8 tarballs fetched not committed (SHA256-pinned) — FIXED wording (937415e):
@@ -104,7 +104,7 @@ is an ACCEPTED bounded impurity (see the analysis above — mechanical partition
 
 6. **Medium: `tcc-darwin-cc` embeds host `/usr/bin/ar` for archive extraction. Borderline violation.**  
    Step 44 substitutes `@AR@` with `/usr/bin/ar` at [44-tinycc-darwin-cc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/44-tinycc-darwin-cc.sh:49), and the wrapper extracts archive members at [tcc-darwin-cc.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/tcc-darwin/tcc-darwin-cc.sh:288). This is not codegen or symbol resolution, but it is host parsing of code-bearing archives in the active link path.  
-   Suggested fix: after step 44b, make the wrapper use chain-built `bake-ar x`.
+   Suggested fix: after step 44b, make the wrapper use chain-built `boot-ar x`.
 
 7. **Medium: GCC-4.6 wrapper has host `as`/`cc` escape hatches. Not active by default, but unsafe.**  
    Step 50 generates the wrapper from [phase37-driver.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/50-gcc46-bootstrap.sh:9). The generated script captures default host `as`/`cc` paths at [phase37-driver.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/gcc46-scripts/phase37-driver.sh:98). If `GCC46_BOOTSTRAP_OBJECT_FORMAT=macho`, it uses host assembler at [line 552](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/gcc46-scripts/phase37-driver.sh:552) and host compiler/linker at [line 530](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/gcc46-scripts/phase37-driver.sh:530) and [line 756](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/sources/gcc46-scripts/phase37-driver.sh:756). Normal bake uses `object_format=elf`, so this is not an active `sh bake/build.sh` cheat.  

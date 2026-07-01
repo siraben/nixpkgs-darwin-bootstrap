@@ -4,7 +4,7 @@
 ## cc1plus + the bootstrap-as filter + tcc-darwin-cc directly.  Same idea
 ## as the gcc-4.6 driver's gcc wrapper, but for C++.
 ##
-## A bake step substitutes the @PLACEHOLDERS@.  Validated: separate
+## A shell-track step substitutes the @PLACEHOLDERS@.  Validated: separate
 ## compilation of a multi-file self-contained C++ program links + runs.
 ## (libstdc++ headers/lib are NOT yet wired — add -I/-L for them once the
 ## libstdc++ step exists.)
@@ -105,7 +105,7 @@ done
 [ "$mode" = link ] || exit 0
 ## Link against the chain-built libstdc++ + libsupc++ (partial archive; the
 ## few float-formatting/locale TUs that needed SSE3 are excluded — not used by
-## gcc-10).  bake-ar archives can't be -l/-L resolved, so pass the .a paths.
+## gcc-10).  boot-ar archives can't be -l/-L resolved, so pass the .a paths.
 libs=()
 [ -f "$LIBSTDCXX/libstdc++.a" ] && libs+=("$LIBSTDCXX/libstdc++.a")
 [ -f "$LIBSTDCXX/libsupc++/.libs/libsupc++.a" ] && libs+=("$LIBSTDCXX/libsupc++/.libs/libsupc++.a")

@@ -1,6 +1,6 @@
 #!/bin/sh
 ## Chain C preprocessor shim (CPP).  Honour an exported $TARGET so a scratch
-## verification build (TARGET=/tmp/bake-verify) preprocesses with ITS compiler,
-## not the repo's pre-existing bake/target.
+## verification build (TARGET=/tmp/boot-verify) preprocesses with ITS compiler,
+## not the repo's pre-existing target/.
 TARGET="${TARGET:-$(cd "$(dirname "$0")/../target" && pwd)}"
 exec "$TARGET/bin/tcc-darwin-cc" -E "$@"

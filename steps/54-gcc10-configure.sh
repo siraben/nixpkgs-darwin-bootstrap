@@ -1,6 +1,6 @@
 #!/bin/sh
 ## 54-gcc10-configure — configure gcc-10 for an `all-gcc` (C front-end) build
-## using ONLY the bake chain toolchain (tcc-darwin-cc + gcc-4.6 g++).
+## using ONLY the from-seed chain toolchain (tcc-darwin-cc + gcc-4.6 g++).
 ##
 ## Codifies what was previously a hand-run configure (recovered from the build
 ## dir's config.log).  --enable-languages=c builds cc1 + xgcc; the C++ front-end

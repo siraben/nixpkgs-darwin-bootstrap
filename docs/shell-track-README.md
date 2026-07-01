@@ -27,17 +27,17 @@ bake/
 ├── sources/                  # auditable text sources
 │   ├── stage0-posix/         #   vendored oriansj/stage0-posix-1.9.1
 │   ├── tcc-darwin/           #   the tcc-darwin-cc link wrapper (template) + headers
-│   ├── tools/                #   chain-built C helpers: bake-ar.c, m1-split.c,
+│   ├── tools/                #   chain-built C helpers: boot-ar.c, m1-split.c,
 │   │                         #     tsv-col.c, ctor-table.c, line-rewrite.c,
 │   │                         #     synth-inject.c, elf64-to-m1.M1
 │   ├── gcc10-darwin/, gcc46-*/, gnumake/, ...
 │   └── tools/elf64-to-m1.M1  #   hand-written ELF→M1 converter
 ├── steps/                    # ordered build scripts: 01-hex0 … 55-gcc10-all-gcc
 │                             #   (44b–44g build the chain-built C link tools)
-├── scripts/                  # gcc10-env.sh, gcc10-link-cc1.sh, goal test, bake-ar shim
+├── scripts/                  # gcc10-env.sh, gcc10-link-cc1.sh, goal test, boot-ar shim
 ├── tarballs/                 # upstream mes/gcc tarballs (gitignored, SHA-256 pinned)
 ├── target/                   # build outputs (gitignored)
-└── build.sh                  # driver (supports TARGET=, BAKE_START_FROM=, BAKE_STOP_AFTER=)
+└── build.sh                  # driver (supports TARGET=, BOOT_START_FROM=, BOOT_STOP_AFTER=)
 ```
 
 ## The chain-built link path (no host awk)
@@ -50,7 +50,7 @@ the tool it replaced):
 
 | Tool | Step | Replaces |
 |---|---|---|
-| `bake-ar` | 44b | host python3 `ar` (stores ELF members verbatim) |
+| `boot-ar` | 44b | host python3 `ar` (stores ELF members verbatim) |
 | `m1-split` | 44c | awk `:ELF_data`/`:HEX2_data` code/data splitter |
 | `tsv-col` | 44d | awk D/U symbol-set extractor (archive resolution) |
 | `ctor-table` | 44e | grep\|sed\|awk C++ `_GLOBAL__sub_I` init-table emitter |

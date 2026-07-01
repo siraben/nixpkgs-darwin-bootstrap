@@ -1,4 +1,4 @@
-/* ctor-table — emit the bake C++ global-constructor init table from the per-
+/* ctor-table — emit the C++ global-constructor init table from the per-
  * object/member code M1 files passed as arguments.
  *
  * Replaces the host pipeline
