@@ -1,7 +1,8 @@
 ## hex0 — the Darwin-bootstrap seed assembler.
 ##
 ## The smallest tool in the chain.  Built by a 4 KB committed Mach-O
-## seed (`hex0/seed/hex0-amd64-darwin`) acting as the Nix `builder`.  No
+## seed (`seed/hex0-amd64-darwin` at the repo root; `nix/hex0/seed/`
+## symlinks to it) acting as the Nix `builder`.  No
 ## stdenv, no clang, no bootstrap-tools is involved in producing the
 ## hex0 binary itself.
 ##
@@ -24,7 +25,8 @@
 
 let
   ## Per-arch seed naming: the amd64 and aarch64 seeds live side by side
-  ## in hex0/.  Each arch's src is filtered to its own files so adding
+  ## in seed/ at the repo root (nix/hex0/seed/ symlinks to them).  Each
+  ## arch's src is filtered to its own files so adding
   ## one arch's seed leaves the other arch's derivation unchanged.
   seedArch = if hostPlatform.isx86_64 then "amd64" else "aarch64";
   otherArch = if hostPlatform.isx86_64 then "aarch64" else "amd64";

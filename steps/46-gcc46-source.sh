@@ -1,5 +1,23 @@
 #!/bin/sh
 ## 46-gcc46-source — extract gcc-4.6.4 + in-tree gmp/mpfr/mpc.
+##
+## gcc-4.6 is the bridge target for the chain tcc: it is written in C
+## (GCC's own sources require a C++ compiler from 4.8 on), so
+## tcc-darwin-cc can compile it, and once built it provides the C++
+## front-end (cc1plus, steps 51-52b) that gcc-10 requires.  gmp/mpfr/mpc
+## are placed in-tree so gcc's top-level configure builds them itself
+## with the chain toolchain; nothing is taken from the host.
+##
+## Runs:    Apple tar/mv/cp — unpack and file placement only, no
+##          translation of any kind.
+## Inputs:  tarballs/gcc-4.6.4.tar.bz2, gmp-4.3.2.tar.bz2,
+##          mpfr-2.4.2.tar.bz2, mpc-0.8.1.tar.gz (pinned SHA-256,
+##          fetched by scripts/fetch-sources.sh).
+## Outputs: $TARGET/gcc46-source (gcc tree with gmp/, mpfr/, mpc/
+##          subdirs); scratch tree $TARGET/work/gcc46-source.
+## Verifies: presence of configure, gcc/gcc.c, and each in-tree math
+##          library's configure — the trees landed where gcc's build
+##          expects them.
 set -eu
 
 out="$TARGET/gcc46-source"

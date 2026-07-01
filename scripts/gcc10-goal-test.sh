@@ -2,6 +2,14 @@
 # Goal test for the from-seed gcc-10: xgcc must compile AND run real C.
 # Exits 0 on success (program returned 7), non-zero otherwise.
 #
+# Run by a maintainer after step 55 (step 55's final message points here);
+# not part of the build.sh step sequence.  Env contract: ROOT/TARGET/
+# GCC10_BUILD all optional — each defaults from the script's own location.
+# Trust: the compile is pure chain (xgcc/cc1), but the final executable
+# link goes through xgcc to Apple's system `as`/`ld` with SDKROOT for
+# -lSystem — trust boundary: the chain has no native Mach-O executable
+# linker for gcc output, so the goal test's link step is host-performed.
+#
 # Deliberately does NOT source gcc10-env.sh: that env sets
 # MACOSX_DEPLOYMENT_TARGET=10.6 (needed to *build* gcc-10), but propagating it
 # here makes the modern system `ld` mis-handle the final hello link

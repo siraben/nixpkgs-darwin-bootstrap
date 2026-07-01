@@ -5,6 +5,13 @@
 ## The implementation is the CHAIN-BUILT binary at $TARGET/bin/boot-ar, compiled
 ## from sources/tools/boot-ar.c by tcc-darwin-cc in step 44b — no host tools.
 ## This shim only resolves $TARGET and forwards.
+##
+## Invoked as AR by steps 48/49/51/52b and by the gcc-10 scripts via
+## scripts/gcc10-env.sh (AR and AR_FOR_BUILD).  Env contract: honours an
+## exported $TARGET (scratch/verify builds); without one it falls back to
+## the repo-relative ../target.  Step 55 symlinks $TARGET/bin/ar to the
+## binary directly for sub-makes that invoke a literal `ar` without
+## TARGET in their environment.
 d=$(cd "$(dirname "$0")" && pwd)
 TARGET="${TARGET:-$(cd "$d/../target" && pwd)}"
 [ -x "$TARGET/bin/boot-ar" ] || {

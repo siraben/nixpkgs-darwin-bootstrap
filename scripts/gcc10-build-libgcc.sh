@@ -16,6 +16,16 @@
 # The EH/unwind library (libgcc_eh.a) additionally needs <pthread.h>, absent from
 # the chain --sysroot, so only the arithmetic/soft-float CORE libgcc.a is built;
 # the EH/libgcc_s/emutls stubs are left in place by the caller.
+#
+# Invoked by step 55 after cc1/xgcc are linked; also runnable standalone by a
+# maintainer against an existing build tree.  Env contract: ROOT required,
+# TARGET optional (gcc10-env.sh defaults it); paths come from gcc10-env.sh.
+# Trust: GCC_FOR_TARGET is the chain-built xgcc (it generates all libgcc
+# code), but the target-side assemble/archive tools are Apple
+# /usr/bin/as, ld, ar, ranlib — trust boundary: the system assembler turns
+# xgcc's assembly into Mach-O objects and the system ar archives them, so
+# libgcc.a members are host-assembled from chain-generated assembly.
+# Host perl performs two Makefile text edits (specs target, _eprintf).
 set -u
 
 : "${ROOT:?gcc10-build-libgcc.sh: ROOT must be set}"

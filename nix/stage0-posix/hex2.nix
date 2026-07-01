@@ -1,6 +1,6 @@
 ## hex2 — Darwin Mach-O hex2 linker, assembled live from source.
 ##
-## hex0/sources/hex2_AMD64_darwin.hex0 is the genuine hand-documented hex0
+## nix/hex0/sources/hex2_AMD64_darwin.hex0 is the genuine hand-documented hex0
 ## source for hex2 (Mach-O header + hex2 machine code) — no committed
 ## binary/padding blob.  The hex0 seed assembles it and dd pads to the
 ## LINKEDIT vmaddr (0x1800000) at build time.  Output runs unsigned in the

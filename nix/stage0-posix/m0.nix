@@ -1,15 +1,15 @@
 ## m0 — Darwin Mach-O M0 macro assembler, built live from source.
 ##
 ## catm prepends the committed Mach-O header template
-## (tools/templates/MACHO-amd64-lowdata.hex2) to the committed M0 body
-## (M2libc/amd64/M0_AMD64_darwin_body.hex2), the seed-built hex2 assembles
+## (nix/tools/templates/MACHO-amd64-lowdata.hex2) to the committed M0 body
+## (nix/M2libc/amd64/M0_AMD64_darwin_body.hex2), the seed-built hex2 assembles
 ## it, then dd pads to the LINKEDIT offset.  Runs unsigned in the Nix
 ## sandbox on x86_64 (verified empirically).  All translation is done by
 ## chain-built tools (catm, hex2); stdenv only orchestrates (cp/dd/install).
 ## No committed binary dump.
 ##
 ## The M0 body is regenerated from upstream stage0Sources by the maintainer
-## via scripts/stage0/regen-preported.sh; build-time has no awk/perl/python.
+## via nix/scripts/stage0/regen-preported.sh; build-time has no awk/perl/python.
 {
   mkDarwin,
   catm,

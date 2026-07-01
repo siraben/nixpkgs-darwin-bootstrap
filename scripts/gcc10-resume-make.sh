@@ -1,6 +1,15 @@
 #!/bin/sh
 # Resume gcc-10 `make all-gcc` in the existing build dir with the full
 # chain toolchain env. Codifies the env that has otherwise been ad-hoc.
+#
+# Maintainer tool: re-enters the step-55 build after an interruption or a
+# late-step fix without rebuilding from scratch (build.sh's driver path is
+# step 55 itself, which shares this env via scripts/gcc10-env.sh).  Env
+# contract: ROOT optional (self-locates); TARGET is fixed to $ROOT/target
+# here, so this script always operates on the repo's own build tree.
+# Trust: chain make/tcc/g++/boot-ar do all translation; host actions are
+# mtime normalization (touch) and one sed Makefile text edit, both
+# documented at their sites below.
 set -eu
 
 ROOT="${ROOT:-$(cd -- "$(dirname -- "$0")/.." && pwd)}"

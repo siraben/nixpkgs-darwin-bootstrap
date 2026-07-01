@@ -10,8 +10,8 @@ rec {
   ##     by passing `version = ...;` explicitly)
   ##   - dontUnpack/dontStrip/strictDeps default to true (we never have
   ##     an src, never want stripping on signed binaries, and want the
-  ##     bootstrap to fail loudly on missing inputs rather than fall
-  ##     back to leaked host tools)
+  ##     bootstrap to fail loudly on missing inputs — a silent fallback
+  ##     to leaked host tools would go unnoticed)
   ##   - meta.platforms defaults to x86_64-darwin (only stage0-posix/
   ##     hex1.nix's aarch64 candidate overrides)
   ##

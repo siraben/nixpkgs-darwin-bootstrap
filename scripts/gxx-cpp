@@ -2,5 +2,10 @@
 ## Chain C++ preprocessor shim (CXXCPP).  Honour an exported $TARGET so a scratch
 ## verification build (TARGET=/tmp/boot-verify) preprocesses with ITS g++, not
 ## the repo's pre-existing target/.
+##
+## Wired in as CXXCPP by scripts/gcc10-env.sh (steps 54/55 and the gcc10-*
+## scripts); gives configure/make a single-word CXXCPP that execs the
+## chain gcc-4.6 g++ wrapper from step 52 in -E mode, so C++ preprocessing
+## stays chain-built.
 TARGET="${TARGET:-$(cd "$(dirname "$0")/../target" && pwd)}"
 exec "$TARGET/gcc46-cxx/bin/g++" -E "$@"

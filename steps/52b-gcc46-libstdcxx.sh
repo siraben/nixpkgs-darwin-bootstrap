@@ -13,6 +13,23 @@
 ## Historically the libstdc++ configure was impractical (every C++ conftest
 ## links a ~51 MB Mach-O); the dynamic per-link Mach-O layout (in tcc-darwin-cc
 ## + m1-to-hex2) and running with stdin </dev/null (build.sh) make it tractable.
+##
+## Runs:    libstdc++-v3's own configure (Apple /bin/sh); chain make from
+##          step 45; chain g++ wrapper from step 52 (CXX — all C++
+##          compilation); chain tcc-darwin-cc (CC + final links inside the
+##          wrapper); chain boot-ar + no-op boot-ranlib (archiving);
+##          Apple /usr/bin/nm (inspection).
+## Inputs:  $TARGET/gcc46-darwin-bootstrap-src/libstdc++-v3 (step 47);
+##          gcc/gthr-single.h from the same tree;
+##          $TARGET/tcc-darwin-cc-root headers (CPPFLAGS sysroot).
+## Outputs: $TARGET/work/libstdcxx46: generated headers (incl.
+##          include/x86_64-apple-darwin/bits/c++config.h), top-level
+##          libstdc++.a, and libsupc++/.libs/libsupc++.a — the exact
+##          paths the step-52 g++ wrapper searches.
+## Verifies: bits/c++config.h was generated; libstdc++.a is published at
+##          the top level of $work.
+## Trust:   all compilation/archiving is chain-built; host tools are
+##          POSIX orchestration only.
 set -eu
 
 src="$TARGET/gcc46-darwin-bootstrap-src/libstdc++-v3"

@@ -15,12 +15,11 @@
 ## Standalone GMP as a Nix derivation built by a bootstrap-chain compiler,
 ## matching the nixpkgs minimal-bootstrap structure.
 ##
-## Status: building. phase46 `gcc-latest` (the full-closure GCC that ships
-## its own libgcc + libstdc++ + complete headers) compiles, installs, and
-## smoke-tests GMP here; strict phase47 consumes it via
-## GCC_MODERN_EXTERNAL_GMP instead of extracting GMP in-tree. (The earlier
-## frontends-without-complete-runtimes GCCs — gcc46-cxx, gcc-10 — could not
-## build external software; that handoff issue is resolved.)
+## `gcc-latest` (the full-closure GCC that ships its own libgcc +
+## libstdc++ + complete headers) compiles, installs, and smoke-tests GMP
+## here; gcc-latest-strict consumes it via GCC_MODERN_EXTERNAL_GMP instead
+## of extracting GMP in-tree. The earlier frontends-without-complete-
+## runtimes GCCs (gcc46-cxx, gcc10) cannot build external software.
 ##
 let
   version = gccLatestGmpVersion;
@@ -34,10 +33,10 @@ runCommand "gmp-${version}" {
   tar -xf ${tarball}
   cd gmp-${version}
 
-  ## Use phase46 GCC 15.2 as the bootstrap compiler. Earlier candidates:
-  ##   - phase44 (gcc46-cxx): missing libgcc_ext.10.5
-  ##   - phase45 (gcc10): incomplete bundled stddef.h / missing syslimits.h
-  ## Phase46 ships a more complete bootstrap-sysroot at
+  ## Use the gcc-latest GCC 15.2 as the bootstrap compiler. Earlier candidates:
+  ##   - gcc46-cxx: missing libgcc_ext.10.5
+  ##   - gcc10: incomplete bundled stddef.h / missing syslimits.h
+  ## gcc-latest ships a more complete bootstrap-sysroot at
   ## $out/x86_64-apple-darwin/include/ (stdio.h, limits.h, etc.) which
   ## external configure tests can resolve.  Apple SDK still needed for
   ## libSystem at link time; see todos #11/#13.
@@ -45,7 +44,7 @@ runCommand "gmp-${version}" {
   sdk=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
 
   ## Match the configuration that gnu-hello.nix uses successfully —
-  ## phase46 wrapper internally injects -isysroot / -Wl,-syslibroot
+  ## the gcc-latest wrapper internally injects -isysroot / -Wl,-syslibroot
   ## when GCC_MODERN_WRAPPER_HOST_SHORTCUTS=0.
   export PATH="$compiler/bin:${cctools}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
   export CC="$compiler/bin/gcc"

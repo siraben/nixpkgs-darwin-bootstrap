@@ -21,7 +21,7 @@ let
         mkdir build
         cd build
 
-        ## ar/ranlib are the chain-built cctools ar/ranlib (phase39b, gcc-15);
+        ## ar/ranlib are the chain-built cctools ar/ranlib (cctools-ar, gcc-15);
         ## prepend so the chain ar resolves first. ARFLAGS=rcS keeps ar from
         ## auto-exec'ing ranlib (Make runs $(RANLIB) separately); the chain ar
         ## is downstream of gcc-15 so it can't replace host ar in the gcc chain.
@@ -38,9 +38,8 @@ let
         ../hello-${gnuHelloVersion}/configure --disable-nls --prefix="$out" \
           > configure.stdout \
           2> configure.stderr
-        ## chain-built make (phase39-gnumake, from tcc). It now builds GNU Hello's
-        ## Automake recipe graph cleanly incl. parallel -j (the old segfault is
-        ## gone with GNU Make 4.4.1).
+        ## chain-built make (bootstrap-gnumake, from tcc) builds GNU Hello's
+        ## Automake recipe graph cleanly, including parallel -j (GNU Make 4.4.1).
         ${bootstrap-gnumake}/bin/make -j"''${NIX_BUILD_CORES:-1}" ARFLAGS=rcS \
           > make.stdout \
           2> make.stderr
@@ -119,8 +118,8 @@ let
   gnu-hello-hash-comparison =
     if hostPlatform.isx86_64 then
       runCommand "darwin-minimal-bootstrap-gnu-hello-hash-comparison" { } ''
-        ## Reproducibility gate. The bootstrap chain (phase46, gcc-latest) and the
-        ## strict no-host-clang re-bootstrap (phase47) must both produce the SAME
+        ## Reproducibility gate. The bootstrap chain (gcc-latest) and the strict
+        ## no-host-clang re-bootstrap (gcc-latest-strict) must both produce the SAME
         ## GNU Hello, and that hash must equal the pinned baseline below. This
         ## derivation FAILS the build (and `nix flake check`) on any regression.
         ## Update `expected` only when the chain inputs change intentionally.

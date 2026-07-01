@@ -1,7 +1,6 @@
-## Port-mode helper for phase-4 cc_arch translator.  Mirrors port_source()
-## from scripts/stage0/phase4-amd64-cc-arch.pl exactly — but in pure POSIX
-## awk (no perl).  Applies 9 fixed opcode-level rewrites that turn the
-## Linux x86_64 syscalls in cc_arch's source into Darwin syscalls.
+## Port-mode helper for the cc-arch translator.  Pure POSIX awk (no perl).
+## Applies 9 fixed opcode-level rewrites that turn the Linux x86_64
+## syscalls in cc_arch's source into Darwin syscalls.
 ##
 ## Usage:
 ##   awk -f port-cc-arch-darwin.awk < cc_arch-0-linux.hex2 > cc_arch-0.hex2
@@ -60,8 +59,6 @@ END {
     ## block start.  Without this, m2-segments scans the source for one
     ## of `:ELF_data`/`:HEX2_data`/`:GLOBAL_*`/`:STRING_*`/`:_string_*`
     ## and bails when it finds none in cc_arch's lowercase label scheme.
-    ## With the label in place, m2-segments produces byte-identical
-    ## output to the prior `perl phase4-amd64-cc-arch.pl patch` step.
     buf = replace_once(buf, ":prim_types\n", ":ELF_data\n:prim_types\n")
 
     printf "%s", buf

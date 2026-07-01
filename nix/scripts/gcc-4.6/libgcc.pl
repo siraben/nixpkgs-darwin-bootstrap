@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 ## Stage the GCC 4.6 build/src trees for the libgcc-only sub-build.
 ##
-## Mirrors scripts/gcc46/phase36-libgcc.py exactly:
+## Three steps:
 ##   1. rewrite all /nix/var/nix/builds/XXX/(src|build) paths embedded in
 ##      generated files to <root>/work/<src|build>;
 ##   2. materialize generated headers / configs from build/gcc into the

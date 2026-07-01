@@ -4,6 +4,14 @@
 ## All downloads verified by SHA256 against pinned hashes (the same
 ## ones Nix uses).  Falls back to user-provided $BOOT_TARBALL_DIR if
 ## set so this can be run offline.
+##
+## Run by a maintainer once before build.sh; the steps only read
+## tarballs/ and fail with a pointer here when a tarball is missing.
+## Env contract: self-locates ROOT from its own path; optional
+## $BOOT_TARBALL_DIR provides a local tarball mirror.
+## Trust: host /usr/bin/curl and /usr/bin/shasum — network fetch and
+## hash verification only; a mismatched tarball is deleted and the
+## script aborts, so nothing unverified reaches the chain.
 set -eu
 
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"

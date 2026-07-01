@@ -13,7 +13,7 @@
 ##   - tarballs/*                   (upstream mes/gcc-4.6/gcc-10 release tarballs,
 ##                                   NOT committed — fetched by scripts/fetch-
 ##                                   sources.sh against pinned SHA-256 hashes)
-##   - /usr/bin/sh and POSIX utils  (Apple-signed system components: sh, make,
+##   - /bin/sh and POSIX utils      (Apple-signed system components: sh, make,
 ##                                   tar, cp, nm, system cc/ld for the final
 ##                                   goal-test exe link — the chain has no native
 ##                                   Mach-O exe linker)
@@ -21,9 +21,10 @@
 ##                                   track: host awk for the early M1 code/data
 ##                                   splits; host python3 in step 53b and host
 ##                                   perl in scripts/phase13-* for gcc text edits;
-##                                   host /usr/bin/patch in step 22; host /usr/bin/
-##                                   cc + ar for the libgcc EH/unwind stub archive
-##                                   in step 55 — see docs/shell-track-REVIEW.md / -STATUS.md)
+##                                   host /usr/bin/patch in steps 22, 47, 48, 51;
+##                                   host /usr/bin/cc + ar for the libgcc
+##                                   EH/unwind stub archive in step 55 — see
+##                                   docs/REVIEW.md / docs/STATUS.md)
 ##   - Darwin kernel + /usr/lib/dyld
 set -eu
 
@@ -36,6 +37,9 @@ STEPS="$ROOT/steps"
 ## target tree:  TARGET=/path/to/scratch sh build.sh
 TARGET="${TARGET:-$ROOT/target}"
 
+## Contract with steps/*.sh: every step locates its inputs and outputs
+## through these five exported variables plus PATH; steps take no
+## positional arguments.
 export ROOT SEED SOURCES STEPS TARGET
 
 ## Reset target on each run for a clean build — UNLESS resuming via

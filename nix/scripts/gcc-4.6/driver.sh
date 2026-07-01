@@ -40,7 +40,7 @@ for object in "$gcc_lib/libgcc-objects"/*.o; do
 done
 
 ## Compile the assembly-translation filter with the chain's own compiler
-## (tcc-darwin-cc) rather than depending on the host's awk.
+## (tcc-darwin-cc); translation never uses the host's awk.
 as_filter="$out/bin/gcc46-bootstrap-as-filter"
 "$tcc/bin/tcc-darwin-cc" "$as_filter_src" -o "$as_filter"
 

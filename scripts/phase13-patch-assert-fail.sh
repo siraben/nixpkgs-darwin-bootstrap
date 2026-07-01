@@ -3,7 +3,10 @@
 ## that bootstrap M2-Planet-class compilers (without short-circuit
 ## `&&`) get the right behavior.
 ##
-## Takes the mes source tree as $1.
+## Invoked by step 15-mes-source.sh with the extracted mes source tree
+## as $1; edits lib/mes/__assert_fail.c in place.  No other env contract.
+## Trust: host /usr/bin/perl — trust boundary (an anchored, auditable
+## C source text substitution; no code generation).
 set -eu
 
 target="$1/lib/mes/__assert_fail.c"

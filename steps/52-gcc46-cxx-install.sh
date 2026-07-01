@@ -5,6 +5,25 @@
 ##
 ## The g++ wrapper drives cc1plus + the tcc-compiled bootstrap-as filter
 ## + tcc-darwin-cc, exactly the pattern that compiles+links+runs C++.
+## This g++ is the CXX for libstdc++ (step 52b) and for the entire
+## gcc-10 build (steps 54/55 via scripts/gcc10-env.sh).
+##
+## Runs:    chain tcc-darwin-cc from step 44 (compiles the bootstrap-as
+##          filter); Apple sed/cp/chmod for wrapper templating; the
+##          smoke test executes only chain-built binaries.
+## Inputs:  cc1plus/cc1 from the step-51 build tree
+##          ($TARGET/work/gcc46-cxx-all-gcc/build/gcc);
+##          sources/gcc46-scripts/phase36-bootstrap-as.c;
+##          sources/gcc46-scripts/gxx-bootstrap-wrapper.sh (template
+##          with @PLACEHOLDERS@).  The @LIBSTDCXX@ path
+##          ($TARGET/work/libstdcxx46) is populated later by step 52b;
+##          the wrapper tolerates its absence for plain C++.
+## Outputs: $TARGET/gcc46-cxx/bin/{cc1plus,cc1,g++,gcc46-cxx-as-filter}.
+## Verifies: a two-file C++ program compiles separately, links, runs,
+##          and exits 42 — separate compilation, symbol resolution, and
+##          C++ codegen all work through the wrapper.
+## Trust:   sed does wrapper-path templating only; all translation is
+##          chain-built (cc1plus was compiled by chain tcc in step 51).
 set -eu
 
 build="$TARGET/work/gcc46-cxx-all-gcc/build/gcc"

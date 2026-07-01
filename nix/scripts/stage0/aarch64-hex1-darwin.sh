@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 ## Port the AArch64 stage0 hex1 source to Darwin syscalls/ABI by applying
 ## a fixed list of opcode replacements.  Operates in-place on
-## ./hex1-body.hex0.  Mirrors scripts/stage0/phase1-aarch64-hex1-darwin.py.
+## ./hex1-body.hex0.
 set -eu
 
 perl -i -pe '

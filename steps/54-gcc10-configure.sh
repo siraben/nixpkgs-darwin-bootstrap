@@ -7,6 +7,22 @@
 ## and target libgcc are out of scope for the from-seed milestone.  The math
 ## libs (gmp/mpfr/mpc) are built in-tree from the sources staged by step 53;
 ## --without-isl skips Graphite.
+##
+## Runs:    gcc-10's configure (Apple /bin/sh) under the chain env from
+##          scripts/gcc10-env.sh: CC = chain tcc-darwin-cc (step 44),
+##          CXX = chain gcc-4.6 g++ (steps 52/52b), CPP/CXXCPP = the
+##          scripts/tcc-cpp and scripts/gxx-cpp shims, AR/RANLIB = chain
+##          boot-ar/boot-ranlib, MAKE = chain make (step 45); Apple
+##          nm/strip/lipo/otool fill inspection roles.  CONFIG_SITE
+##          (sources/gcc10-darwin/config.site) pre-answers probes that
+##          misdetect or are slow under the chain toolchain.
+## Inputs:  $TARGET/gcc10-source (steps 53 + 53b);
+##          $TARGET/tcc-darwin-cc-root headers as sysroot ($GCC10_SYS).
+## Outputs: configured build tree at $GCC10_BUILD
+##          ($TARGET/work/gcc10-all-gcc/build).
+## Verifies: a top-level Makefile was generated.
+## Trust:   configure conftests compile and link with chain tools only;
+##          Apple utilities orchestrate.
 set -eu
 
 . "$ROOT/scripts/gcc10-env.sh"

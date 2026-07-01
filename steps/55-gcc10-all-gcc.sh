@@ -11,6 +11,34 @@
 ## source.  The four from-seed-toolchain fixes behind a working cc1 (synth-label
 ## injector, C++ static-init crt1, crt1 argc/argv, elf64-to-m1 data-reloc
 ## addend) live in the chain itself (steps 30/44 + tools), not here.
+##
+## Runs:    chain make (step 45); chain gcc-4.6 g++ (steps 52/52b) as
+##          CXX — it compiles all of gcc-10's C++ sources; chain
+##          tcc-darwin-cc (step 44) as CC and as the final linker inside
+##          the g++ wrapper; chain boot-ar/boot-ranlib for archives;
+##          scripts/gcc10-link-cc1.sh and scripts/gcc10-relink-xgcc.sh
+##          for the final links; scripts/gcc10-build-libgcc.sh for the
+##          core libgcc (that script uses the freshly built xgcc plus
+##          Apple /usr/bin/as, ld, ar for the target side — see its
+##          header);
+##          host /usr/bin/cc + /usr/bin/ar for the libgcc_eh/libgcc_s/
+##          libemutls_w stub archives — trust boundary (a one-symbol
+##          Mach-O stub; the system ld used by the goal test rejects
+##          other archive formats);
+##          Apple find/xargs/touch/ln/sed for orchestration.
+## Inputs:  $GCC10_BUILD configured by step 54; $TARGET/gcc10-source
+##          (steps 53 + 53b); env from scripts/gcc10-env.sh.
+## Outputs: $GCC10_BUILD/gcc/{cc1,xgcc}; $GCC10_BUILD/gcc/libgcc.a (real
+##          core archive, or a stub on fallback) and stub libgcc_eh.a/
+##          libgcc_s.a/libemutls_w.a; `ar`/`ranlib` symlinks in
+##          $TARGET/bin pointing at boot-ar/boot-ranlib.
+## Verifies: cc1 and xgcc exist and are executable.  The end-to-end
+##          proof (xgcc compiles and runs real C) is
+##          scripts/gcc10-goal-test.sh, kept separate because it links
+##          the final executable with the system ld — the chain has no
+##          native Mach-O executable linker for gcc output.
+## Trust:   gcc-10 code generation is chain-only; host cc/ar appear only
+##          for the runtime stub archives called out above.
 set -eu
 
 . "$ROOT/scripts/gcc10-env.sh"

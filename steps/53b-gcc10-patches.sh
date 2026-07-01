@@ -14,6 +14,16 @@
 ##       a graceful PCH-disable (PCH is never used in the bootstrap).
 ##
 ## Idempotent: re-running is a no-op once applied.
+##
+## Runs:    host python3 — trust boundary (in-place text edits of three
+##          gcc source files; every replacement is anchored on exact
+##          committed strings and aborts if the anchor is absent, so the
+##          edits are auditable from this file alone).
+## Inputs:  $TARGET/gcc10-source/gcc (step 53).
+## Outputs: the same tree, edited in place (gcc/system.h,
+##          gcc/ipa-icf-gimple.h, gcc/config/host-darwin.c).
+## Verifies: each patch() call exits nonzero unless the expected text is
+##          found or the replacement is already present.
 set -eu
 
 src="$TARGET/gcc10-source/gcc"

@@ -1,9 +1,27 @@
 #!/bin/sh
 ## 45-gnumake — build GNU Make 4.4.1 via tcc-darwin-cc.
 ##
-## Mirrors gnumake/default.nix.  Applies ~12 source patches via sed
-## to remove Linux-isms and mes-libc limitations, then compiles 30
-## C files individually and links.
+## The chain has had no `make` until now; every earlier step is driven by
+## plain shell.  The gcc-4.6 and gcc-10 builds (steps 48-55) are
+## Makefile-driven, so a chain-built GNU Make is the prerequisite for
+## everything past this point.  Mirrors nix/gnumake/default.nix: applies
+## ~15 source text edits to remove Linux-isms and features the minimal
+## chain libc lacks, then compiles 30 C files individually and links.
+##
+## Runs:    chain tcc-darwin-cc from step 44 (all compilation + linking);
+##          host /usr/bin/perl for the patch_replace text edits and for
+##          scripts/phase39-patch-job.sh — trust boundary (source text
+##          edits only, no code generation);
+##          Apple tar/grep/install for orchestration.
+## Inputs:  tarballs/make-4.4.1.tar.gz (pinned SHA-256, fetched by
+##          scripts/fetch-sources.sh);
+##          scripts/phase39-patch-job.sh (symlink to
+##          nix/scripts/gnumake/phase39-patch-job.sh).
+## Outputs: $TARGET/bin/make; scratch tree $TARGET/work/gnumake.
+## Verifies: ./make --version output contains "GNU Make" (the freshly
+##          linked Mach-O executes and reaches main).
+## Trust:   host perl edits C source text; every byte of the resulting
+##          binary comes from the chain compiler and linker.
 set -eu
 
 tarball="$ROOT/tarballs/make-4.4.1.tar.gz"
@@ -33,25 +51,43 @@ patch_replace() {
     ' "$file"
 }
 
+## Drop hardcoded Linux/FHS include and library search directories; the
+## bootstrap has no /usr/gnu and must never read host /usr/include.
 patch_replace src/read.c '    "/usr/gnu/include",' ""
 patch_replace src/read.c '    "/usr/local/include",' ""
 patch_replace src/read.c '    "/usr/include",' ""
 patch_replace src/remake.c '      "/lib",' ""
 patch_replace src/remake.c '      "/usr/lib",' ""
+## The chain libc lacks the W* wait-status macros and getloadavg support;
+## report no signal/coredump and a load average of 0.
 patch_replace src/job.c 'exit_sig = WIFSIGNALED (status) ? WTERMSIG (status) : 0;' 'exit_sig = 0;'
 patch_replace src/job.c 'coredump = WCOREDUMP (status);' 'coredump = 0;'
 patch_replace src/job.c '  /* Find the real system load average.  */' '  return 0; /* Find the real system load average.  */'
+## main.c: skip putenv (chain libc gap), record the current directory as
+## the literal "." (always valid for the bootstrap's relative paths), and
+## jump over the "update makefiles, then re-exec" machinery — the
+## bootstrap never regenerates a makefile.
 patch_replace src/main.c '              putenv (b);' '              (void) b;'
 patch_replace src/main.c '  if (getcwd (current_directory, GET_PATH_MAX) == 0)' '  if (strcpy (current_directory, "."), 0)'
 patch_replace src/main.c '      DB (DB_BASIC, (_("Updating makefiles....\n")));' '      goto skip_bootstrap_remake_makefiles;'
 patch_replace src/main.c "  /* Set up 'MAKEFLAGS' again for the normal targets.  */" "skip_bootstrap_remake_makefiles: /* Set up 'MAKEFLAGS' again for the normal targets.  */"
 
+## Replace job.c's posix_spawn child-launch block with classic fork/exec
+## (the chain libc has no posix_spawn).  The script is a symlink to
+## nix/scripts/gnumake/phase39-patch-job.sh and uses host perl for the
+## multi-line splice — trust boundary, text edit only.
 /bin/bash "$ROOT/scripts/phase39-patch-job.sh"
 
+## misc.c: test mktemp's result with strcmp against "" (no char deref of
+## the call result) and disable the S_ISDIR check.  glob.c: alloca is
+## mapped to malloc via -Dalloca=malloc below, so the extern char
+## *alloca() declaration must go.
 patch_replace src/misc.c "if (*mktemp (path) == '\0')" 'if (!strcmp (mktemp (path), ""))'
 patch_replace src/misc.c 'else if (! S_ISDIR (st.st_mode))' 'else if (0 && ! S_ISDIR (st.st_mode))'
 patch_replace lib/glob.c 'extern char *alloca ();' '/* bootstrap: alloca macro maps to malloc */'
 
+## No autoconf run: assemble config.h from the shipped templates and use
+## the bundled glob/fnmatch .in.h headers verbatim.
 cat src/mkconfig.h src/mkcustom.h > src/config.h
 cp lib/glob.in.h lib/glob.h
 cp lib/fnmatch.in.h lib/fnmatch.h
@@ -63,7 +99,7 @@ cp lib/fnmatch.in.h lib/fnmatch.h
 ## redefinition error).  As #defines inside config.h they go through a
 ## more reliable path.  (NB: this is unrelated to the libiberty
 ## stack-overflow, whose real cause was self-recursive 64-bit int<->float
-## helpers in the tcc libc — see docs/shell-track-STATUS.md.)
+## helpers in the tcc libc — see docs/STATUS.md.)
 cat >> src/config.h <<'BOOTCFG'
 #ifndef BOOT_EXTRA_DEFS
 #define BOOT_EXTRA_DEFS 1
@@ -117,6 +153,7 @@ for source in $sources; do
 done
 
 "$CC" $CFLAGS -o make $objects
+## Smoke test: the new binary must execute and identify itself.
 ./make --version > make-version.stdout
 grep -q 'GNU Make' make-version.stdout
 

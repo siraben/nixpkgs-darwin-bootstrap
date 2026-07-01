@@ -167,7 +167,7 @@ let
   callPhase = path: import path (phaseContext // phaseDefs);
 
   phaseDefs = {
-    ## stage0-posix — hex0 through kaem (phases 1-11)
+    ## stage0-posix — hex0 through kaem
     hex1                  = callPhase ./stage0-posix/hex1.nix;
     hex2-0                  = callPhase ./stage0-posix/hex2.nix;
     catm                  = callPhase ./stage0-posix/catm.nix;
@@ -192,14 +192,14 @@ let
     m1-split            = callPhase ./mescc-tools/m1-split.nix;
     synth-inject        = callPhase ./mescc-tools/synth-inject.nix;
 
-    ## mes — M2-Planet wrapper + mes-m2 build (phases 12-16)
+    ## mes — M2-Planet wrapper + mes-m2 build
     m2-planet            = callPhase ./mes/m2-planet.nix;
     mes-source           = callPhase ./mes/source.nix;
     mes-m2-probe         = callPhase ./mes/m2-compile.nix;
     mes-macho-link-probe = callPhase ./mes/m2-link.nix;
     mes-m2               = callPhase ./mes/m2.nix;
 
-    ## mescc-libc — Mescc libc layers (phases 17-22)
+    ## mescc-libc — Mescc libc layers
     mescc-macho-probe       = callPhase ./mescc-libc/mescc-macho.nix;
     mescc-libc-mini-probe   = callPhase ./mescc-libc/libc-mini.nix;
     tinycc-mescc-m1-probe   = callPhase ./mescc-libc/tinycc-mescc-m1.nix;
@@ -207,7 +207,7 @@ let
     mescc-libc-probe        = callPhase ./mescc-libc/libc.nix;
     mescc-libc-tcc-probe    = callPhase ./mescc-libc/libc-tcc.nix;
 
-    ## tinycc — Mescc-built TCC through full self-hosting (phases 23-38)
+    ## tinycc — Mescc-built TCC through full self-hosting
     tinycc-mescc-link-probe     = callPhase ./tinycc/mescc-link.nix;
     tinycc-compile-probe        = callPhase ./tinycc/compile.nix;
     tinycc-self-object-probe    = callPhase ./tinycc/self-object.nix;
@@ -226,7 +226,7 @@ let
     tinyccSelfObjectProbe               = callPhase ./tinycc/self-object-helper.nix;
     tinyccSelfLinkCandidate             = callPhase ./tinycc/self-link-candidate.nix;
 
-    ## gnumake / gnupatch / coreutils (phases 39-41)
+    ## gnumake / gnupatch / coreutils
     bootstrap-gnumake   = callPhase ./gnumake;
     gnupatch  = callPhase ./gnupatch;
     coreutils-boot = callPhase ./coreutils;
@@ -237,7 +237,7 @@ let
     bootstrap-mpc  = callPhase ./bootstrap-deps/mpc.nix;
     bootstrap-isl  = callPhase ./bootstrap-deps/isl.nix;
 
-    ## gcc-4.6 — TCC builds GCC 4.6 (phases 26, 35-37, 44)
+    ## gcc-4.6 — TCC builds GCC 4.6
     gcc46-source        = callPhase ./gcc-4.6/source.nix;
     gcc46DarwinBootstrapSrc     = callPhase ./gcc-4.6/darwin-bootstrap-src.nix;
     gcc46-all-gcc       = callPhase ./gcc-4.6/all-gcc.nix;
@@ -245,11 +245,11 @@ let
     gcc46     = callPhase ./gcc-4.6/bootstrap.nix;
     gcc46-cxx = callPhase ./gcc-4.6/cxx.nix;
 
-    ## gcc-10 — GCC 4.6 builds GCC 10 (phases 42, 45)
+    ## gcc-10 — GCC 4.6 builds GCC 10
     gcc10-source    = callPhase ./gcc-10/source.nix;
     gcc10 = callPhase ./gcc-10;
 
-    ## gcc-latest — GCC 10 builds gcc_latest + strict re-bootstrap (phases 43, 46, 47)
+    ## gcc-latest — GCC 10 builds gcc_latest + strict re-bootstrap
     gcc-latest-source           = callPhase ./gcc-latest/source.nix;
     gcc-latest        = callPhase ./gcc-latest;
     gcc-latest-strict = callPhase ./gcc-latest/strict.nix;

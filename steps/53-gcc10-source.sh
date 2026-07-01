@@ -1,6 +1,21 @@
 #!/bin/sh
 ## 53-gcc10-source — stage gcc-10.4.0 with gmp/mpfr/mpc/isl placed in-tree
-## (mirrors gcc-10/source.nix).  Built later by our gcc-4.6 g++.
+## (mirrors nix/gcc-10/source.nix).  Built later by our gcc-4.6 g++.
+##
+## gcc-10 is the chain's modern-compiler target: its sources are C++, so
+## it needs the from-seed gcc-4.6 cc1plus/g++ (steps 51/52/52b), the
+## payoff of building 4.6 first.  The math libraries go in-tree so gcc's
+## top-level configure builds them with the chain toolchain (isl is
+## staged for completeness; step 54 configures --without-isl).
+##
+## Runs:    Apple tar/cp/chmod — unpack and file placement only.
+## Inputs:  tarballs/gcc-10.4.0.tar.xz, gmp-6.2.1.tar.xz,
+##          mpfr-4.2.2.tar.xz, mpc-1.3.1.tar.gz, isl-0.24.tar.bz2
+##          (pinned SHA-256, fetched by scripts/fetch-sources.sh).
+## Outputs: $TARGET/gcc10-source (gcc tree with gmp/, mpfr/, mpc/, isl/
+##          subdirs); scratch tree $TARGET/work/gcc10-source.
+## Verifies: presence of configure, gcc/gcc.c, and each in-tree
+##          library's configure.
 set -eu
 
 out="$TARGET/gcc10-source"

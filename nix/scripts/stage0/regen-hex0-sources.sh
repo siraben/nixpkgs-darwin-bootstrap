@@ -4,27 +4,22 @@
 # stage0Sources is bumped or the Mach-O layout changes; never invoked
 # from the Nix build itself.
 #
-# Outputs:
+# Outputs (paths under nix/):
 #   hex0/sources/hex1_AMD64_darwin.hex0   (assembled by hex0 → hex1-darwin)
 #   hex0/sources/hex2_AMD64_darwin.hex0   (assembled by hex0 → hex2-darwin)
 #
 # Approach: each file is a byte-faithful dump of the meaningful (non-
 # zero-padding) portion of the corresponding Mach-O binary as produced
-# by the old `scripts/stage0/phase{1,2}-amd64-{hex1,hex2}.pl` flow,
-# split into commented sections (Mach-O header, ported body with
-# RIP-rel32 disps already baked in, EINTR retry stub for hex1).
+# by the `phase{1,2}-amd64-{hex1,hex2}.pl` flow, split into commented
+# sections (Mach-O header, ported body with RIP-rel32 disps already
+# baked in, EINTR retry stub for hex1).
 #
-# This regenerator depends on:
-#   - the (deleted) phase{1,2}-amd64-{hex1,hex2}.pl scripts being kept
-#     somewhere accessible (e.g. in git history), OR
-#   - a future hand-rewrite that emits the same bytes without perl.
-#
-# For the current commit we keep the perl helpers under
-# scripts/stage0/legacy/ as the canonical "how those bytes were
+# This regenerator depends on those perl helpers, kept under
+# nix/scripts/stage0/legacy/ as the canonical "how those bytes were
 # computed" reference.  Build-time has zero perl/awk.
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."   # repo root
+cd "$(dirname "$0")/../.."   # the nix/ tree
 
 STAGE0=$(find /nix/store -maxdepth 2 -name AMD64 -path "*stage0-posix*" -type d 2>/dev/null | head -1)
 STAGE0=${STAGE0%/AMD64}

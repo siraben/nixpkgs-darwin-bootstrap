@@ -1,18 +1,17 @@
 #!/usr/bin/env bash
 # regen-gcc-modern-sysroot.sh — regenerate the committed prepared sysroot
-# headers (bootstrap/headers/gcc-modern-sysroot) from the chain TinyCC
+# headers (nix/bootstrap/headers/gcc-modern-sysroot) from the chain TinyCC
 # bootstrap headers.
 #
 # Design-time maintainer script; the Nix build never runs it.  Run it
-# whenever bootstrap/headers/tcc-darwin-bootstrap changes.
+# whenever nix/bootstrap/headers/tcc-darwin-bootstrap changes.
 #
 # The modern GCC phases (gcc-10, gcc-latest, gcc-latest/strict) compile
 # their C/C++ sources against this sysroot.  Relative to the chain tcc
 # headers it adds: nine created headers (crt_externs.h, sys/times.h,
 # ftw.h, getopt.h, wchar.h, wctype.h, AvailabilityMacros.h, xlocale.h,
 # locale.h) and C++ `extern "C"` guards plus missing declarations on ~17
-# existing headers.  Those additions used to run as ~60 host-perl edits
-# inside bootstrap-gcc.sh; they now live as committed source files copied
+# existing headers.  The additions are committed source files copied
 # verbatim at build time (no host perl).
 #
 # This script extracts the prepared set straight out of a built
@@ -22,7 +21,7 @@
 # committed copy if the inputs changed.
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."   # repo root
+cd "$(dirname "$0")/../.."   # the nix/ tree
 
 P=$(nix path-info .#packages.x86_64-darwin.gcc-latest-strict 2>/dev/null) || {
   echo "regen-gcc-modern-sysroot: build .#gcc-latest-strict first" >&2

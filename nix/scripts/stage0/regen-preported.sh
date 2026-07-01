@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # regen-preported.sh — regenerate the committed pre-ported Darwin sources
 # from upstream stage0-posix.  Run this at design-time whenever
-# stage0Sources is bumped or tools/macho-patcher.M1 changes.  The Nix
+# stage0Sources is bumped or nix/tools/macho-patcher.M1 changes.  The Nix
 # build itself never invokes this — it consumes the committed outputs
 # directly, keeping the build closure free of awk/perl/python.
 #
-# Outputs:
+# Outputs (paths under nix/):
 #   M2libc/amd64/catm_AMD64_darwin_body.hex2  — port of catm_AMD64.hex2
 #   M2libc/amd64/M0_AMD64_darwin_body.hex2    — port of M0_AMD64.hex2
 #   M2libc/amd64/cc_arch-0-darwin.hex2        — M0-expanded + ported cc_amd64.M1
@@ -15,10 +15,10 @@
 # turn Linux SysV syscalls into Darwin equivalents.  See the per-port
 # .awk scripts for the exact substitutions applied.
 #
-# Usage: ./scripts/stage0/regen-preported.sh
+# Usage: ./nix/scripts/stage0/regen-preported.sh
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."   # repo root
+cd "$(dirname "$0")/../.."   # the nix/ tree
 
 # Locate stage0Sources (via nix).
 STAGE0=$(nix eval --raw '.#packages.x86_64-darwin.m0.stage0Sources' 2>/dev/null \

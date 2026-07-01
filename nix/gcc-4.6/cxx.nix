@@ -1,10 +1,11 @@
-## All GCC 4.6 sources are compiled by the chain compiler: phase35 cc1
-## driven through the phase37 driver (GCC46_BOOTSTRAP_HOST_CC_SOURCES=0).
+## All GCC 4.6 sources are compiled by the chain compiler: the gcc46-all-gcc
+## cc1 driven through the gcc46 bootstrap driver (nix/scripts/gcc-4.6/driver.sh,
+## GCC46_BOOTSTRAP_HOST_CC_SOURCES=0).
 ## Measured per-file cc1 cost is 30s-4min (combine.c 125s, insn-recog.c
 ## 243s); with GCC46_CXX_MAIN_JOBS=$NIX_BUILD_CORES the build completes in
 ## a few hours.
 ##
-## Remaining phase44 host-tool boundary (next hardening targets):
+## Remaining gcc46-cxx host-tool boundary (next hardening targets):
 ## GCC46_BOOTSTRAP_MACHO_CC (nixpkgs clang, drives linking only) and
 ## GCC46_BOOTSTRAP_AS/LD (nixpkgs binutils as/ld).  No host compiler
 ## touches any C source.

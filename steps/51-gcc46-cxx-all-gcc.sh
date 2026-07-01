@@ -6,6 +6,25 @@
 ## compiles from C sources via tcc exactly like cc1 — this reuses the
 ## proven step-48 path with --enable-languages=c,c++.  This is the
 ## prerequisite for building libstdc++ and then gcc-10 (which is C++).
+##
+## Runs:    chain tcc-darwin-cc from step 44 (CC/CXX/CPP — all
+##          compilation and linking); chain make from step 45; chain
+##          boot-ar via scripts/boot-ar + no-op scripts/boot-ranlib;
+##          host /usr/bin/perl for the Makefile.in header-dir edit —
+##          trust boundary (text edit only); Apple nm/strip/lipo/otool
+##          (inspection roles).  phase35-prepare-source.sh as in step 48.
+## Inputs:  $TARGET/gcc46-darwin-bootstrap-src (step 47);
+##          $TARGET/tcc-darwin-cc-root headers (step 44);
+##          sources/gcc46-fixtures/*.cache.
+## Outputs: $TARGET/gcc46-cxx-all-gcc/bin/{xgcc,g++};
+##          share/darwin-bootstrap/work/{src,build} — step 52 installs
+##          cc1plus/cc1 from work/build/gcc, and step 52b builds
+##          libstdc++ against gthr headers in the step-47 source tree.
+## Verifies: gcc/xgcc, gcc/cc1, and gcc/cc1plus exist and are
+##          executable; xgcc runs and reports its version.  (Step 52
+##          installs a g++ wrapper that bypasses this xgcc driver —
+##          see its header for the segfault it works around.)
+## Trust:   host perl text edit only; all translation is chain-built.
 set -eu
 
 src_in="$TARGET/gcc46-darwin-bootstrap-src"
@@ -23,12 +42,22 @@ cd "$work"
 cp -R "$src_in/." src/
 chmod -R u+w src
 
+## Replace /usr/include with the chain include dir (host perl, trust
+## boundary: one-line Makefile.in text substitution — same as step 48).
 /usr/bin/perl -i -pe \
     's|^NATIVE_SYSTEM_HEADER_DIR = /usr/include|NATIVE_SYSTEM_HEADER_DIR = '"$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap"'|' \
     src/gcc/Makefile.in
 
+## Deterministic source edits shared with the Nix track (see step 48).
+## Host /usr/bin/patch applies the committed patch — trust boundary,
+## same as steps 22 and 48.
+GNUPATCH=/usr/bin/patch \
+PREPARE_SOURCE_PATCH="$SOURCES/gcc46-patches/prepare-source.patch" \
 /bin/bash "$SOURCES/gcc46-scripts/phase35-prepare-source.sh"
 
+## Toolchain wiring identical to step 48: chain tcc as CC/CXX, chain
+## boot-ar + no-op ranlib (Apple ar/ranlib reject the ELF objects), and
+## Apple binutils for the inspection-only roles.
 CC="$TARGET/bin/tcc-darwin-cc"
 CPP="$CC -E"
 AR="$ROOT/scripts/boot-ar"
@@ -38,6 +67,7 @@ STRIP=/usr/bin/strip
 LIPO=/usr/bin/lipo
 OTOOL=/usr/bin/otool
 
+## Byte collation for gcc's .opt dedup — see step 48.
 export LC_ALL=C LANG=C
 
 export CC CPP AR NM RANLIB STRIP LIPO OTOOL
@@ -49,6 +79,8 @@ export CXXCPP="$CC -E"
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export TCC_DARWIN_CACHE_DIR="$work/.tcc-darwin-cache"
 mkdir -p "$TCC_DARWIN_CACHE_DIR"
+## rlimit probe pins + committed config caches below: same rationale as
+## step 48 (chain libc gaps; conftest links are slow).
 export ac_cv_have_decl_getrlimit=no
 export ac_cv_have_decl_setrlimit=no
 export ac_cv_func_getrlimit=no
@@ -95,6 +127,8 @@ echo "== running gcc-4.6 c,c++ configure (slow) =="
     > "$out/share/darwin-bootstrap/configure.stdout" \
     2> "$out/share/darwin-bootstrap/configure.stderr"
 
+## Pre-place the shipped gengtype-lex flex output with bconfig.h
+## prepended, newer than the .l, so make never invokes flex (see step 48).
 {
     echo '#include "bconfig.h"'
     cat ../src/gcc/gengtype-lex.c

@@ -3,4 +3,9 @@
 ## extracts and reads symbols via elf64-to-m1), so the archive needs no
 ## symbol-table member.  A real ranlib here (Apple's) would choke on the
 ## ELF members and rewrite the archive, dropping them.
+##
+## Invoked as RANLIB by steps 48/49/51/52b and by the gcc-10 scripts via
+## scripts/gcc10-env.sh (RANLIB and RANLIB_FOR_BUILD); step 55 also
+## symlinks $TARGET/bin/ranlib here.  No env contract: it reads nothing
+## and always exits 0.
 exit 0

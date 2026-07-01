@@ -7,7 +7,7 @@
   ...
 }:
 ## Chain-build cctools `ar` + `ranlib` from source with the from-seed gcc-15
-## (phase47 strict). gcc-15 + the apple-sdk headers it carries compile cctools
+## (gcc-latest-strict). gcc-15 + the apple-sdk headers it carries compile cctools
 ## natively (the chain tcc can't — it lacks #import/__has_include and trips on
 ## Apple's arch headers). The resulting binaries are chain-COMPILED; they are
 ## assembled/linked by the host cctools as/ld64, the same irreducible boundary

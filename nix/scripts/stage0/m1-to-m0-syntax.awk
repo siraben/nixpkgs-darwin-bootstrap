@@ -5,11 +5,11 @@
 ##   %0xNNN          → 4 BYTE_XX tokens  (little-endian 32-bit immediate)
 ##
 ## Pure POSIX awk — no perl, no python.  Used by phases that bootstrap a
-## macho-patcher binary before phase5-m2 exists (see phase11e).
+## macho-patcher binary before M2-Planet (the m2 attr) exists (see
+## macho-patcher-early).
 ##
-## Output is byte-identical to the perl one-liner it replaces; the
-## phase11e-macho-patcher-early build path verifies via cmp against
-## phase26g-macho-patcher.
+## The macho-patcher-early build path verifies via cmp against
+## macho-patcher.
 
 function hex_to_le_bytes(hex_str,    padded, b0, b1, b2, b3) {
     ## Left-pad to 8 hex chars, then peel off LE bytes from the right.

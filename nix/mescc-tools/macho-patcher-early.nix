@@ -3,15 +3,15 @@
 ## The cycle-breaker: builds the macho-patcher (m2-segments mode) using ONLY
 ## M0 + the seed-built hex2, no M2-Planet, so it exists before cc-arch/M2.
 ##   1. catm concatenates the committed M1 sources amd64_defs.M1 +
-##      amd64_byte_defs.M1 + the M0-friendly tools/macho-patcher-m0.M1.
+##      amd64_byte_defs.M1 + the M0-friendly nix/tools/macho-patcher-m0.M1.
 ##   2. M0 expands them into a hex2 token stream.
 ##   3. catm prepends the committed MACHO-amd64.hex2 template; the seed-built
 ##      hex2 links it; dd pads to the LINKEDIT offset.  Runs unsigned.
 ## All translation is done by chain-built tools (catm, M0, hex2); stdenv only
 ## orchestrates.  No committed binary dump.
 ##
-## The M0-form of macho-patcher is regenerated from tools/macho-patcher.M1 by
-## the maintainer via scripts/stage0/regen-preported.sh; build-time
+## The M0-form of macho-patcher is regenerated from nix/tools/macho-patcher.M1 by
+## the maintainer via nix/scripts/stage0/regen-preported.sh; build-time
 ## has no awk/perl/python.
 {
   mkDarwin,

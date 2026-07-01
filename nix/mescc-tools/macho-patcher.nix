@@ -11,7 +11,7 @@ runCommand "macho-patcher" { } ''
 
   ## Assemble the hand-written generic Mach-O patcher through the
   ## existing M1+hex2 pipeline.  No Python; no C compiler.  Pattern
-  ## mirrors phase26b-elf64-to-m1.
+  ## mirrors elf64-to-m1.
   ${m1}/bin/M1 \
     --architecture amd64 \
     --little-endian \
@@ -31,9 +31,8 @@ runCommand "macho-patcher" { } ''
     > hex2.stdout \
     2> hex2.stderr
 
-  ## No codesign: same reasoning as phase26b — Darwin nix-sandbox
-  ## loader runs unsigned native code, and the Mach-O segment-size
-  ## patcher cycle is exactly what we're replacing.
+  ## No codesign: same reasoning as elf64-to-m1 — the Darwin nix-sandbox
+  ## loader runs unsigned native code.
   linkeditOffset="$((0x800000 + 0x2000000))"
   dd if=/dev/zero of=macho-patcher bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc \
     > dd.stdout 2> dd.stderr

@@ -1,9 +1,26 @@
 #!/bin/sh
-## 16-mes-m2-probe — compile mes.M1 from mes C sources via M2-Planet.
+## 17-mes-m2-probe — compile mes.M1 from the mes C sources via
+## M2-Planet.  Mirrors mes/m2-compile.nix.
 ##
-## Mirrors mes/m2-compile.nix: takes mes's upstream kaem.run, sed-
-## rewrites Linux paths to Darwin paths, runs it (early-stops at
-## the first .M1 produced) under sh with M2 on PATH.
+## mes ships kaem.run, its upstream bootstrap build script, whose
+## first command runs M2-Planet over the mes interpreter's C sources
+## to produce m2/mes.M1.  This step rewrites the Linux libc paths in
+## that script to the Darwin layer staged by step 15, runs it under
+## /bin/sh with target/bin on PATH, and stops it right after mes.M1
+## is produced.  Step 18 links the resulting mes.M1 into the mes-m2
+## binary.
+##
+## Runs:     Apple sed and awk rewrite kaem.run (host text edits of a
+##           build script); Apple /bin/sh executes the rewritten
+##           script, which invokes M2-Planet (step 16).
+## Inputs:   target/mes-source (step 15): kaem.run plus the C sources
+##           and Darwin lib/ files it lists.
+## Outputs:  target/share/mes-m2-probe/mes.M1.
+## Verifies: the run must exit with the injected status 99 (see
+##           below) and mes.M1 must be non-empty.
+## Trust:    host sed/awk edit the build script (path substitutions
+##           and the early stop); translation is done by chain-built
+##           M2-Planet.  /bin/sh orchestrates.
 set -eu
 
 mes_source="$TARGET/mes-source"
@@ -18,6 +35,11 @@ mkdir -p "$work"
 cd "$work"
 
 ## Rewrite Linux paths to Darwin and early-stop after mes.M1.
+## sed swaps each lib/linux (and lib/m2/execve.c) reference for the
+## lib/darwin file with the same role.  awk appends `exit 99` right
+## after the line ending the M2-Planet command (`-o m2/mes.M1`), so
+## the script stops before its blood-elf/M1/hex2 ELF link steps;
+## status 99 marks the intentional stop, distinct from any failure.
 sed \
   -e 's|lib/linux/${mes_cpu}-mes-m2/crt1.c|lib/darwin/${mes_cpu}-mes-m2/crt1.c|g' \
   -e 's|lib/linux/${mes_cpu}-mes-m2/_exit.c|lib/darwin/${mes_cpu}-mes-m2/_exit.c|g' \
@@ -47,6 +69,9 @@ sed \
   | awk '{ print } /-o m2\/mes\.M1/ { print "exit 99"; exit }' \
   > mes-m2-only.sh
 
+## Env consumed by kaem.run: srcdest prefixes every source path;
+## cc_cpu/mes_cpu/stage0_cpu select the amd64/x86_64 file sets;
+## blood_elf_flag is referenced by a command past the early stop.
 set +e
 PATH="$TARGET/bin:/usr/bin:/bin" \
   srcdest="$mes_source/" \
@@ -58,6 +83,8 @@ PATH="$TARGET/bin:/usr/bin:/bin" \
 status="$?"
 set -e
 
+## 99 is the injected marker: the script reached the point right
+## after M2-Planet wrote mes.M1.  Any other status is a real failure.
 if [ "$status" -ne 99 ]; then
     echo "mes-m2-only.sh expected exit 99 but got $status; check mes-m2.stderr" >&2
     tail -20 mes-m2.stderr >&2

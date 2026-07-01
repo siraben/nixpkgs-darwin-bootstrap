@@ -1,4 +1,4 @@
-## Negative probe: confirm that M2-Planet (phase12) cannot compile
+## Negative probe: confirm that M2-Planet (the m2-planet attr) cannot compile
 ## tinycc's own source.  M2-Planet's parser predates ternary operators
 ## and the more recent C99 idioms tinycc uses, so this build is
 ## expected to fail with a specific parse error.  Pinning the failure

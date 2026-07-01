@@ -65,9 +65,7 @@
           sign m1-to-hex2
 
           ## Smoke: translate a trivial M1 fragment and check the
-          ## expected hex2 output by hand.  (Initial bring-up used a
-          ## perl reference but the algorithm is fully byte-verified
-          ## on real inputs across the chain now.)
+          ## expected hex2 output by hand.
           cp ${root + "/mescc-tools/fixtures/m1-to-hex2-smoke.M1"} smoke.M1
           ./m1-to-hex2 --architecture amd64 --little-endian \
             --base-address 0x600400 -f smoke.M1 -o smoke.hex2

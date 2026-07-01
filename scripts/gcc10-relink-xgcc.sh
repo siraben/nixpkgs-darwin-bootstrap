@@ -6,6 +6,11 @@
 # as a script so the exact env is reproducible and not re-derived by hand.  Run
 # after make all-gcc has produced the gcc objects, or after any elf64-to-m1
 # change (clear the resolve caches first — see gcc10-link-cc1.sh).
+#
+# Invoked by step 55 after gcc10-link-cc1.sh; also runnable standalone by
+# a maintainer.  Env contract: ROOT optional (self-locates); toolchain and
+# paths come from gcc10-env.sh.  Trust: chain make + chain g++ wrapper do
+# the link; host find/xargs/touch only adjust mtimes.
 set -u
 
 ROOT="${ROOT:-$(cd -- "$(dirname -- "$0")/.." && pwd)}"

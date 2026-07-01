@@ -13,6 +13,12 @@
 # The object list mirrors gcc/Makefile's $(OBJS) for the C front-end cc1 as of
 # gcc-10.4.0.  If you bump gcc, regenerate it from `make cc1 V=1` (the final
 # g++ link line) rather than editing by hand.
+#
+# Invoked by step 55 after `make all-gcc`; also runnable standalone by a
+# maintainer to re-link cc1 from an existing build tree.  Env contract:
+# ROOT optional (self-locates); everything else comes from gcc10-env.sh.
+# Trust: the link runs entirely through the chain g++ wrapper (cc1plus +
+# bootstrap-as + tcc-darwin-cc); no host linker is involved.
 set -u
 
 ROOT="${ROOT:-$(cd -- "$(dirname -- "$0")/.." && pwd)}"

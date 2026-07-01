@@ -105,9 +105,9 @@ documented boundaries.
   chain `M1`+`hex2`.  From step 44c on, the chain-built `m1-split`
   does the job.  The bootstrap-ordering analysis is in
   [`docs/REVIEW.md`](docs/REVIEW.md).
-- **Host source-prep tools**: `/usr/bin/patch` (step 22), `python3`
-  (step 53b), `perl` (`scripts/phase13-patch-assert-fail.sh`) apply
-  deterministic, committed edits to source text.
+- **Host source-prep tools**: `/usr/bin/patch` (steps 22, 47, 48, 51),
+  `python3` (step 53b), `perl` (`scripts/phase13-patch-assert-fail.sh`)
+  apply deterministic, committed edits to source text.
 - **System `as`/`ld` for gcc-10 target codegen**: the chain builds the
   gcc-10 binaries themselves through its own `tcc-darwin-cc → hex2`
   Mach-O pipeline, but the resulting `xgcc` is configured with the

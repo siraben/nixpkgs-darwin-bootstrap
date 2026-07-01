@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # regen-hex0-aarch64-seed.sh — regenerate the committed aarch64-darwin
-# hex0 seed (hex0/seed/hex0-aarch64-darwin) and its source
-# (hex0/hex0-aarch64-darwin.hex0) from hex0/hex0-aarch64-darwin.S.
+# hex0 seed (seed/hex0-aarch64-darwin at the repo root; nix/hex0/seed/
+# symlinks to it) and its source (nix/hex0/hex0-aarch64-darwin.hex0)
+# from nix/hex0/hex0-aarch64-darwin.S.
 #
 # Design-time authoring tool; the Nix build never runs it.  Host clang,
 # otool, and codesign participate here the same way the legacy perl
@@ -16,7 +17,7 @@
 # .hex0 source keeps the self-hosted output validly signed.
 set -euo pipefail
 
-cd "$(dirname "$0")/../.."   # repo root
+cd "$(dirname "$0")/../.."   # the nix/ tree
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 

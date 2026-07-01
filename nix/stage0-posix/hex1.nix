@@ -1,6 +1,6 @@
 ## hex1 — Darwin Mach-O hex1, assembled live from source.
 ##
-## hex0/sources/hex1_AMD64_darwin.hex0 is the genuine hand-documented hex0
+## nix/hex0/sources/hex1_AMD64_darwin.hex0 is the genuine hand-documented hex0
 ## source for hex1 (Mach-O header + hex1 machine code + the Darwin EINTR
 ## retry stub) — no committed binary/padding blob.  The hex0 seed assembles
 ## it and dd pads to the LINKEDIT vmaddr (0x1000000) at build time.  Output

@@ -2,5 +2,10 @@
 ## Chain C preprocessor shim (CPP).  Honour an exported $TARGET so a scratch
 ## verification build (TARGET=/tmp/boot-verify) preprocesses with ITS compiler,
 ## not the repo's pre-existing target/.
+##
+## Wired in as CPP by scripts/gcc10-env.sh (steps 54/55 and the gcc10-*
+## scripts); gives configure/make a single-word CPP that execs the chain
+## tcc-darwin-cc from step 44 in -E mode, so preprocessing stays
+## chain-built.
 TARGET="${TARGET:-$(cd "$(dirname "$0")/../target" && pwd)}"
 exec "$TARGET/bin/tcc-darwin-cc" -E "$@"

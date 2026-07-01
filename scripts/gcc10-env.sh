@@ -1,6 +1,9 @@
 # Shared environment for the gcc-10 from-seed build (configure / make / link).
 # SOURCE this (do not execute); it expects ROOT and TARGET in the environment
 # (set by build.sh) and defines the toolchain env + standard path variables.
+# Sourced by steps 54/55 and by scripts/gcc10-build-libgcc.sh,
+# gcc10-link-cc1.sh, gcc10-relink-xgcc.sh.  Env contract: ROOT required
+# (aborts if unset); TARGET defaults to $ROOT/target.
 #
 # Everything here is from the from-seed chain — nothing from the host toolchain:
 #   CC   = tcc-darwin-cc            (our tinycc-derived C compiler driver)
@@ -34,7 +37,7 @@ export CXXCPP="$ROOT/scripts/gxx-cpp"
 export CC_FOR_BUILD="$CC"
 export CXX_FOR_BUILD="$CXX"
 
-# GC tuning + flag rationale: see scripts/gcc10-resume-make.sh and docs/shell-track-STATUS.md.
+# GC tuning + flag rationale: see scripts/gcc10-resume-make.sh and docs/STATUS.md.
 # -O0 keeps cc1plus (running under Rosetta 2) tractable; -fpermissive downgrades
 # gcc-10's C++11 narrowing errors that gcc-4.6 cc1plus treats as hard errors.
 GCC10_GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
