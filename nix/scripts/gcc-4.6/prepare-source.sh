@@ -7,9 +7,11 @@ set -eu
 
 ## Deterministic GCC 4.6 source edits (CC1_SPEC version selector, driver
 ## deployment-version block, %B->%b spec, gen-bases libm removal, incpath
-## name-based dedup): a committed patch applied by the chain-built
-## gnupatch.  No host perl edits source.  Regen: re-run the historical
-## perl (git history) against gcc46-darwin-bootstrap-source and diff.
+## name-based dedup): a committed patch applied by the caller-provided
+## patch tool (shell track: chain-built boot-patch; Nix track:
+## chain-built gnupatch).  No host perl edits source.  Regen: re-run
+## the historical perl (git history) against gcc46-darwin-bootstrap-
+## source and diff.
 "${GNUPATCH:?}" -p1 -d src < "${PREPARE_SOURCE_PATCH:?}"
 
 
@@ -92,4 +94,3 @@ main (int argc, char **argv)
   return 0;
 }
 PSQR
-

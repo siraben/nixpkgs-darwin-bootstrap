@@ -7,6 +7,8 @@
 > as `scripts/`, and `bake/target/` as `target/`.  The TinyCC wrapper + awk
 > are `sources/tcc-darwin/{tcc-darwin-cc.sh,synth-inject.awk}`; the archiver
 > is `scripts/boot-ar` backed by chain-built C `sources/tools/boot-ar.c`;
+> committed shell-track patches are applied by chain-built
+> `sources/tools/boot-patch.c` from step 14b;
 > there are 63 numbered step scripts in `steps/` (01–55 plus 44b–g, 52b,
 > 53b).  "Blocked"/"one remaining blocker" sections below pre-date the
 > gcc-4.6 + gcc-10 resolution and are superseded.

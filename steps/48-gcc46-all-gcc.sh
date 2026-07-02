@@ -15,6 +15,8 @@
 ##          scripts/boot-ranlib;
 ##          host /usr/bin/perl for one Makefile.in text edit — trust
 ##          boundary (text edit only);
+##          chain boot-patch from step 14b for the committed
+##          prepare-source patch;
 ##          Apple nm/strip/lipo/otool (inspection roles wired into
 ##          configure; no code generation) and Apple sh/tar/install for
 ##          orchestration.  phase35-prepare-source.sh (symlink to
@@ -59,9 +61,8 @@ chmod -R u+w src
 ## prepare-source script: deterministic gcc/gmp source edits (deployment-
 ## target driver block, gen-bases libm removal, GMP doc stub + NULL macro)
 ## shared with the Nix track.  The script applies a committed patch via
-## $GNUPATCH; the shell track has no chain patch tool, so host
-## /usr/bin/patch is the trust boundary here (same as step 22).
-GNUPATCH=/usr/bin/patch \
+## chain-built boot-patch.
+GNUPATCH="$TARGET/bin/boot-patch" \
 PREPARE_SOURCE_PATCH="$SOURCES/gcc46-patches/prepare-source.patch" \
 /bin/bash "$SOURCES/gcc46-scripts/phase35-prepare-source.sh"
 

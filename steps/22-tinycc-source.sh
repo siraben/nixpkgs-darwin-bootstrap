@@ -10,13 +10,14 @@
 ## because tcc.h does `#include "config.h"` and no configure runs.
 ##
 ## Runs:     Apple /usr/bin cp/chmod/mkdir for orchestration;
-##           host /usr/bin/patch — trust boundary (the chain has no
-##           patch tool built at this point).
+##           chain boot-patch from step 14b applies the committed
+##           source diff.
 ## Inputs:   sources/tinycc/tinycc-bootstrappable/ (committed tree),
 ##           sources/tinycc/tinycc-mes-bootstrap.patch.
 ## Outputs:  target/tinycc-mes-src/ (patched tree + empty config.h).
-## Verifies: patch's own exit status only.
-## Trust:    host /usr/bin/patch rewrites compiler source text; the
+## Verifies: boot-patch exits nonzero on any hunk failure and set -e
+##           aborts the step.
+## Trust:    source edit is performed by chain-built boot-patch; the
 ##           patch file itself is committed and auditable.
 set -eu
 
@@ -26,8 +27,7 @@ mkdir -p "$out"
 cp -R "$SOURCES/tinycc/tinycc-bootstrappable/." "$out/"
 chmod -R u+w "$out"
 cd "$out"
-## Trust boundary: host patch applies the committed mes-bootstrap diff.
-/usr/bin/patch -p1 < "$SOURCES/tinycc/tinycc-mes-bootstrap.patch"
+boot-patch -p1 < "$SOURCES/tinycc/tinycc-mes-bootstrap.patch"
 ## tcc.h includes config.h; all configuration comes from -D flags, so
 ## an empty file suffices.
 : > config.h

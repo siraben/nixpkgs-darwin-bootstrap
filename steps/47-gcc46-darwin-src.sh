@@ -12,11 +12,11 @@
 ##   - gcc46-darwin-macho-driver.patch: darwin-driver.c accepts only
 ##     "10.x" MACOSX_DEPLOYMENT_TARGET values, plus Mach-O driver fixes.
 ##
-## Runs:    host /usr/bin/patch — trust boundary (text edits from
-##          committed, auditable patch files); Apple cp/chmod.
+## Runs:    chain boot-patch from step 14b (text edits from committed,
+##          auditable patch files); Apple cp/chmod.
 ## Inputs:  $TARGET/gcc46-source (step 46); sources/gcc46-patches/*.
 ## Outputs: $TARGET/gcc46-darwin-bootstrap-src (patched full gcc tree).
-## Verifies: /usr/bin/patch exits nonzero on any hunk failure and set -e
+## Verifies: boot-patch exits nonzero on any hunk failure and set -e
 ##          aborts the step, so all hunks applied cleanly.
 set -eu
 
@@ -30,8 +30,8 @@ cp -R "$src_in/." "$out/"
 chmod -R u+w "$out"
 
 cd "$out"
-/usr/bin/patch -p1 < "$SOURCES/gcc46-patches/gcc46-genconditions-tcc-safe.patch"
-/usr/bin/patch -p1 < "$SOURCES/gcc46-patches/gcc46-darwin-bootstrap-host.patch"
-/usr/bin/patch -p1 < "$SOURCES/gcc46-patches/gcc46-darwin-macho-driver.patch"
+boot-patch -p1 < "$SOURCES/gcc46-patches/gcc46-genconditions-tcc-safe.patch"
+boot-patch -p1 < "$SOURCES/gcc46-patches/gcc46-darwin-bootstrap-host.patch"
+boot-patch -p1 < "$SOURCES/gcc46-patches/gcc46-darwin-macho-driver.patch"
 
 echo "gcc46-darwin-bootstrap-src ready at $out"

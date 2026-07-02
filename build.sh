@@ -21,8 +21,9 @@
 ##                                   track: host awk for the early M1 code/data
 ##                                   splits; host python3 in step 53b and host
 ##                                   perl in scripts/phase13-* for gcc text edits;
-##                                   host /usr/bin/patch in steps 22, 47, 48, 51;
-##                                   host /usr/bin/cc + ar for the libgcc
+##                                   committed patches are applied by chain-built
+##                                   boot-patch from step 14b; host /usr/bin/cc
+##                                   + ar for the libgcc
 ##                                   EH/unwind stub archive in step 55 — see
 ##                                   docs/REVIEW.md / docs/STATUS.md)
 ##   - Darwin kernel + /usr/lib/dyld

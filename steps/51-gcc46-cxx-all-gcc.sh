@@ -11,8 +11,10 @@
 ##          compilation and linking); chain make from step 45; chain
 ##          boot-ar via scripts/boot-ar + no-op scripts/boot-ranlib;
 ##          host /usr/bin/perl for the Makefile.in header-dir edit —
-##          trust boundary (text edit only); Apple nm/strip/lipo/otool
-##          (inspection roles).  phase35-prepare-source.sh as in step 48.
+##          trust boundary (text edit only); chain boot-patch from
+##          step 14b for the committed prepare-source patch; Apple
+##          nm/strip/lipo/otool (inspection roles).  phase35-prepare-
+##          source.sh as in step 48.
 ## Inputs:  $TARGET/gcc46-darwin-bootstrap-src (step 47);
 ##          $TARGET/tcc-darwin-cc-root headers (step 44);
 ##          sources/gcc46-fixtures/*.cache.
@@ -49,9 +51,8 @@ chmod -R u+w src
     src/gcc/Makefile.in
 
 ## Deterministic source edits shared with the Nix track (see step 48).
-## Host /usr/bin/patch applies the committed patch — trust boundary,
-## same as steps 22 and 48.
-GNUPATCH=/usr/bin/patch \
+## The committed patch is applied by chain-built boot-patch.
+GNUPATCH="$TARGET/bin/boot-patch" \
 PREPARE_SOURCE_PATCH="$SOURCES/gcc46-patches/prepare-source.patch" \
 /bin/bash "$SOURCES/gcc46-scripts/phase35-prepare-source.sh"
 

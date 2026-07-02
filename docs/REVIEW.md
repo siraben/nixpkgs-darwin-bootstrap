@@ -43,6 +43,11 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 - #8 tarballs fetched not committed (SHA256-pinned) — FIXED wording (937415e):
   build.sh trust anchors now state the tarballs are SHA256-pinned fetches and the
   system cc/ld are only the final goal-test exe escape hatch.
+- #9 shell-track `/usr/bin/patch` in steps 22/47/48/51 — FIXED: committed
+  unified diffs are now applied by `boot-patch`, a minimal M2-Planet-subset C
+  applier built at step 14b by the from-seed stage0 toolchain.  It handles the
+  repo's patch subset (`-pN`, `-d`, modify-existing-file unified diffs) and
+  fails closed outside that subset.
 
 ## Codex re-review round 2 (after the 6 chain-built C tools landed)
 
@@ -121,7 +126,7 @@ is an ACCEPTED bounded impurity (see the analysis above — mechanical partition
 
 **Benign / Not Violations**
 
-Host `make`, `tar`, `cp`, `cat`, `dd`, `grep` smoke checks, and `/bin/sh` orchestration are not code translation by themselves. Host `perl`/`python3`/`sed` used for source patching, for example [53b-gcc10-patches.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/53b-gcc10-patches.sh:21) and [45-gnumake.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/45-gnumake.sh:30), is not compiler/linker cheating if the patches remain auditable. Host `nm`/`lipo`/`otool` exports in GCC envs appear to be inspection/configure support, not active codegen.
+Host `make`, `tar`, `cp`, `cat`, `dd`, `grep` smoke checks, and `/bin/sh` orchestration are not code translation by themselves. Host `perl`/`python3`/`sed` used for source editing, for example [53b-gcc10-patches.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/53b-gcc10-patches.sh:21) and [45-gnumake.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/45-gnumake.sh:30), is not compiler/linker cheating if the edits remain auditable; shell-track committed `.patch` files are applied by chain-built `boot-patch`. Host `nm`/`lipo`/`otool` exports in GCC envs appear to be inspection/configure support, not active codegen.
 
 **Overall Verdict**
 

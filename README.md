@@ -40,7 +40,7 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc_arch → M2-Plan
 ├── sources/                 # committed auditable text sources for the steps
 │   ├── stage0-posix/        #   vendored oriansj/stage0-posix-1.9.1
 │   ├── tcc-darwin/          #   the tcc-darwin-cc compiler/linker wrapper
-│   └── tools/               #   chain-built C link tools (boot-ar, m1-split,
+│   └── tools/               #   chain-built C tools (boot-patch, boot-ar, m1-split,
 │                            #     tsv-col, ctor-table, line-rewrite,
 │                            #     synth-inject) + elf64-to-m1.M1
 ├── scripts/                 # shell-track helpers (fetch-sources.sh, goal test,
@@ -105,9 +105,11 @@ documented boundaries.
   chain `M1`+`hex2`.  From step 44c on, the chain-built `m1-split`
   does the job.  The bootstrap-ordering analysis is in
   [`docs/REVIEW.md`](docs/REVIEW.md).
-- **Host source-prep tools**: `/usr/bin/patch` (steps 22, 47, 48, 51),
-  `python3` (step 53b), `perl` (`scripts/phase13-patch-assert-fail.sh`)
-  apply deterministic, committed edits to source text.
+- **Source-prep tools**: committed `.patch` files in the shell track are
+  applied by chain-built `boot-patch` (step 14b; used by steps 22, 47,
+  48, 51).  Host `python3` (step 53b) and `perl`
+  (`scripts/phase13-patch-assert-fail.sh`) still apply deterministic,
+  committed edits to source text.
 - **System `as`/`ld` for gcc-10 target codegen**: the chain builds the
   gcc-10 binaries themselves through its own `tcc-darwin-cc → hex2`
   Mach-O pipeline, but the resulting `xgcc` is configured with the
