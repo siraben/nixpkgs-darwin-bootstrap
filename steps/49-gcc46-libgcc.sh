@@ -39,6 +39,15 @@ out="$TARGET/gcc46-libgcc"
 rm -rf "$out"
 mkdir -p "$out"
 
+## phase36-libgcc.sh copies the step-48 src/build trees into ./work and
+## configures/builds there, so it must run from a fresh scratch dir (a
+## reused CWD leaves a config.cache that aborts configure with "changes
+## in the environment can compromise the build").
+work="$TARGET/work/gcc46-libgcc"
+rm -rf "$work"
+mkdir -p "$work"
+cd "$work"
+
 ## Use the ELF-capable boot-ar / no-op boot-ranlib (Apple's ar drops our
 ## ELF objects); phase36-libgcc.sh honors a pre-set AR/RANLIB.
 export AR="$ROOT/scripts/boot-ar"
