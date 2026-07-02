@@ -83,6 +83,10 @@ done
 ## executable stubs with a far-future mtime so make sees them up to date versus
 ## their freshly-compiled .o and skips the link entirely.  These tools are never
 ## executed on the cc1/xgcc goal path.
+## In a clean tree $GCC10_BUILD/gcc does not exist until make first descends
+## into it (step 54 configures only the top level), so create it for the
+## stubs; the gcc sub-configure works fine in a pre-existing empty dir.
+mkdir -p "$GCC10_BUILD/gcc"
 for g in gcov gcov-dump gcov-tool; do
   printf '#!/bin/sh\nexit 0\n' > "$GCC10_BUILD/gcc/$g"
   chmod +x "$GCC10_BUILD/gcc/$g"
