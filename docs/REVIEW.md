@@ -11,7 +11,7 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
 
 - #1 host-awk linker machinery in tcc-darwin-cc — DONE: every host tool in the
   active link path is now chain-built C (compiled by tcc-darwin-cc in a 44X step,
-  @PLACEHOLDER@ + wrapper helper; awk/host fallback runs ONLY while the tool
+  wrapper helper; awk/host fallback runs ONLY while the tool
   itself bootstraps): boot-ar (44b, 9ad4a83); m1-split :ELF_data/:HEX2_data
   splitter (44c, 273a3f2); tsv-col symbol-set TSV extractor (44d, 15b5d65);
   ctor-table C++ GLOBAL__sub_I init table (44e, 664ee8c); line-rewrite Mach-O
@@ -25,10 +25,10 @@ Audit of the from-4KB-seed claim. Status tags added after the run.
   text-tools: a
   `cksum|awk '{print $1"-"$2}'` cache-key formatter (benign, not translation) and
   the intentional bootstrap fallbacks.
-- #2 early Mes/TCC steps (21/25/26/27/42) split M1 with host awk — TODO: they run
-  BEFORE tcc-darwin-cc exists so the chain m1-split can't be used; build a
-  splitter with an earlier chain cc (mescc/tcc) or document as pre-cc bootstrap.
-  Lower priority (pre-compiler stages).
+- #2 early Mes/TCC steps (21/25/26/27/42) split M1 with host awk — ACCEPTED
+  bounded shell-track boundary: they run before tcc-darwin-cc exists, and the
+  awk mechanically partitions already-translated M1 text.  The post-44 path uses
+  chain-built `m1-split`; see the round-2 analysis below.
 - #3 tcc-cpp/gxx-cpp hardcoded ../target — FIXED (bcba3cf, honour $TARGET).
 - #4 archive cache outside TARGET — FIXED (bcba3cf, under $TARGET/work).
 - #5 step 55 host-compiled stub libgcc/emutls — FIXED for the CORE: a real
@@ -128,6 +128,6 @@ is an ACCEPTED bounded impurity (see the analysis above — mechanical partition
 
 Host `make`, `tar`, `cp`, `cat`, `dd`, `grep` smoke checks, and `/bin/sh` orchestration are not code translation by themselves. Host `perl`/`python3`/`sed` used for source editing, for example [53b-gcc10-patches.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/53b-gcc10-patches.sh:21) and [45-gnumake.sh](/Users/siraben/Git/nixpkgs-darwin-bootstrap/bake/steps/45-gnumake.sh:30), is not compiler/linker cheating if the edits remain auditable; shell-track committed `.patch` files are applied by chain-built `boot-patch`. Host `nm`/`lipo`/`otool` exports in GCC envs appear to be inspection/configure support, not active codegen.
 
-**Overall Verdict**
+**Original 2026-06-03 Verdict (Historical)**
 
 The chain is substantially from-seed for the actual C/C++ compilation of GCC-4.6 and GCC-10 `cc1`/`xgcc`, and I did not find a normal-path fallback to host clang/gcc/as for those builds. But the current faithfulness claim is too strong: host `awk` is still load-bearing linker machinery, early M1 splits also use host `awk`, scratch builds can accidentally use pre-existing `bake/target` and root caches, and the final runnable GCC-10 test still needs host-built stub archives plus system `ld`. Current status: impressive bootstrap, not yet a faithful “4 KB seed + text sources only, no host semantic translation/linking” bootstrap.

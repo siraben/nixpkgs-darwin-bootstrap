@@ -16,8 +16,9 @@ reproduces gnu-hello **0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e
 with the gcc-latest and gcc-latest-strict builds byte-identical.
 
 Done (gated): GCC 4.6 compiles entirely with the chain `cc1` (no host clang);
-gcc-10/15 helpers compile with the chain; the chain runs on chain-built
-`bootstrap-gnumake` + `gnupatch` (no nixpkgs gnumake anywhere); naming
+gcc-10/15 helpers compile with the chain; GCC packaging/modern phases run on
+chain-built `bootstrap-gnumake` + `gnupatch` (gcc-4.6 `all-gcc` still uses the
+stdenv make boundary documented in README); naming
 standardized (no `phaseXX` in attrs/scripts/env/comments); no host `python`
 at build time; host `awk` removed from the **entire amd64 build-time chain**
 — the M1 code/data split is the chain-built `m1-split` everywhere
@@ -56,7 +57,7 @@ the only remaining `awk` is the deferred aarch64 `stage0-posix/hex1`
 candidate path; the orchestration shell is host bash/coreutils/sed/grep
 (Nix-track scope). Native aarch64 chain is deferred (Rosetta is the path).
 
-## Current Status Update
+## Historical Checklist
 
 - [x] Phase44 Nix formalization now builds a GCC 4.6 C/C++ handoff; it still temporarily uses nixpkgs `gnumake` as `BOOTSTRAP_MAKE` until phase39 make is fixed beyond smoke tests.
 - [x] Phase44 Nix reaches `cc1`/`cc1plus`, `g++`, direct target `libgcc`, direct target `libstdc++`, packaging, and the C++ smoke assembly check with explicit Mach-O `as`/`ld` wrappers.

@@ -60,7 +60,7 @@ cp "$SOURCES/tcc-darwin/crt1-tcc-sysv.M1" "$out/share/crt1-tcc-sysv.M1"
 
 ## Install the base Mach-O load-command template (lowdata).  tcc-darwin-cc
 ## now generates a per-link layout from this dynamically (it substitutes
-## the 7 segment-size fields to match each binary's actual code size — see
+## 8 size/offset fields to match each binary's actual code size — see
 ## m1-to-hex2 --auto-data-align), so the old fixed small/large templates are
 ## gone.  The wrapper finds this file via dirname(@MACHO@).
 lowdata="$SOURCES/stage0-posix/M2libc/amd64/MACHO-amd64-lowdata.hex2"
@@ -124,4 +124,3 @@ if [ "$status" -ne 42 ]; then
     exit 1
 fi
 echo "tcc-darwin-cc hello → exit 42 ✓"
-

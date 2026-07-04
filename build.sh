@@ -12,15 +12,18 @@
 ##                                   the hand-written tools, patches, scripts)
 ##   - tarballs/*                   (upstream mes/gcc-4.6/gcc-10 release tarballs,
 ##                                   NOT committed — fetched by scripts/fetch-
-##                                   sources.sh against pinned SHA-256 hashes)
-##   - /bin/sh and POSIX utils      (Apple-signed system components: sh, make,
+##                                   sources.sh and rechecked before extraction)
+##   - /bin/sh, bash and POSIX utils (Apple-signed system components: sh, bash,
+##                                   make,
 ##                                   tar, cp, nm, system cc/ld for the final
 ##                                   goal-test exe link — the chain has no native
 ##                                   Mach-O exe linker)
 ##   - host source-prep tools       (NOT yet ported to the chain in the shell
 ##                                   track: host awk for the early M1 code/data
 ##                                   splits; host python3 in step 53b and host
-##                                   perl in scripts/phase13-* for gcc text edits;
+##                                   perl in steps 15/45/48/49/51 and
+##                                   scripts/phase13-* for deterministic text
+##                                   edits;
 ##                                   committed patches are applied by chain-built
 ##                                   boot-patch from step 14b; host /usr/bin/cc
 ##                                   + ar for the libgcc
@@ -71,19 +74,24 @@ printf '\n'
 
 ## Optional: stop after the step whose name starts with $BOOT_STOP_AFTER, e.g.
 ##   BOOT_STOP_AFTER=14 TARGET=/tmp/boot-verify sh build.sh
-## runs phases up to and including 14-kaem.  Useful for incremental
+## runs steps up to and including 14-kaem.  Use substep names such as
+## BOOT_STOP_AFTER=14b or BOOT_STOP_AFTER=44g when that boundary matters.
+## Useful for incremental
 ## reproducibility verification without a full multi-hour run.
 ## Optional: skip every step before the one whose name starts with
 ## $BOOT_START_FROM (combined with not wiping TARGET above, this resumes a
 ## partial build), e.g.  BOOT_START_FROM=54 TARGET=/tmp/boot-verify sh build.sh
 step_count=0
 started=1
+start_matched=0
 [ -n "${BOOT_START_FROM:-}" ] && started=0
+[ -z "${BOOT_START_FROM:-}" ] && start_matched=1
+stop_matched=0
 for step in "$STEPS"/*.sh; do
   step_name=$(basename "$step" .sh)
   if [ "$started" -eq 0 ]; then
     case "$step_name" in
-      "$BOOT_START_FROM"*) started=1 ;;
+      "$BOOT_START_FROM"*) started=1; start_matched=1 ;;
       *) continue ;;
     esac
   fi
@@ -102,10 +110,19 @@ for step in "$STEPS"/*.sh; do
   case "${BOOT_STOP_AFTER:-}" in
     '') ;;
     *) case "$step_name" in
-         "$BOOT_STOP_AFTER"*) printf '== stopping after %s (BOOT_STOP_AFTER) ==\n' "$step_name"; break ;;
+         "$BOOT_STOP_AFTER"*) stop_matched=1; printf '== stopping after %s (BOOT_STOP_AFTER) ==\n' "$step_name"; break ;;
        esac ;;
   esac
 done
+
+if [ "$start_matched" -eq 0 ]; then
+  echo "BOOT_START_FROM did not match any step prefix: $BOOT_START_FROM" >&2
+  exit 1
+fi
+if [ -n "${BOOT_STOP_AFTER:-}" ] && [ "$stop_matched" -eq 0 ]; then
+  echo "BOOT_STOP_AFTER did not match any executed step prefix: $BOOT_STOP_AFTER" >&2
+  exit 1
+fi
 
 printf '== done; %d steps ==\n' "$step_count"
 printf 'built binaries:\n'

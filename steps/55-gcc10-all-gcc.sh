@@ -29,7 +29,8 @@
 ## Inputs:  $GCC10_BUILD configured by step 54; $TARGET/gcc10-source
 ##          (steps 53 + 53b); env from scripts/gcc10-env.sh.
 ## Outputs: $GCC10_BUILD/gcc/{cc1,xgcc}; $GCC10_BUILD/gcc/libgcc.a (real
-##          core archive, or a stub on fallback) and stub libgcc_eh.a/
+##          core archive by default; stub only with BOOT_ALLOW_STUB_LIBGCC=1)
+##          and stub libgcc_eh.a/
 ##          libgcc_s.a/libemutls_w.a; `ar`/`ranlib` symlinks in
 ##          $TARGET/bin pointing at boot-ar/boot-ranlib.
 ## Verifies: cc1 and xgcc exist and are executable.  The end-to-end
@@ -135,11 +136,21 @@ for L in libgcc_eh libgcc_s libemutls_w; do
   rm -f "$GCC10_BUILD/gcc/$L.a"
   /usr/bin/ar cr "$GCC10_BUILD/gcc/$L.a" "$stubo"
 done
-## Real core libgcc.a; fall back to a stub only if the build cannot produce one.
+## Real core libgcc.a.  Fall back to a stub only when explicitly requested for
+## debugging; a normal successful build must preserve the real-libgcc proof.
 if ! sh "$ROOT/scripts/gcc10-build-libgcc.sh"; then
-  echo "55: real libgcc build failed; falling back to a stub libgcc.a" >&2
+  if [ "${BOOT_ALLOW_STUB_LIBGCC:-0}" != 1 ]; then
+    echo "55: real libgcc build failed; refusing stub fallback (set BOOT_ALLOW_STUB_LIBGCC=1 for debugging)" >&2
+    exit 1
+  fi
+  echo "55: real libgcc build failed; BOOT_ALLOW_STUB_LIBGCC=1, installing stub libgcc.a" >&2
   rm -f "$GCC10_BUILD/gcc/libgcc.a"
   /usr/bin/ar cr "$GCC10_BUILD/gcc/libgcc.a" "$stubo"
+fi
+member_count=$(/usr/bin/ar -t "$GCC10_BUILD/gcc/libgcc.a" | wc -l | tr -d ' ')
+if [ "${BOOT_ALLOW_STUB_LIBGCC:-0}" != 1 ] && [ "$member_count" -lt 100 ]; then
+  echo "55: libgcc.a has only $member_count members; expected the real core archive" >&2
+  exit 1
 fi
 
 echo "gcc10 all-gcc done: cc1 + xgcc at $GCC10_BUILD/gcc (run scripts/gcc10-goal-test.sh to verify)"

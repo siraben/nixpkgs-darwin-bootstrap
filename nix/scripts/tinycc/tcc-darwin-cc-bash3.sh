@@ -613,6 +613,10 @@ done
 if tr -s ' \t' '\n' < "$tmp/combined.M1" > "$tmp/combined.tok.M1" \
    && synth_inject "$tmp/combined.tok.M1" > "$tmp/combined.inj.M1"; then
   mv "$tmp/combined.inj.M1" "$tmp/combined.M1"
+else
+  echo "tcc-darwin-cc: synth-inject failed for $tmp/combined.M1" >&2
+  rm -f "$tmp/combined.tok.M1" "$tmp/combined.inj.M1"
+  exit 1
 fi
 rm -f "$tmp/combined.tok.M1"
 

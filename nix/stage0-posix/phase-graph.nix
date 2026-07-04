@@ -124,7 +124,7 @@ let
       builder = "M2-Planet/MesCC chain";
       inputs = [ "tinycc bootstrappable fork" "Darwin M2libc" "Mach-O hex2" ];
       output = "tcc";
-      darwinStatus = "blocked: the bootstrappable TinyCC fork is MesCC-oriented and ELF-only at this point; Darwin needs a Mes compiler path plus Mach-O TCC backend/runtime work";
+      darwinStatus = "superseded: the active package graph reaches tinycc-darwin-cc through the dedicated mescc-libc/tinycc derivations";
     }
   ];
 in
@@ -133,17 +133,16 @@ in
 
   completed = [
     "raw syscall smoke binary"
-    "C-built hex0 seed for experimentation"
+    "hand-written Mach-O hex0 seed bytes"
     "Darwin M2libc bootstrap syscall stubs"
     "Darwin M2libc startup M1 snippets"
     "amd64 Darwin MesCC tools through kaem"
     "amd64 Darwin full M2-Planet"
+    "amd64 Darwin TinyCC path in mescc-libc/tinycc package graph"
   ];
 
   missingCriticalPath = [
-    "hand-written Mach-O hex0 seed bytes"
     "Mach-O debug footer/symbol generator for debug-enabled MesCC stages"
-    "TCC Darwin bootstrap path: Mes compiler input, Mach-O backend, and libc/libtcc1 runtime"
   ];
 
   sameLengthAsLinuxMesccToolsBoot = builtins.length phases == 15;

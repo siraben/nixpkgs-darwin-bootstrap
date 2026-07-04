@@ -29,12 +29,10 @@
 ##           build.sh.  The tarball is upstream release text pinned
 ##           by hash.
 set -eu
+. "$ROOT/scripts/tarball-sha256s.sh"
 
 tarball="$ROOT/tarballs/mes-0.27.1.tar.gz"
-if [ ! -f "$tarball" ]; then
-    echo "missing $tarball; run scripts/fetch-sources.sh first" >&2
-    exit 1
-fi
+boot_verify_tarball "$tarball" || exit 1
 
 work="$TARGET/work/mes-source"
 out="$TARGET/mes-source"

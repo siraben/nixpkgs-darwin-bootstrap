@@ -262,7 +262,13 @@ surfacing the next as the build progressed:
    names; UTF-8 collation separated the two `-C` records → duplicate
    `OPT_C` in options.h.  Forced `LC_ALL=C` (commit 5066486).
 
-## Working binaries (target/bin/)
+## Historical 2026-05 Snapshot
+
+The following sections are retained as a chronological snapshot from before
+the gcc-4.6/gcc-10 shell-track resolution.  They are superseded by the green
+current status at the top of this file.
+
+### Working binaries (target/bin/)
 
 22 working binaries: hex0, hex1-darwin, hex2-darwin, catm-darwin,
 M0-darwin, macho-patcher, cc_arch-darwin, M2-darwin, blood-macho-0,
@@ -274,7 +280,7 @@ All built from `seed/hex0-amd64-darwin` (4096 bytes) + auditable
 text source + Apple's `/bin/sh` and `/usr/bin/{ar,nm,ranlib,...}`.
 NO nixpkgs, NO bootstrap-tools.tar.xz.
 
-## Verified
+### Verified
 
 - `tcc-darwin-cc hello.c -o hello && ./hello` → exit 42 ✓
 - `make --version` → GNU Make 4.4.1 ✓
@@ -283,7 +289,7 @@ NO nixpkgs, NO bootstrap-tools.tar.xz.
 - The 6 pure stage0 phases (hex0/hex1/hex2/catm/M0/macho-patcher)
   produce binaries byte-identical to the Nix-built equivalents ✓
 
-## Blocked
+### Blocked
 
 **`make` segfaults on `include` directive with multi-prerequisite
 target files.**  Repro:

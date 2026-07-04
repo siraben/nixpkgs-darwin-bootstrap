@@ -1,6 +1,7 @@
 {
   gcc46Version,
   gcc46-source,
+  gnupatch,
   root,
   runCommand,
   ...
@@ -10,7 +11,7 @@
       cp -R ${gcc46-source}/. $out/
       chmod -R u+w $out
       cd $out
-      patch -p1 < ${root + "/patches/gcc46-genconditions-tcc-safe.patch"}
-      patch -p1 < ${root + "/patches/gcc46-darwin-bootstrap-host.patch"}
-      patch -p1 < ${root + "/patches/gcc46-darwin-macho-driver.patch"}
+      ${gnupatch}/bin/patch -p1 < ${root + "/patches/gcc46-genconditions-tcc-safe.patch"}
+      ${gnupatch}/bin/patch -p1 < ${root + "/patches/gcc46-darwin-bootstrap-host.patch"}
+      ${gnupatch}/bin/patch -p1 < ${root + "/patches/gcc46-darwin-macho-driver.patch"}
     ''

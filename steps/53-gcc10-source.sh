@@ -17,6 +17,7 @@
 ## Verifies: presence of configure, gcc/gcc.c, and each in-tree
 ##          library's configure.
 set -eu
+. "$ROOT/scripts/tarball-sha256s.sh"
 
 out="$TARGET/gcc10-source"
 rm -rf "$out"
@@ -27,7 +28,7 @@ rm -rf "$work"; mkdir -p "$work"; cd "$work"
 
 for t in gcc-10.4.0.tar.xz gmp-6.2.1.tar.xz mpfr-4.2.2.tar.xz \
          mpc-1.3.1.tar.gz isl-0.24.tar.bz2; do
-    test -f "$ROOT/tarballs/$t" || { echo "missing $ROOT/tarballs/$t (run fetch-sources.sh)" >&2; exit 1; }
+    boot_verify_tarball "$ROOT/tarballs/$t" || exit 1
     tar -xf "$ROOT/tarballs/$t"
 done
 

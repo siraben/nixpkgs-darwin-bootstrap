@@ -284,6 +284,7 @@ let
       hex0
       raw-syscall-hello
       raw-syscall-hello-unsigned
+      tinycc-m2-negative-probe
       gnu-hello-hash-comparison
       ;
   });

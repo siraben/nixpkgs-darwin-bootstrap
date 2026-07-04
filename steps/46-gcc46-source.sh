@@ -19,6 +19,7 @@
 ##          library's configure — the trees landed where gcc's build
 ##          expects them.
 set -eu
+. "$ROOT/scripts/tarball-sha256s.sh"
 
 out="$TARGET/gcc46-source"
 rm -rf "$out"
@@ -28,6 +29,11 @@ work="$TARGET/work/gcc46-source"
 rm -rf "$work"
 mkdir -p "$work"
 cd "$work"
+
+for t in gcc-4.6.4.tar.bz2 gmp-4.3.2.tar.bz2 mpfr-2.4.2.tar.bz2 \
+         mpc-0.8.1.tar.gz; do
+  boot_verify_tarball "$ROOT/tarballs/$t" || exit 1
+done
 
 tar -xf "$ROOT/tarballs/gcc-4.6.4.tar.bz2"
 tar -xf "$ROOT/tarballs/gmp-4.3.2.tar.bz2"

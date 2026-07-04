@@ -13,6 +13,7 @@
   stage0-posix,
   stage0Sources,
   stdenv,
+  tinycc-m2-negative-probe,
   ...
 }:
 {
@@ -147,7 +148,7 @@
 
   stage0-posix-phase-graph = runCommand "stage0-posix-phase-graph" { } ''
     test ${lib.escapeShellArg (toString stage0-posix.sameLengthAsLinuxMesccToolsBoot)} = 1
-    test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 3
+    test ${lib.escapeShellArg (toString (builtins.length stage0-posix.missingCriticalPath))} -eq 1
     test ${lib.escapeShellArg stage0-posix.m2libcOS} = Darwin
     test ${lib.escapeShellArg stage0-posix.executableHeader} = MACHO-${stage0-posix.m2libcArch}.hex2
     if grep -q '/linux/' ${./stage0-posix/mescc-tools-boot.nix}; then
@@ -158,6 +159,8 @@
   '';
 } // lib.optionalAttrs (gcc46 != null) {
   gcc46-bootstrap-smoke = gcc46;
+} // lib.optionalAttrs (tinycc-m2-negative-probe != null) {
+  tinycc-m2-negative-probe = tinycc-m2-negative-probe;
 } // lib.optionalAttrs (gnu-hello-hash-comparison != null) {
   gnu-hello-hash-comparison = gnu-hello-hash-comparison;
 }

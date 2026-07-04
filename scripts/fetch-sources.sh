@@ -17,6 +17,7 @@ set -eu
 ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 TARBALLS="$ROOT/tarballs"
 mkdir -p "$TARBALLS"
+. "$ROOT/scripts/tarball-sha256s.sh"
 
 fetch() {
     name=$1
@@ -24,11 +25,11 @@ fetch() {
     expected_sha=$3
     target="$TARBALLS/$name"
     if [ -f "$target" ]; then
-        actual=$(/usr/bin/shasum -a 256 "$target" | awk '{print $1}')
-        if [ "$actual" = "$expected_sha" ]; then
+        if boot_verify_tarball "$target"; then
             printf '  %s: cached (sha matches)\n' "$name"
             return 0
         fi
+        actual=$(/usr/bin/shasum -a 256 "$target" | awk '{print $1}')
         printf '  %s: cached but sha mismatch (got %s, expected %s); refetching\n' \
             "$name" "$actual" "$expected_sha"
     fi
@@ -42,13 +43,11 @@ fetch() {
         mv "$target.tmp" "$target"
     fi
 
-    actual=$(/usr/bin/shasum -a 256 "$target" | awk '{print $1}')
-    if [ "$actual" != "$expected_sha" ]; then
-        printf '  %s: SHA256 MISMATCH (got %s, expected %s)\n' \
-            "$name" "$actual" "$expected_sha" >&2
+    if ! boot_verify_tarball "$target"; then
         rm -f "$target"
         exit 1
     fi
+    actual=$(/usr/bin/shasum -a 256 "$target" | awk '{print $1}')
     printf '  %s: ok (%s)\n' "$name" "$actual"
 }
 

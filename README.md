@@ -172,10 +172,11 @@ The gcc-10 phase is long: `cc1plus` runs x86-64 under Rosetta 2.  The
 final cc1 link is the single largest operation (a ~335 MB combined M1);
 the chain link tools' M2libc heap is sized (4 GB) to hold it.
 
-The `tcc-darwin-cc` link path picks the smallest of three Mach-O layout
-templates (`tiny`/`small`/`large`); the `tiny` tier keeps the
-`__TEXT`→`__DATA` gap near 1 MB so `configure` conftest compile+links
-run ~7× faster than under the `large` layout.
+The `tcc-darwin-cc` link path now asks `m1-to-hex2 --auto-data-align`
+for the page-rounded data address, then rewrites a low-data Mach-O
+template for each link.  This keeps small `configure` conftest
+compile+links near the old tiny-template cost instead of padding every
+binary to the large layout.
 
 ## Nix track: running it
 
