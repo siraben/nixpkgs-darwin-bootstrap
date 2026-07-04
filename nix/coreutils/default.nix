@@ -41,7 +41,7 @@ runCommand "coreutils-${coreutilsVersion}" { } ''
 
   export CC=${tinycc-darwin-cc}/bin/tcc-darwin-cc
   MAKEFLAGS= ${bootstrap-gnumake}/bin/make -f bootstrap-coreutils.mk \
-    CC="$CC -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1 -DFILESYSTEM_PREFIX_LEN\(Filename\)=0 -DISSLASH\(C\)=\(\(C\)==47\)" \
+    CC="$CC -I lib -DNULL=0 -D_GNU_SOURCE=1 -DHAVE_SYS_TYPES_H=1 -DFILESYSTEM_PREFIX_LEN\(Filename\)=0 -DISSLASH\(C\)=\(\(C\)==47\)" \
     AR=${cctools}/bin/ar \
     PREFIX="$out" \
     > coreutils-build.stdout \
