@@ -10,3 +10,12 @@ am_cv_CC_dependencies_compiler_type=gcc3
 am_cv_CXX_dependencies_compiler_type=gcc3
 am_cv_GCJ_dependencies_compiler_type=gcc3
 am_cv_OBJC_dependencies_compiler_type=gcc3
+
+# Skip automake's "whether make supports nested variables" probe.  It runs
+# `make -f -`, feeding a tiny makefile through a here-doc PIPE; the chain-built
+# GNU make spools `-f -` stdin to a temp file and blocks forever waiting for an
+# EOF that never arrives on that pipe, wedging the in-tree gmp sub-configure on
+# a clean from-seed build (a warm tree skips it via a cached config.cache).
+# The chain make IS GNU make 4.4.1, which supports nested variables, so forcing
+# the answer is correct.  Applies to every subdir configure via config.site.
+am_cv_make_support_nested_variables=yes
