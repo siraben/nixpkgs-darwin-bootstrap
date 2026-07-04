@@ -49,8 +49,17 @@ struct stat {
  * (e.g. genmatch seeing a regular file as a block device). Bind the 64-bit
  * variant explicitly for gcc; tcc-compiled binaries use the bootstrap libc's
  * own syscall-based stat (boot_stat) and keep the plain symbol.
+ *
+ * Exception: the from-seed chain links gcc-compiled objects (e.g. gcc-10's
+ * build/genmatch, and gcc-4.6 g++ output via gxx-bootstrap-wrapper.sh) with
+ * the chain tcc link path, NOT binutils ld — they resolve against the
+ * bootstrap libc, whose plain `fstat`/`stat` already do the 64-bit stat64
+ * syscall and fill this 64-bit `struct stat`.  There the `$INODE64` symbols
+ * don't exist (the chain link reports e.g. "Target label ELF_fstat_INODE64
+ * is not valid"), so those objects are compiled with -D__BOOT_PLAIN_STAT__
+ * to keep the plain symbol for gcc too.
  */
-#if defined(__GNUC__) && !defined(__TINYC__)
+#if defined(__GNUC__) && !defined(__TINYC__) && !defined(__BOOT_PLAIN_STAT__)
 int stat(const char *, struct stat *) __asm__("_stat$INODE64");
 int fstat(int, struct stat *) __asm__("_fstat$INODE64");
 int fstatat(int, const char *, struct stat *, int) __asm__("_fstatat$INODE64");

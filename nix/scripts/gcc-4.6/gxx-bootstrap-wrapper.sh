@@ -25,7 +25,12 @@ out=     # empty until -o seen; default per-mode (basename.s/.o, a.out) below
 # -mno-sse3: keep gcc on the SSE2 baseline so float->int uses cvttsd2si
 # (tcc's assembler has SSE2 but not the SSE3 fisttp instruction; adding fisttp
 # to tcc's opcode table overflowed the mes-m2 bootstrap stage).
-cc1args=(-quiet -mno-sse3 -I"$LIBSTDCXX/include" -I"$LIBSTDCXX/include/x86_64-apple-darwin" -I"$LIBSUPCXX" -isystem "$SYSROOT")
+# -D__BOOT_PLAIN_STAT__: this wrapper always links with the chain tcc path
+# (never binutils ld), so its objects resolve stat/fstat against the bootstrap
+# libc's plain 64-bit syscall stubs.  Keep the plain symbols, not the
+# `$INODE64` aliases the chain link can't resolve (see
+# nix/bootstrap/headers/tcc-darwin-bootstrap/sys/stat.h).
+cc1args=(-quiet -mno-sse3 -D__BOOT_PLAIN_STAT__ -I"$LIBSTDCXX/include" -I"$LIBSTDCXX/include/x86_64-apple-darwin" -I"$LIBSUPCXX" -isystem "$SYSROOT")
 objs=()
 srcs=()
 arlibs=()   # explicit .a paths to link (tcc-darwin-cc resolves archive members)
