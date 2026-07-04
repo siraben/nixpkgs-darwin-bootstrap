@@ -184,7 +184,11 @@ prepare_source_inputs() {
       */*)
         work_dir="${tmp:-}"
         if [ -z "$work_dir" ]; then
-          work_dir="$(mktemp -d .tcc-darwin-inputs.XXXXXX)"
+          local key
+          key="$(printf '%s\n%s\n%s\n' "$input" "$out" "$index" | cksum | tr ' ' '-')"
+          work_dir=".tcc-darwin-inputs.$key"
+          rm -rf "$work_dir"
+          mkdir "$work_dir"
           cleanup_dirs+=("$work_dir")
         fi
         local copy="$work_dir/input-$index.c"
@@ -665,3 +669,4 @@ dd if=/dev/zero of="$out" bs=1 count=1 seek="$((linkedit_fileoff - 1))" conv=not
 chmod +x "$out"
 source @SIGNING@
 sign "$out"
+@SIGTOOL@ --file "$out" --identifier "$(basename "$out")" inject

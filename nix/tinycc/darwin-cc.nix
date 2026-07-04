@@ -70,7 +70,8 @@ runCommand "tinycc-darwin-cc" { } ''
     --replace-fail @LIBC_M1@ $out/share/darwin-bootstrap/tinycc-sysv-libc.M1 \
     --replace-fail @M1_SPLIT@ ${m1-split}/bin/m1-split \
     --replace-fail @SYNTH_INJECT_BIN@ ${synth-inject}/bin/synth-inject \
-    --replace-fail @SIGNING@ ${darwin.signingUtils}
+    --replace-fail @SIGNING@ ${darwin.signingUtils} \
+    --replace-fail @SIGTOOL@ ${darwin.sigtool}/bin/sigtool
   chmod +x $out/bin/tcc-darwin-cc
 
   ## m1-split + synth-inject are M2-Planet-built (mescc-tools/) and exist
