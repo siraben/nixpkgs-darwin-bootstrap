@@ -10,9 +10,9 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGDIR="${LOGDIR:-/private/tmp/nixpkgs-darwin-bootstrap-e2e-${SYSTEM}-${STAMP}}"
 
 case "$MODE" in
-  build|rebuild) ;;
+  build|fresh|rebuild) ;;
   *)
-    echo "MODE must be 'build' or 'rebuild' (got '$MODE')" >&2
+    echo "MODE must be 'build', 'fresh', or 'rebuild' (got '$MODE')" >&2
     exit 2
     ;;
 esac
@@ -111,6 +111,35 @@ EOF
 fi
 
 printf 'index\tstage\tstarted\tended\telapsed_seconds\texit_code\tlog\n' > "$LOGDIR/stages.tsv"
+
+if [ "$MODE" = fresh ]; then
+  delete_paths="$LOGDIR/delete-paths.txt"
+  delete_log="$LOGDIR/delete.log"
+  : > "$delete_paths"
+  : > "$delete_log"
+
+  while IFS= read -r stage; do
+    [ -n "$stage" ] || continue
+    ref=".#packages.${SYSTEM}.${stage}"
+    drv="$(nix path-info --derivation "$ref")"
+    nix-store -q --outputs "$drv" >> "$delete_paths"
+  done < "$LOGDIR/stages.txt"
+
+  awk '{ lines[NR] = $0 } END { for (i = NR; i >= 1; i--) print lines[i] }' "$delete_paths" |
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    if nix-store --check-validity "$path" >/dev/null 2>&1; then
+      {
+        echo "deleting $path"
+        nix-store --delete "$path"
+      } >> "$delete_log" 2>&1 || {
+        echo "could not delete $path" >> "$delete_log"
+      }
+    else
+      echo "not valid: $path" >> "$delete_log"
+    fi
+  done
+fi
 
 index=0
 total_start="$(date +%s)"
