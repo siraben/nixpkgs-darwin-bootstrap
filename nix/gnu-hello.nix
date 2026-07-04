@@ -53,7 +53,7 @@ let
 
         mkdir -p "$out/bin" "$out/share/darwin-bootstrap"
         cp ./hello "$out/bin/hello"
-        cp configure.stdout configure.stderr make.stdout make.stderr \
+        cp configure.stdout configure.stderr \
           hello.stdout version.stdout help.stdout \
           "$out/share/darwin-bootstrap/"
         shasum -a 256 "$out/bin/hello" | tee "$out/share/darwin-bootstrap/hello.sha256"
@@ -103,7 +103,7 @@ let
 
         mkdir -p "$out/bin" "$out/share/darwin-bootstrap"
         cp ./hello "$out/bin/hello"
-        cp configure.stdout configure.stderr make.stdout make.stderr \
+        cp configure.stdout configure.stderr \
           hello.stdout version.stdout help.stdout \
           "$out/share/darwin-bootstrap/"
         {

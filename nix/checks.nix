@@ -16,12 +16,15 @@
   tinycc-m2-negative-probe,
   ...
 }:
+let
+  hex0SourceArch = if hostPlatform.isx86_64 then "amd64" else arch;
+in
 {
   hex0-converts-hex = runCommand "hex0-converts-hex" { } ''
     cp ${root + "/fixtures/checks-input.hex0"} input.hex0
     ${hex0}/bin/hex0 input.hex0 output
     test "$(cat output)" = "hello"
-    ${hex0}/bin/hex0 ${hex0}/share/darwin-bootstrap/hex0-${arch}-darwin.hex0 hex0-self
+    ${hex0}/bin/hex0 ${hex0}/share/darwin-bootstrap/hex0-${hex0SourceArch}-darwin.hex0 hex0-self
     cmp ${hex0}/bin/hex0 hex0-self
     mkdir $out
   '';
