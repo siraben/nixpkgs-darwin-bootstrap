@@ -35,18 +35,19 @@ if [ "$#" -ne 1 ]; then
 fi
 
 phase=$1
-repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-impure_root=${IMPURE_ROOT:-"$repo_root/work/impure"}
+nix_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+flake_root=$(cd "$nix_root/.." && pwd)
+impure_root=${IMPURE_ROOT:-"$flake_root/work/impure"}
 
 system=${BOOTSTRAP_SYSTEM:-x86_64-darwin}
 attr_path() {
-  nix build --no-link --print-out-paths ".#packages.$system.$1"
+  nix build --no-link --print-out-paths "$flake_root#packages.$system.$1"
 }
 
 nixpkgs_path() {
   local attr=$1
   nix eval --raw --impure --expr \
-    "let flake = builtins.getFlake (toString $repo_root); pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; }; in pkgs.$attr.outPath"
+    "let flake = builtins.getFlake (toString $flake_root); pkgs = import flake.inputs.nixpkgs { system = builtins.currentSystem; }; in pkgs.$attr.outPath"
 }
 
 phase34=${TCC_OUT:-}
@@ -83,7 +84,7 @@ case "$phase" in
     out=${GCC46_CXX_OUT:-"$work_dir/out"}
     mkdir -p "$work_dir"
     cd "$work_dir"
-    "$repo_root/scripts/gcc-4.6/cxx.sh" \
+    "$nix_root/scripts/gcc-4.6/cxx.sh" \
       "$phase35" \
       "$phase37" \
       "$phase39" \
@@ -102,7 +103,7 @@ case "$phase" in
     cd "$work_dir"
     export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}
     export GCC_MODERN_COMPILER_ONLY=${GCC_MODERN_COMPILER_ONLY:-1}
-    "$repo_root/scripts/gcc-modern/bootstrap-gcc.sh" \
+    "$nix_root/scripts/gcc-modern/bootstrap-gcc.sh" \
       "$phase42" \
       "$phase44_out" \
       "$phase39" \
@@ -122,7 +123,7 @@ case "$phase" in
     cd "$work_dir"
     export GCC_MODERN_TARGETS=${GCC_MODERN_TARGETS:-all-gcc}
     export GCC_MODERN_COMPILER_ONLY=${GCC_MODERN_COMPILER_ONLY:-1}
-    "$repo_root/scripts/gcc-modern/bootstrap-gcc.sh" \
+    "$nix_root/scripts/gcc-modern/bootstrap-gcc.sh" \
       "$phase43" \
       "$phase45_out" \
       "$phase39" \

@@ -9,7 +9,7 @@
 > is `scripts/boot-ar` backed by chain-built C `sources/tools/boot-ar.c`;
 > committed shell-track patches are applied by chain-built
 > `sources/tools/boot-patch.c` from step 14b;
-> there are 63 numbered step scripts in `steps/` (01–55 plus 44b–g, 52b,
+> there are 64 numbered step scripts in `steps/` (01–55 plus 44b–g, 52b,
 > 53b).  "Blocked"/"one remaining blocker" sections below pre-date the
 > gcc-4.6 + gcc-10 resolution and are superseded.
 
@@ -330,8 +330,9 @@ options:
 * Apple-signed system components: `/bin/sh`, `/bin/bash`, `/usr/bin/{ar,nm,ranlib,strip,lipo,otool,perl,sed,grep,...}`
 * Darwin kernel + `/usr/lib/dyld`
 
-## Step inventory
+## Historical step inventory
 
+Historical inventory from before the gcc-4.6 + gcc-10 resolution:
 50 numbered step scripts in `bake/steps/`:
 
 * 01-14: stage0 chain (hex0 through kaem)

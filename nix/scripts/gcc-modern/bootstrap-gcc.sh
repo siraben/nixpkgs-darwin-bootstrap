@@ -277,6 +277,14 @@ export CXXFLAGS_FOR_TARGET="${GCC_MODERN_CXXFLAGS_FOR_TARGET:--O2 -g0}"
 export LDFLAGS="${GCC_MODERN_LDFLAGS:-$bootstrap_link_flags}"
 export LDFLAGS_FOR_BUILD="${GCC_MODERN_LDFLAGS_FOR_BUILD:-}"
 export GCC_MODERN_WRAPPER_HOST_SHORTCUTS="${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}"
+case "$GCC_MODERN_WRAPPER_HOST_SHORTCUTS" in
+  0|1) ;;
+  *)
+    echo "GCC_MODERN_WRAPPER_HOST_SHORTCUTS must be 0 or 1" >&2
+    exit 2
+    ;;
+esac
+wrapper_host_shortcuts_default="$GCC_MODERN_WRAPPER_HOST_SHORTCUTS"
 export GCC_MODERN_INPUT_HOST_SHORTCUTS="${GCC_MODERN_INPUT_HOST_SHORTCUTS:-$GCC_MODERN_WRAPPER_HOST_SHORTCUTS}"
 if [ "$label" = gcc-latest ] && [ "${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
   export GCC_MODERN_INPUT_HOST_LINK_SHORTCUTS="${GCC_MODERN_INPUT_HOST_LINK_SHORTCUTS:-1}"
@@ -573,7 +581,7 @@ cxx_link_args() {
   done
 }
 host_conftest_compile() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out=conftest.o prev= arg source=
   local host_args=()
   for arg in "\$@"; do
@@ -603,7 +611,7 @@ host_conftest_compile() {
   $wrapper_host_cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out= source= prev= arg
   local host_args=()
   local saw_std=0
@@ -672,7 +680,7 @@ host_source_compile() {
   esac
 }
 host_conftest_link() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out=a.out prev= arg source
   local host_args=()
   for arg in "\$@"; do
@@ -720,7 +728,7 @@ for arg in "\$@"; do
   esac
 done
 if [ "\$preprocess_only" = 1 ]; then
-  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
+  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] && is_conftest_args "\$@"; then
     $wrapper_host_cc -arch x86_64 -E "\$@"
     exit "\$?"
   fi
@@ -817,7 +825,7 @@ add_default_link_args
 ld_args+=(-L"\$root/lib/gcc/$target/$version" -L"\$root/lib" -lgcc)
 case "\$PWD" in
   */build/gcc*)
-    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
+    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ]; then
       cxx_link_args
       exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     fi
@@ -979,7 +987,7 @@ run_driver() {
   fi
 }
 host_conftest_compile() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out=conftest.o prev= arg source=
   local host_args=()
   for arg in "\$@"; do
@@ -1009,7 +1017,7 @@ host_conftest_compile() {
   $wrapper_host_cc -arch x86_64 -c "\${host_args[@]}" "\$source" -o "\$out"
 }
 host_source_compile() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out= source= prev= arg
   local host_args=()
   local saw_std=0
@@ -1086,7 +1094,7 @@ host_source_compile() {
   esac
 }
 host_conftest_link() {
-  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] || return 1
+  [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] || return 1
   local out=a.out prev= arg source
   local host_args=()
   for arg in "\$@"; do
@@ -1134,7 +1142,7 @@ for arg in "\$@"; do
   esac
 done
 if [ "\$preprocess_only" = 1 ]; then
-  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ] && is_conftest_args "\$@"; then
+  if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ] && is_conftest_args "\$@"; then
     $wrapper_host_cxx -arch x86_64 -E "\$@"
     exit "\$?"
   fi
@@ -1240,7 +1248,7 @@ else
 fi
 case "\$PWD" in
   */build/gcc*)
-    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-1}" = 1 ]; then
+    if [ "\${GCC_MODERN_WRAPPER_HOST_SHORTCUTS:-$wrapper_host_shortcuts_default}" = 1 ]; then
       cxx_link_args
       exec $wrapper_host_cxx -arch x86_64 "\${objects[@]}" "\${cxx_args[@]}" -o "\$out_file"
     fi

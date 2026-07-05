@@ -40,4 +40,6 @@ rm -f cc1
   libcommon.a ../libcpp/libcpp.a ../libbacktrace/.libs/libbacktrace.a ../libiberty/libiberty.a \
   ../libdecnumber/libdecnumber.a \
   -L"$B"/./gmp/.libs -L"$B"/./mpfr/src/.libs -L"$B"/./mpc/src/.libs -lmpc -lmpfr -lgmp -L./../zlib -lz
-echo "LINKCC1_EXIT=$?"
+rc=$?
+echo "LINKCC1_EXIT=$rc"
+exit "$rc"

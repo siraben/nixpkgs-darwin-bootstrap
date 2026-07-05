@@ -16,10 +16,11 @@ reproduces gnu-hello **0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e
 with the gcc-latest and gcc-latest-strict builds byte-identical.
 
 Done (gated): GCC 4.6 compiles entirely with the chain `cc1` (no host clang);
-gcc-10/15 helpers compile with the chain; GCC packaging/modern phases run on
-chain-built `bootstrap-gnumake` + `gnupatch` (gcc-4.6 `all-gcc` still uses the
-stdenv make boundary documented in README); naming
-standardized (no `phaseXX` in attrs/scripts/env/comments); no host `python`
+gcc-10/15 helpers compile with the chain; modern GCC phases run on
+chain-built `bootstrap-gnumake` + `gnupatch` (gcc-4.6 `all-gcc` and
+`libgcc` still use the stdenv make boundary documented in README);
+semantic package names are the current interface, with some legacy
+`phaseXX` labels left in impure helpers and historical notes; no host `python`
 at build time; host `awk` removed from the **entire amd64 build-time chain**
 — the M1 code/data split is the chain-built `m1-split` everywhere
 (`mescc-libc`/`mes`/`tinycc` boot-cycle, tcc wrapper, gcc link path,
@@ -48,8 +49,8 @@ it bloated the tinycc libc 30× for ~0 runtime gain since the tools are
 tcc-codegen×Rosetta compute-bound, not syscall-bound.)
 
 Remaining purity work: `cctools/ar` chain-compiles the `ar`/`ranlib` drivers
-but its `libstuff.a`/`libmacho.a` support archives are still host-`$CC`
-compiled + host-`ar` packed (a real boundary on the gnu-hello proof path);
+and support objects, while host cctools still assembles/links and host `ar`
+packs `libstuff.a`/`libmacho.a` (a real boundary on the gnu-hello proof path);
 host `perl` still does generated-file edits (bootstrap-gcc.sh/cxx.sh) and the
 gcc-4.6 libgcc-tree staging (`scripts/gcc-4.6/libgcc.pl`); host `as`/`ld`
 (binutils-unwrapped) + `cctools` + apple-sdk at the Mach-O link boundary;

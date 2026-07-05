@@ -12,10 +12,12 @@ set -eu
 target="$1/lib/mes/__assert_fail.c"
 
 /usr/bin/perl -i -0pe '
+  my $n = 0;
   my $a1 = "  if (file && *file)\n    {\n      eputs (file);\n      eputs (\":\");\n    }\n";
   my $b1 = "  if (file)\n    if (*file)\n      {\n        eputs (file);\n        eputs (\":\");\n      }\n";
   my $a2 = "  if (function && *function)\n    {\n      eputs (function);\n      eputs (\":\");\n    }\n";
   my $b2 = "  if (function)\n    if (*function)\n      {\n        eputs (function);\n        eputs (\":\");\n      }\n";
-  s/\Q$a1\E/$b1/g;
-  s/\Q$a2\E/$b2/g;
+  $n += s/\Q$a1\E/$b1/g;
+  $n += s/\Q$a2\E/$b2/g;
+  die "no __assert_fail substitutions applied\n" if eof && $n == 0;
 ' "$target"

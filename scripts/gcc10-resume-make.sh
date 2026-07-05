@@ -20,7 +20,7 @@ SYS=$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap
 export LC_ALL=C
 export MACOSX_DEPLOYMENT_TARGET=10.6
 export CONFIG_SITE=$ROOT/sources/gcc10-darwin/config.site
-export TCC_DARWIN_CACHE_DIR=${TCC_DARWIN_CACHE_DIR:-$ROOT/.tcc-darwin-archive-cache}
+export TCC_DARWIN_CACHE_DIR=${TCC_DARWIN_CACHE_DIR:-$TARGET/work/.tcc-darwin-archive-cache}
 
 export CC=$TARGET/bin/tcc-darwin-cc
 export CXX=$TARGET/gcc46-cxx/bin/g++

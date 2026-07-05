@@ -146,9 +146,9 @@ documented boundaries.
   are committed `.patch` files applied by the chain-built `gnupatch`
   (exception: `tinyccMesSrc` applies its patch with stdenv `patch` —
   chain `gnupatch` does not exist that early).
-- **Chain-built `bootstrap-gnumake`** runs every GCC packaging phase;
-  the one exception is gcc-4.6's intermediate `all-gcc` step, which
-  invokes the stdenv `make`.
+- **Chain-built `bootstrap-gnumake`** runs the modern GCC phases and
+  gcc-4.6 C++ packaging; the gcc-4.6 intermediate `all-gcc` and
+  `libgcc` steps invoke the stdenv `make`.
 - Host `awk` and host `python` are absent from the entire amd64
   build-time chain.  The M1 code/data split and cross-object
   synth-label injection are chain-built C tools (`nix/bootstrap/*.c`,
@@ -251,8 +251,10 @@ when their upstream sources change:
   future passes.
 
 `python3` and the maintainer-only `awk` appear in these design-time
-scripts and nowhere in either track's build-time chain (shell-track
-exception: the documented step-53b/pre-44 boundaries above).
+scripts and nowhere in the promoted amd64 build-time chain
+(shell-track exception: the documented step-53b/pre-44 boundaries
+above).  The deferred native aarch64 candidate path is not part of that
+claim.
 
 ## aarch64 status
 
