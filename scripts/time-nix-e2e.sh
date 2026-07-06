@@ -8,11 +8,24 @@ SYSTEM="${SYSTEM:-$(nix eval --impure --raw --expr builtins.currentSystem)}"
 MODE="${MODE:-rebuild}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGDIR="${LOGDIR:-/private/tmp/nixpkgs-darwin-bootstrap-e2e-${SYSTEM}-${STAMP}}"
+CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-1200}"
+ALLOW_DELETE_FAILURES="${ALLOW_DELETE_FAILURES:-0}"
 
 case "$MODE" in
   build|fresh|rebuild) ;;
   *)
     echo "MODE must be 'build', 'fresh', or 'rebuild' (got '$MODE')" >&2
+    exit 2
+    ;;
+esac
+
+case "$CHECK_INTERVAL_SECONDS" in
+  ''|*[!0-9]*)
+    echo "CHECK_INTERVAL_SECONDS must be a positive integer (got '$CHECK_INTERVAL_SECONDS')" >&2
+    exit 2
+    ;;
+  0)
+    echo "CHECK_INTERVAL_SECONDS must be greater than zero" >&2
     exit 2
     ;;
 esac
@@ -30,7 +43,12 @@ mkdir -p "$LOGDIR/stages"
   echo "model=$(sysctl -n hw.model)"
   echo "mem_bytes=$(sysctl -n hw.memsize)"
   echo "ncpu=$(sysctl -n hw.ncpu) physical=$(sysctl -n hw.physicalcpu) logical=$(sysctl -n hw.logicalcpu)"
+  echo "check_interval_seconds=$CHECK_INTERVAL_SECONDS"
+  echo "allow_delete_failures=$ALLOW_DELETE_FAILURES"
   echo "nix=$(nix --version)"
+  nix config show 2>/dev/null |
+    grep -E '^(build-poll-interval|max-silent-time|timeout|substituters|trusted-substituters) =' |
+    sed 's/^/nix_config_/' || true
 } > "$LOGDIR/hardware.txt"
 
 if [ -n "${STAGES_FILE:-}" ]; then
@@ -134,6 +152,10 @@ if [ "$MODE" = fresh ]; then
         nix-store --delete "$path"
       } >> "$delete_log" 2>&1 || {
         echo "could not delete $path" >> "$delete_log"
+        if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
+          echo "fresh mode could not delete $path; see $delete_log" >&2
+          exit 1
+        fi
       }
     else
       echo "not valid: $path" >> "$delete_log"
@@ -143,6 +165,41 @@ fi
 
 index=0
 total_start="$(date +%s)"
+run_logged_build() {
+  log="$1"
+  stage="$2"
+  ref="$3"
+  started="$4"
+  start_epoch="$5"
+  command="$6"
+  shift 6
+
+  set +e
+  {
+    echo "started=$started"
+    echo "stage=$stage"
+    echo "ref=$ref"
+    echo "command=$command"
+    /usr/bin/time -l "$@"
+  } > "$log" 2>&1 &
+  build_pid=$!
+  while kill -0 "$build_pid" 2>/dev/null; do
+    sleep "$CHECK_INTERVAL_SECONDS"
+    if kill -0 "$build_pid" 2>/dev/null; then
+      now="$(date -Iseconds)"
+      now_epoch="$(date +%s)"
+      running=$((now_epoch - start_epoch))
+      msg="still running: stage=$stage elapsed_seconds=$running log=$log"
+      echo "   $msg"
+      echo "heartbeat=$now elapsed_seconds=$running" >> "$log"
+    fi
+  done
+  wait "$build_pid"
+  rc=$?
+  set -e
+  return "$rc"
+}
+
 while IFS= read -r stage; do
   [ -n "$stage" ] || continue
   index=$((index + 1))
@@ -157,28 +214,20 @@ while IFS= read -r stage; do
 
   if [ "$MODE" = rebuild ]; then
     command="nix build $ref --no-link --rebuild --print-build-logs"
-    set +e
-    {
-      echo "started=$started"
-      echo "stage=$stage"
-      echo "ref=$ref"
-      echo "command=$command"
-      /usr/bin/time -l nix build "$ref" --no-link --rebuild --print-build-logs
-    } > "$log" 2>&1
-    rc=$?
-    set -e
+    if run_logged_build "$log" "$stage" "$ref" "$started" "$start_epoch" "$command" \
+      nix build "$ref" --no-link --rebuild --print-build-logs; then
+      rc=0
+    else
+      rc=$?
+    fi
   else
     command="nix build $ref --no-link --print-build-logs"
-    set +e
-    {
-      echo "started=$started"
-      echo "stage=$stage"
-      echo "ref=$ref"
-      echo "command=$command"
-      /usr/bin/time -l nix build "$ref" --no-link --print-build-logs
-    } > "$log" 2>&1
-    rc=$?
-    set -e
+    if run_logged_build "$log" "$stage" "$ref" "$started" "$start_epoch" "$command" \
+      nix build "$ref" --no-link --print-build-logs; then
+      rc=0
+    else
+      rc=$?
+    fi
   fi
 
   ended="$(date -Iseconds)"

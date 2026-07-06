@@ -105,7 +105,7 @@ export PATH="$cctools/bin:$PATH"
 export MACOSX_DEPLOYMENT_TARGET=10.8
 cxx_cflags="${GCC46_CXX_CFLAGS:--g0}"
 cxx_cflags_for_build="${GCC46_CXX_CFLAGS_FOR_BUILD:-$cxx_cflags}"
-cxx_cflags_for_target="${GCC46_CXX_CFLAGS_FOR_TARGET:--O2 -g0}"
+cxx_cflags_for_target="${GCC46_CXX_CFLAGS_FOR_TARGET:--g0}"
 export CFLAGS="$cxx_cflags"
 export CFLAGS_FOR_BUILD="$cxx_cflags_for_build"
 export CFLAGS_FOR_TARGET="$cxx_cflags_for_target"
@@ -770,14 +770,29 @@ MAKE
 }
 
 make_tool=${BOOTSTRAP_MAKE:-"$make/bin/make"}
-# The chain GNU Make is intentionally minimal and does not yet have a
-# bootstrap-proven jobserver/pipe path.  Keep Nix builds serial by default, but
-# allow impure debug runs to override both the make executable and job count.
 build_cores=${BOOTSTRAP_JOBS:-${NIX_BUILD_CORES:-1}}
-main_build_cores=${GCC46_CXX_MAIN_JOBS:-1}
+if [ -z "$build_cores" ] || [ "$build_cores" = 0 ]; then
+  build_cores="$(sysctl -n hw.ncpu 2>/dev/null || echo 1)"
+fi
+main_build_cores=${GCC46_CXX_MAIN_JOBS:-$build_cores}
+if [ -z "$main_build_cores" ] || [ "$main_build_cores" = 0 ]; then
+  main_build_cores="$build_cores"
+fi
 make_dir=${GCC46_CXX_MAKE_DIR:-.}
 make_targets=${GCC46_CXX_TARGETS:-"all-gcc"}
 gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc cc1 c++ g++"}
+
+{
+  echo "BOOTSTRAP_JOBS=${BOOTSTRAP_JOBS:-}"
+  echo "NIX_BUILD_CORES=${NIX_BUILD_CORES:-}"
+  echo "build_cores=$build_cores"
+  echo "GCC46_CXX_MAIN_JOBS=${GCC46_CXX_MAIN_JOBS:-}"
+  echo "main_build_cores=$main_build_cores"
+  echo "make_tool=$make_tool"
+  echo "make_dir=$make_dir"
+  echo "make_targets=$make_targets"
+  echo "gcc_make_targets=$gcc_make_targets"
+} > "$bootstrap_share/jobs.env"
 
 sdk_path() {
   if [ -n "${GCC46_CXX_SDK_PATH:-}" ]; then
@@ -906,6 +921,8 @@ configure_direct_libstdcxx() {
         --disable-multilib \
         --disable-nls \
         --disable-libstdcxx-pch \
+        --enable-threads=single \
+        --enable-cstdio=stdio \
         2>&1 | tee "$bootstrap_share/configure-direct-libstdcxx.log"
   )
 }
