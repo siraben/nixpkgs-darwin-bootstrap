@@ -235,12 +235,29 @@ while IFS= read -r stage; do
   echo "   log: $log"
 
   if [ "$MODE" = rebuild ]; then
-    command="nix build $ref --no-link --rebuild --print-build-logs"
-    if run_logged_build "$log" "$stage" "$ref" "$started" "$start_epoch" "$command" \
-      nix build "$ref" --no-link --rebuild --print-build-logs; then
-      rc=0
+    drv="$(nix path-info --derivation "$ref")"
+    rebuild_flag=--rebuild
+    nix-store -q --outputs "$drv" |
+    while IFS= read -r out_path; do
+      [ -n "$out_path" ] || continue
+      nix-store --check-validity "$out_path" >/dev/null 2>&1 || exit 1
+    done || rebuild_flag=
+    if [ -n "$rebuild_flag" ]; then
+      command="nix build $ref --no-link --rebuild --print-build-logs"
+      if run_logged_build "$log" "$stage" "$ref" "$started" "$start_epoch" "$command" \
+        nix build "$ref" --no-link --rebuild --print-build-logs; then
+        rc=0
+      else
+        rc=$?
+      fi
     else
-      rc=$?
+      command="nix build $ref --no-link --print-build-logs # output missing; rebuild flag omitted"
+      if run_logged_build "$log" "$stage" "$ref" "$started" "$start_epoch" "$command" \
+        nix build "$ref" --no-link --print-build-logs; then
+        rc=0
+      else
+        rc=$?
+      fi
     fi
   else
     command="nix build $ref --no-link --print-build-logs"
