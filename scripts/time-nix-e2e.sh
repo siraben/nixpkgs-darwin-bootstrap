@@ -195,16 +195,26 @@ run_logged_build() {
     /usr/bin/time -l "$@"
   } > "$log" 2>&1 &
   build_pid=$!
+  next_heartbeat=$((start_epoch + CHECK_INTERVAL_SECONDS))
   while kill -0 "$build_pid" 2>/dev/null; do
-    sleep "$CHECK_INTERVAL_SECONDS"
-    if kill -0 "$build_pid" 2>/dev/null; then
+    now_epoch="$(date +%s)"
+    if [ "$now_epoch" -ge "$next_heartbeat" ]; then
       now="$(date -Iseconds)"
-      now_epoch="$(date +%s)"
       running=$((now_epoch - start_epoch))
       msg="still running: stage=$stage elapsed_seconds=$running log=$log"
       echo "   $msg"
       echo "heartbeat=$now elapsed_seconds=$running" >> "$log"
+      next_heartbeat=$((next_heartbeat + CHECK_INTERVAL_SECONDS))
     fi
+    sleep_for=5
+    remaining=$((next_heartbeat - now_epoch))
+    if [ "$remaining" -lt "$sleep_for" ]; then
+      sleep_for="$remaining"
+    fi
+    if [ "$sleep_for" -lt 1 ]; then
+      sleep_for=1
+    fi
+    sleep "$sleep_for"
   done
   wait "$build_pid"
   rc=$?
