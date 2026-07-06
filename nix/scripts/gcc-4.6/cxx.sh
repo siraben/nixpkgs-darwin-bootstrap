@@ -730,7 +730,7 @@ ensure_bootstrap_cc1() {
     exit 1
   fi
   cp "$bootstrap_cc1" gcc/cc1
-  chmod +x gcc/cc1
+  chmod u+wx gcc/cc1
 }
 
 append_top_prereq_stubs() {
@@ -960,6 +960,7 @@ fix_darwin_prereq_configs
 append_top_prereq_stubs
 install_macho_tool_wrappers
 postprocess_macho_specs
+ensure_bootstrap_cc1
 
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${GCC46_CXX_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
   for prereq_name in ${GCC46_CXX_REBUILD_MACHO_PREREQS_LIST:-libiberty zlib gmp mpfr mpc libcpp libdecnumber}; do
@@ -1035,6 +1036,9 @@ if [ "${GCC46_CXX_SKIP_MAIN_MAKE:-0}" != 1 ]; then
         2>&1 | tee "$bootstrap_share/configure-gcc.log"
     fi
     MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+      -o cc1 \
+      -o cc1-checksum.c \
+      -o cc1-checksum.o \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
@@ -1075,7 +1079,6 @@ fi
 install_macho_tool_wrappers
 postprocess_macho_specs
 ensure_gcc_internal_headers
-ensure_bootstrap_cc1
 build_direct_libstdcxx
 
 if [ "${GCC46_CXX_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then
