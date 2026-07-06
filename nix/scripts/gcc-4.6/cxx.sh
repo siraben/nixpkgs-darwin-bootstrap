@@ -721,6 +721,18 @@ ensure_gcc_internal_headers() {
   [ -f gcc/include-fixed/syslimits.h ] || printf '#include <limits.h>\n' > gcc/include-fixed/syslimits.h
 }
 
+ensure_bootstrap_cc1() {
+  [ -d gcc ] || return 0
+  [ -f gcc/cc1 ] && return 0
+  local bootstrap_cc1="$gcc46/libexec/gcc/$target/$gcc_version/cc1"
+  if [ ! -x "$bootstrap_cc1" ]; then
+    echo "gcc-4.6 cxx: missing bootstrap cc1 at $bootstrap_cc1" >&2
+    exit 1
+  fi
+  cp "$bootstrap_cc1" gcc/cc1
+  chmod +x gcc/cc1
+}
+
 append_top_prereq_stubs() {
   [ -f Makefile ] || return 0
   grep -q DARWIN_BOOTSTRAP_TOP_PREREQ_STUBS Makefile && return 0
@@ -780,7 +792,7 @@ if [ -z "$main_build_cores" ] || [ "$main_build_cores" = 0 ]; then
 fi
 make_dir=${GCC46_CXX_MAKE_DIR:-.}
 make_targets=${GCC46_CXX_TARGETS:-"all-gcc"}
-gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc cc1 c++ g++"}
+gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc c++ g++"}
 
 {
   echo "BOOTSTRAP_JOBS=${BOOTSTRAP_JOBS:-}"
@@ -1063,6 +1075,7 @@ fi
 install_macho_tool_wrappers
 postprocess_macho_specs
 ensure_gcc_internal_headers
+ensure_bootstrap_cc1
 build_direct_libstdcxx
 
 if [ "${GCC46_CXX_SKIP_INSTALL:-0}" = 1 ] || [ "$make_dir" != . ] || [ "$make_targets" != "all-gcc" ]; then

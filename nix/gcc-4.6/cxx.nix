@@ -1,6 +1,8 @@
-## All GCC 4.6 sources are compiled by the chain compiler: the gcc46-all-gcc
+## GCC 4.6 C++ sources are compiled by the chain compiler: the gcc46-all-gcc
 ## cc1 driven through the gcc46 bootstrap driver (nix/scripts/gcc-4.6/driver.sh,
-## GCC46_BOOTSTRAP_HOST_CC_SOURCES=0).
+## GCC46_BOOTSTRAP_HOST_CC_SOURCES=0).  The C frontend cc1 is reused from the
+## prior chain-built gcc46 stage instead of being rebuilt in this C++ packaging
+## step.
 ## Measured per-file cc1 cost is 30s-4min (combine.c 125s, insn-recog.c
 ## 243s); with GCC46_CXX_MAIN_JOBS=$NIX_BUILD_CORES the build completes in
 ## a few hours.
