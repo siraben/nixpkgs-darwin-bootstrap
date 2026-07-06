@@ -155,23 +155,49 @@ if [ "$MODE" = fresh ]; then
     echo "$drv" >> "$delete_paths"
   done < "$LOGDIR/stages.txt"
 
-  awk '!seen[$0]++ { lines[++n] = $0 } END { for (i = n; i >= 1; i--) print lines[i] }' "$delete_paths" |
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    if nix-store --check-validity "$path" >/dev/null 2>&1; then
-      {
-        echo "deleting $path"
-        nix-store --delete "$path"
-      } >> "$delete_log" 2>&1 || {
-        echo "could not delete $path" >> "$delete_log"
-        if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
-          echo "fresh mode could not delete $path; see $delete_log" >&2
-          exit 1
+  pending_deletes="$LOGDIR/delete-pending.txt"
+  awk '!seen[$0]++ { lines[++n] = $0 } END { for (i = n; i >= 1; i--) print lines[i] }' \
+    "$delete_paths" > "$pending_deletes"
+
+  delete_pass=1
+  while [ -s "$pending_deletes" ]; do
+    next_pending="$LOGDIR/delete-pending-next.txt"
+    : > "$next_pending"
+    deleted_any=0
+    echo "delete pass $delete_pass" >> "$delete_log"
+
+    while IFS= read -r path; do
+      [ -n "$path" ] || continue
+      if nix-store --check-validity "$path" >/dev/null 2>&1; then
+        if {
+          echo "deleting $path"
+          nix-store --delete "$path"
+        } >> "$delete_log" 2>&1; then
+          deleted_any=1
+        else
+          echo "could not delete $path" >> "$delete_log"
+          echo "$path" >> "$next_pending"
         fi
-      }
-    else
-      echo "not valid: $path" >> "$delete_log"
+      else
+        echo "not valid: $path" >> "$delete_log"
+      fi
+    done < "$pending_deletes"
+
+    if [ ! -s "$next_pending" ]; then
+      rm -f "$next_pending"
+      break
     fi
+    if [ "$deleted_any" != 1 ] || [ "$delete_pass" -ge 5 ]; then
+      if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
+        echo "fresh mode could not delete all requested paths; see $delete_log and $next_pending" >&2
+        exit 1
+      fi
+      echo "allowing remaining delete failures from $next_pending" >> "$delete_log"
+      break
+    fi
+
+    mv "$next_pending" "$pending_deletes"
+    delete_pass=$((delete_pass + 1))
   done
 fi
 
