@@ -140,10 +140,22 @@ if [ "$MODE" = fresh ]; then
     [ -n "$stage" ] || continue
     ref=".#packages.${SYSTEM}.${stage}"
     drv="$(nix path-info --derivation "$ref")"
-    nix-store -q --outputs "$drv" >> "$delete_paths"
+    nix-store -q --outputs "$drv" |
+    while IFS= read -r out_path; do
+      [ -n "$out_path" ] || continue
+      echo "$out_path"
+      nix-store -q --deriver "$out_path" 2>/dev/null || true
+      nix-store -q --referrers "$out_path" 2>/dev/null |
+      while IFS= read -r referrer; do
+        case "$referrer" in
+          *.drv) echo "$referrer" ;;
+        esac
+      done
+    done >> "$delete_paths"
+    echo "$drv" >> "$delete_paths"
   done < "$LOGDIR/stages.txt"
 
-  awk '{ lines[NR] = $0 } END { for (i = NR; i >= 1; i--) print lines[i] }' "$delete_paths" |
+  awk '!seen[$0]++ { lines[++n] = $0 } END { for (i = n; i >= 1; i--) print lines[i] }' "$delete_paths" |
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     if nix-store --check-validity "$path" >/dev/null 2>&1; then
