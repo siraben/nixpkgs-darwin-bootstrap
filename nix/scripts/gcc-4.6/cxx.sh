@@ -419,7 +419,7 @@ MAKE
     -type l | while read -r header_link; do
     header_target="$(readlink "$header_link")"
     case "$header_target" in
-      /nix/store/*-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64/include/tcc-darwin-bootstrap/*)
+      "$tcc"/include/tcc-darwin-bootstrap/*)
         rm -f "$header_link"
         ;;
     esac
@@ -534,48 +534,6 @@ MAKE
     touch "gcc/build/$base_name"
   done
 
-  cat >> Makefile <<'MAKE'
-
-.PHONY: configure-gmp maybe-configure-gmp all-gmp maybe-all-gmp install-gmp maybe-install-gmp
-configure-gmp maybe-configure-gmp all-gmp maybe-all-gmp install-gmp maybe-install-gmp:
-	@:
-
-.PHONY: configure-mpfr maybe-configure-mpfr all-mpfr maybe-all-mpfr install-mpfr maybe-install-mpfr
-configure-mpfr maybe-configure-mpfr all-mpfr maybe-all-mpfr install-mpfr maybe-install-mpfr:
-	@:
-
-.PHONY: configure-mpc maybe-configure-mpc all-mpc maybe-all-mpc install-mpc maybe-install-mpc
-configure-mpc maybe-configure-mpc all-mpc maybe-all-mpc install-mpc maybe-install-mpc:
-	@:
-
-.PHONY: configure-libiberty maybe-configure-libiberty all-libiberty maybe-all-libiberty install-libiberty maybe-install-libiberty
-configure-libiberty maybe-configure-libiberty all-libiberty maybe-all-libiberty install-libiberty maybe-install-libiberty:
-	@:
-
-.PHONY: configure-build-libiberty maybe-configure-build-libiberty all-build-libiberty maybe-all-build-libiberty
-configure-build-libiberty maybe-configure-build-libiberty all-build-libiberty maybe-all-build-libiberty:
-	@:
-
-.PHONY: configure-fixincludes maybe-configure-fixincludes all-fixincludes maybe-all-fixincludes install-fixincludes maybe-install-fixincludes
-configure-fixincludes maybe-configure-fixincludes all-fixincludes maybe-all-fixincludes install-fixincludes maybe-install-fixincludes:
-	@:
-
-.PHONY: configure-build-fixincludes maybe-configure-build-fixincludes all-build-fixincludes maybe-all-build-fixincludes
-configure-build-fixincludes maybe-configure-build-fixincludes all-build-fixincludes maybe-all-build-fixincludes:
-	@:
-
-.PHONY: configure-zlib maybe-configure-zlib all-zlib maybe-all-zlib install-zlib maybe-install-zlib
-configure-zlib maybe-configure-zlib all-zlib maybe-all-zlib install-zlib maybe-install-zlib:
-	@:
-
-.PHONY: configure-libcpp maybe-configure-libcpp all-libcpp maybe-all-libcpp install-libcpp maybe-install-libcpp
-configure-libcpp maybe-configure-libcpp all-libcpp maybe-all-libcpp install-libcpp maybe-install-libcpp:
-	@:
-
-.PHONY: configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-libdecnumber install-libdecnumber maybe-install-libdecnumber
-configure-libdecnumber maybe-configure-libdecnumber all-libdecnumber maybe-all-libdecnumber install-libdecnumber maybe-install-libdecnumber:
-	@:
-MAKE
 else
   printf 'Reusing existing gcc-4.6 cxx configure state in %s\n' "$PWD" > "$bootstrap_share/configure.resume"
 fi
@@ -595,7 +553,9 @@ remove_tcc_header_symlinks() {
 
 rewrite_tcc_store_refs() {
   find . -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.log \) \
-    -exec perl -0pi -e "s#/nix/store/[A-Za-z0-9]+-darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64#$tcc#g" {} +
+    -exec perl -0pi \
+      -e "s#/nix/store/[A-Za-z0-9]+-(darwin-minimal-bootstrap-phase34-tinycc-darwin-cc-amd64|tinycc-darwin-cc)#$tcc#g" \
+      {} +
 }
 
 fix_darwin_prereq_configs() {

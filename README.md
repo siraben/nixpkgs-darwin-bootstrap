@@ -227,8 +227,9 @@ The Nix chain in detail:
    `nix/tinycc/`): the MesCC and TinyCC boot cycle culminating in
    `tinycc/darwin-cc`, the working TCC that builds every downstream
    GCC.
-3. **GCC 4.6** (`nix/gcc-4.6/`): every GCC 4.6 source compiles with the
-   chain `cc1`; nixpkgs clang/binutils assemble and link only.
+3. **GCC 4.6** (`nix/gcc-4.6/`): the C compiler is chain-built first; the
+   C++ stage reuses that `cc1` while compiling C++ frontend sources through
+   the chain compiler. nixpkgs clang/binutils assemble and link only.
 4. **Modern GCC** (`nix/gcc-10/`, `nix/gcc-latest/`): compiler-only
    GCC 10.4.0, then nixpkgs-matched `gcc_latest`, then the strict
    rebuild with external math libs.  All three compile their build
