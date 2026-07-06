@@ -185,6 +185,39 @@ s-conditions:
 s-condmd:
 	@test -f insn-conditions.md
 	$(STAMP) s-condmd
+s-attr:
+	@test -f insn-attr.h
+	$(STAMP) s-attr
+s-attrtab:
+	@test -f insn-attrtab.c
+	$(STAMP) s-attrtab
+s-automata:
+	@test -f insn-automata.c
+	$(STAMP) s-automata
+s-config:
+	@test -f insn-config.h
+	$(STAMP) s-config
+s-options:
+	@test -f optionlist
+	$(STAMP) s-options
+s-options-h:
+	@test -f options.h
+	$(STAMP) s-options-h
+s-specs:
+	@test -f specs.h
+	$(STAMP) s-specs
+s-alltree:
+	@test -f all-tree.def
+	$(STAMP) s-alltree
+s-mlib:
+	@test -f multilib.h
+	$(STAMP) s-mlib
+s-gtyp-input:
+	@test -f gtyp-input.list
+	$(STAMP) s-gtyp-input
+s-i386-bt:
+	@test -f i386-builtin-types.inc
+	$(STAMP) s-i386-bt
 s-genrtl-h:
 	@test -f genrtl.h
 	$(STAMP) s-genrtl-h
@@ -413,10 +446,12 @@ MAKE
   mkdir -p gcc
   all_gcc_build="$all_gcc/share/darwin-bootstrap/work/build/gcc"
   for generated_name in \
+    all-tree.def \
     bversion.h \
     build/gencondmd.c \
     genrtl.h \
     gcov-iov.h \
+    gtyp-input.list \
     gtype.state \
     gtype-desc.c \
     gtype-desc.h \
@@ -442,7 +477,12 @@ MAKE
     insn-recog.c \
     mddeps.mk \
     min-insn-modes.c \
+    multilib.h \
+    optionlist \
+    options.c \
+    options.h \
     plugin-version.h \
+    specs.h \
     target-hooks-def.h \
     tm-constrs.h \
     tm-preds.h \
