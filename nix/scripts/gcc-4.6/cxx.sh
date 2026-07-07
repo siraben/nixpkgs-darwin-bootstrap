@@ -885,6 +885,133 @@ ensure_target_libgcc_macho() {
   fi
 }
 
+write_direct_cxx_wrapper() {
+  [ -f gcc/cxx-bootstrap ] && return 0
+  cat > gcc/cxx-bootstrap <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+self_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cc1plus="$self_dir/cc1plus"
+xgcc="$self_dir/xgcc"
+as_tool="__DARWIN_BOOTSTRAP_AS__"
+
+for arg in "$@"; do
+  case "$arg" in
+    --version|-v|-V|-qversion)
+      exec "$xgcc" "$arg"
+      ;;
+  esac
+done
+
+mode=link
+output=
+cc1_args=()
+link_args=()
+sources=()
+objects=()
+
+while [ "$#" -gt 0 ]; do
+  arg="$1"
+  shift
+  case "$arg" in
+    -E)
+      mode=preprocess
+      cc1_args+=("$arg")
+      ;;
+    -c)
+      mode=compile
+      ;;
+    -o)
+      output="${1:?missing argument for -o}"
+      shift
+      ;;
+    -B*)
+      ;;
+    --sysroot=*)
+      ;;
+    -isystem|-idirafter|-iquote|-include|-isysroot|-MF|-MT|-MQ)
+      cc1_args+=("$arg" "${1:?missing argument for $arg}")
+      shift
+      ;;
+    -I*|-D*|-U*|-O*|-g*|-m*|-f*|-W*|-std=*|-nostdinc*|-MMD|-MD|-MP)
+      cc1_args+=("$arg")
+      ;;
+    -L*|-l*|-Wl,*|-nostartfiles|-nodefaultlibs)
+      link_args+=("$arg")
+      ;;
+    *.cc|*.cpp|*.cxx|*.C)
+      sources+=("$arg")
+      ;;
+    *.o|*.a)
+      objects+=("$arg")
+      link_args+=("$arg")
+      ;;
+    *)
+      if [ -f "$arg" ]; then
+        sources+=("$arg")
+      else
+        cc1_args+=("$arg")
+        link_args+=("$arg")
+      fi
+      ;;
+  esac
+done
+
+if [ "${#sources[@]}" -eq 0 ]; then
+  exec "$xgcc" "${link_args[@]}"
+fi
+
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/gcc46-cxx.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+
+if [ "$mode" = preprocess ]; then
+  if [ -n "$output" ]; then
+    exec "$cc1plus" -quiet "${cc1_args[@]}" "${sources[0]}" -o "$output"
+  fi
+  exec "$cc1plus" -quiet "${cc1_args[@]}" "${sources[0]}"
+fi
+
+compile_one() {
+  local source="$1"
+  local object="$2"
+  local asm="$tmpdir/$(basename "$object").s"
+  "$cc1plus" -quiet "${cc1_args[@]}" "$source" -o "$asm"
+  "$as_tool" "$asm" -o "$object"
+}
+
+if [ "$mode" = compile ]; then
+  if [ "${#sources[@]}" -gt 1 ] && [ -n "$output" ]; then
+    echo "cxx-bootstrap: -o with multiple input files" >&2
+    exit 1
+  fi
+  for source in "${sources[@]}"; do
+    if [ -n "$output" ]; then
+      object="$output"
+    else
+      object="$(basename "$source")"
+      object="${object%.*}.o"
+    fi
+    compile_one "$source" "$object"
+  done
+  exit 0
+fi
+
+for source in "${sources[@]}"; do
+  object="$tmpdir/$(basename "$source").o"
+  compile_one "$source" "$object"
+  objects+=("$object")
+done
+
+if [ -n "$output" ]; then
+  link_args+=("-o" "$output")
+fi
+exec "$xgcc" -B"$self_dir/" "${objects[@]}" "${link_args[@]}"
+EOF
+  perl -0pi -e "s#__DARWIN_BOOTSTRAP_AS__#${GCC46_BOOTSTRAP_AS}#g" gcc/cxx-bootstrap
+  chmod +x gcc/cxx-bootstrap
+}
+
 write_deployment_target_wrapper() {
   local tool="$1"
   [ -x "$out/bin/$tool" ] || return 0
@@ -903,9 +1030,11 @@ EOF
 
 configure_direct_libstdcxx() {
   [ -f "$target/libstdc++-v3/Makefile" ] && return 0
+  write_direct_cxx_wrapper
   mkdir -p "$target/libstdc++-v3"
   local sdk
   sdk="$(sdk_path)"
+  local direct_cxx="$PWD/gcc/cxx-bootstrap"
   (
     cd "$target/libstdc++-v3"
     env \
@@ -913,9 +1042,9 @@ configure_direct_libstdcxx() {
       AS="$GCC46_BOOTSTRAP_AS" \
       LD="$GCC46_BOOTSTRAP_LD" \
       CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
-      CXX="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CXX="$direct_cxx -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
       CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
-      CXXCPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CXXCPP="$direct_cxx -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
       CFLAGS="$cxx_cflags_for_target" \
       CXXFLAGS="$cxx_cflags_for_target" \
       LDFLAGS="-nostartfiles -nodefaultlibs -L$PWD/../../gcc -lgcc -Wl,-syslibroot,$sdk -lSystem" \
