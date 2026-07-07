@@ -6,7 +6,10 @@ typedef int wchar_t;
 #endif
 #ifndef NULL
 #ifdef __cplusplus
-#define NULL 0
+/* __null (not bare 0): an int 0 is passed as 32 bits in a variadic call, so
+ * a `foo(..., NULL)` sentinel leaves the high 4 bytes of the arg slot as stack
+ * garbage -> the callee reads a bogus 8-byte pointer.  __null is pointer-width. */
+#define NULL __null
 #else
 #define NULL ((void *)0)
 #endif
