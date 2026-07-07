@@ -920,7 +920,12 @@ while [ "$#" -gt 0 ]; do
       cc1_args+=("$arg")
       ;;
     -c)
-      mode=compile
+      if [ "$mode" != assembly ]; then
+        mode=compile
+      fi
+      ;;
+    -S)
+      mode=assembly
       ;;
     -o)
       output="${1:?missing argument for -o}"
@@ -970,6 +975,23 @@ if [ "$mode" = preprocess ]; then
     exec "$cc1plus" -quiet "${cc1_args[@]}" "${sources[0]}" -o "$output"
   fi
   exec "$cc1plus" -quiet "${cc1_args[@]}" "${sources[0]}"
+fi
+
+if [ "$mode" = assembly ]; then
+  if [ "${#sources[@]}" -gt 1 ] && [ -n "$output" ]; then
+    echo "cxx-bootstrap: -o with multiple input files" >&2
+    exit 1
+  fi
+  for source in "${sources[@]}"; do
+    if [ -n "$output" ]; then
+      asm="$output"
+    else
+      asm="$(basename "$source")"
+      asm="${asm%.*}.s"
+    fi
+    "$cc1plus" -quiet "${cc1_args[@]}" "$source" -o "$asm"
+  done
+  exit 0
 fi
 
 compile_one() {
