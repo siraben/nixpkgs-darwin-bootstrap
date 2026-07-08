@@ -680,6 +680,8 @@ postprocess_macho_specs() {
     -e 's/%\{c\|S:-auxbase-strip %\|\.o}/%{c|S:-auxbase-strip %g.o}/g;' \
     -e 's/%\{!c:%\{!S:-auxbase %b\}\}/%{!c:%{!S:-auxbase-strip %g.s}}/g;' \
     -e 's/%\{!c:%\{!S:-auxbase-strip %\|\.s\}\}/%{!c:%{!S:-auxbase-strip %g.s}}/g;' \
+    -e 's/-lgcc_ext\.10\.[45]/-lgcc/g;' \
+    -e 's/-lgcc_s\.10\.[45]/-lgcc/g;' \
     -e 's@\*linker:\x0acollect2@(qq{*linker:}.chr(10).$ENV{GCC46_BOOTSTRAP_LD_FOR_PERL})@eg' \
     gcc/specs
   if [ -f gcc/Makefile ]; then
@@ -966,6 +968,9 @@ while [ "$#" -gt 0 ]; do
       cc1_args+=("$arg")
       ;;
     -L*|-l*)
+      link_args+=("$arg")
+      ;;
+    -static-libgcc|-shared-libgcc)
       link_args+=("$arg")
       ;;
     -nostartfiles)
