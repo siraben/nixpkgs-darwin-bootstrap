@@ -156,13 +156,17 @@ if [ "$MODE" = fresh ]; then
     nix-store -q --outputs "$drv" |
     while IFS= read -r out_path; do
       [ -n "$out_path" ] || continue
-      echo "$out_path"
-      nix-store -q --deriver "$out_path" 2>/dev/null || true
-      nix-store -q --referrers "$out_path" 2>/dev/null |
+      nix-store -q --referrers-closure "$out_path" 2>/dev/null |
       while IFS= read -r referrer; do
-        case "$referrer" in
-          *.drv) echo "$referrer" ;;
-        esac
+        [ -n "$referrer" ] || continue
+        echo "$referrer"
+        nix-store -q --deriver "$referrer" 2>/dev/null || true
+        nix-store -q --referrers "$referrer" 2>/dev/null |
+        while IFS= read -r drv_referrer; do
+          case "$drv_referrer" in
+            *.drv) echo "$drv_referrer" ;;
+          esac
+        done
       done
     done >> "$delete_paths"
     echo "$drv" >> "$delete_paths"
