@@ -904,6 +904,14 @@ if [ ! -x "$xgcc" ]; then
   fi
 fi
 as_tool="__DARWIN_BOOTSTRAP_AS__"
+sdk_path="__DARWIN_BOOTSTRAP_SDK__"
+csu_lib="__DARWIN_BOOTSTRAP_CSU_LIB__"
+installed=0
+xgcc_prefix="$self_dir/"
+if [ -x "$private_dir/cc1plus" ]; then
+  installed=1
+  xgcc_prefix="$private_dir/"
+fi
 
 for arg in "$@"; do
   case "$arg" in
@@ -919,6 +927,9 @@ cc1_args=()
 link_args=()
 sources=()
 objects=()
+no_startfiles=0
+no_defaultlibs=0
+no_stdlib=0
 
 while [ "$#" -gt 0 ]; do
   arg="$1"
@@ -944,6 +955,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --sysroot=*)
       ;;
+    -Wl,*)
+      link_args+=("$arg")
+      ;;
     -isystem|-idirafter|-iquote|-include|-isysroot|-MF|-MT|-MQ)
       cc1_args+=("$arg" "${1:?missing argument for $arg}")
       shift
@@ -951,7 +965,21 @@ while [ "$#" -gt 0 ]; do
     -I*|-D*|-U*|-O*|-g*|-m*|-f*|-W*|-std=*|-nostdinc*|-MMD|-MD|-MP)
       cc1_args+=("$arg")
       ;;
-    -L*|-l*|-Wl,*|-nostartfiles|-nodefaultlibs)
+    -L*|-l*)
+      link_args+=("$arg")
+      ;;
+    -nostartfiles)
+      no_startfiles=1
+      link_args+=("$arg")
+      ;;
+    -nodefaultlibs)
+      no_defaultlibs=1
+      link_args+=("$arg")
+      ;;
+    -nostdlib)
+      no_startfiles=1
+      no_defaultlibs=1
+      no_stdlib=1
       link_args+=("$arg")
       ;;
     *.cc|*.cpp|*.cxx|*.C)
@@ -1037,9 +1065,22 @@ done
 if [ -n "$output" ]; then
   link_args+=("-o" "$output")
 fi
-exec "$xgcc" -B"$self_dir/" "${objects[@]}" "${link_args[@]}"
+installed_start_args=()
+installed_lib_args=()
+if [ "$installed" = 1 ]; then
+  [ -z "$sdk_path" ] || installed_start_args+=("-Wl,-syslibroot,$sdk_path")
+  if [ "$no_startfiles" = 0 ] && [ "$no_stdlib" = 0 ] && [ -n "$csu_lib" ]; then
+    installed_start_args+=("-L$csu_lib")
+  fi
+  if [ "$no_defaultlibs" = 0 ] && [ "$no_stdlib" = 0 ]; then
+    installed_lib_args+=("-L$self_dir/../lib" "-lstdc++" "-lsupc++" "-L$private_dir")
+  fi
+fi
+exec "$xgcc" -B"$xgcc_prefix" "${installed_start_args[@]}" "${objects[@]}" "${link_args[@]}" "${installed_lib_args[@]}"
 EOF
   perl -0pi -e "s#__DARWIN_BOOTSTRAP_AS__#${GCC46_BOOTSTRAP_AS}#g" gcc/cxx-bootstrap
+  perl -0pi -e "s#__DARWIN_BOOTSTRAP_SDK__#${GCC46_CXX_SDK_PATH:-}#g" gcc/cxx-bootstrap
+  perl -0pi -e "s#__DARWIN_BOOTSTRAP_CSU_LIB__#${GCC46_CXX_CSU_LIB:-}#g" gcc/cxx-bootstrap
   chmod +x gcc/cxx-bootstrap
 }
 

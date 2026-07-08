@@ -42,6 +42,7 @@ runCommand "gcc-${gcc46Version}-cxx" {
     GCC46_BOOTSTRAP_LD=${darwin.binutils-unwrapped}/bin/ld \
     GCC46_BOOTSTRAP_MACHO_CC=${stdenv.cc.cc}/bin/clang \
     GCC46_CXX_SDK_PATH=${apple-sdk}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
+    GCC46_CXX_CSU_LIB=${darwin.Csu}/lib \
     GCC46_CXX_REBUILD_MACHO_PREREQS=1 \
     ${root + "/scripts/gcc-4.6/cxx.sh"} \
     ${gcc46-all-gcc} \
