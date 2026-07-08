@@ -179,6 +179,8 @@ if [ "$MODE" = fresh ]; then
   delete_pass=1
   while [ -s "$pending_deletes" ]; do
     next_pending="$LOGDIR/delete-pending-next.txt"
+    attempt_log="$LOGDIR/delete-attempt.log"
+    discovered_referrer=0
     : > "$next_pending"
     deleted_any=0
     echo "delete pass $delete_pass" >> "$delete_log"
@@ -189,9 +191,16 @@ if [ "$MODE" = fresh ]; then
         if {
           echo "deleting $path"
           nix-store --delete "$path"
-        } >> "$delete_log" 2>&1; then
+        } > "$attempt_log" 2>&1; then
+          cat "$attempt_log" >> "$delete_log"
           deleted_any=1
         else
+          cat "$attempt_log" >> "$delete_log"
+          referrers="$(sed -n "s/.*referenced by path '\([^']*\)'.*/\1/p" "$attempt_log")"
+          if [ -n "$referrers" ]; then
+            printf '%s\n' "$referrers" >> "$next_pending"
+            discovered_referrer=1
+          fi
           echo "could not delete $path" >> "$delete_log"
           echo "$path" >> "$next_pending"
         fi
@@ -199,12 +208,18 @@ if [ "$MODE" = fresh ]; then
         echo "not valid: $path" >> "$delete_log"
       fi
     done < "$pending_deletes"
+    rm -f "$attempt_log"
+    if [ -s "$next_pending" ]; then
+      dedup_pending="$LOGDIR/delete-pending-dedup.txt"
+      awk '!seen[$0]++' "$next_pending" > "$dedup_pending"
+      mv "$dedup_pending" "$next_pending"
+    fi
 
     if [ ! -s "$next_pending" ]; then
       rm -f "$next_pending"
       break
     fi
-    if [ "$deleted_any" != 1 ] || [ "$delete_pass" -ge "$DELETE_MAX_PASSES" ]; then
+    if { [ "$deleted_any" != 1 ] && [ "$discovered_referrer" != 1 ]; } || [ "$delete_pass" -ge "$DELETE_MAX_PASSES" ]; then
       if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
         echo "fresh mode could not delete all requested paths; see $delete_log and $next_pending" >&2
         exit 1
