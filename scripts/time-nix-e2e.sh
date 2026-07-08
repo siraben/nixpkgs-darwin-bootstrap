@@ -10,6 +10,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGDIR="${LOGDIR:-/private/tmp/nixpkgs-darwin-bootstrap-e2e-${SYSTEM}-${STAMP}}"
 CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-1200}"
 ALLOW_DELETE_FAILURES="${ALLOW_DELETE_FAILURES:-0}"
+DELETE_MAX_PASSES="${DELETE_MAX_PASSES:-30}"
 
 case "$MODE" in
   build|fresh|rebuild) ;;
@@ -30,6 +31,17 @@ case "$CHECK_INTERVAL_SECONDS" in
     ;;
 esac
 
+case "$DELETE_MAX_PASSES" in
+  ''|*[!0-9]*)
+    echo "DELETE_MAX_PASSES must be a positive integer (got '$DELETE_MAX_PASSES')" >&2
+    exit 2
+    ;;
+  0)
+    echo "DELETE_MAX_PASSES must be greater than zero" >&2
+    exit 2
+    ;;
+esac
+
 mkdir -p "$LOGDIR/stages"
 
 {
@@ -45,6 +57,7 @@ mkdir -p "$LOGDIR/stages"
   echo "ncpu=$(sysctl -n hw.ncpu) physical=$(sysctl -n hw.physicalcpu) logical=$(sysctl -n hw.logicalcpu)"
   echo "check_interval_seconds=$CHECK_INTERVAL_SECONDS"
   echo "allow_delete_failures=$ALLOW_DELETE_FAILURES"
+  echo "delete_max_passes=$DELETE_MAX_PASSES"
   echo "nix=$(nix --version)"
   nix config show 2>/dev/null |
     grep -E '^(build-poll-interval|max-silent-time|timeout|substituters|trusted-substituters) =' |
@@ -187,7 +200,7 @@ if [ "$MODE" = fresh ]; then
       rm -f "$next_pending"
       break
     fi
-    if [ "$deleted_any" != 1 ] || [ "$delete_pass" -ge 5 ]; then
+    if [ "$deleted_any" != 1 ] || [ "$delete_pass" -ge "$DELETE_MAX_PASSES" ]; then
       if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
         echo "fresh mode could not delete all requested paths; see $delete_log and $next_pending" >&2
         exit 1
