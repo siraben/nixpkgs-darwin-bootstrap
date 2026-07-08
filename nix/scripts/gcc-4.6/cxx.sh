@@ -894,6 +894,15 @@ set -euo pipefail
 self_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cc1plus="$self_dir/cc1plus"
 xgcc="$self_dir/xgcc"
+private_dir="$self_dir/../lib/gcc/x86_64-apple-darwin/4.6.4"
+[ -x "$cc1plus" ] || cc1plus="$private_dir/cc1plus"
+if [ ! -x "$xgcc" ]; then
+  if [ -x "$self_dir/gcc.real" ]; then
+    xgcc="$self_dir/gcc.real"
+  else
+    xgcc="$self_dir/gcc"
+  fi
+fi
 as_tool="__DARWIN_BOOTSTRAP_AS__"
 
 for arg in "$@"; do
@@ -1239,7 +1248,8 @@ fi
 mkdir -p "$out/bin" "$out/lib/gcc/$target/$gcc_version" "$out/$target/include" "$out/$target/sys-include"
 cp -R "$target_include/." "$out/$target/include/"
 cp gcc/xgcc "$out/bin/gcc"
-cp gcc/g++ "$out/bin/g++"
+write_direct_cxx_wrapper
+cp gcc/cxx-bootstrap "$out/bin/g++"
 install_output_macho_tool_wrappers
 write_deployment_target_wrapper gcc
 write_deployment_target_wrapper g++
