@@ -10,7 +10,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGDIR="${LOGDIR:-/private/tmp/nixpkgs-darwin-bootstrap-e2e-${SYSTEM}-${STAMP}}"
 CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-1200}"
 ALLOW_DELETE_FAILURES="${ALLOW_DELETE_FAILURES:-0}"
-DELETE_MAX_PASSES="${DELETE_MAX_PASSES:-30}"
+DELETE_MAX_PASSES="${DELETE_MAX_PASSES:-0}"
 
 case "$MODE" in
   build|fresh|rebuild) ;;
@@ -33,11 +33,7 @@ esac
 
 case "$DELETE_MAX_PASSES" in
   ''|*[!0-9]*)
-    echo "DELETE_MAX_PASSES must be a positive integer (got '$DELETE_MAX_PASSES')" >&2
-    exit 2
-    ;;
-  0)
-    echo "DELETE_MAX_PASSES must be greater than zero" >&2
+    echo "DELETE_MAX_PASSES must be a non-negative integer (got '$DELETE_MAX_PASSES')" >&2
     exit 2
     ;;
 esac
@@ -180,7 +176,6 @@ if [ "$MODE" = fresh ]; then
   while [ -s "$pending_deletes" ]; do
     next_pending="$LOGDIR/delete-pending-next.txt"
     attempt_log="$LOGDIR/delete-attempt.log"
-    discovered_referrer=0
     : > "$next_pending"
     deleted_any=0
     echo "delete pass $delete_pass" >> "$delete_log"
@@ -199,7 +194,6 @@ if [ "$MODE" = fresh ]; then
           referrers="$(sed -n "s/.*referenced by path '\([^']*\)'.*/\1/p" "$attempt_log")"
           if [ -n "$referrers" ]; then
             printf '%s\n' "$referrers" >> "$next_pending"
-            discovered_referrer=1
           fi
           echo "could not delete $path" >> "$delete_log"
           echo "$path" >> "$next_pending"
@@ -214,12 +208,22 @@ if [ "$MODE" = fresh ]; then
       awk '!seen[$0]++' "$next_pending" > "$dedup_pending"
       mv "$dedup_pending" "$next_pending"
     fi
+    old_sorted="$LOGDIR/delete-pending-old-sorted.txt"
+    new_sorted="$LOGDIR/delete-pending-new-sorted.txt"
+    sort "$pending_deletes" > "$old_sorted"
+    sort "$next_pending" > "$new_sorted"
+    pending_changed=0
+    if ! cmp -s "$old_sorted" "$new_sorted"; then
+      pending_changed=1
+    fi
+    rm -f "$old_sorted" "$new_sorted"
 
     if [ ! -s "$next_pending" ]; then
       rm -f "$next_pending"
       break
     fi
-    if { [ "$deleted_any" != 1 ] && [ "$discovered_referrer" != 1 ]; } || [ "$delete_pass" -ge "$DELETE_MAX_PASSES" ]; then
+    if { [ "$deleted_any" != 1 ] && [ "$pending_changed" != 1 ]; } ||
+       { [ "$DELETE_MAX_PASSES" != 0 ] && [ "$delete_pass" -ge "$DELETE_MAX_PASSES" ]; }; then
       if [ "$ALLOW_DELETE_FAILURES" != 1 ]; then
         echo "fresh mode could not delete all requested paths; see $delete_log and $next_pending" >&2
         exit 1
