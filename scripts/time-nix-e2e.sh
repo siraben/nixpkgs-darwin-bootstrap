@@ -180,6 +180,21 @@ if [ "$MODE" = fresh ]; then
     deleted_any=0
     echo "delete pass $delete_pass" >> "$delete_log"
 
+    if {
+      echo "batch deleting paths from $pending_deletes"
+      xargs nix-store --delete < "$pending_deletes"
+    } > "$attempt_log" 2>&1; then
+      cat "$attempt_log" >> "$delete_log"
+      rm -f "$attempt_log" "$next_pending"
+      break
+    else
+      cat "$attempt_log" >> "$delete_log"
+      referrers="$(sed -n "s/.*referenced by path '\([^']*\)'.*/\1/p" "$attempt_log")"
+      if [ -n "$referrers" ]; then
+        printf '%s\n' "$referrers" >> "$next_pending"
+      fi
+    fi
+
     while IFS= read -r path; do
       [ -n "$path" ] || continue
       if nix-store --check-validity "$path" >/dev/null 2>&1; then
