@@ -1324,12 +1324,13 @@ CC
 test -s "$bootstrap_share/cxx-smoke.s"
 "$out/bin/g++" -c cxx-smoke.cc -o "$bootstrap_share/cxx-smoke.o" \
   2>&1 | tee -a "$bootstrap_share/cxx-smoke.log"
+smoke_sdk="$(sdk_path)"
 "$out/bin/g++" \
   -nostartfiles -nodefaultlibs \
   -L"$out/lib/gcc/$target/$gcc_version" \
   -L"$out/lib" \
   -lgcc -lstdc++ -lsupc++ \
-  -Wl,-syslibroot,"$sdk" \
+  -Wl,-syslibroot,"$smoke_sdk" \
   -lSystem \
   "$bootstrap_share/cxx-smoke.o" \
   -o "$bootstrap_share/cxx-smoke" \
