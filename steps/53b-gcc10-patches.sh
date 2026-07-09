@@ -12,6 +12,8 @@
 ##       honour large alignment attributes, so gcc/config/host-darwin.c's 1 GB
 ##       PCH buffer must shrink to 1 MB and its page-align assert must degrade to
 ##       a graceful PCH-disable (PCH is never used in the bootstrap).
+##   (c) gcc-4.6 cc1plus rejects libcpp's C-style offsetof array-bound static
+##       assertion even though cpp_hashnode still keeps ident as its first field.
 ##
 ## Idempotent: re-running is a no-op once applied.
 ##
@@ -21,7 +23,8 @@
 ##          edits are auditable from this file alone).
 ## Inputs:  $TARGET/gcc10-source/gcc (step 53).
 ## Outputs: the same tree, edited in place (gcc/system.h,
-##          gcc/ipa-icf-gimple.h, gcc/config/host-darwin.c).
+##          gcc/ipa-icf-gimple.h, gcc/config/host-darwin.c,
+##          libcpp/identifiers.c).
 ## Verifies: each patch() call exits nonzero unless the expected text is
 ##          found or the replacement is already present.
 set -eu
@@ -90,6 +93,21 @@ patch("config/host-darwin.c", [
      '      || sizeof (pch_address_space) % pagesize != 0)\n'
      '    return 0;\n'),
 ], "host-darwin.c PCH")
+
+# (c) identifiers.c — remove a static assertion that gcc-4.6's C++ frontend
+#     rejects as a non-constant array bound.  The checked layout remains true:
+#     cpp_hashnode's ident field is still first in libcpp/include/cpplib.h.
+patch("../libcpp/identifiers.c", [(
+    "/* We don't need a proxy since the hash table's identifier comes first\n"
+    '   in cpp_hashnode.  However, in case this is ever changed, we have a\n'
+    '   static assertion for it.  */\n'
+    'extern char proxy_assertion_broken[offsetof (struct cpp_hashnode, ident) == 0 ? 1 : -1];\n',
+    "/* We don't need a proxy since the hash table's identifier comes first\n"
+    '   in cpp_hashnode.  However, in case this is ever changed, we have a\n'
+    '   static assertion for it.  */\n'
+    '/* boot: gcc-4.6 cc1plus rejects this C-style offsetof array bound.\n'
+    '   cpp_hashnode still keeps ident first in libcpp/include/cpplib.h.  */\n',
+)], "identifiers.c proxy assertion")
 PY
 
 echo "53b: gcc-10 source patches applied"

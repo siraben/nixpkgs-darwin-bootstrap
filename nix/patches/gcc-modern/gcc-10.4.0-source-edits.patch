@@ -116,6 +116,23 @@ diff -ru a/gcc/gcc.c b/gcc/gcc.c
      }
  
    if (print_help_list)
+diff -ru a/libcpp/identifiers.c b/libcpp/identifiers.c
+--- a/libcpp/identifiers.c
++++ b/libcpp/identifiers.c
+@@ -108,9 +108,10 @@
+ }
+-
+ /* We don't need a proxy since the hash table's identifier comes first
+    in cpp_hashnode.  However, in case this is ever changed, we have a
+    static assertion for it.  */
+-extern char proxy_assertion_broken[offsetof (struct cpp_hashnode, ident) == 0 ? 1 : -1];
+-
++
++/* boot: gcc-4.6 cc1plus rejects this C-style offsetof array bound.
++   cpp_hashnode still keeps ident first in libcpp/include/cpplib.h.  */
++
+ /* For all nodes in the hashtable, callback CB with parameters PFILE,
+    the node, and V.  */
 diff -ru a/gcc/opts-common.c b/gcc/opts-common.c
 --- a/gcc/opts-common.c
 +++ b/gcc/opts-common.c
