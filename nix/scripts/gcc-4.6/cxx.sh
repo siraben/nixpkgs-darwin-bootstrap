@@ -1006,6 +1006,9 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ "${#sources[@]}" -eq 0 ]; then
+  if [ -n "$output" ]; then
+    link_args=("-o" "$output" "${link_args[@]}")
+  fi
   exec "$xgcc" "${link_args[@]}"
 fi
 
@@ -1319,3 +1322,16 @@ CC
 "$out/bin/g++" -S cxx-smoke.cc -o "$bootstrap_share/cxx-smoke.s" \
   2>&1 | tee "$bootstrap_share/cxx-smoke.log"
 test -s "$bootstrap_share/cxx-smoke.s"
+"$out/bin/g++" -c cxx-smoke.cc -o "$bootstrap_share/cxx-smoke.o" \
+  2>&1 | tee -a "$bootstrap_share/cxx-smoke.log"
+"$out/bin/g++" \
+  -nostartfiles -nodefaultlibs \
+  -L"$out/lib/gcc/$target/$gcc_version" \
+  -L"$out/lib" \
+  -lgcc -lstdc++ -lsupc++ \
+  -Wl,-syslibroot,"$sdk" \
+  -lSystem \
+  "$bootstrap_share/cxx-smoke.o" \
+  -o "$bootstrap_share/cxx-smoke" \
+  2>&1 | tee -a "$bootstrap_share/cxx-smoke.log"
+test -x "$bootstrap_share/cxx-smoke"
