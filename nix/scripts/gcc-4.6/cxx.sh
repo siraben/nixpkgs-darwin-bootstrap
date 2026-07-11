@@ -110,6 +110,7 @@ export CFLAGS="$cxx_cflags"
 export CFLAGS_FOR_BUILD="$cxx_cflags_for_build"
 export CFLAGS_FOR_TARGET="$cxx_cflags_for_target"
 export CXXFLAGS_FOR_TARGET="$cxx_cflags_for_target"
+reuse_all_gcc_objects=${GCC46_CXX_REUSE_ALL_GCC_OBJECTS:-1}
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
@@ -795,6 +796,10 @@ fi
 make_dir=${GCC46_CXX_MAKE_DIR:-.}
 make_targets=${GCC46_CXX_TARGETS:-"all-gcc"}
 gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc c++ g++"}
+main_object_format=${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}
+if [ "$reuse_all_gcc_objects" = 1 ]; then
+  main_object_format=elf
+fi
 
 {
   echo "BOOTSTRAP_JOBS=${BOOTSTRAP_JOBS:-}"
@@ -806,6 +811,8 @@ gcc_make_targets=${GCC46_CXX_GCC_TARGETS:-"xgcc c++ g++"}
   echo "make_dir=$make_dir"
   echo "make_targets=$make_targets"
   echo "gcc_make_targets=$gcc_make_targets"
+  echo "reuse_all_gcc_objects=$reuse_all_gcc_objects"
+  echo "main_object_format=$main_object_format"
 } > "$bootstrap_share/jobs.env"
 
 sdk_path() {
@@ -829,7 +836,10 @@ ensure_target_libgcc_macho() {
     if [ ! -f gcc/gsyslimits.h ] && [ -f ../src/gcc/gsyslimits.h ]; then
       cp ../src/gcc/gsyslimits.h gcc/gsyslimits.h
     fi
-    MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" -o Makefile -o config.status \
+    MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+      -o Makefile -o config.status \
+      -o cc1 -o cc1-checksum.c -o cc1-checksum.o \
+      -o cc1plus -o cc1plus-checksum.c -o cc1plus-checksum.o \
       MAKEINFO=true \
       CC="$CC" \
       CPP="$CPP" \
@@ -917,7 +927,15 @@ fi
 
 for arg in "$@"; do
   case "$arg" in
-    --version|-v|-V|-qversion)
+    -v)
+      # The reused all-gcc driver reports its POSIX bootstrap setting, while
+      # this C++ checkpoint is configured --disable-threads.  libstdc++ uses
+      # this line to choose gthr-default.h, so expose the current checkpoint's
+      # model without changing the otherwise useful driver diagnostics.
+      "$xgcc" "$arg" 2>&1 | sed 's/^Thread model: .*/Thread model: single/' >&2
+      exit "${PIPESTATUS[0]}"
+      ;;
+    --version|-V|-qversion)
       exec "$xgcc" "$arg"
       ;;
   esac
@@ -1171,7 +1189,9 @@ install_macho_tool_wrappers
 postprocess_macho_specs
 ensure_bootstrap_cc1
 
-if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && [ "${GCC46_CXX_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
+if [ "$reuse_all_gcc_objects" != 1 ] && \
+   [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] && \
+   [ "${GCC46_CXX_REBUILD_MACHO_PREREQS:-0}" = 1 ]; then
   for prereq_name in ${GCC46_CXX_REBUILD_MACHO_PREREQS_LIST:-libiberty zlib gmp mpfr mpc libcpp libdecnumber}; do
     case "$prereq_name" in
       libiberty|zlib|libdecnumber)
@@ -1224,6 +1244,59 @@ if [ "$make_dir" != . ] && [ ! -f "$make_dir/Makefile" ]; then
     2> "$bootstrap_share/configure-$make_dir.stderr"
 fi
 
+reuse_all_gcc_backend() {
+  [ "$reuse_all_gcc_objects" = 1 ] || return 0
+  # The preceding all-gcc checkpoint already compiled the language-independent
+  # backend with the same from-seed GCC 4.6 compiler.  Install those ELF
+  # objects after configure has regenerated its headers so Make keeps them,
+  # then compile only the C++ frontend delta.  The gcc46 driver links these ELF
+  # inputs into a Mach-O cc1plus through the chain-built tinycc linker, exactly
+  # as the preceding cc1 was linked.  Target runtimes remain Mach-O builds.
+  local all_gcc_build reuse_dir source_dir reusable reused_object_count
+  all_gcc_build="$all_gcc/share/darwin-bootstrap/work/build/gcc"
+  reused_object_count=0
+  for reuse_dir in gcc gcc/c-family; do
+    source_dir="$all_gcc/share/darwin-bootstrap/work/build/$reuse_dir"
+    [ -d "$source_dir" ] || continue
+    mkdir -p "$reuse_dir"
+    for reusable in "$source_dir"/*.o; do
+      [ -f "$reusable" ] || continue
+      cp "$reusable" "$reuse_dir/$(basename "$reusable")"
+      chmod u+w "$reuse_dir/$(basename "$reusable")"
+      reused_object_count=$((reused_object_count + 1))
+    done
+  done
+  for reusable in "$all_gcc_build"/*.a; do
+    [ -f "$reusable" ] || continue
+    cp "$reusable" "gcc/$(basename "$reusable")"
+    chmod u+w "gcc/$(basename "$reusable")"
+  done
+  # Re-link xgcc rather than copying a configured executable; the direct C++
+  # wrapper supplies this checkpoint's thread-model diagnostic to libstdc++.
+  printf '%s\n' "$reused_object_count" > "$bootstrap_share/reused-all-gcc-object-count"
+}
+
+prepare_gcc_headers_for_reuse() {
+  [ "$reuse_all_gcc_objects" = 1 ] || return 0
+  GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
+  MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+    MAKEINFO=true \
+    CC="$CC" \
+    CPP="$CPP" \
+    CFLAGS="$CFLAGS" \
+    CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+    CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+    CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+    AR="$AR" \
+    NM="$NM" \
+    RANLIB="$RANLIB" \
+    STRIP="$STRIP" \
+    LIPO="$LIPO" \
+    OTOOL="$OTOOL" \
+    config.h bconfig.h tm.h tm_p.h options.h \
+    2>&1 | tee "$bootstrap_share/prepare-gcc-reuse.log"
+}
+
 if [ "${GCC46_CXX_SKIP_MAIN_MAKE:-0}" != 1 ]; then
   if [ "$make_dir" = . ] && [ "$make_targets" = "all-gcc" ] && [ "${GCC46_CXX_DIRECT_GCC_MAKE:-1}" = 1 ]; then
     if [ ! -f gcc/Makefile ]; then
@@ -1244,6 +1317,9 @@ if [ "${GCC46_CXX_SKIP_MAIN_MAKE:-0}" != 1 ]; then
         configure-gcc \
         2>&1 | tee "$bootstrap_share/configure-gcc.log"
     fi
+    prepare_gcc_headers_for_reuse
+    reuse_all_gcc_backend
+    GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
     MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
       -o cc1 \
       -o cc1-checksum.c \
