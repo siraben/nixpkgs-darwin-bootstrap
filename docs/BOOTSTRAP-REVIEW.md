@@ -613,6 +613,48 @@ second literal `{}` placeholder.  Final code revision
 leaving exactly the one pathname placeholder required by BSD `find`, and adds
 a regression assertion for that invariant.
 
+### Independent MLX/Metal panic during the final retry
+
+The final guarded C++ attempt begun on 2026-08-11 ran healthily for about eight
+hours, reached later GCC backend translation units, peaked at 135 detached-
+signature lookups per minute, and had accumulated only 4,124 guarded lookups.
+The machine rebooted at 12:13, before Nix or either guard wrote completion
+status.  Its partial output is not a valid Nix store path, so the attempt is
+classified as interrupted and is excluded from correctness and timing
+evidence.
+
+This reboot was a second, independent kernel panic, not a recurrence of IPC-
+voucher exhaustion.  The preserved 3,323,435-byte report has SHA-256
+`ab5f95d40caf5983325d446808dd599709509838a78cf8ecd23a6ff912ebae1d`
+and names IOGPUFamily 129.3.2 with `completeMemory() prepare count underflow`
+at `IOGPUMemory.cpp:550`.  The panicked task was a local
+`mlx_lm.server` Qwen3.6 workload: its active `Thread-1 (_generate)`
+symbolicates through MLX's `ResidencySet::erase`, buffer-cache clearing,
+`MetalAllocator::malloc`, reshape, and GPU evaluation paths while Metal
+command and completion queues were live.  Python was 37.64 GiB resident.  On
+the 48 GiB machine, 40.61 GiB was wired and only 76.8 MiB was free.
+
+The calibrated conclusion is that MLX/Metal inference precipitated the failure
+under severe wired-memory pressure.  A userspace workload producing a kernel
+panic rather than a recoverable allocation error is an Apple IOGPUFamily
+defect; the report cannot determine whether the prepare/complete bookkeeping
+imbalance originated in MLX, the userspace Metal stack, or the kernel driver.
+MLX's recommended-working-set wired limit and a prompt cache bounded by
+sequence count rather than bytes are plausible amplifiers, not a proven root
+cause.  Closely matching public reports include
+[`mlx#3186`](https://github.com/ml-explore/mlx/issues/3186),
+[`mlx-lm#883`](https://github.com/ml-explore/mlx-lm/issues/883), and
+[`mlx-lm#1666`](https://github.com/ml-explore/mlx-lm/issues/1666).
+
+The GCC workers visible elsewhere in the stackshot were CPU-only; the live
+`cc1` used about 146 MiB and no bootstrap frame occurs in the panicked
+thread.  Concurrent work can reduce memory headroom, so the evidence does not
+claim absolute independence, but it provides no basis to attribute this panic
+to GCC, Nix, `taskgated`, or detached-signature traffic.  A sanitized
+extraction and artifact hash are retained for the review; the full panic and
+raw shell history are not publication artifacts because they contain unrelated
+process, session, and host metadata.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
