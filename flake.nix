@@ -125,6 +125,7 @@
           "overrideDerivation"
           "stage0-posix"
           "gcc46DarwinBootstrapSrc"
+          "mesNyacc"
           "tinyccBootstrappableSrc"
           "tinyccMesSrc"
           "tinyccSelfObjectProbe"
@@ -144,6 +145,7 @@
           gcc-latest-bootstrap-fast  = b.gcc-latest;
 
           gcc46-darwin-bootstrap-src = b.gcc46DarwinBootstrapSrc;
+          mes-nyacc                  = b.mesNyacc;
           tinycc-bootstrappable-src  = b.tinyccBootstrappableSrc;
           tinycc-mes-src             = b.tinyccMesSrc;
         }

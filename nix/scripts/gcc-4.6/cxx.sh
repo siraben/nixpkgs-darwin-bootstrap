@@ -11,6 +11,7 @@ gcc_version=$7
 
 target=x86_64-apple-darwin
 bootstrap_share="$out/share/darwin-bootstrap"
+work_root=$PWD
 
 mkdir -p src build "$out/bin" "$bootstrap_share"
 if [ ! -f src/configure ]; then
@@ -110,7 +111,11 @@ export CFLAGS="$cxx_cflags"
 export CFLAGS_FOR_BUILD="$cxx_cflags_for_build"
 export CFLAGS_FOR_TARGET="$cxx_cflags_for_target"
 export CXXFLAGS_FOR_TARGET="$cxx_cflags_for_target"
-reuse_all_gcc_objects=${GCC46_CXX_REUSE_ALL_GCC_OBJECTS:-1}
+# Reuse is experimental: the all-gcc objects were produced by TinyCC under a
+# C-only configuration, while this checkpoint is configured for C+C++ and is
+# driven by GCC 4.6.  Keep the optimization opt-in until generated-header and
+# compiler/flag equivalence is proved for every reused object.
+reuse_all_gcc_objects=${GCC46_CXX_REUSE_ALL_GCC_OBJECTS:-0}
 if [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ]; then
   export GCC46_BOOTSTRAP_AS="${GCC46_BOOTSTRAP_AS:-/usr/bin/as}"
   export GCC46_BOOTSTRAP_LD="${GCC46_BOOTSTRAP_LD:-/usr/bin/ld}"
@@ -425,8 +430,15 @@ MAKE
         ;;
     esac
   done
-  current_src_escaped="$(printf '%s\n' "$PWD/../src" | sed 's/[\/&]/\\&/g')"
-  current_build_escaped="$(printf '%s\n' "$PWD" | sed 's/[\/&]/\\&/g')"
+  DARWIN_REBASE_SRC="$PWD/../src" \
+  DARWIN_REBASE_BUILD="$PWD" \
+  DARWIN_REBASE_AR="$AR" \
+  DARWIN_REBASE_NM="$NM" \
+  DARWIN_REBASE_RANLIB="$RANLIB" \
+  DARWIN_REBASE_STRIP="$STRIP" \
+  DARWIN_REBASE_LIPO="$LIPO" \
+  DARWIN_REBASE_OTOOL="$OTOOL" \
+  DARWIN_REBASE_TCC_CC="$tcc/bin/tcc-darwin-cc" \
   find \
     gmp \
     mpfr \
@@ -438,10 +450,20 @@ MAKE
     zlib \
     libcpp \
     libdecnumber \
-    -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.cache -o -name config.log \) \
-    -exec perl -0pi \
-      -e "s#/nix/var/nix/builds/nix-[0-9]+-[0-9]+/src#$current_src_escaped#g;" \
-      -e "s#/nix/var/nix/builds/nix-[0-9]+-[0-9]+/build#$current_build_escaped#g;" \
+    -type f \( -name Makefile -o -name '*.mk' -o -name config.status -o -name config.cache -o -name config.log -o -name libtool \) \
+      -exec perl -0pi \
+      -e '
+        while (s{(/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/[A-Za-z0-9._+-]*)"\\\n"([A-Za-z0-9._+-]+)}{$1$2}g) { 1; }
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/src}{$ENV{DARWIN_REBASE_SRC}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/build}{$ENV{DARWIN_REBASE_BUILD}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/cctools-ar}{$ENV{DARWIN_REBASE_AR}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/cctools-nm}{$ENV{DARWIN_REBASE_NM}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/ranlib}{$ENV{DARWIN_REBASE_RANLIB}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/cctools-strip}{$ENV{DARWIN_REBASE_STRIP}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/cctools-lipo}{$ENV{DARWIN_REBASE_LIPO}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/cctools-otool}{$ENV{DARWIN_REBASE_OTOOL}}g;
+        s{/nix/var/nix/builds/nix-[0-9]+-[0-9]+/\.darwin-signed-build-tools/tcc-darwin-cc}{$ENV{DARWIN_REBASE_TCC_CC}}g;
+      ' \
       {} +
 
   mkdir -p gcc
@@ -899,8 +921,9 @@ ensure_target_libgcc_macho() {
 
 write_direct_cxx_wrapper() {
   [ -f gcc/cxx-bootstrap ] && return 0
-  cat > gcc/cxx-bootstrap <<'EOF'
-#!/usr/bin/env bash
+  {
+    printf '#!%s\n' "$(command -v bash)"
+    cat <<'EOF'
 set -euo pipefail
 
 self_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -1104,6 +1127,7 @@ if [ "$installed" = 1 ]; then
 fi
 exec "$xgcc" -B"$xgcc_prefix" "${installed_start_args[@]}" "${objects[@]}" "${link_args[@]}" "${installed_lib_args[@]}"
 EOF
+  } > gcc/cxx-bootstrap
   perl -0pi -e "s#__DARWIN_BOOTSTRAP_AS__#${GCC46_BOOTSTRAP_AS}#g" gcc/cxx-bootstrap
   perl -0pi -e "s#__DARWIN_BOOTSTRAP_SDK__#${GCC46_CXX_SDK_PATH:-}#g" gcc/cxx-bootstrap
   perl -0pi -e "s#__DARWIN_BOOTSTRAP_CSU_LIB__#${GCC46_CXX_CSU_LIB:-}#g" gcc/cxx-bootstrap
@@ -1246,12 +1270,15 @@ fi
 
 reuse_all_gcc_backend() {
   [ "$reuse_all_gcc_objects" = 1 ] || return 0
-  # The preceding all-gcc checkpoint already compiled the language-independent
-  # backend with the same from-seed GCC 4.6 compiler.  Install those ELF
-  # objects after configure has regenerated its headers so Make keeps them,
-  # then compile only the C++ frontend delta.  The gcc46 driver links these ELF
-  # inputs into a Mach-O cc1plus through the chain-built tinycc linker, exactly
-  # as the preceding cc1 was linked.  Target runtimes remain Mach-O builds.
+  # Experimental only: the preceding C-only all-gcc checkpoint compiled these
+  # language-independent backend objects with chain TinyCC, whereas this C+C++
+  # checkpoint normally compiles them with GCC 4.6.  Their compilers, flags,
+  # configurations, generated headers, and dependency metadata are not proved
+  # equivalent.  When explicitly requested for the controlled A/B experiment,
+  # install the earlier ELF objects after configure has regenerated a subset of
+  # headers, then compile only the C++ frontend delta.  The gcc46 driver links
+  # the ELF inputs into a Mach-O cc1plus through the chain-built TinyCC linker.
+  # Target runtimes remain Mach-O builds; this path is not a faithful default.
   local all_gcc_build reuse_dir source_dir reusable reused_object_count
   all_gcc_build="$all_gcc/share/darwin-bootstrap/work/build/gcc"
   reused_object_count=0
@@ -1412,3 +1439,26 @@ smoke_sdk="$(sdk_path)"
   -o "$bootstrap_share/cxx-smoke" \
   2>&1 | tee -a "$bootstrap_share/cxx-smoke.log"
 test -x "$bootstrap_share/cxx-smoke"
+
+# Retain a compact, finalized copy of the regular GCC source/build artifacts
+# used by the provenance collector.  The Mach-O objects contain large sparse
+# padding regions, so copying the live tree directly would consume many GiB in
+# every store output.  A normalized archive keeps the bytes independently
+# inspectable after the sandbox disappears while excluding transient absolute
+# symlinks into the build directory.  This evidence is not consumed by later
+# bootstrap stages.
+provenance_archive="$bootstrap_share/work-regular-files.tar.gz"
+provenance_archive_start_ns="$(date +%s%N)"
+(
+  cd "$work_root"
+  LC_ALL=C find src/gcc build/gcc -type f -print0 |
+    LC_ALL=C sort -z |
+    tar --create --file=- --null --no-recursion --format=posix \
+      --mtime='@1' --owner=0 --group=0 --numeric-owner \
+      --pax-option=delete=atime,delete=ctime --files-from=- |
+    gzip -n > "$provenance_archive"
+)
+test -s "$provenance_archive"
+provenance_archive_end_ns="$(date +%s%N)"
+printf 'provenance_archive_elapsed_nanoseconds=%s\n' \
+  "$((provenance_archive_end_ns - provenance_archive_start_ns))" >&2

@@ -128,6 +128,7 @@ if [ "${GCC_MODERN_HOST_BUILD_CC:-1}" != 1 ]; then
     build_cxx="$cxx -isystem $sysroot/include $bootstrap_link_flags"
   fi
 fi
+build_cpp="$build_cc -E"
 input_wrapper_dir="$PWD/input-compiler-wrappers"
 mkdir -p "$input_wrapper_dir"
 write_input_compiler_wrapper() {
@@ -135,7 +136,7 @@ write_input_compiler_wrapper() {
   local real_compiler="$2"
   local host_compiler="$3"
   cat > "$input_wrapper_dir/$wrapper" <<EOF
-#!/usr/bin/env bash
+#!$(command -v bash)
 set -euo pipefail
 real_compiler='$real_compiler'
 host_compiler='$host_compiler'
@@ -261,6 +262,7 @@ export CC="$cc"
 export CXX="$cxx"
 export CC_FOR_BUILD="$build_cc"
 export CXX_FOR_BUILD="$build_cxx"
+export CPP_FOR_BUILD="$build_cpp"
 export CPP="$CC -E"
 export CXXCPP="$CXX -E"
 export AR="$cctools/bin/ar"
@@ -503,7 +505,7 @@ package_modern_compiler() {
   fi
 
   cat > "$out/bin/gcc" <<WRAPPER
-#!/usr/bin/env bash
+#!$(command -v bash)
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
@@ -857,7 +859,7 @@ exec $wrapper_host_ld "\${objects[@]}" "\${ld_args[@]}" -o "\$out_file"
 WRAPPER
 
   cat > "$out/bin/g++" <<WRAPPER
-#!/usr/bin/env bash
+#!$(command -v bash)
 set -euo pipefail
 root=\$(cd "\$(dirname "\$0")/.." && pwd)
 default_sdk="$sdk"
@@ -1312,6 +1314,7 @@ make_targets=${GCC_MODERN_TARGETS:-all}
 if [ -f Makefile ]; then
   cc_for_build_escaped="$(printf '%s\n' "$CC_FOR_BUILD" | sed 's/[\/&]/\\&/g')"
   cxx_for_build_escaped="$(printf '%s\n' "$CXX_FOR_BUILD" | sed 's/[\/&]/\\&/g')"
+  cpp_for_build_escaped="$(printf '%s\n' "$CPP_FOR_BUILD" | sed 's/[\/&]/\\&/g')"
   cflags_escaped="$(printf '%s\n' "$CFLAGS" | sed 's/[\/&]/\\&/g')"
   cppflags_for_build_escaped="$(printf '%s\n' "${CPPFLAGS_FOR_BUILD:-}" | sed 's/[\/&]/\\&/g')"
   cflags_for_build_escaped="$(printf '%s\n' "$CFLAGS_FOR_BUILD" | sed 's/[\/&]/\\&/g')"
@@ -1321,6 +1324,7 @@ if [ -f Makefile ]; then
     perl -0pi \
       -e "s@^CC_FOR_BUILD = .*\$@CC_FOR_BUILD = $cc_for_build_escaped@m;" \
       -e "s@^CXX_FOR_BUILD = .*\$@CXX_FOR_BUILD = $cxx_for_build_escaped@m;" \
+      -e "s@^CPP_FOR_BUILD = .*\$@CPP_FOR_BUILD = $cpp_for_build_escaped@m;" \
       -e "s@^CFLAGS = .*\$@CFLAGS = $cflags_escaped@m;" \
       -e "s@^CPPFLAGS_FOR_BUILD = .*\$@CPPFLAGS_FOR_BUILD = $cppflags_for_build_escaped@m;" \
       -e "s@^CFLAGS_FOR_BUILD = .*\$@CFLAGS_FOR_BUILD = $cflags_for_build_escaped@m;" \
@@ -1329,6 +1333,18 @@ if [ -f Makefile ]; then
       -e "s@^BUILD_LDFLAGS[[:space:]]*=.*\$@BUILD_LDFLAGS = $ldflags_for_build_escaped@m;" \
       "$makefile"
   done < <(find . -name Makefile -type f)
+  # GCC 15 exports CPP_FOR_BUILD natively, but GCC 10's top-level
+  # BUILD_EXPORTS predates that plumbing and otherwise leaks the target CPP
+  # wrapper into build-machine sub-configures.  That wrapper cannot see the
+  # staged libc headers, so configure-build-libiberty fails its preprocessor
+  # sanity check even though CC_FOR_BUILD is correct.  Add the matching build
+  # preprocessor only when the generated Makefile has no build CPP export.
+  if ! grep -q 'CPP=.*export CPP' Makefile; then
+    perl -0pi \
+      -e "s@(\\tCC=\"\\\$\\(CC_FOR_BUILD\\)\"; export CC; \\\\\n)@\$1\\tCPP=\"$cpp_for_build_escaped\"; export CPP; \\\\\n@;" \
+      Makefile
+    grep -Fq "CPP=\"$CPP_FOR_BUILD\"; export CPP;" Makefile
+  fi
   perl -0pi \
     -e "s@^(BUILD_EXPORTS = \\\\\n(?:.*?\\n)*?\tCFLAGS=\"\\\$\\(CFLAGS_FOR_BUILD\\)\"; export CFLAGS; \\\\\n)@\$1\tCPPFLAGS=\"\\\$\\(CPPFLAGS_FOR_BUILD\\)\"; export CPPFLAGS; \\\\\n@ms;" \
     -e "s@^(EXTRA_BUILD_FLAGS = \\\\\n\tCFLAGS=\"\\\$\\(CFLAGS_FOR_BUILD\\)\" \\\\\n)(\tLDFLAGS=)@\$1\tCXXFLAGS=\"\\\$\\(CXXFLAGS_FOR_BUILD\\)\" \\\\\n\$2@m;" \
@@ -1374,8 +1390,8 @@ if [ -f Makefile ]; then
     {} +
   if [ -d "build-$target" ] && [ ! -x "build-$target/fixincludes/fixinc.sh" ]; then
     mkdir -p "build-$target/fixincludes"
-    cat > "build-$target/fixincludes/fixinc.sh" <<'FIXINC_SH'
-#!/usr/bin/env bash
+    cat > "build-$target/fixincludes/fixinc.sh" <<FIXINC_SH
+#!$(command -v bash)
 exit 0
 FIXINC_SH
     chmod +x "build-$target/fixincludes/fixinc.sh"
@@ -1554,7 +1570,12 @@ BACKTRACE_STUB_C
       -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
       -o libbacktrace/darwin-bootstrap-backtrace-stub.o
   else
-    "$compiler/bin/gcc" -O2 -g0 -DHAVE_STDINT_H=1 -I../src/libbacktrace \
+    # The raw chain driver does not inherit the configured build sysroot for
+    # this hand-written pre-make compile.  Point it at the committed bootstrap
+    # headers explicitly; otherwise backtrace.h's <stdio.h> include falls
+    # through to an absent host-default include directory.
+    "$compiler/bin/gcc" -O2 -g0 -DHAVE_STDINT_H=1 \
+      -isystem "$sysroot/include" -I../src/libbacktrace \
       -c libbacktrace/darwin-bootstrap-backtrace-stub.c \
       -o libbacktrace/darwin-bootstrap-backtrace-stub.o
   fi

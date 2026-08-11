@@ -47,7 +47,7 @@ runCommand "gcc-${gcc10Version}" {
   ## role for gcc-latest-strict.
   export GCC_MODERN_BUILD_TARGET_LIBS=1
   export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
-  ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
+  bash ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${gcc10-source} \
     ${gcc46-cxx} \
     ${bootstrap-gnumake} \

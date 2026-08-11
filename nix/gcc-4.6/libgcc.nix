@@ -11,7 +11,7 @@
 runCommand "gcc-${gcc46Version}-libgcc" {
   nativeBuildInputs = [ perl ];
 } ''
-  ${root + "/scripts/gcc-4.6/libgcc.sh"} \
+  bash ${root + "/scripts/gcc-4.6/libgcc.sh"} \
     ${gcc46-all-gcc} \
     ${tinycc-darwin-cc} \
     ${cctools} \

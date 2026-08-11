@@ -3,8 +3,8 @@
 ## catm prepends the committed MACHO header template (shipped in m0's share)
 ## to the committed cc_arch body (nix/M2libc/amd64/cc_arch-0-darwin.hex2), the
 ## seed-built hex2 assembles it, macho-patcher-early applies the m2-segments
-## vmsize fixup in place, then dd pads to the LINKEDIT offset.  Runs unsigned
-## in the Nix sandbox on x86_64.  All translation is done by chain-built
+## vmsize fixup in place, then dd pads to the LINKEDIT offset and the exact
+## payload is ad-hoc signed for safe host execution.  All translation is done by chain-built
 ## tools (catm, hex2, macho-patcher-early); stdenv only orchestrates.  No
 ## committed binary dump.
 ##
@@ -12,6 +12,7 @@
 ## maintainer via nix/scripts/stage0/regen-preported.sh; build-time has no
 ## awk/perl/python.
 {
+  darwin,
   mkDarwin,
   catm,
   hex2-0,
@@ -40,6 +41,8 @@ mkDarwin {
     ## linkedit offset = text_size + data_size = 0x800000 + 0x2000000 = 0x2800000.
     dd if=/dev/zero of=cc_arch-darwin bs=1 count=1 seek="$((0x2800000 - 1))" conv=notrunc
     chmod +x cc_arch-darwin
+    source ${darwin.signingUtils}
+    sign cc_arch-darwin
 
     runHook postBuild
   '';

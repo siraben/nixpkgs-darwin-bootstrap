@@ -3,18 +3,23 @@
 A from-source bootstrap of a full C/C++ toolchain on Darwin (x86-64
 Mach-O, run under Rosetta 2 on Apple Silicon), reproducing the Linux
 `minimal-bootstrap` stage0 → M2-Planet → Mes/MesCC → TinyCC → GCC path
-as a native Mach-O chain.  The trust root is a single committed 4 KB
-binary, `seed/hex0-amd64-darwin`; everything downstream is built from
-committed, auditable text sources plus SHA-256-pinned upstream release
-tarballs.
+as a native Mach-O chain.  The declared binary seed is the committed 4 KB
+`seed/hex0-amd64-darwin`, with committed text and SHA-256-pinned release
+sources downstream.  Under the strict stage0 policy used by this repository's
+audit, however, host semantic text transformations and host-built runtime stubs
+still enlarge the effective trust boundary; neither track is yet a faithful
+“4 KiB seed plus text” bootstrap.  The exact blockers and evidence are in
+`docs/BOOTSTRAP-REVIEW.md`.
 
 The repo carries **two tracks over the same sources**:
 
 - **The shell track (repo root)** — live-bootstrap style.  A single
   `sh build.sh` iterates `steps/*.sh` from the seed to a working
   gcc-10 `cc1` + `xgcc` that compile and run C, using Apple's `/bin/sh`
-  and POSIX utilities for orchestration.  No Nix, no bootstrap-tools,
-  no clang/gcc/as/ld in the chain's code-translation path.
+  and POSIX utilities for orchestration.  It does not use Nix or
+  bootstrap-tools, but its effective trust boundary still includes the host
+  semantic transformations, runtime-stub compilation, and target assembler/
+  linker described below.
 - **The Nix track (`nix/`)** — nixpkgs `minimal-bootstrap` style.  The
   flake builds the chain as per-package derivations up to a strict
   self-hosted modern GCC (`gcc_latest`, 15.2.0 with the current lock)
@@ -33,7 +38,7 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc_arch → M2-Plan
 
 ```
 .
-├── seed/hex0-amd64-darwin   # THE trust root: 4096 committed Mach-O bytes
+├── seed/hex0-amd64-darwin   # declared seed: 4096 committed Mach-O bytes
 ├── build.sh                 # shell-track driver (TARGET=, BOOT_START_FROM=,
 │                            #   BOOT_STOP_AFTER=)
 ├── steps/                   # ordered build steps: 01-hex0 … 55-gcc10-all-gcc
@@ -64,18 +69,25 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc_arch → M2-Plan
 Many files under `sources/` are symlinks into `nix/` — both tracks build
 from the same committed sources.
 
-**Git LFS**: the `nix/hex0/sources/**/*.hex0` machine-code sources are
-LFS-tracked.  Install `git lfs` before cloning, or they arrive as
-pointer files and the bootstrap fails opaquely.  The seed binary itself
-is tracked directly (4 KB).
+The stage0 `.hex0` sources are native Git text blobs, not Git LFS objects.
+This is required for clean `git+file:` and remote Git flake builds: Nix imports
+the Git object, without applying an LFS smudge filter.  The seed binary is also
+tracked directly (4 KB).
 
 ## Trust roots
 
-Everything the bootstrap's correctness rests on, per track.  The
-compiler/translator path — everything that turns source text into
-executable bits — is chain-built in both tracks; the tracks differ in
-which host tools orchestrate the builds and in a small set of
-documented boundaries.
+The inventory below describes the repository's intended trust boundary.  Under
+the stricter stage0 policy used by `scripts/audit-bootstrap.sh`—where host
+`awk`, `perl`, `python`, `sed`, or `patch` may not perform semantic source or
+generated-code transformations—neither track is yet a fully faithful stage0
+bootstrap.  See `docs/BOOTSTRAP-REVIEW.md` for the blockers and the evidence
+needed to close them.
+
+The inventory below separates the declared seed lineage from each track's
+effective host boundaries.  The main compiler succession is seed-descended,
+but semantic source preparation, assembler/linker work, generated-code tools,
+and runtime stubs listed below also influence executable bits and therefore
+remain trust inputs.
 
 ### Shared by both tracks
 
@@ -124,9 +136,10 @@ documented boundaries.
 ### Nix track boundaries
 
 - **nixpkgs stdenv orchestration**: host `bash`, coreutils, `sed`,
-  `grep`, `find` run the build scripts.  No host compiler compiles any
-  chain source; the purity claim covers the compiler/translator/make/
-  patch trust path.
+  `grep`, `find` run the build scripts.  The strict derivations disable host
+  C/C++ compilation of chain source, but that narrower property does not remove
+  the semantic host text transformations documented below from the effective
+  trust boundary.
 - **nixpkgs clang/binutils/cctools at the Mach-O assemble/link/archive
   boundary**: GCC phases assemble and link with store-pinned Apple
   tools (`${apple-sdk}`, `${cctools}`, `${darwin.binutils-unwrapped}`).
@@ -137,9 +150,11 @@ documented boundaries.
 - **macOS SDK headers** at selected GCC boundaries; the modern-GCC
   builds compile against a committed bootstrap sysroot
   (`nix/bootstrap/headers/gcc-modern-sysroot`).
-- **Ad-hoc code signing** of generated Mach-O binaries via nixpkgs
-  `darwin.signingUtils`; the earliest stage0 tools run unsigned in the
-  Nix sandbox.
+- **Ad-hoc code signing** of generated Mach-O binaries via the pinned nixpkgs
+  `darwin.signingUtils`.  The early stage0 execution tools are signed at their
+  declared Mach-O `__LINKEDIT` boundary.  Separately, writable copies of the
+  exact stdenv orchestration inputs are ad-hoc-signed for host execution; this
+  changes execution metadata, not the compiler or source lineage.
 - **Host `perl`** applies the remaining deterministic edits to
   *generated* configure outputs (Makefiles, `config.h`) and stages the
   gcc-4.6 libgcc tree (`nix/gcc-4.6/libgcc.pl`).  GCC *source* edits
@@ -149,11 +164,14 @@ documented boundaries.
 - **Chain-built `bootstrap-gnumake`** runs the modern GCC phases and
   gcc-4.6 C++ packaging; the gcc-4.6 intermediate `all-gcc` and
   `libgcc` steps invoke the stdenv `make`.
-- Host `awk` and host `python` are absent from the entire amd64
-  build-time chain.  The M1 code/data split and cross-object
-  synth-label injection are chain-built C tools (`nix/bootstrap/*.c`,
-  compiled through M2-Planet → M1 → hex2) used uniformly from
-  `mescc-libc` through `cctools/ar`.
+- The M1 code/data split and cross-object synth-label injection are
+  chain-built C tools (`nix/bootstrap/*.c`, compiled through M2-Planet
+  → M1 → hex2) used uniformly from `mescc-libc` through `cctools/ar`.
+  This does not eliminate host semantic text processing from the full
+  track: GCC 4.6 still runs host `gawk` generators (including
+  `opt-functions.awk`/`optc-gen.awk` to emit `options.c`), alongside the
+  host Perl edits listed above.  Those are explicit fidelity blockers in
+  `docs/BOOTSTRAP-REVIEW.md`.
 
 ## Shell track: running it
 
@@ -192,14 +210,98 @@ nix build .#gnu-hello-hash-comparison     # verify against baseline hash
 nix flake check
 ```
 
+For the provenance audit and repeatable performance suites:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
+./scripts/audit-bootstrap.sh
+python3 ./scripts/collect-gcc46-provenance.py \
+  --producer "$(nix path-info .#gcc46-all-gcc)" \
+  --consumer "$(nix path-info .#gcc46-cxx)" \
+  --output /path/to/new/provenance-bundle
+RUNS=5 PROFILE=stages ./scripts/time-nix-suite.sh
+RUNS=5 PROFILE=e2e ./scripts/time-nix-suite.sh
+RUNS=5 ./scripts/time-shell-e2e.sh
+RUNS=5 ./scripts/time-gcc46-reuse-ab.sh
+python3 ./scripts/summarize-process-snapshots.py \
+  --input-glob '/path/to/campaign/**/*.processes.tsv' \
+  --output process-summary.tsv --detail-output process-detail.tsv \
+  --command-output process-commands.tsv
+python3 ./scripts/summarize-system-state.py \
+  --root /path/to/campaign --output system-state.tsv \
+  --summary-output system-state-summary.tsv
+```
+
+Run the GCC provenance collector only after both store outputs are finalized;
+never point it at a mutating build tree.  It records artifact hashes, retained
+evidence, compiler components, full compile commands, compile-log coverage,
+and the `cc1plus` link command.  The C++ checkpoint retains its regular GCC
+source/build artifacts in a normalized compressed archive; the collector hashes
+those members directly, without extracting them or relying on a vanished Nix
+sandbox.  Its own methodology explicitly does not treat that evidence as
+authorization for mismatched backend-object reuse.
+
+The timing harnesses require three quiet preflight observations and reject an
+attempt if monitored background services or a competing `nix build` appear
+during the workload.  They also require AC power, lock the active `pmset`
+power-mode value before environment capture, and reject any power-source or
+power-mode transition.  `PROFILE=e2e` deletes only its evaluated, closed set of
+project output paths and exact `.drv` plans, then re-evaluates those plans
+before timing.  It refuses to proceed when an outside output or derivation
+referrer exists.  `PROFILE=stages` proves every measured output is already
+valid before monitoring starts and fails rather than folding missing
+dependencies into an isolated-stage sample.  Raw accepted and rejected
+attempts remain in the printed log directory.  Per-workload `vm_stat`, swap
+usage, and memory-pressure snapshots expose cache and memory state; fresh output
+deletion is not presented as a privileged cold-cache purge.
+Because shell builds consume the working tree rather than a Git flake revision,
+their harness records the mode, size, and SHA-256 of every effective file under
+`build.sh`, `seed/`, `sources/`, and `steps/`, following source symlinks.  This
+manifest is generated before quiet waiting and timing and excludes `bake/`.
+The process summary is diagnostic rather than an allowlist: every per-file row
+and every exact-command row must be reviewed, and no
+`unclassified-review-required` or `mixed-review-required` row may remain
+unresolved when its samples are finally accepted.  The exact-command output
+also prevents a foreign process from hiding behind a workload-looking basename.
+Its RSS columns summarize only the periodic observations for processes that
+reported at least the configured CPU threshold (5% by default); they are not
+whole-workload or true peak-RSS measurements.
+The timing summarizer rejects malformed, non-finite, or negative measurements;
+shell and Nix suites additionally require exactly one identical ordered stage
+set in each of the requested number of accepted input files.
+Accordingly, `accepted=1` in a harness TSV is provisional automated acceptance,
+not final review acceptance.
+
+The GCC 4.6 wrapper pins its high-fanout overlay operations to Apple's signed
+`/bin` and `/usr/bin` file utilities.  A prior `-j18` run resolved those tools
+through the build `PATH`, drove `taskgated` to roughly 150 detached-signature
+lookups per second, and exposed a macOS IPC-voucher kernel panic.  The
+`gcc46-all-gcc` builder also ad-hoc-signs private copies of the exact
+derivation-selected x86_64 build tools before their high-rate execution; a
+50-launch control measured 50 detached-signature lookups unsigned and zero
+signed.  The shared tool closure signs the exact stdenv Coreutils multicall
+binary once and exposes every applet name through symlinks to that signed
+copy, including names that Bash builtins hide from `command -v`.  Absolute
+wrapper paths to the pinned TinyCC link/signing helpers are
+redirected to signed private copies of `sigtool`, `codesign`, and
+`codesign_allocate`.  The seed-built `elf64-to-m1` is signed at its declared
+Mach-O `__LINKEDIT` boundary.  These remain disclosed host
+execution/orchestration boundaries only; compiler source translation still
+uses the seed-descended chain.  See `docs/BOOTSTRAP-REVIEW.md` for the panic
+evidence and post-fix validation requirements.
+
 The chain tip is a strict self-hosted GCC matched to nixpkgs
 `gcc_latest.version`, rebuilt with external GMP/MPFR/MPC/ISL, and
 verified by `gnu-hello-hash-comparison`: GNU Hello 2.12.2 built with the
-bootstrap GCC and with the strict handoff must be byte-identical, and
-the hash must equal the pinned baseline
+bootstrap GCC and with the strict handoff must be byte-identical and equal the
+pinned bootstrap baseline
 `0854f4ab9cf255a37ddfb6251198164e6f14f3606239c963d2530f77e257f90a`.
-The gate is enforced inside the derivation, so drift fails the build
-and `nix flake check`.
+The independently exercised nixpkgs `gcc_latest` reference is pinned at
+`f23f901be1f6c913487bfc939364f746127357805c0ccbe2a922c7c6b793f417`.
+It is not expected to be byte-identical because nixpkgs's compiler/linker
+wrappers deliberately add frame-pointer, deployment, search-path, and RPATH
+policy absent from the minimal bootstrap wrapper.  Both baselines are enforced
+inside the derivation, so drift fails the build and `nix flake check`.
 
 Outputs are exposed under plain semantic names and per-directory
 aliases:
@@ -225,11 +327,14 @@ The Nix chain in detail:
    command so it loads under the Darwin 25 dyld.
 2. **Mes / mescc-libc / TinyCC** (`nix/mes/`, `nix/mescc-libc/`,
    `nix/tinycc/`): the MesCC and TinyCC boot cycle culminating in
-   `tinycc/darwin-cc`, the working TCC that builds every downstream
-   GCC.
-3. **GCC 4.6** (`nix/gcc-4.6/`): the C compiler is chain-built first; the
-   C++ stage reuses that `cc1` while compiling C++ frontend sources through
-   the chain compiler. nixpkgs clang/binutils assemble and link only.
+   `tinycc/darwin-cc`, the seed-descended C compiler used for the first GCC
+   checkpoint.  Host-generated source and platform-tool boundaries still apply
+   as disclosed above.
+3. **GCC 4.6** (`nix/gcc-4.6/`): TinyCC builds the C-only `all-gcc`
+   checkpoint, followed by libgcc and a GCC 4.6 C compiler.  The default C++
+   checkpoint retains disclosed prior-stage generators and generated sources
+   but recompiles its C/C++ frontend and language-independent backend with GCC
+   4.6; mismatched TinyCC-built backend-object reuse is experimental only.
 4. **Modern GCC** (`nix/gcc-10/`, `nix/gcc-latest/`): compiler-only
    GCC 10.4.0, then nixpkgs-matched `gcc_latest`, then the strict
    rebuild with external math libs.  All three compile their build
@@ -251,11 +356,11 @@ when their upstream sources change:
 - `nix/scripts/refactor/` — one-shot layout-refactor tools kept for
   future passes.
 
-`python3` and the maintainer-only `awk` appear in these design-time
-scripts and nowhere in the promoted amd64 build-time chain
-(shell-track exception: the documented step-53b/pre-44 boundaries
-above).  The deferred native aarch64 candidate path is not part of that
-claim.
+These particular Python and `awk` regenerators are design-time tools.  That
+does not clear the promoted chains of host semantic processing: the shell
+step-53b/pre-44 boundaries and the Nix GCC Perl/`gawk` boundaries are separately
+documented above and in `docs/BOOTSTRAP-REVIEW.md`.  The deferred native aarch64
+candidate path is outside the reviewed promoted chain.
 
 ## aarch64 status
 

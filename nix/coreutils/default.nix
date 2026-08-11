@@ -1,6 +1,5 @@
 {
   runCommand,
-  lib,
   source,
   cctools,
   coreutilsVersion,
@@ -12,13 +11,13 @@
   gnupatch,
   ...
 }:
-runCommand "coreutils-${coreutilsVersion}" { } ''
+runCommand "coreutils-${coreutilsVersion}" { inherit coreutilsPatches; } ''
   mkdir -p $out/bin $out/share/darwin-bootstrap
 
   tar -xzf ${coreutilsTarball}
   cd coreutils-${coreutilsVersion}
 
-  for patch_file in ${lib.escapeShellArgs coreutilsPatches}; do
+  for patch_file in $coreutilsPatches; do
     ${gnupatch}/bin/patch -Np0 -i "$patch_file"
   done
 
@@ -55,8 +54,19 @@ runCommand "coreutils-${coreutilsVersion}" { } ''
     > coreutils-install.stdout \
     2> coreutils-install.stderr
 
+  # Coreutils 5.0's bootstrap install program copies these Mach-O files with
+  # mode 0644.  Correct the output metadata with the orchestration chmod, then
+  # test an installed binary so a populated-but-unusable $out cannot pass the
+  # stage.  This changes mode bits only; all executable bytes remain chain-built.
+  chmod 755 "$out"/bin/*
+  "$out/bin/echo" "Hello installed coreutils!" \
+    > coreutils-installed-smoke.stdout \
+    2> coreutils-installed-smoke.stderr
+  grep -q "Hello installed coreutils!" coreutils-installed-smoke.stdout
+
   cp coreutils-build.stdout coreutils-build.stderr \
     coreutils-smoke.stdout coreutils-smoke.stderr \
     coreutils-install.stdout coreutils-install.stderr \
+    coreutils-installed-smoke.stdout coreutils-installed-smoke.stderr \
     $out/share/darwin-bootstrap/
 ''

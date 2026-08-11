@@ -91,6 +91,7 @@ esac
 
 common_args=(
   -quiet
+  -nostdinc
   -D__DYNAMIC__
   -fPIC
   -mmacosx-version-min=10.6

@@ -46,6 +46,18 @@ TARGET="${TARGET:-$ROOT/target}"
 ## positional arguments.
 export ROOT SEED SOURCES STEPS TARGET
 
+## Optional, review-only performance instrumentation.  This is deliberately
+## outside the bootstrap contract above: when BOOT_TIMINGS_FILE is unset the
+## driver behaves exactly as before.  The timing command is a host
+## orchestration tool and never contributes bytes to TARGET.
+BOOT_TIMINGS_FILE="${BOOT_TIMINGS_FILE:-}"
+BOOT_TIMING_DIR="${BOOT_TIMING_DIR:-}"
+if [ -n "$BOOT_TIMINGS_FILE" ]; then
+  [ -n "$BOOT_TIMING_DIR" ] || BOOT_TIMING_DIR="${BOOT_TIMINGS_FILE}.d"
+  mkdir -p "$BOOT_TIMING_DIR"
+  printf 'index\tstage\tstarted\tended\telapsed_seconds\texit_code\treal_seconds\tuser_seconds\tsys_seconds\tmax_rss_bytes\tmajor_faults\tminor_faults\tfs_inputs\tfs_outputs\ttime_log\n' > "$BOOT_TIMINGS_FILE"
+fi
+
 ## Reset target on each run for a clean build — UNLESS resuming via
 ## $BOOT_START_FROM (skip the wipe so an existing partial target is reused, e.g.
 ## to re-run a fixed late step without redoing the multi-hour gcc builds).
@@ -104,7 +116,39 @@ for step in "$STEPS"/*.sh; do
   ## for EOF and wedges the configure (seen at gmp-6.2.1's nested-variables
   ## check in gcc-10's step 55).  /dev/null gives immediate EOF so the probe
   ## fails fast and configure proceeds; no build step needs real stdin.
-  ( cd "$ROOT" && /bin/sh "$step" </dev/null )
+  if [ -n "$BOOT_TIMINGS_FILE" ]; then
+    timing_index=$((step_count + 1))
+    timing_safe_name=$(printf '%s' "$step_name" | tr -c 'A-Za-z0-9._-' '_')
+    timing_log="$BOOT_TIMING_DIR/$(printf '%02d' "$timing_index")-$timing_safe_name.time"
+    timing_started=$(date -Iseconds)
+    timing_start_ns=$(date +%s%N)
+    set +e
+    ( cd "$ROOT" && /usr/bin/time -l -o "$timing_log" /bin/sh "$step" </dev/null )
+    timing_rc=$?
+    set -e
+    timing_end_ns=$(date +%s%N)
+    timing_ended=$(date -Iseconds)
+    timing_elapsed=$(awk -v start="$timing_start_ns" -v end="$timing_end_ns" 'BEGIN { printf "%.9f", (end - start) / 1000000000 }')
+    timing_real=$(awk '/ real .* user .* sys/ { print $1; exit }' "$timing_log")
+    timing_user=$(awk '/ real .* user .* sys/ { print $3; exit }' "$timing_log")
+    timing_sys=$(awk '/ real .* user .* sys/ { print $5; exit }' "$timing_log")
+    timing_rss=$(awk '/maximum resident set size/ { print $1; exit }' "$timing_log")
+    timing_major=$(awk '/page faults/ && !/reclaims/ { print $1; exit }' "$timing_log")
+    timing_minor=$(awk '/page reclaims/ { print $1; exit }' "$timing_log")
+    timing_inputs=$(awk '/block input operations/ { print $1; exit }' "$timing_log")
+    timing_outputs=$(awk '/block output operations/ { print $1; exit }' "$timing_log")
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$timing_index" "$step_name" "$timing_started" "$timing_ended" \
+      "$timing_elapsed" "$timing_rc" "${timing_real:-}" "${timing_user:-}" \
+      "${timing_sys:-}" "${timing_rss:-}" "${timing_major:-}" \
+      "${timing_minor:-}" "${timing_inputs:-}" "${timing_outputs:-}" \
+      "$timing_log" >> "$BOOT_TIMINGS_FILE"
+    if [ "$timing_rc" -ne 0 ]; then
+      exit "$timing_rc"
+    fi
+  else
+    ( cd "$ROOT" && /bin/sh "$step" </dev/null )
+  fi
   step_count=$((step_count + 1))
   printf '   ok\n\n'
   case "${BOOT_STOP_AFTER:-}" in

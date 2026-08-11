@@ -10,6 +10,17 @@ elf_to_m1=$6
 out=$7
 gcc_version=$8
 
+# Pin the shared, strict-verified orchestration tools into the installed
+# wrapper.  They are file-moving helpers, not compiler inputs, and pinning
+# their store paths keeps later sandboxed stages from reaching undeclared
+# /bin or /usr/bin tools or repeatedly validating unsigned PATH tools.
+wrapper_mktemp=$(command -v mktemp)
+wrapper_rm=$(command -v rm)
+wrapper_ln=$(command -v ln)
+wrapper_readlink=$(command -v readlink)
+wrapper_mkdir=$(command -v mkdir)
+wrapper_cp=$(command -v cp)
+
 target=x86_64-apple-darwin
 gcc_lib="$out/lib/gcc/$target/$gcc_version"
 gcc_exec="$out/libexec/gcc/$target/$gcc_version"
@@ -178,12 +189,12 @@ while [ "\$#" -gt 0 ]; do
   esac
 done
 
-tmpdir="\$(mktemp -d "\${TMPDIR:-/tmp}/gcc46-bootstrap.XXXXXX")"
+tmpdir="\$("$wrapper_mktemp" -d "\${TMPDIR:-/tmp}/gcc46-bootstrap.XXXXXX")"
 if [ "\${GCC46_BOOTSTRAP_KEEP_TEMPS:-0}" = 1 ]; then
   echo "gcc: keeping temporary directory \$tmpdir" >&2
   trap 'echo "gcc: kept temporary directory '\$tmpdir'" >&2' EXIT HUP INT TERM
 else
-  trap 'rm -rf "\$tmpdir"' EXIT HUP INT TERM
+  trap '"$wrapper_rm" -rf "\$tmpdir"' EXIT HUP INT TERM
 fi
 
 ensure_symlink() {
@@ -192,22 +203,28 @@ ensure_symlink() {
   if [ -e "\$link" ] || [ -L "\$link" ]; then
     return 0
   fi
-  ln -s "\$target" "\$link" 2>/dev/null || [ -e "\$link" ] || [ -L "\$link" ]
+  # Keep the high-fanout file-orchestration boundary on a fully signed shared
+  # utility.  Resolving ln through an unsigned Nix PATH caused taskgated to check
+  # an unsigned/ad-hoc tool once per link; parallel GCC overlays sustained
+  # roughly 150 detached-signature lookups per second and precipitated an XNU
+  # IPC-voucher exhaustion panic.  The pinned strict-verified ln creates the
+  # same symlink graph without relying on an undeclared host path.
+  "$wrapper_ln" -s "\$target" "\$link" 2>/dev/null || [ -e "\$link" ] || [ -L "\$link" ]
 }
 
 expand_config_overlay() {
   local config_link="\$tmpdir/config"
   local config_target config_entry config_name sub_entry sub_name
   [ -L "\$config_link" ] || return 0
-  config_target="\$(readlink "\$config_link")"
+  config_target="\$("$wrapper_readlink" "\$config_link")"
   [ -d "\$config_target" ] || return 0
-  rm -f "\$config_link"
-  mkdir -p "\$config_link"
+  "$wrapper_rm" -f "\$config_link"
+  "$wrapper_mkdir" -p "\$config_link"
   for config_entry in "\$config_target"/*; do
     [ -e "\$config_entry" ] || continue
     config_name="\${config_entry##*/}"
     if [ -d "\$config_entry" ]; then
-      mkdir -p "\$config_link/\$config_name"
+      "$wrapper_mkdir" -p "\$config_link/\$config_name"
       ensure_symlink .. "\$config_link/\$config_name/config"
       for sub_entry in "\$config_entry"/*; do
         [ -e "\$sub_entry" ] || continue
@@ -225,12 +242,12 @@ overlay_dir_contents() {
   local overlay_dir="\$2"
   local entry entry_name sub_entry sub_name overlay_name
   overlay_name="\${overlay_dir##*/}"
-  mkdir -p "\$overlay_dir"
+  "$wrapper_mkdir" -p "\$overlay_dir"
   for entry in "\$source_dir"/*; do
     [ -e "\$entry" ] || continue
     entry_name="\${entry##*/}"
     if [ -d "\$entry" ]; then
-      mkdir -p "\$overlay_dir/\$entry_name"
+      "$wrapper_mkdir" -p "\$overlay_dir/\$entry_name"
       if [ "\$overlay_name" = config ]; then
         ensure_symlink .. "\$overlay_dir/\$entry_name/config"
       fi
@@ -294,7 +311,7 @@ compile_to_asm() {
       input_dir="\${input%/*}"
       input_dir_args=(-I"\$input_dir")
       compile_input="\$tmpdir/\${input##*/}"
-      cp "\$input" "\$compile_input"
+      "$wrapper_cp" "\$input" "\$compile_input"
       source_dir="\$input_dir"
       source_dir_name="\${source_dir##*/}"
       case "\$source_dir" in
@@ -336,7 +353,7 @@ compile_to_asm() {
       if [ "\${input##*/}" != conftest.c ] && [ -f "\$input" ] && { [ -d config ] || [ -f config.h ]; }; then
         staged_source=1
         compile_input="\$tmpdir/\${input##*/}"
-        cp "\$input" "\$compile_input"
+        "$wrapper_cp" "\$input" "\$compile_input"
         input_dir_args=(-I"\$tmpdir")
       fi
       ;;
@@ -358,11 +375,11 @@ compile_to_asm() {
         esac
         if [ -d "\$include_entry" ] && is_known_source_dir "\$include_name"; then
           if [ "\$include_target" != "\$tmpdir/\$include_name" ]; then
-            [ -L "\$tmpdir/\$include_name" ] && rm -f "\$tmpdir/\$include_name" 2>/dev/null || true
+            [ -L "\$tmpdir/\$include_name" ] && "$wrapper_rm" -f "\$tmpdir/\$include_name" 2>/dev/null || true
             overlay_dir_contents "\$include_target" "\$tmpdir/\$include_name"
           fi
           if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
-            [ -L "\$tmpdir/\$source_dir_name/\$include_name" ] && rm -f "\$tmpdir/\$source_dir_name/\$include_name"
+            [ -L "\$tmpdir/\$source_dir_name/\$include_name" ] && "$wrapper_rm" -f "\$tmpdir/\$source_dir_name/\$include_name"
             if [ "\$include_name" = "\$source_dir_name" ]; then
               ensure_symlink . "\$tmpdir/\$source_dir_name/\$include_name"
             else
@@ -381,7 +398,7 @@ compile_to_asm() {
       source_overlay="\$tmpdir/\$source_dir_name"
       for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
         [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
-        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
+        [ -L "\$source_overlay/\$related_source_subdir" ] && "$wrapper_rm" -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
         if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
           ensure_symlink . "\$source_overlay/\$related_source_subdir"
         else
@@ -395,7 +412,7 @@ compile_to_asm() {
       source_dir_name="\${source_overlay##*/}"
       for related_source_subdir in config c-family cp ada java objc go fortran lto libcpp include libdecnumber; do
         [ -e "\$tmpdir/\$related_source_subdir" ] || [ -L "\$tmpdir/\$related_source_subdir" ] || continue
-        [ -L "\$source_overlay/\$related_source_subdir" ] && rm -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
+        [ -L "\$source_overlay/\$related_source_subdir" ] && "$wrapper_rm" -f "\$source_overlay/\$related_source_subdir" 2>/dev/null || true
         if [ "\$related_source_subdir" = "\$source_dir_name" ]; then
           ensure_symlink . "\$source_overlay/\$related_source_subdir"
         else
@@ -411,13 +428,13 @@ compile_to_asm() {
     done
     for core_header in stdarg.h stddef.h stdbool.h float.h; do
       if [ -e "\$merged_include/\$core_header" ]; then
-        [ -L "\$tmpdir/\$core_header" ] && rm -f "\$tmpdir/\$core_header"
-        [ -e "\$tmpdir/\$core_header" ] || cp "\$merged_include/\$core_header" "\$tmpdir/\$core_header"
+        [ -L "\$tmpdir/\$core_header" ] && "$wrapper_rm" -f "\$tmpdir/\$core_header"
+        [ -e "\$tmpdir/\$core_header" ] || "$wrapper_cp" "\$merged_include/\$core_header" "\$tmpdir/\$core_header"
       fi
       if is_known_source_dir "\$source_dir_name" && [ -d "\$tmpdir/\$source_dir_name" ]; then
         if [ -e "\$merged_include/\$core_header" ]; then
-          [ -L "\$tmpdir/\$source_dir_name/\$core_header" ] && rm -f "\$tmpdir/\$source_dir_name/\$core_header"
-          [ -e "\$tmpdir/\$source_dir_name/\$core_header" ] || cp "\$merged_include/\$core_header" "\$tmpdir/\$source_dir_name/\$core_header"
+          [ -L "\$tmpdir/\$source_dir_name/\$core_header" ] && "$wrapper_rm" -f "\$tmpdir/\$source_dir_name/\$core_header"
+          [ -e "\$tmpdir/\$source_dir_name/\$core_header" ] || "$wrapper_cp" "\$merged_include/\$core_header" "\$tmpdir/\$source_dir_name/\$core_header"
         fi
       fi
     done

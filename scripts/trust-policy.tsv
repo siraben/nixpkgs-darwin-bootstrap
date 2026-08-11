@@ -1,0 +1,10 @@
+class	status	examples	review_rule
+opaque-seed	allowed	seed/hex0-amd64-darwin	Must be hash-pinned, exactly 4096 bytes, self-reproducing from committed text, and manually auditable.
+platform-runtime	allowed	Darwin kernel,/usr/lib/dyld,libSystem	Must be disclosed with OS/build version; it may execute chain output but not translate source.
+platform-sdk	allowed	pinned macOS SDK headers and libraries	Must be a declared Nix input or recorded system SDK and may only supply the documented target ABI.
+platform-binary-tools	allowed-with-evidence	as,ld,ar,ranlib,codesign	Every invocation and input class must be logged; no source-language compilation is permitted.
+orchestration	allowed	sh,bash,cp,tar,find,make	May schedule and move data but must not decide or emit program semantics beyond a documented bootstrap exception.
+host-compiler	forbidden	clang,cc,c++,gcc	May drive an allowed object-only link only when the trace proves there was no source input; otherwise it invalidates the faithful-chain claim.
+semantic-text-tool	forbidden	awk,perl,python,sed,patch	May report or perform non-semantic orchestration; source, generated-code, symbol-selection, or linker-input transformations must be chain-built.
+network-input	forbidden-unless-fixed	curl,fetchurl	All fetched bytes must have a cryptographic content hash and recorded origin before use.
+prebuilt-chain-artifact	forbidden	cc1,compiler-generated object/archive	Must be produced by an earlier declared stage with matching compiler, flags, headers, target, and configuration.

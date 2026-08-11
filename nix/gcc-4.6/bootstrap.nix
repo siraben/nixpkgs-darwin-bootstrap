@@ -9,7 +9,7 @@
   ...
 }:
 runCommand "gcc-${gcc46Version}-bootstrap" { } ''
-  ${root + "/scripts/gcc-4.6/driver.sh"} \
+  bash ${root + "/scripts/gcc-4.6/driver.sh"} \
     ${gcc46-all-gcc} \
     ${gcc46-libgcc} \
     ${tinycc-darwin-cc} \

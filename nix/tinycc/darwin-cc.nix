@@ -12,7 +12,6 @@
   tinycc-boot3-link-candidate,
   root,
   runCommand,
-  stdenv,
   ...
 }:
 runCommand "tinycc-darwin-cc" { } ''
@@ -56,8 +55,9 @@ runCommand "tinycc-darwin-cc" { } ''
   cp ${root + "/scripts/tinycc/tcc-darwin-cc.sh"} $out/bin/tcc-darwin-cc
   chmod u+w $out/bin/tcc-darwin-cc
 
+  wrapper_bash=$(command -v bash)
   substituteInPlace $out/bin/tcc-darwin-cc \
-    --replace-fail @SHELL@ ${stdenv.shell} \
+    --replace-fail @SHELL@ "$wrapper_bash" \
     --replace-fail @TCC@ ${tinycc-boot3-link-candidate}/bin/tcc-boot3-candidate \
     --replace-fail @AR@ ${cctools}/bin/ar \
     --replace-fail @INCLUDE@ $out/include/tcc-darwin-bootstrap \

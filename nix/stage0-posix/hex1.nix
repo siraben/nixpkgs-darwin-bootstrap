@@ -3,8 +3,8 @@
 ## nix/hex0/sources/hex1_AMD64_darwin.hex0 is the genuine hand-documented hex0
 ## source for hex1 (Mach-O header + hex1 machine code + the Darwin EINTR
 ## retry stub) — no committed binary/padding blob.  The hex0 seed assembles
-## it and dd pads to the LINKEDIT vmaddr (0x1000000) at build time.  Output
-## runs unsigned in the Nix sandbox on x86_64 (verified empirically).
+## it and dd pads to the LINKEDIT vmaddr (0x1000000) at build time.  The exact
+## assembled payload is then ad-hoc signed for safe host execution.
 {
   darwin,
   hex0,
@@ -24,10 +24,12 @@ if hostPlatform.isx86_64 then
       runHook preBuild
       ## Assemble hex1 from its committed hex0 source (genuine machine-code
       ## source, no padding blob), then pad to file size 0x1000000 (the
-      ## LINKEDIT vmaddr).  Runs unsigned in the Nix sandbox on x86_64.
+      ## LINKEDIT vmaddr), then add host execution metadata.
       ${hex0}/bin/hex0 ${root + "/hex0/sources/hex1_AMD64_darwin.hex0"} hex1-darwin
       dd if=/dev/zero of=hex1-darwin bs=1 count=1 seek="$((0x1000000 - 1))" conv=notrunc
       chmod +x hex1-darwin
+      source ${darwin.signingUtils}
+      sign hex1-darwin
       runHook postBuild
     '';
 

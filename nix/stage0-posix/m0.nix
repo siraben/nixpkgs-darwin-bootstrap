@@ -3,14 +3,15 @@
 ## catm prepends the committed Mach-O header template
 ## (nix/tools/templates/MACHO-amd64-lowdata.hex2) to the committed M0 body
 ## (nix/M2libc/amd64/M0_AMD64_darwin_body.hex2), the seed-built hex2 assembles
-## it, then dd pads to the LINKEDIT offset.  Runs unsigned in the Nix
-## sandbox on x86_64 (verified empirically).  All translation is done by
+## it, then dd pads to the LINKEDIT offset and the exact payload is ad-hoc
+## signed for safe host execution.  All translation is done by
 ## chain-built tools (catm, hex2); stdenv only orchestrates (cp/dd/install).
 ## No committed binary dump.
 ##
 ## The M0 body is regenerated from upstream stage0Sources by the maintainer
 ## via nix/scripts/stage0/regen-preported.sh; build-time has no awk/perl/python.
 {
+  darwin,
   mkDarwin,
   catm,
   hex2-0,
@@ -36,6 +37,8 @@ mkDarwin {
     ## linkedit offset = text_size + data_size = 0x800000 + 0x2000000 = 0x2800000.
     dd if=/dev/zero of=M0-darwin bs=1 count=1 seek="$((0x2800000 - 1))" conv=notrunc
     chmod +x M0-darwin
+    source ${darwin.signingUtils}
+    sign M0-darwin
 
     runHook postBuild
   '';

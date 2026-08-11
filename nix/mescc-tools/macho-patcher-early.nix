@@ -6,7 +6,8 @@
 ##      amd64_byte_defs.M1 + the M0-friendly nix/tools/macho-patcher-m0.M1.
 ##   2. M0 expands them into a hex2 token stream.
 ##   3. catm prepends the committed MACHO-amd64.hex2 template; the seed-built
-##      hex2 links it; dd pads to the LINKEDIT offset.  Runs unsigned.
+##      hex2 links it; the result is normalized to its declared LINKEDIT
+##      boundary and ad-hoc signed for safe host execution.
 ## All translation is done by chain-built tools (catm, M0, hex2); stdenv only
 ## orchestrates.  No committed binary dump.
 ##
@@ -14,6 +15,7 @@
 ## the maintainer via nix/scripts/stage0/regen-preported.sh; build-time
 ## has no awk/perl/python.
 {
+  darwin,
   mkDarwin,
   catm,
   m0,
@@ -44,8 +46,15 @@ mkDarwin {
 
     ${hex2-0}/bin/hex2-darwin final.hex2 macho-patcher
 
-    dd if=/dev/zero of=macho-patcher bs=1 count=1 seek="$((0x2800000 - 1))" conv=notrunc
+    # The committed Mach-O template declares __LINKEDIT.fileoff = 0x1000000.
+    # The old 0x2800000 padding left an unowned 24 MiB zero gap that
+    # codesign_allocate correctly refused.  Truncate/extend to the declared
+    # boundary before adding host execution metadata.
+    linkeditOffset="$((0x1000000))"
+    truncate -s "$linkeditOffset" macho-patcher
     chmod +x macho-patcher
+    source ${darwin.signingUtils}
+    sign macho-patcher
 
     runHook postBuild
   '';

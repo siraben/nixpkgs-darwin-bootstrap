@@ -3,8 +3,11 @@
   darwin,
   cctools,
   fetchurl,
+  findutils,
   gcc_latest,
+  gnutar,
   gnumake,
+  gzip,
   lib,
   minimal-bootstrap-sources,
   perl,
@@ -15,6 +18,65 @@
 let
   root = ./.;
   hostPlatform = stdenv.hostPlatform;
+
+  ## Build this once with the raw stdenv, then reuse the exact signed tool
+  ## copies in every bootstrap runCommand.  This changes only Mach-O execution
+  ## metadata at the disclosed host-orchestration boundary and prevents a
+  ## fresh chain from repeatedly entering taskgated's leaking unsigned path.
+  signedBuildTools = runCommand "darwin-signed-build-tools" {
+    __impureHostDeps = [ "/usr/bin/codesign" ];
+  } ''
+    DARWIN_SIGNED_BUILD_TOOLS="$out/bin"
+    DARWIN_SIGNED_COPY="$(command -v cp)"
+    DARWIN_SIGNED_CHMOD="$(command -v chmod)"
+    DARWIN_SIGNED_MKDIR="$(command -v mkdir)"
+    export DARWIN_SIGNED_BUILD_TOOLS
+    source ${root + "/scripts/darwin/prepare-signed-build-tools.sh"}
+    prepare_signed_build_tool cctools-codesign-allocate ${cctools}/bin/codesign_allocate
+    prepare_signed_build_tool tinycc-codesign ${darwin.sigtool}/bin/codesign
+    prepare_signed_build_tool tinycc-sigtool ${darwin.sigtool}/bin/sigtool
+    # Preserve nixpkgs's darwin.sigtool package interface so every generated
+    # wrapper that embeds ${darwin.sigtool}/bin/{codesign,sigtool} resolves to
+    # the same strict-valid shared copies.  In particular, tcc-darwin-cc calls
+    # sigtool after linking; leaving that one absolute path on the original
+    # unsigned closure re-entered taskgated and failed outside all-gcc's
+    # private tool directory.
+    "$out/bin/ln" -s tinycc-codesign "$out/bin/codesign"
+    "$out/bin/ln" -s tinycc-sigtool "$out/bin/sigtool"
+
+    # Keep nixpkgs's pinned signing implementation, but ensure its own
+    # execution helpers do not re-enter taskgated for every stage output.
+    export PATH="$DARWIN_SIGNED_BUILD_TOOLS:$PATH"
+    mkdir -p "$out/share/darwin-bootstrap"
+    cp ${darwin.signingUtils} "$out/share/darwin-bootstrap/signing-utils"
+    substituteInPlace "$out/share/darwin-bootstrap/signing-utils" \
+      --replace-fail ${cctools}/bin/codesign_allocate "$out/bin/cctools-codesign-allocate" \
+      --replace-fail ${darwin.sigtool}/bin/codesign "$out/bin/tinycc-codesign" \
+      --replace-fail ${darwin.sigtool}/bin/sigtool "$out/bin/tinycc-sigtool"
+  '';
+  bootstrapDarwin = darwin // {
+    signingUtils = "${signedBuildTools}/share/darwin-bootstrap/signing-utils";
+    sigtool = signedBuildTools;
+  };
+  signedRunCommand = name: attrs: buildCommand:
+    runCommand name (attrs // {
+      nativeBuildInputs = (attrs.nativeBuildInputs or [ ]) ++ [ signedBuildTools ];
+    }) ''
+      export PATH="${signedBuildTools}/bin:$PATH"
+      export CONFIG_SHELL="${signedBuildTools}/bin/bash"
+      export SHELL="${signedBuildTools}/bin/bash"
+      ${buildCommand}
+    '';
+  signedMkDarwin = attrs:
+    utils.mkDarwin (attrs // {
+      nativeBuildInputs = (attrs.nativeBuildInputs or [ ]) ++ [ signedBuildTools ];
+      preBuild = ''
+        export PATH="${signedBuildTools}/bin:$PATH"
+        export CONFIG_SHELL="${signedBuildTools}/bin/bash"
+        export SHELL="${signedBuildTools}/bin/bash"
+        ${attrs.preBuild or ""}
+      '';
+    });
 
   supportedSystems = [
     "aarch64-darwin"
@@ -111,12 +173,12 @@ let
     #endif
   '';
 
-  tinyccBootstrappableSrc = runCommand "darwin-bootstrap-tinycc-bootstrappable-source" { } ''
+  tinyccBootstrappableSrc = signedRunCommand "darwin-bootstrap-tinycc-bootstrappable-source" { } ''
     mkdir -p $out
     cp -R ${./vendor/tinycc-bootstrappable}/. $out/
   '';
 
-  tinyccMesSrc = runCommand "darwin-bootstrap-tinycc-mes-source" { } ''
+  tinyccMesSrc = signedRunCommand "darwin-bootstrap-tinycc-mes-source" { } ''
     mkdir -p $out
     cp -R ${tinyccBootstrappableSrc}/. $out/
     chmod -R u+w $out
@@ -128,7 +190,7 @@ let
 
   hex0 = import ./stage0-posix/hex0.nix { inherit hostPlatform lib root stdenv supportedSystems tests; };
 
-  m2libc-darwin = runCommand "darwin-minimal-bootstrap-m2libc" { } ''
+  m2libc-darwin = signedRunCommand "darwin-minimal-bootstrap-m2libc" { } ''
     mkdir -p $out
     cp -R ${./M2libc}/. $out/
   '';
@@ -142,9 +204,11 @@ let
 
   phaseContext = {
     inherit root;
-    inherit (utils) mkDarwin;
-    inherit apple-sdk darwin cctools fetchurl gnumake lib minimal-bootstrap-sources perl;
-    inherit stdenv runCommand hostPlatform supportedSystems arch source;
+    mkDarwin = signedMkDarwin;
+    darwin = bootstrapDarwin;
+    inherit apple-sdk cctools fetchurl findutils gnutar gnumake gzip lib minimal-bootstrap-sources perl;
+    inherit stdenv hostPlatform supportedSystems arch source;
+    runCommand = signedRunCommand;
     inherit stage0-posix stage0Sources mesVersion mesTarball gcc46Version gcc46Tarball;
     inherit gcc46GmpTarball gcc46MpfrTarball gcc46MpcTarball gcc10Version gcc10Tarball gcc10GmpVersion;
     inherit gcc10GmpTarball gccLatestVersion gccLatestTarball gccLatestGmpVersion gccLatestGmpTarball gccModernMpfrVersion;
@@ -280,21 +344,23 @@ let
 
   tests = import ./checks.nix (phaseContext // phaseDefs // {
     inherit
-      darwin
       hex0
       raw-syscall-hello
       raw-syscall-hello-unsigned
       tinycc-m2-negative-probe
       gnu-hello-hash-comparison
       ;
+    darwin = bootstrapDarwin;
   });
 in
 ## Splat all phase derivations + gnu-hello outputs into the returned set,
 ## plus the few attrs that aren't part of phaseDefs/gnuHello.
 phaseDefs // gnuHello // {
+  "darwin-signed-build-tools" = signedBuildTools;
   inherit
     hex0
     m2libc-darwin
+    mesNyacc
     stage0-posix
     supportedSystems
     raw-syscall-hello

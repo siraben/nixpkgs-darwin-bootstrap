@@ -1,4 +1,5 @@
 {
+  darwin,
   hex2,
   elf64-to-m1,
   m1,
@@ -30,14 +31,18 @@ runCommand "elf64-to-m1" { } ''
     > hex2.stdout \
     2> hex2.stderr
 
-  ## Codesign skipped: the Mach-O templates need their segment sizes
-  ## patched before codesign_allocate can run, so we just chmod +x
-  ## without signing — still a runnable Mach-O via the Darwin loader
-  ## fallback for unsigned native code in nix sandboxes.
-  linkeditOffset="$((0x800000 + 0x2000000))"
-  dd if=/dev/zero of=elf64-to-m1 bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc \
-    > dd.stdout 2> dd.stderr
+  ## MACHO-amd64.hex2 declares __TEXT file size and __LINKEDIT file offset as
+  ## 0x1000000.  Padding this no-data binary to the low-data template's
+  ## 0x2800000 boundary left an unowned 24 MiB gap, made codesign_allocate
+  ## reject the layout, and forced every invocation through taskgated's
+  ## unsigned-executable path.  Normalize to the load-command boundary before
+  ## applying the pinned Darwin signing bridge; translation remains entirely
+  ## M1+hex2-derived.
+  linkeditOffset="$((0x1000000))"
+  truncate -s "$linkeditOffset" elf64-to-m1
   chmod +x elf64-to-m1
+  source ${darwin.signingUtils}
+  sign elf64-to-m1
 
   install -Dm755 elf64-to-m1 $out/bin/elf64-to-m1
   cp elf64-to-m1.hex2 m1.stdout m1.stderr hex2.stdout hex2.stderr \

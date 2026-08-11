@@ -1,5 +1,6 @@
 {
   cctools,
+  darwin,
   gcc46DarwinBootstrapSrc,
   gcc46Version,
   gnupatch,
@@ -9,7 +10,45 @@
   ...
 }:
       runCommand "gcc-${gcc46Version}-all-gcc" {
+        __impureHostDeps = [ "/usr/bin/codesign" ];
       } ''
+        set -o pipefail
+
+        DARWIN_SHARED_BUILD_TOOLS="$(dirname "$(command -v bash)")"
+        DARWIN_SIGNED_BUILD_TOOLS="$PWD/.darwin-signed-build-tools"
+        DARWIN_SIGNED_COPY="$(command -v cp)"
+        DARWIN_SIGNED_CHMOD="$(command -v chmod)"
+        DARWIN_SIGNED_MKDIR="$(command -v mkdir)"
+        DARWIN_SIGNED_PREPARE_PATH_TOOLS=0
+        source ${root + "/scripts/darwin/prepare-signed-build-tools.sh"}
+        prepare_signed_build_tool cctools-ar ${cctools}/bin/ar
+        prepare_signed_build_tool cctools-nm ${cctools}/bin/nm
+        # nixpkgs's bin/ranlib is cctools libtool, which selects ranlib mode
+        # only when argv[0] has this exact basename.  Make invokes this copy
+        # directly, and cctools ar also derives the same sibling path when it
+        # refreshes an archive index.
+        prepare_signed_build_tool ranlib ${cctools}/bin/ranlib
+        prepare_signed_build_tool cctools-strip ${cctools}/bin/strip
+        prepare_signed_build_tool cctools-lipo ${cctools}/bin/lipo
+        prepare_signed_build_tool cctools-otool ${cctools}/bin/otool
+        prepare_signed_build_tool tinycc-sigtool ${darwin.sigtool}/bin/sigtool
+        export PATH="$DARWIN_SIGNED_BUILD_TOOLS:$PATH"
+        export CONFIG_SHELL="$DARWIN_SHARED_BUILD_TOOLS/bash"
+        export SHELL="$DARWIN_SHARED_BUILD_TOOLS/bash"
+
+        # The TinyCC wrapper contains absolute, pinned paths.  Rewrite only
+        # those execution paths to the signed copies of the same inputs.
+        cp ${darwin.signingUtils} "$DARWIN_SIGNED_BUILD_TOOLS/tinycc-signing-utils"
+        cp ${tinycc-darwin-cc}/bin/tcc-darwin-cc "$DARWIN_SIGNED_BUILD_TOOLS/tcc-darwin-cc"
+        chmod u+w "$DARWIN_SIGNED_BUILD_TOOLS/tinycc-signing-utils" \
+          "$DARWIN_SIGNED_BUILD_TOOLS/tcc-darwin-cc"
+        # bootstrapDarwin.signingUtils already points at the shared strict-
+        # verified copies of codesign, sigtool, and codesign_allocate.
+        substituteInPlace "$DARWIN_SIGNED_BUILD_TOOLS/tcc-darwin-cc" \
+          --replace-fail ${cctools}/bin/ar "$DARWIN_SIGNED_BUILD_TOOLS/cctools-ar" \
+          --replace-fail ${darwin.signingUtils} "$DARWIN_SIGNED_BUILD_TOOLS/tinycc-signing-utils" \
+          --replace-fail ${darwin.sigtool}/bin/sigtool "$DARWIN_SIGNED_BUILD_TOOLS/tinycc-sigtool"
+
         mkdir -p src build $out/bin $out/share/darwin-bootstrap
         cp -R ${gcc46DarwinBootstrapSrc}/. src/
         chmod -R u+w src
@@ -18,17 +57,19 @@
           src/gcc/Makefile.in
         GNUPATCH=${gnupatch}/bin/patch \
         PREPARE_SOURCE_PATCH=${root + "/patches/gcc-4.6/prepare-source.patch"} \
-          bash ${root + "/scripts/gcc-4.6/prepare-source.sh"}
+          "$DARWIN_SHARED_BUILD_TOOLS/bash" ${root + "/scripts/gcc-4.6/prepare-source.sh"}
 
-        export CC=${tinycc-darwin-cc}/bin/tcc-darwin-cc
+        # Invoke the chain TinyCC wrapper through the signed copy of the exact
+        # stdenv Bash.  The wrapper and all compiler inputs remain unchanged.
+        export CC="$DARWIN_SHARED_BUILD_TOOLS/bash $DARWIN_SIGNED_BUILD_TOOLS/tcc-darwin-cc"
         export CPP="$CC -E"
         export CC_FOR_BUILD="$CC"
-        export AR=${cctools}/bin/ar
-        export NM=${cctools}/bin/nm
-        export RANLIB=${cctools}/bin/ranlib
-        export STRIP=${cctools}/bin/strip
-        export LIPO=${cctools}/bin/lipo
-        export OTOOL=${cctools}/bin/otool
+        export AR="$DARWIN_SIGNED_BUILD_TOOLS/cctools-ar"
+        export NM="$DARWIN_SIGNED_BUILD_TOOLS/cctools-nm"
+        export RANLIB="$DARWIN_SIGNED_BUILD_TOOLS/ranlib"
+        export STRIP="$DARWIN_SIGNED_BUILD_TOOLS/cctools-strip"
+        export LIPO="$DARWIN_SIGNED_BUILD_TOOLS/cctools-lipo"
+        export OTOOL="$DARWIN_SIGNED_BUILD_TOOLS/cctools-otool"
         export CFLAGS="-g"
         export CFLAGS_FOR_BUILD="-g"
         export CXX="$CC"
@@ -105,7 +146,12 @@
 
         cp ${root + "/gcc-4.6/fixtures/all-gcc-xgcc-smoke.c"} xgcc-smoke.c
         rm -f gccdump.s
-        ./gcc/xgcc -B"$PWD/gcc/" -S xgcc-smoke.c -o xgcc-smoke.s \
+        # This fixture intentionally has no includes.  Do not probe Darwin's
+        # host-default /usr/local/include and /Library/Frameworks paths: they
+        # are outside the bootstrap sysroot and absent from the Nix sandbox.
+        # -nostdinc still runs the newly built driver and cc1, while making the
+        # test's header-search boundary explicit.
+        ./gcc/xgcc -B"$PWD/gcc/" -nostdinc -S xgcc-smoke.c -o xgcc-smoke.s \
           2>&1 | tee $out/share/darwin-bootstrap/xgcc-smoke.log
         if test ! -s xgcc-smoke.s && test -s gccdump.s; then
           mv gccdump.s xgcc-smoke.s

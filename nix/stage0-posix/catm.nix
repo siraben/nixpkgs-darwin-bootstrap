@@ -3,14 +3,15 @@
 ## The seed-built hex2 assembles the committed Mach-O header template
 ## (nix/tools/templates/MACHO-amd64-catm-header.hex2) and the committed catm
 ## body (nix/M2libc/amd64/catm_AMD64_darwin_body.hex2) separately; they are
-## concatenated and padded to data_end=0x900000.  Runs unsigned in the Nix
-## sandbox on x86_64.  Translation is done by the chain hex2; stdenv only
+## concatenated, padded to data_end=0x900000, and ad-hoc signed for safe host
+## execution.  Translation is done by the chain hex2; stdenv only
 ## orchestrates.  No committed binary dump.
 ##
 ## The catm body is regenerated from upstream stage0Sources by the
 ## maintainer via nix/scripts/stage0/regen-preported.sh; build-time has no
 ## awk/perl/python.
 {
+  darwin,
   mkDarwin,
   hex2-0,
   root,
@@ -40,6 +41,8 @@ mkDarwin {
         seek="$currentSize" conv=notrunc 2>/dev/null
     fi
     chmod +x catm-darwin
+    source ${darwin.signingUtils}
+    sign catm-darwin
 
     runHook postBuild
   '';

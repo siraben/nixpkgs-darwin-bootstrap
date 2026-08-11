@@ -60,7 +60,7 @@ runCommand "gcc-${gccLatestVersion}" {
   ## separately.
   export GCC_MODERN_BUILD_TARGET_LIBS=1
   export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
-  ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
+  bash ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${gcc-latest-source} \
     ${gcc10} \
     ${bootstrap-gnumake} \

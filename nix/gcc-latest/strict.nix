@@ -45,7 +45,7 @@ runCommand "gcc-${gccLatestVersion}-strict" {
   export ac_cv_func_posix_spawn=no
   export ac_cv_func_posix_spawnp=no
   export BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make
-  ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
+  bash ${root + "/scripts/gcc-modern/bootstrap-gcc.sh"} \
     ${gcc-latest-source} \
     ${gcc-latest} \
     ${bootstrap-gnumake} \

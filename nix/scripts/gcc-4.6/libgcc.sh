@@ -85,6 +85,8 @@ chmod +x work/build/gcc/as
 
 if [ -n "$xgcc_wrapper_template" ]; then
   cp "$xgcc_wrapper_template" work/build/gcc/xgcc-bootstrap
+  wrapper_bash=$(command -v bash)
+  sed -i "1s|.*|#!$wrapper_bash|" work/build/gcc/xgcc-bootstrap
   chmod +x work/build/gcc/xgcc-bootstrap
 fi
 

@@ -1,4 +1,5 @@
 {
+  darwin,
   hex2,
   elf64-to-m1,
   m1,
@@ -31,12 +32,14 @@ runCommand "macho-patcher" { } ''
     > hex2.stdout \
     2> hex2.stderr
 
-  ## No codesign: same reasoning as elf64-to-m1 — the Darwin nix-sandbox
-  ## loader runs unsigned native code.
-  linkeditOffset="$((0x800000 + 0x2000000))"
-  dd if=/dev/zero of=macho-patcher bs=1 count=1 seek="$((linkeditOffset - 1))" conv=notrunc \
-    > dd.stdout 2> dd.stderr
+  ## MACHO-amd64.hex2 declares __LINKEDIT.fileoff = 0x1000000.  Normalize to
+  ## that boundary before signing; padding to 0x2800000 creates an unowned
+  ## zero gap that codesign_allocate correctly refuses.
+  linkeditOffset="$((0x1000000))"
+  truncate -s "$linkeditOffset" macho-patcher
   chmod +x macho-patcher
+  source ${darwin.signingUtils}
+  sign macho-patcher
 
   install -Dm755 macho-patcher $out/bin/macho-patcher
   cp macho-patcher.hex2 m1.stdout m1.stderr hex2.stdout hex2.stderr \
