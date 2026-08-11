@@ -205,7 +205,7 @@ ensure_symlink() {
   fi
   # Keep the high-fanout file-orchestration boundary on a fully signed shared
   # utility.  Resolving ln through an unsigned Nix PATH caused taskgated to check
-  # an unsigned/ad-hoc tool once per link; parallel GCC overlays sustained
+  # an unsigned tool once per link; parallel GCC overlays sustained
   # roughly 150 detached-signature lookups per second and precipitated an XNU
   # IPC-voucher exhaustion panic.  The pinned strict-verified ln creates the
   # same symlink graph without relying on an undeclared host path.

@@ -429,14 +429,34 @@ The panic stackshot contains the exact active bootstrap PIDs: Nix clients and
 daemon builder, chain Make, and 18 GCC wrapper Bash processes.  Each wrapper
 had accumulated about 428--430 seconds of system CPU and roughly 1.5 million
 page faults before its live `cc1` child appeared.  The unified log supplies a
-more specific mechanism: `taskgated` repeatedly failed to open
-`/private/var/db/DetachedSignatures` and returned Security error `-67062`.
-There were 22,050 such detached-signature lookups in the preceding 15-minute
+strongly correlated trigger path, not proof of leak ownership: `taskgated`
+repeatedly tried to consult `/private/var/db/DetachedSignatures` and returned
+Security error `-67062`, which Apple's Security source defines as
+[`errSecCSUnsigned`](https://github.com/apple-oss-distributions/Security/blob/Security-61901.80.25/OSX/libsecurity_codesigning/lib/CSCommon.h#L70-L76).
+There were 22,050 such detached-signature checks in the preceding 15-minute
 bootstrap interval, 178,102 in the next 30 minutes, and 113,741 in the final
 12-minute main-Make interval.  The last 90 seconds sustained roughly 130--178
-lookups per second until logging stopped at the panic.  Executing one known
+checks per second until logging stopped at the panic.  Executing one known
 unsigned fixture reproduced exactly one such lookup/error sequence; executing
 the explicitly selected Apple platform utilities reproduced none.
+
+XNU source narrows the proximate failure.  A global table for one voucher
+attribute manager had exhausted its freelist and reached the hard
+[`IVAC_ENTRIES_MAX` limit of 524,288 entries](https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.81.4/osfmk/ipc/ipc_voucher.h#L137-L150);
+the next attempted growth follows the
+[`ipc_voucher.c` panic path](https://github.com/apple-oss-distributions/xnu/blob/xnu-12377.81.4/osfmk/ipc/ipc_voucher.c#L553-L610).
+`taskgated` was the current task whose allocation encountered that full shared
+cache.  Neither the panic string nor the surviving stackshot proves that
+`taskgated` retained the earlier voucher values, identifies the exhausted
+attribute manager, or establishes one voucher allocation per signature check.
+The three recorded intervals total 313,893 checks, about 60% of the table cap;
+that is order-of-magnitude compatible with the storm precipitating exhaustion
+when the cache already had occupants or a request created multiple unreclaimed
+values, but it rejects an unqualified one-check/one-leaked-voucher claim.  The
+calibrated conclusion is therefore that bootstrap-induced unsigned-tool churn
+very likely precipitated the voucher-cap panic through `taskgated`'s
+signature-check path, not that the surviving evidence proves a `taskgated`
+leak.
 
 The high-fanout GCC wrapper used `ln`, `mkdir`, `cp`, `rm`, `readlink`, and
 `mktemp` through the Nix build `PATH` while constructing thousands of

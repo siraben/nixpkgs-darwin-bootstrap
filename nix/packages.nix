@@ -22,7 +22,8 @@ let
   ## Build this once with the raw stdenv, then reuse the exact signed tool
   ## copies in every bootstrap runCommand.  This changes only Mach-O execution
   ## metadata at the disclosed host-orchestration boundary and prevents a
-  ## fresh chain from repeatedly entering taskgated's leaking unsigned path.
+  ## fresh chain from repeatedly entering the unsigned-code validation path
+  ## correlated with the voucher-cache panic.
   signedBuildTools = runCommand "darwin-signed-build-tools" {
     __impureHostDeps = [ "/usr/bin/codesign" ];
   } ''

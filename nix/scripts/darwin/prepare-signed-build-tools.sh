@@ -3,11 +3,13 @@
 #
 # x86_64 bootstrap tools in the Nix store can be unsigned.  On Apple Silicon,
 # every launch of such a tool asks taskgated to consult DetachedSignatures.
-# macOS 26.3 leaks IPC vouchers on that path and can panic after a sufficiently
-# large parallel build.  Ad-hoc signing a writable copy changes only Mach-O
-# execution metadata; the copied program remains the exact compiler/build-tool
-# input selected by the derivation.  This is a host execution-compatibility
-# boundary, not a source translator or a replacement compiler.
+# On the reviewed macOS 26.3 host, a sufficiently large parallel launch storm
+# on that path precipitated an XNU voucher-cache exhaustion panic; surviving
+# evidence does not identify taskgated as the component retaining the earlier
+# voucher values.  Ad-hoc signing a writable copy changes only Mach-O execution
+# metadata; the copied program remains the exact compiler/build-tool input
+# selected by the derivation.  This is a host execution-compatibility boundary,
+# not a source translator or a replacement compiler.
 
 prepare_signed_build_tool() {
   tool_name="$1"
