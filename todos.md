@@ -8,7 +8,27 @@
 > `nix/scripts/gcc-4.6/`, `bootstrap/headers/` as `nix/bootstrap/headers/`,
 > and so on).  `bake-ar`/`BAKE_*` are now `boot-ar`/`BOOT_*`.
 
-## CURRENT STATUS (2026-06-24) — authoritative
+## CURRENT REVIEW STATUS (2026-08-11) — supersedes the June status below
+
+The correctness-first review in [`docs/BOOTSTRAP-REVIEW.md`](docs/BOOTSTRAP-REVIEW.md)
+found that neither the shell track nor the Nix track yet satisfies the review's
+declared stage0 trust policy.  In particular, the retained `gcc46-all-gcc`
+build log proves that nixpkgs `gawk` runs GCC's `opt-functions.awk` and
+`optc-gen.awk` to generate `options.c`; host Perl and other semantic text
+transformations also remain.  The June claim below that host `awk` had been
+removed from the entire build-time chain is therefore historical, not current
+audit evidence.
+
+The review also disables the proposed GCC 4.6 cross-configuration object reuse
+by default.  The producer objects were built by TinyCC in a C-only
+configuration, while the consumer is a C+C++ checkpoint built by GCC 4.6 with
+different flags and generated state.  Reuse remains available only for the
+controlled performance experiment.  The final guarded correctness,
+provenance, trusted-output, and quiet repeated-timing campaign is pinned to
+revision `0a199c25095401d4cdb650f7bfde9ba760f5ccc6`; its final measurements
+must be recorded in the review before the campaign is called complete.
+
+## HISTORICAL STATUS (2026-06-24) — superseded by the review above
 
 The amd64 Nix chain builds cold from the 4 KB hex0 seed through
 gcc-4.6 → gcc-10 → gcc-15 (15.2.0) → strict re-host; `gnu-hello-hash-comparison`
