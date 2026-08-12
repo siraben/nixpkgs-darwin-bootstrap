@@ -160,6 +160,11 @@ rg -q 'GCC46_BOOTSTRAP_HOST_CC_SOURCES=0' "$ROOT/nix/gcc-4.6/cxx.nix" || fail "g
 rg -q 'GCC46_BOOTSTRAP_HOST_CC_GENERATED=0' "$ROOT/nix/gcc-4.6/cxx.nix" || fail "gcc46-cxx does not forbid host compilation of generated source"
 rg -q 'GCC46_CXX_REUSE_ALL_GCC_OBJECTS:-0' "$ROOT/nix/scripts/gcc-4.6/cxx.sh" || \
   fail "unproved cross-compiler GCC 4.6 backend-object reuse is enabled by default"
+for direct_compiler in CC CXX CPP CXXCPP; do
+  rg -q "^[[:space:]]+$direct_compiler=\"[^\"]*-nostdinc[^\"]*-isystem "'\$target_include' \
+    "$ROOT/nix/scripts/gcc-4.6/cxx.sh" || \
+    fail "gcc46-cxx direct libstdc++ $direct_compiler probes can reach compiled-in host include defaults"
+done
 
 printf 'index\tstage\tscript\tsha256\n' > "$OUTPUT_DIR/shell-stages.tsv"
 index=0

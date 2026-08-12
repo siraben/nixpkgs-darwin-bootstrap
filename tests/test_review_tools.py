@@ -229,6 +229,18 @@ class HarnessSourceTests(unittest.TestCase):
             libgcc,
         )
 
+    def test_gcc46_libstdcxx_probes_exclude_host_include_defaults(self) -> None:
+        script = (
+            ROOT / "nix" / "scripts" / "gcc-4.6" / "cxx.sh"
+        ).read_text(encoding="utf-8")
+        configure = script.split("configure_direct_libstdcxx() {", 1)[1].split(
+            "build_direct_libstdcxx() {", 1
+        )[0]
+        for variable in ("CC", "CXX", "CPP", "CXXCPP"):
+            assignment = configure.split(f'{variable}="', 1)[1].split('" \\', 1)[0]
+            self.assertIn("-nostdinc", assignment, variable)
+            self.assertIn("-isystem $target_include", assignment, variable)
+
     def test_gcc46_cxx_rebases_copied_private_tool_paths(self) -> None:
         script = (
             ROOT / "nix" / "scripts" / "gcc-4.6" / "cxx.sh"
