@@ -1163,10 +1163,10 @@ configure_direct_libstdcxx() {
       PATH="$PWD/../../gcc:$PATH" \
       AS="$GCC46_BOOTSTRAP_AS" \
       LD="$GCC46_BOOTSTRAP_LD" \
-      CC="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
-      CXX="$direct_cxx -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
-      CPP="$PWD/../../gcc/xgcc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
-      CXXCPP="$direct_cxx -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CC="$PWD/../../gcc/xgcc -nostdinc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CXX="$direct_cxx -nostdinc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include" \
+      CPP="$PWD/../../gcc/xgcc -nostdinc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
+      CXXCPP="$direct_cxx -nostdinc -B$PWD/../../gcc/ -B$out/$target/bin/ -B$out/$target/lib/ -isystem $target_include -isystem $out/$target/include -isystem $out/$target/sys-include -E" \
       CFLAGS="$cxx_cflags_for_target" \
       CXXFLAGS="$cxx_cflags_for_target" \
       LDFLAGS="-nostartfiles -nodefaultlibs -L$PWD/../../gcc -lgcc -Wl,-syslibroot,$sdk -lSystem" \
