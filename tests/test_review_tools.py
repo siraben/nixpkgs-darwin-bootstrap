@@ -250,9 +250,11 @@ class HarnessSourceTests(unittest.TestCase):
         )[0]
         self.assertIn("gcc/xgcc gcc/g++ gcc/c++ gcc/cc1plus", signing)
         self.assertIn(
-            '/usr/bin/codesign --force --sign - --timestamp=none "$compiler_executable"',
+            '/usr/bin/codesign --force --sign - --timestamp=none "$signed_compiler_executable"',
             signing,
         )
+        self.assertIn('cp -p "$compiler_executable" "$signed_compiler_executable"', signing)
+        self.assertIn('mv -f "$signed_compiler_executable" "$compiler_executable"', signing)
         self.assertIn(
             '/usr/bin/codesign --verify --strict "$compiler_executable"',
             signing,
