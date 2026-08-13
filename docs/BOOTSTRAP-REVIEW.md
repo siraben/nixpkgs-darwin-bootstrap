@@ -837,7 +837,7 @@ can reproduce each reduction.
    purpose-built seed-descended generators.
 6. Add an unprivileged invocation log inside compiler wrappers and semantic
    tools so the dynamic trust trace does not depend on root-only `eslogger`.
-7. Run the three-sample suites on an otherwise idle host; publish raw evidence,
+7. Run the five-sample suites on an otherwise idle host; publish raw evidence,
    not only summary numbers.
 8. Only reconsider reuse after exact producer/consumer manifests and broad
    C/C++ output equivalence become a maintained gate.
