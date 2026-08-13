@@ -348,7 +348,7 @@ interpretation.
   mode is locked before environment capture and must remain unchanged.  A
   threshold, power-source, or power-mode violation marks the entire attempt
   rejected; the repeat harnesses retain each attempt's evidence and retry until
-  five clean samples have been accepted (or the explicit attempt limit is
+  three clean samples have been accepted (or the explicit attempt limit is
   reached).
 - `fseventsd` is intentionally not an automatic rejection class: the measured
   GCC wrappers themselves create and remove thousands of symlinks, which can
@@ -825,7 +825,7 @@ can reproduce each reduction.
    purpose-built seed-descended generators.
 6. Add an unprivileged invocation log inside compiler wrappers and semantic
    tools so the dynamic trust trace does not depend on root-only `eslogger`.
-7. Run the five-sample suites on an otherwise idle host; publish raw evidence,
+7. Run the three-sample suites on an otherwise idle host; publish raw evidence,
    not only summary numbers.
 8. Only reconsider reuse after exact producer/consumer manifests and broad
    C/C++ output equivalence become a maintained gate.

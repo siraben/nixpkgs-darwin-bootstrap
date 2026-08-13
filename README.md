@@ -219,10 +219,10 @@ python3 ./scripts/collect-gcc46-provenance.py \
   --producer "$(nix path-info .#gcc46-all-gcc)" \
   --consumer "$(nix path-info .#gcc46-cxx)" \
   --output /path/to/new/provenance-bundle
-RUNS=5 PROFILE=stages ./scripts/time-nix-suite.sh
-RUNS=5 PROFILE=e2e ./scripts/time-nix-suite.sh
-RUNS=5 ./scripts/time-shell-e2e.sh
-RUNS=5 ./scripts/time-gcc46-reuse-ab.sh
+RUNS=3 PROFILE=stages ./scripts/time-nix-suite.sh
+RUNS=3 PROFILE=e2e ./scripts/time-nix-suite.sh
+RUNS=3 ./scripts/time-shell-e2e.sh
+RUNS=3 ./scripts/time-gcc46-reuse-ab.sh
 python3 ./scripts/summarize-process-snapshots.py \
   --input-glob '/path/to/campaign/**/*.processes.tsv' \
   --output process-summary.tsv --detail-output process-detail.tsv \

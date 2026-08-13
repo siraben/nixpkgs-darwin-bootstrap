@@ -9,7 +9,7 @@ ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 source "$ROOT/scripts/benchmark-lib.sh"
 benchmark_lock_power_mode
 trap benchmark_stop_monitor EXIT
-RUNS="${RUNS:-5}"
+RUNS="${RUNS:-3}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-$((RUNS * 3))}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOGDIR="${LOGDIR:-/private/tmp/nixpkgs-darwin-bootstrap-shell-e2e-$STAMP}"

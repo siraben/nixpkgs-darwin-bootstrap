@@ -7,7 +7,7 @@ ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 source "$ROOT/scripts/benchmark-lib.sh"
 benchmark_lock_power_mode
 trap benchmark_stop_monitor EXIT
-RUNS="${RUNS:-5}"
+RUNS="${RUNS:-3}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-$((RUNS * 3))}"
 SYSTEM="${SYSTEM:-$(nix eval --impure --raw --expr builtins.currentSystem)}"
 FLAKE_REF="${FLAKE_REF:-.}"
@@ -215,7 +215,7 @@ while ((accepted_pairs < RUNS)); do
     exit 1
   fi
   # Keep the order balance tied to accepted-pair slots, not attempts.  A noisy
-  # rejection retries the same slot and therefore cannot skew the five
+  # rejection retries the same slot and therefore cannot skew the accepted
   # accepted pairs toward whichever treatment happened to run first.
   if ((accepted_pairs % 2 == 0)); then
     order=(reuse no-reuse)
