@@ -742,6 +742,15 @@ controllers and are not evidence for r8. A future continuation must obtain a
 newly authorized guard budget before attempting another full bootstrap; it
 must not reset or edit the retained cumulative counters.
 
+The independent static audit rerun on `2026-08-13T15:30:19-07:00` completed
+with zero hard failures. Its bundle reports 64 shell stages, 74 Nix stages,
+81 host-tool candidates, and 76 semantic-transform candidates. At that point
+46 of the 74 enumerated Nix outputs were already valid in the local store;
+the remaining invalid outputs are expected from the rejected/incomplete
+bootstrap and do not constitute a successful chain. The bundle's summary,
+stage table, candidate lists, and hashes are retained as
+`audit-current-20260813T152902-0700/` in the review-evidence directory.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
