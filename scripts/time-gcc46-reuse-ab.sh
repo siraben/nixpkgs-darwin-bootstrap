@@ -7,7 +7,7 @@ ROOT="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 source "$ROOT/scripts/benchmark-lib.sh"
 benchmark_lock_power_mode
 trap benchmark_stop_monitor EXIT
-RUNS="${RUNS:-3}"
+RUNS="${RUNS:-5}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-$((RUNS * 3))}"
 SYSTEM="${SYSTEM:-$(nix eval --impure --raw --expr builtins.currentSystem)}"
 FLAKE_REF="${FLAKE_REF:-.}"

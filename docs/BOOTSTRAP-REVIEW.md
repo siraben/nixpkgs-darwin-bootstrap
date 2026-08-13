@@ -348,7 +348,7 @@ interpretation.
   mode is locked before environment capture and must remain unchanged.  A
   threshold, power-source, or power-mode violation marks the entire attempt
   rejected; the repeat harnesses retain each attempt's evidence and retry until
-  three clean samples have been accepted (or the explicit attempt limit is
+  five clean samples have been accepted (or the explicit attempt limit is
   reached).
 - `fseventsd` is intentionally not an automatic rejection class: the measured
   GCC wrappers themselves create and remove thousands of symlinks, which can
@@ -391,7 +391,7 @@ interpretation.
   memory-pressure percentages, and reports per-profile median, mean, and
   min/max deltas.  A missing counterpart or mismatched metric set is an error.
 
-Three accepted samples per stage/profile are the target; an attempted run is not
+Five accepted samples per stage/profile are the target; an attempted run is not
 silently promoted to a sample merely because the command succeeded.  The required result
 table is generated as `stage-summary.tsv`; raw logs, thermal state, process
 snapshots, workload monitoring, hashes, and clean-state proofs remain beside
