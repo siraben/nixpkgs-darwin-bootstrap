@@ -36,6 +36,7 @@
 }:
 runCommand "gcc-${gcc46Version}-cxx" {
   nativeBuildInputs = [ perl findutils gnutar gzip ];
+  __impureHostDeps = [ "/usr/bin/codesign" ];
 } ''
   GNUPATCH=${gnupatch}/bin/patch \
   GCC46_CXX_MPC_PATCH=${root + "/patches/gcc-4.6.4-mpc-assume-mpfr.patch"} \

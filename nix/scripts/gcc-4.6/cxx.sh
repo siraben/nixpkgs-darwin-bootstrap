@@ -758,6 +758,26 @@ ensure_bootstrap_cc1() {
   chmod u+wx gcc/cc1
 }
 
+sign_fresh_gcc_executables() {
+  [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
+  local compiler_executable
+  mkdir -p "$bootstrap_share"
+  : >> "$bootstrap_share/signed-fresh-gcc-executables.tsv"
+  for compiler_executable in gcc/xgcc gcc/g++ gcc/c++ gcc/cc1plus; do
+    [ -f "$compiler_executable" ] || continue
+    # These are the exact compiler executables linked immediately above.  An
+    # ad-hoc signature changes only Mach-O execution metadata; it does not
+    # substitute a host compiler or alter their source/object provenance.
+    /usr/bin/codesign --force --sign - --timestamp=none "$compiler_executable"
+    /usr/bin/codesign --verify --strict "$compiler_executable"
+    printf '%s\t%s\t%s\n' \
+      "$compiler_executable" \
+      "$(shasum -a 256 "$compiler_executable" | awk '{ print $1 }')" \
+      "$(/usr/bin/codesign -dv --verbose=4 "$compiler_executable" 2>&1 | awk -F= '$1 == "CDHash" { print $2; exit }')" \
+      >> "$bootstrap_share/signed-fresh-gcc-executables.tsv"
+  done
+}
+
 append_top_prereq_stubs() {
   [ -f Makefile ] || return 0
   grep -q DARWIN_BOOTSTRAP_TOP_PREREQ_STUBS Makefile && return 0
@@ -1346,26 +1366,43 @@ if [ "${GCC46_CXX_SKIP_MAIN_MAKE:-0}" != 1 ]; then
     fi
     prepare_gcc_headers_for_reuse
     reuse_all_gcc_backend
-    GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
-    MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
-      -o cc1 \
-      -o cc1-checksum.c \
-      -o cc1-checksum.o \
-      MAKEINFO=true \
-      CC="$CC" \
-      CPP="$CPP" \
-      CFLAGS="$CFLAGS" \
-      CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
-      CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
-      CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
-      AR="$AR" \
-      NM="$NM" \
-      RANLIB="$RANLIB" \
-      STRIP="$STRIP" \
-      LIPO="$LIPO" \
-      OTOOL="$OTOOL" \
-      $gcc_make_targets \
-      2>&1 | tee "$bootstrap_share/make.log"
+    if [ "$main_object_format" = macho ] && [ "$gcc_make_targets" = "xgcc c++ g++" ]; then
+      # xgcc is used by later targets in this same checkpoint.  Finish and
+      # sign it before the C++ frontend build can execute it, then sign the
+      # newly linked C++ executables before target runtimes are configured.
+      GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
+      MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+        -o cc1 -o cc1-checksum.c -o cc1-checksum.o \
+        MAKEINFO=true CC="$CC" CPP="$CPP" CFLAGS="$CFLAGS" \
+        CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+        CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+        CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+        AR="$AR" NM="$NM" RANLIB="$RANLIB" STRIP="$STRIP" \
+        LIPO="$LIPO" OTOOL="$OTOOL" xgcc \
+        2>&1 | tee "$bootstrap_share/make.log"
+      sign_fresh_gcc_executables
+      GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
+      MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+        -o cc1 -o cc1-checksum.c -o cc1-checksum.o \
+        MAKEINFO=true CC="$CC" CPP="$CPP" CFLAGS="$CFLAGS" \
+        CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+        CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+        CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+        AR="$AR" NM="$NM" RANLIB="$RANLIB" STRIP="$STRIP" \
+        LIPO="$LIPO" OTOOL="$OTOOL" c++ g++ \
+        2>&1 | tee -a "$bootstrap_share/make.log"
+    else
+      GCC46_BOOTSTRAP_OBJECT_FORMAT="$main_object_format" \
+      MAKEFLAGS= "$make_tool" -C gcc -j"$main_build_cores" \
+        -o cc1 -o cc1-checksum.c -o cc1-checksum.o \
+        MAKEINFO=true CC="$CC" CPP="$CPP" CFLAGS="$CFLAGS" \
+        CFLAGS_FOR_BUILD="$CFLAGS_FOR_BUILD" \
+        CFLAGS_FOR_TARGET="$CFLAGS_FOR_TARGET" \
+        CXXFLAGS_FOR_TARGET="$CXXFLAGS_FOR_TARGET" \
+        AR="$AR" NM="$NM" RANLIB="$RANLIB" STRIP="$STRIP" \
+        LIPO="$LIPO" OTOOL="$OTOOL" $gcc_make_targets \
+        2>&1 | tee "$bootstrap_share/make.log"
+    fi
   else
     MAKEFLAGS= "$make_tool" -C "$make_dir" -j"$main_build_cores" \
       MAKEINFO=true \
@@ -1388,6 +1425,7 @@ else
   printf 'Skipped main make in resumed gcc-4.6 cxx tree\n' > "$bootstrap_share/make.skipped"
 fi
 
+sign_fresh_gcc_executables
 install_macho_tool_wrappers
 postprocess_macho_specs
 ensure_gcc_internal_headers

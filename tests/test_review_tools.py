@@ -241,6 +241,42 @@ class HarnessSourceTests(unittest.TestCase):
             self.assertIn("-nostdinc", assignment, variable)
             self.assertIn("-isystem $target_include", assignment, variable)
 
+    def test_gcc46_fresh_compiler_executables_are_signed_before_runtimes(self) -> None:
+        script = (
+            ROOT / "nix" / "scripts" / "gcc-4.6" / "cxx.sh"
+        ).read_text(encoding="utf-8")
+        signing = script.split("sign_fresh_gcc_executables() {", 1)[1].split(
+            "write_direct_cxx_wrapper() {", 1
+        )[0]
+        self.assertIn("gcc/xgcc gcc/g++ gcc/c++ gcc/cc1plus", signing)
+        self.assertIn(
+            '/usr/bin/codesign --force --sign - --timestamp=none "$compiler_executable"',
+            signing,
+        )
+        self.assertIn(
+            '/usr/bin/codesign --verify --strict "$compiler_executable"',
+            signing,
+        )
+        self.assertIn("signed-fresh-gcc-executables.tsv", signing)
+        self.assertIn("shasum -a 256", signing)
+        sign_call = script.rindex("\nsign_fresh_gcc_executables\n")
+        runtime_call = script.rindex("\nbuild_direct_libstdcxx\n")
+        self.assertLess(sign_call, runtime_call)
+        split = script.split(
+            '[ "$main_object_format" = macho ] && [ "$gcc_make_targets" = "xgcc c++ g++" ]',
+            1,
+        )[1].split("else", 1)[0]
+        xgcc_make = split.index('OTOOL="$OTOOL" xgcc')
+        early_sign = split.index("sign_fresh_gcc_executables")
+        cxx_make = split.index('OTOOL="$OTOOL" c++ g++')
+        self.assertLess(xgcc_make, early_sign)
+        self.assertLess(early_sign, cxx_make)
+
+        expression = (ROOT / "nix" / "gcc-4.6" / "cxx.nix").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('__impureHostDeps = [ "/usr/bin/codesign" ];', expression)
+
     def test_gcc46_cxx_rebases_copied_private_tool_paths(self) -> None:
         script = (
             ROOT / "nix" / "scripts" / "gcc-4.6" / "cxx.sh"
