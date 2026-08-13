@@ -680,6 +680,18 @@ Nix client and recorded `build_exit_code=143` and both guard exit codes as
 evidence that the rate guard fails closed even late in the build, not evidence
 that the compiler passed.
 
+The resumed `ed5de1b-cxx-r6` attempt reached the same late-chain boundary: it
+compiled the GCC frontend, linked a fresh `cc1plus`, and entered target libgcc.
+It was then rejected by the unchanged guard during that transition.  The
+archived guard traces record final 20-second windows of 132/133 events (396/399
+per minute), with correctness/campaign cumulative observations of 15,969/15,699
+at the first final sample and 16,013/15,743 at the last checkpoint.  It
+therefore has no correctness result or trusted Hello output.  Its timestamped
+status, build log, and both guard traces are retained under the review-evidence
+directory.  The launchd keepalive was booted out after it automatically
+restarted the failed job, preventing an uncontrolled retry loop while
+preserving the 500/minute taskgated safety boundary.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
