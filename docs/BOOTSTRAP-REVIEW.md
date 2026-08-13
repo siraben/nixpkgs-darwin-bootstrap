@@ -720,6 +720,28 @@ retained under the review-evidence directory. The cumulative counter was not
 reset or inflated after termination; any future retry must use a separately
 authorized safety budget rather than silently bypassing this guard.
 
+### Completion audit after the resumed retry
+
+The current branch and evidence were audited against the requested review
+deliverables:
+
+| Requirement | Current authoritative evidence | Result |
+|---|---|---|
+| Faithful GCC 4.6 C++ bootstrap reaches a valid store output | `correctness-ad62b2d-cxx-r8.status` (`build_exit_code=143`, guard `86`) | **Missing** |
+| Compilation-chain provenance and static-purity gates | No finalized r8 producer/consumer outputs; no r8 provenance bundle | **Missing** |
+| Trusted/latest-GCC GNU Hello hash and execution checks | r8 trusted phase remained in `waiting-post-cxx`; no r8 binaries | **Missing** |
+| Five quiet samples for each Nix E2E, Nix stages, GCC A/B, and shell E2E campaign | r8 timing directories contain no accepted samples; performance phase did not start | **Missing** |
+| Timing statistics, process/system-state adjudication, bottlenecks, and speedup analysis | Qualitative bottleneck analysis is documented above; no new five-sample statistics | **Partial** |
+| Both macOS panic analyses | IPC-voucher/taskgated and independent MLX/Metal reports are documented above with calibrated attribution | **Complete** |
+| Safety guard, cumulative limits, and disk headroom preserved | r8 guard traces: 500/minute rate limit, 25,000/75,000 cumulative caps, no rate breach, `/nix` above 697,814,360 KiB | **Complete** |
+| Dirty worktree preserved; branch committed and pushed | `98a8458` on `siraben/bootstrap-correctness-review`; protected untracked directories retained | **Complete** |
+
+This audit intentionally leaves the overall review open. Older successful
+helper-script markers refer to different revisions or to waiting/archived
+controllers and are not evidence for r8. A future continuation must obtain a
+newly authorized guard budget before attempting another full bootstrap; it
+must not reset or edit the retained cumulative counters.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
