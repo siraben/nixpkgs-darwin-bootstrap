@@ -655,6 +655,31 @@ extraction and artifact hash are retained for the review; the full panic and
 raw shell history are not publication artifacts because they contain unrelated
 process, session, and host metadata.
 
+### Direct libstdc++ isolation and rejected guarded retry
+
+The post-panic correctness review found one more host-fallback gap after the
+GCC frontend itself had been isolated.  The direct libstdc++ configure path
+passed explicit bootstrap include directories to `CC`, `CXX`, `CPP`, and
+`CXXCPP`, but did not disable GCC's compiled-in default include search.  A
+missing bootstrap header could therefore still be satisfied by the host.
+Revisions `c14d234aa0c51d5fdba9d4ca380da596dba11ab3` and
+`ed5de1b6978a54372ec2d2e338e37dd21169048b` add `-nostdinc` to all four
+direct probe commands and make both the static audit and unit tests enforce
+the ordering of `-nostdinc` before the declared bootstrap `-isystem` root.
+This removes a fallback; it does not replace any compiler or bootstrap input.
+
+The first full retry at `ed5de1b` (`ed5de1b-cxx-r5`) ran for about nine hours,
+rebuilt and linked fresh `xgcc`, `g++`, and `cc1plus`, and advanced through
+target libgcc into direct libstdc++ configure.  It is nevertheless rejected as
+a correctness result.  At 2026-08-12T17:13:39-07:00, both independent guards
+measured 246/253 detached-signature lookups in 20 seconds, equivalent to
+738/759 per minute, above the unchanged 500/minute limit.  They terminated the
+Nix client and recorded `build_exit_code=143` and both guard exit codes as
+`86`.  The cumulative totals were 12,090 and 12,083, below their respective
+25,000 and 75,000 caps.  No partial output became a valid store path.  This is
+evidence that the rate guard fails closed even late in the build, not evidence
+that the compiler passed.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
