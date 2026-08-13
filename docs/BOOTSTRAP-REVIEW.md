@@ -692,6 +692,34 @@ directory.  The launchd keepalive was booted out after it automatically
 restarted the failed job, preventing an uncontrolled retry loop while
 preserving the 500/minute taskgated safety boundary.
 
+### Resumed guarded retry at the review revision
+
+The refreshed-host retry at proposal revision
+`ad62b2d6ca9264bfe122dc49de51676ccdae8fbb` used the corrected direct
+`libstdc++`/`-nostdinc` path, Nix `max-jobs=1`, four build cores, and the
+unchanged signed-orchestration guard. It started at
+`2026-08-13T14:54:45-07:00` and ran until the correctness cumulative guard
+terminated the workload at `2026-08-13T15:22:33-07:00`. The terminal status
+is `build_exit_code=143`, `correctness_guard_exit_code=86`, and
+`campaign_guard_exit_code=0`; the latter does not make the build successful.
+
+The guard observed 25,006 correctness checks against its hard 25,000
+cumulative limit (the final 20-second observation crossed the limit), with a
+maximum instantaneous estimate of 102/minute and no rate-limit violation.
+The campaign counter reached 24,577/75,000. Free `/nix` space stayed above
+697,814,360 KiB (about 666 GiB), well above the 10 GiB floor. The live
+process lineage remained the store `gcc-4.6.4-bootstrap` driver invoking its
+own `xgcc` and `cc1`; no host semantic compiler appeared. The build had
+advanced into chain-built GMP compilation but did not finalize a store output.
+
+This attempt is therefore rejected correctness evidence, not a bootstrap
+result. No post-C++ provenance/static gates, trusted GNU Hello builds or
+timing campaigns were started, and no timing sample may be inferred from the
+run. The raw status, build log, both guard TSVs, and cumulative counters are
+retained under the review-evidence directory. The cumulative counter was not
+reset or inflated after termination; any future retry must use a separately
+authorized safety budget rather than silently bypassing this guard.
+
 ### Performance observations and priorities
 
 The correctness warm-ups are deliberately excluded from statistical results.
