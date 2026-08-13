@@ -760,7 +760,10 @@ ensure_bootstrap_cc1() {
 
 sign_fresh_gcc_executables() {
   [ "${GCC46_BOOTSTRAP_OBJECT_FORMAT:-elf}" = macho ] || return 0
-  local compiler_executable
+  local compiler_executable signed_compiler_executable
+  local signed_copy="${DARWIN_SIGNED_COPY:-$(command -v cp)}"
+  local signed_chmod="${DARWIN_SIGNED_CHMOD:-$(command -v chmod)}"
+  local signed_mv="${DARWIN_SIGNED_MV:-$(command -v mv)}"
   mkdir -p "$bootstrap_share"
   : >> "$bootstrap_share/signed-fresh-gcc-executables.tsv"
   for compiler_executable in gcc/xgcc gcc/g++ gcc/c++ gcc/cc1plus; do
@@ -769,11 +772,11 @@ sign_fresh_gcc_executables() {
     # ad-hoc signature changes only Mach-O execution metadata; it does not
     # substitute a host compiler or alter their source/object provenance.
     signed_compiler_executable="$compiler_executable.darwin-signed"
-    "$DARWIN_SIGNED_COPY" -p "$compiler_executable" "$signed_compiler_executable"
-    "$DARWIN_SIGNED_CHMOD" u+w,go-w "$signed_compiler_executable"
+    "$signed_copy" -p "$compiler_executable" "$signed_compiler_executable"
+    "$signed_chmod" u+w,go-w "$signed_compiler_executable"
     /usr/bin/codesign --force --sign - --timestamp=none "$signed_compiler_executable"
     /usr/bin/codesign --verify --strict "$signed_compiler_executable"
-    "$DARWIN_SIGNED_MV" -f "$signed_compiler_executable" "$compiler_executable"
+    "$signed_mv" -f "$signed_compiler_executable" "$compiler_executable"
     /usr/bin/codesign --verify --strict "$compiler_executable"
     printf '%s\t%s\t%s\n' \
       "$compiler_executable" \
