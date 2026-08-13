@@ -753,6 +753,20 @@ stage table, candidate lists, and hashes are retained as
 
 ### Performance observations and priorities
 
+### Fast correctness validation
+
+Performance campaigns are intentionally deferred while the end-to-end shell
+track is being recovered.  A partial target can be checked without restarting
+the expensive prefix: `BOOT_START_FROM=44 BOOT_STOP_AFTER=44 TARGET=/private/tmp/<target> sh build.sh`
+rebuilds the Darwin TinyCC wrapper and runs its hello smoke test (exit 42).
+For later checkpoints, use `BOOT_START_FROM=54` or `BOOT_STOP_AFTER=44g` with
+the same dedicated target.  These are correctness probes only; they do not
+establish a clean from-seed bootstrap or a timing sample.  The full shell
+milestone remains `sh build.sh` followed by `scripts/gcc10-goal-test.sh`, which
+must compile and run a program returning 7.  The Linux ~30-minute baseline is
+useful context, but no Darwin speed comparison is claimed until a quiet,
+repeatable campaign is authorized.
+
 The correctness warm-ups are deliberately excluded from statistical results.
 Earlier attempts had Spotlight consuming tens to hundreds of percent CPU.  In
 the final guarded C++ checkpoint, `ecosystemd`, `ecosystemanalyticsd`, and

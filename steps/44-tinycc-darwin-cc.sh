@@ -100,6 +100,7 @@ sed -i.bak \
     -e "s|@LINE_REWRITE@|$TARGET/bin/line-rewrite|g" \
     -e "s|@SYNTH_INJECT_BIN@|$TARGET/bin/synth-inject|g" \
     -e '/^source @SIGNING@$/d' \
+    -e '/^@SIGTOOL@ --file /d' \
     -e '/^sign "\$out"$/d' \
     "$out/bin/tcc-darwin-cc"
 rm -f "$out/bin/tcc-darwin-cc.bak"

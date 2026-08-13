@@ -32,6 +32,15 @@ def write_tsv(path: Path, fields: list[str], rows: list[list[object]]) -> None:
 
 
 class HarnessSourceTests(unittest.TestCase):
+    def test_shell_tinycc_wrapper_drops_nix_signing_placeholder(self) -> None:
+        """The shell track must not emit an unresolved Nix signing command."""
+        step = (ROOT / "steps" / "44-tinycc-darwin-cc.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("-e '/^@SIGTOOL@ --file /d'", step)
+        substitution = step.split('"$out/bin/tcc-darwin-cc"', 1)[0]
+        self.assertNotIn("@SIGTOOL@ --file", substitution)
+
     def test_elf64_to_m1_signs_at_its_declared_linkedit_boundary(self) -> None:
         expression = (
             ROOT / "nix" / "mescc-tools" / "elf64-to-m1.nix"
