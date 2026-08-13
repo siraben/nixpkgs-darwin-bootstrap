@@ -40,6 +40,9 @@ runCommand "gcc-${gcc46Version}-cxx" {
 } ''
   GNUPATCH=${gnupatch}/bin/patch \
   GCC46_CXX_MPC_PATCH=${root + "/patches/gcc-4.6.4-mpc-assume-mpfr.patch"} \
+  DARWIN_SIGNED_COPY="$(command -v cp)" \
+  DARWIN_SIGNED_CHMOD="$(command -v chmod)" \
+  DARWIN_SIGNED_MV="$(command -v mv)" \
   BOOTSTRAP_MAKE=${bootstrap-gnumake}/bin/make \
     GCC46_BOOTSTRAP_OBJECT_FORMAT=macho \
     BOOTSTRAP_JOBS=$NIX_BUILD_CORES \

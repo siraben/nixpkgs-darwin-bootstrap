@@ -253,8 +253,14 @@ class HarnessSourceTests(unittest.TestCase):
             '/usr/bin/codesign --force --sign - --timestamp=none "$signed_compiler_executable"',
             signing,
         )
-        self.assertIn('cp -p "$compiler_executable" "$signed_compiler_executable"', signing)
-        self.assertIn('mv -f "$signed_compiler_executable" "$compiler_executable"', signing)
+        self.assertIn(
+            '"$DARWIN_SIGNED_COPY" -p "$compiler_executable" "$signed_compiler_executable"',
+            signing,
+        )
+        self.assertIn(
+            '"$DARWIN_SIGNED_MV" -f "$signed_compiler_executable" "$compiler_executable"',
+            signing,
+        )
         self.assertIn(
             '/usr/bin/codesign --verify --strict "$compiler_executable"',
             signing,
@@ -278,6 +284,8 @@ class HarnessSourceTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn('__impureHostDeps = [ "/usr/bin/codesign" ];', expression)
+        for tool in ("COPY", "CHMOD", "MV"):
+            self.assertIn(f'DARWIN_SIGNED_{tool}="$(command -v {tool.lower()})"', expression)
 
     def test_gcc46_cxx_rebases_copied_private_tool_paths(self) -> None:
         script = (

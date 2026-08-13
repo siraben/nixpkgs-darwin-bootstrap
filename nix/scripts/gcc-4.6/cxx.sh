@@ -769,11 +769,11 @@ sign_fresh_gcc_executables() {
     # ad-hoc signature changes only Mach-O execution metadata; it does not
     # substitute a host compiler or alter their source/object provenance.
     signed_compiler_executable="$compiler_executable.darwin-signed"
-    cp -p "$compiler_executable" "$signed_compiler_executable"
-    chmod u+w,go-w "$signed_compiler_executable"
+    "$DARWIN_SIGNED_COPY" -p "$compiler_executable" "$signed_compiler_executable"
+    "$DARWIN_SIGNED_CHMOD" u+w,go-w "$signed_compiler_executable"
     /usr/bin/codesign --force --sign - --timestamp=none "$signed_compiler_executable"
     /usr/bin/codesign --verify --strict "$signed_compiler_executable"
-    mv -f "$signed_compiler_executable" "$compiler_executable"
+    "$DARWIN_SIGNED_MV" -f "$signed_compiler_executable" "$compiler_executable"
     /usr/bin/codesign --verify --strict "$compiler_executable"
     printf '%s\t%s\t%s\n' \
       "$compiler_executable" \
