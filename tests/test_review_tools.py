@@ -41,6 +41,15 @@ class HarnessSourceTests(unittest.TestCase):
         substitution = step.split('"$out/bin/tcc-darwin-cc"', 1)[0]
         self.assertNotIn("@SIGTOOL@ --file", substitution)
 
+    def test_gcc46_libgcc_wrapper_staging_survives_libgcc_directory_change(self) -> None:
+        for relative_path in (
+            "sources/gcc46-scripts/phase36-libgcc.sh",
+            "nix/scripts/gcc-4.6/libgcc.sh",
+        ):
+            script = (ROOT / relative_path).read_text(encoding="utf-8")
+            self.assertIn('xgcc_wrapper="$PWD/work/build/gcc/xgcc-bootstrap"', script)
+            self.assertIn('sed -i "1s|.*|#!$wrapper_bash|" "$xgcc_wrapper"', script)
+
     def test_elf64_to_m1_signs_at_its_declared_linkedit_boundary(self) -> None:
         expression = (
             ROOT / "nix" / "mescc-tools" / "elf64-to-m1.nix"

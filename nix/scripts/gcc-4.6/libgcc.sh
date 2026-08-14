@@ -84,10 +84,11 @@ SH_AS
 chmod +x work/build/gcc/as
 
 if [ -n "$xgcc_wrapper_template" ]; then
-  cp "$xgcc_wrapper_template" work/build/gcc/xgcc-bootstrap
+  xgcc_wrapper="$PWD/work/build/gcc/xgcc-bootstrap"
+  cp "$xgcc_wrapper_template" "$xgcc_wrapper"
   wrapper_bash=$(command -v bash)
-  sed -i "1s|.*|#!$wrapper_bash|" work/build/gcc/xgcc-bootstrap
-  chmod +x work/build/gcc/xgcc-bootstrap
+  sed -i "1s|.*|#!$wrapper_bash|" "$xgcc_wrapper"
+  chmod +x "$xgcc_wrapper"
 fi
 
 libgcc_dir=work/build/x86_64-apple-darwin/libgcc
