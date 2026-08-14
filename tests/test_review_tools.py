@@ -48,7 +48,8 @@ class HarnessSourceTests(unittest.TestCase):
         ):
             script = (ROOT / relative_path).read_text(encoding="utf-8")
             self.assertIn('xgcc_wrapper="$PWD/work/build/gcc/xgcc-bootstrap"', script)
-            self.assertIn('sed -i "1s|.*|#!$wrapper_bash|" "$xgcc_wrapper"', script)
+            self.assertIn('sed -i.bak "1s|.*|#!$wrapper_bash|" "$xgcc_wrapper"', script)
+            self.assertIn('rm -f "$xgcc_wrapper.bak"', script)
 
     def test_elf64_to_m1_signs_at_its_declared_linkedit_boundary(self) -> None:
         expression = (
