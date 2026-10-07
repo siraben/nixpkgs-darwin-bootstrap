@@ -2,7 +2,7 @@
 # Build a REAL core libgcc.a with the from-seed xgcc, to replace the empty stub.
 # Sourced env: expects ROOT and TARGET set (or sources gcc10-env.sh itself).
 #
-# The from-seed gcc-10 has three known compiler bugs that the gcc target-libgcc
+# The from-seed gcc-10 has four known compiler bugs that the gcc target-libgcc
 # build trips over; each is worked around here (and documented in STATUS.md):
 #   1. The xgcc DRIVER segfaults reading ANY external `specs` file (a read_specs
 #      bug) — even an empty one, or its own byte-identical `-dumpspecs`.  The
@@ -13,6 +13,9 @@
 #   3. cc1 emits malformed TLS assembly (`...@gottpof`, should be `@GOTTPOFF`)
 #      that the system `as` rejects — this blocks _eprintf (a non-essential
 #      assert helper that touches the `stderr` TLS), which is excluded.
+#   4. Division helpers emit malformed exception-table assembly referencing
+#      __gcc_personality_v0. Build these arithmetic helpers without exception
+#      handling, consistent with this core-only runtime's lack of EH support.
 # The EH/unwind library (libgcc_eh.a) additionally needs <pthread.h>, absent from
 # the chain --sysroot, so only the arithmetic/soft-float CORE libgcc.a is built;
 # the EH/libgcc_s/emutls stubs are left in place by the caller.
@@ -25,8 +28,8 @@
 # /usr/bin/as, ld, ar, ranlib — trust boundary: the system assembler turns
 # xgcc's assembly into Mach-O objects and the system ar archives them, so
 # libgcc.a members are host-assembled from chain-generated assembly.
-# Host perl performs two Makefile text edits (specs target, _eprintf).
-set -u
+# Host perl neutralises the generated Makefile's specs target.
+set -eu
 
 : "${ROOT:?gcc10-build-libgcc.sh: ROOT must be set}"
 . "$ROOT/scripts/gcc10-env.sh"
@@ -68,30 +71,25 @@ find "$B"         -print0 | xargs -0 touch -t 202701010000 2>/dev/null || true
 
 cd "$B" || exit 2
 
-# Configure the target libgcc subtree (creates $LB/Makefile).
-mt configure-target-libgcc || true
+# Configure the target libgcc subtree (creates $LB/Makefile). A configure
+# failure is not an acceptable partial runtime.
+mt configure-target-libgcc
 
-# --- bug 3: drop the TLS-using _eprintf from the func list so the malformed-TLS
-# `as` error does not abort the build.
-if [ -f "$LB/Makefile" ]; then
-  perl -i -pe 's/^LIB2FUNCS_ST = _eprintf __gcc_bcmp$/LIB2FUNCS_ST = __gcc_bcmp/' "$LB/Makefile"
-fi
+# Build only the core archive, not all-target-libgcc (which also requires the
+# unavailable EH runtime). Let make enumerate the complete prerequisite set;
+# never package a glob of whichever objects happened to compile before an error.
+# LIB2ADDEH is included in libgcc.a for static-only builds, so exclude it
+# explicitly. Keep GCC's full LIBGCC2_CFLAGS: the generated libgcc.mvars already
+# selects -O0, and overriding the whole variable drops required definitions.
+rm -f "$LB/libgcc.a"
+"$MAKE" -C "$LB" libgcc.a -j1 MAKEINFO=true \
+  AR=/usr/bin/ar AR_FOR_TARGET=/usr/bin/ar RANLIB=/usr/bin/ranlib \
+  LIB2FUNCS_ST=__gcc_bcmp LIB2ADDEH= \
+  "LIB2_DIVMOD_EXCEPTION_FLAGS=-fno-exceptions -fno-non-call-exceptions"
 
-# Build as much of libgcc as compiles; the EH/unwind objects fail on missing
-# <pthread.h> (documented gap) — tolerate that, we only want the core.
-mt all-target-libgcc || true
-
-# Archive the CORE libgcc.a from every object that built (the EH/unwind objects
-# did not, so they are simply absent).  The members are real Mach-O objects, so
-# the archive is consumable by the system ld used for the final exe link.
-if ls "$LB"/*.o >/dev/null 2>&1; then
-  ( cd "$LB" && rm -f libgcc.a && /usr/bin/ar crs libgcc.a ./*.o )
-fi
-
-if [ -f "$LB/libgcc.a" ]; then
-  cp "$LB/libgcc.a" "$B/gcc/libgcc.a"
-  echo "gcc10-build-libgcc: installed real core libgcc.a ($(/usr/bin/ar t "$B/gcc/libgcc.a" | wc -l | tr -d ' ') members)"
-  exit 0
-fi
-echo "gcc10-build-libgcc: FAILED to produce a core libgcc.a" >&2
-exit 1
+test -f "$LB/libgcc.a" || {
+  echo "gcc10-build-libgcc: FAILED to produce a core libgcc.a" >&2
+  exit 1
+}
+cp "$LB/libgcc.a" "$B/gcc/libgcc.a"
+echo "gcc10-build-libgcc: installed real core libgcc.a ($(/usr/bin/ar t "$B/gcc/libgcc.a" | wc -l | tr -d ' ') members)"
