@@ -30,12 +30,12 @@ cat header.bin body.bin > "$TARGET/bin/catm-darwin"
 
 ## Pad to 0x900000 bytes, the __LINKEDIT file offset in the catm header
 ## template (its __DATA is 1 MiB, smaller than the 32 MiB layout used
-## from step 05 on, hence the smaller pad target).  dd fills the gap
-## with zeros only when the file is shorter.
+## from step 05 on, hence the smaller pad target). Seek over the zero-filled
+## gap instead of issuing millions of one-byte reads and writes.
 dataEnd=9437184  ## 0x900000
 cur=$(wc -c < "$TARGET/bin/catm-darwin")
 if [ "$cur" -lt "$dataEnd" ]; then
-  dd if=/dev/zero of="$TARGET/bin/catm-darwin" bs=1 count=$((dataEnd - cur)) seek="$cur" conv=notrunc 2>/dev/null
+  dd if=/dev/zero of="$TARGET/bin/catm-darwin" bs=1 count=1 seek=$((dataEnd - 1)) conv=notrunc 2>/dev/null
 fi
 chmod +x "$TARGET/bin/catm-darwin"
 
