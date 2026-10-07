@@ -2,6 +2,8 @@
 """Regression tests for the paired executable benchmark's correctness gate."""
 import importlib.util
 import pathlib
+import os
+import subprocess
 import tempfile
 import unittest
 
@@ -27,6 +29,23 @@ class BenchmarkTests(unittest.TestCase):
             script.chmod(0o755)
             with self.assertRaisesRegex(RuntimeError, "output mismatch"):
                 bench.benchmark("/usr/bin/printf", str(script), ["same"], 5, 1)
+
+
+class ShellBenchmarkGuards(unittest.TestCase):
+    def test_invalid_inputs_do_not_create_or_replace_results(self):
+        script = SCRIPT.with_name("bench-shell-e2e.sh")
+        with tempfile.TemporaryDirectory() as directory:
+            existing = pathlib.Path(directory)
+            marker = existing / "keep"
+            marker.touch()
+            for path, samples in [("relative", "1"), (directory, "1"),
+                                  (str(existing / "new"), "invalid")]:
+                result = subprocess.run(["sh", str(script), path],
+                                        env=dict(os.environ, BOOT_BENCH_SAMPLES=samples),
+                                        capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(marker.exists())
+            self.assertFalse((existing / "new").exists())
 
 
 if __name__ == "__main__":

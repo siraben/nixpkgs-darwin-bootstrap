@@ -51,6 +51,20 @@ matched the original. This is a signing-layout fix, not an algorithmic speedup.
 
 ## End-to-end validation
 
+```sh
+sh scripts/bench-shell-e2e.sh /tmp/darwin-e2e-pair
+# For stronger timing evidence (many hours per build, substantial disk use):
+BOOT_BENCH_SAMPLES=5 sh scripts/bench-shell-e2e.sh /tmp/darwin-e2e-five-pairs
+```
+
+The harness checks out a detached committed-source worktree, verifies pinned
+inputs before timing, resets inherited cache/resume/debug settings, and builds
+unsigned and signed variants into independent fresh targets. It alternates
+order between pairs, records full logs (without background-log truncation),
+checks compiler/runtime goals, and stops on failure or insufficient disk space.
+Its default single pair is descriptive only, not statistically conclusive.
+
+
 The earlier unsigned from-seed run took about eight hours, including GCC 4.6,
 C++/libstdc++, GCC 10 and the core-runtime retry; see [STATUS.md](STATUS.md).
 It is a historical baseline, not five clean timing samples. A signed run must
