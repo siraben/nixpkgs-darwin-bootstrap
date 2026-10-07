@@ -1,0 +1,105 @@
+{
+  "samples": 5,
+  "iterations_per_sample": 20,
+  "rows": [
+    {
+      "sample": 1,
+      "variant": "baseline",
+      "wall_s": 0.622143584,
+      "user_s": 0.0866,
+      "sys_s": 0.09541
+    },
+    {
+      "sample": 1,
+      "variant": "candidate",
+      "wall_s": 0.19899137500000008,
+      "user_s": 0.07038099999999999,
+      "sys_s": 0.079815
+    },
+    {
+      "sample": 2,
+      "variant": "candidate",
+      "wall_s": 0.1962226669999999,
+      "user_s": 0.06994800000000001,
+      "sys_s": 0.078543
+    },
+    {
+      "sample": 2,
+      "variant": "baseline",
+      "wall_s": 0.20389191699999998,
+      "user_s": 0.07019599999999998,
+      "sys_s": 0.07397700000000001
+    },
+    {
+      "sample": 3,
+      "variant": "baseline",
+      "wall_s": 0.21593541700000007,
+      "user_s": 0.07428499999999999,
+      "sys_s": 0.07893
+    },
+    {
+      "sample": 3,
+      "variant": "candidate",
+      "wall_s": 0.19553924999999994,
+      "user_s": 0.06932500000000003,
+      "sys_s": 0.07860799999999996
+    },
+    {
+      "sample": 4,
+      "variant": "candidate",
+      "wall_s": 0.20353829199999995,
+      "user_s": 0.07167500000000004,
+      "sys_s": 0.08230299999999996
+    },
+    {
+      "sample": 4,
+      "variant": "baseline",
+      "wall_s": 0.20285291699999997,
+      "user_s": 0.07001599999999997,
+      "sys_s": 0.07414700000000007
+    },
+    {
+      "sample": 5,
+      "variant": "baseline",
+      "wall_s": 0.206250292,
+      "user_s": 0.07104199999999994,
+      "sys_s": 0.07506899999999994
+    },
+    {
+      "sample": 5,
+      "variant": "candidate",
+      "wall_s": 0.1956110419999999,
+      "user_s": 0.06904200000000005,
+      "sys_s": 0.07837499999999997
+    }
+  ],
+  "medians": {
+    "baseline": {
+      "wall_s": 0.206250292,
+      "user_s": 0.07104199999999994,
+      "sys_s": 0.07506899999999994
+    },
+    "candidate": {
+      "wall_s": 0.1962226669999999,
+      "user_s": 0.06994800000000001,
+      "sys_s": 0.07860799999999996
+    }
+  },
+  "wall_speedup": 1.0511032958287132,
+  "output_sha256": [
+    "74c74ef36fb0f8ee3b96d70bc178ed8085f69ee11a6bce505a87a561691b7046",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "host": "macOS-26.5.2-arm64-arm-64bit",
+  "executables": [
+    "/private/tmp/darwin-refresh-baseline/bin/tcc-boot3",
+    "/private/tmp/darwin-perf-probe/tcc-boot3"
+  ],
+  "executable_sha256": [
+    "c166e3b36c2f8586be82c6784c10112a7c2f82c82b45b2d2e13dd3edcb800b60",
+    "6c8d66aee2aa396a3d82f967442d6f00685cfa888e499180a5c3cd0a3b396cdc"
+  ],
+  "arguments": [
+    "-v"
+  ]
+}

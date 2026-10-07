@@ -1,0 +1,105 @@
+{
+  "samples": 5,
+  "iterations_per_sample": 20,
+  "rows": [
+    {
+      "sample": 1,
+      "variant": "baseline",
+      "wall_s": 0.345554625,
+      "user_s": 0.082728,
+      "sys_s": 0.09100599999999999
+    },
+    {
+      "sample": 1,
+      "variant": "candidate",
+      "wall_s": 0.18050195800000002,
+      "user_s": 0.06600899999999998,
+      "sys_s": 0.073562
+    },
+    {
+      "sample": 2,
+      "variant": "candidate",
+      "wall_s": 0.18154412500000006,
+      "user_s": 0.066469,
+      "sys_s": 0.073574
+    },
+    {
+      "sample": 2,
+      "variant": "baseline",
+      "wall_s": 0.1923125000000001,
+      "user_s": 0.06712700000000002,
+      "sys_s": 0.072099
+    },
+    {
+      "sample": 3,
+      "variant": "baseline",
+      "wall_s": 0.18980745799999998,
+      "user_s": 0.06640799999999997,
+      "sys_s": 0.07121099999999997
+    },
+    {
+      "sample": 3,
+      "variant": "candidate",
+      "wall_s": 0.182763,
+      "user_s": 0.06658800000000004,
+      "sys_s": 0.07402800000000004
+    },
+    {
+      "sample": 4,
+      "variant": "candidate",
+      "wall_s": 0.18072554200000002,
+      "user_s": 0.06576299999999996,
+      "sys_s": 0.073542
+    },
+    {
+      "sample": 4,
+      "variant": "baseline",
+      "wall_s": 0.19138212500000007,
+      "user_s": 0.06635599999999997,
+      "sys_s": 0.07177599999999995
+    },
+    {
+      "sample": 5,
+      "variant": "baseline",
+      "wall_s": 0.19311962500000024,
+      "user_s": 0.06731500000000001,
+      "sys_s": 0.07239800000000007
+    },
+    {
+      "sample": 5,
+      "variant": "candidate",
+      "wall_s": 0.18266016699999987,
+      "user_s": 0.06664199999999998,
+      "sys_s": 0.07413099999999995
+    }
+  ],
+  "medians": {
+    "baseline": {
+      "wall_s": 0.1923125000000001,
+      "user_s": 0.06712700000000002,
+      "sys_s": 0.072099
+    },
+    "candidate": {
+      "wall_s": 0.18154412500000006,
+      "user_s": 0.066469,
+      "sys_s": 0.073574
+    }
+  },
+  "wall_speedup": 1.0593154694485434,
+  "output_sha256": [
+    "90e95632d173e1070c1a0891fa79df9a81f120826f017605f95d00de8778a4f1",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "host": "macOS-26.5.2-arm64-arm-64bit",
+  "executables": [
+    "/private/tmp/darwin-refresh-baseline/bin/make",
+    "/private/tmp/darwin-perf-probe/make"
+  ],
+  "executable_sha256": [
+    "11a9aefb1309c7b322d776c71f47febb5cbddfeab0f412993e45b328a6a249da",
+    "9d923a6c24b35d76de5dda523a3aa516c5a54f84c0e7c899821d88f2afd7b798"
+  ],
+  "arguments": [
+    "--version"
+  ]
+}

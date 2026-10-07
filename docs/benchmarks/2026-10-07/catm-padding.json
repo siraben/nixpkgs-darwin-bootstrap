@@ -1,0 +1,103 @@
+{
+  "samples": 5,
+  "iterations_per_sample": 1,
+  "rows": [
+    {
+      "sample": 1,
+      "variant": "baseline",
+      "wall_s": 21.345776958000002,
+      "user_s": 1.708666,
+      "sys_s": 16.321636
+    },
+    {
+      "sample": 1,
+      "variant": "candidate",
+      "wall_s": 1.6499862080000014,
+      "user_s": 0.060301999999999856,
+      "sys_s": 0.03624899999999798
+    },
+    {
+      "sample": 2,
+      "variant": "candidate",
+      "wall_s": 1.4073277500000003,
+      "user_s": 0.05965799999999999,
+      "sys_s": 0.03429099999999963
+    },
+    {
+      "sample": 2,
+      "variant": "baseline",
+      "wall_s": 19.654524917,
+      "user_s": 1.740059,
+      "sys_s": 16.354824999999998
+    },
+    {
+      "sample": 3,
+      "variant": "baseline",
+      "wall_s": 20.33782575,
+      "user_s": 1.8520860000000003,
+      "sys_s": 16.951932
+    },
+    {
+      "sample": 3,
+      "variant": "candidate",
+      "wall_s": 1.461764708000004,
+      "user_s": 0.06030599999999975,
+      "sys_s": 0.036803000000006136
+    },
+    {
+      "sample": 4,
+      "variant": "candidate",
+      "wall_s": 1.3988179170000024,
+      "user_s": 0.05968600000000013,
+      "sys_s": 0.03423999999999694
+    },
+    {
+      "sample": 4,
+      "variant": "baseline",
+      "wall_s": 19.874581291,
+      "user_s": 1.8682439999999998,
+      "sys_s": 16.612156
+    },
+    {
+      "sample": 5,
+      "variant": "baseline",
+      "wall_s": 19.505122874999998,
+      "user_s": 1.713031,
+      "sys_s": 16.381872
+    },
+    {
+      "sample": 5,
+      "variant": "candidate",
+      "wall_s": 1.423037249999993,
+      "user_s": 0.0606340000000003,
+      "sys_s": 0.03770400000000507
+    }
+  ],
+  "medians": {
+    "baseline": {
+      "wall_s": 19.874581291,
+      "user_s": 1.740059,
+      "sys_s": 16.381872
+    },
+    "candidate": {
+      "wall_s": 1.423037249999993,
+      "user_s": 0.060301999999999856,
+      "sys_s": 0.03624899999999798
+    }
+  },
+  "wall_speedup": 13.966311346382602,
+  "output_sha256": [
+    "54828ede636cd0de4aef5984514ad593ac80505fcf113714c5c94309a209b2f4",
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  ],
+  "host": "macOS-26.5.2-arm64-arm-64bit",
+  "executables": [
+    "/private/tmp/darwin-perf-probe/catm-baseline",
+    "/private/tmp/darwin-perf-probe/catm-candidate"
+  ],
+  "executable_sha256": [
+    "02ddcf6904d90c82814b9244a8265843743b209ecb2e7836e8fdbe0c347b8d91",
+    "851fb2135f8a8989827931669278f5108d9da3f90b99b6c23c480a8a9984499d"
+  ],
+  "arguments": []
+}
