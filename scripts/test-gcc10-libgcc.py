@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Maintainer-only tests for core runtime failure handling."""
+"""Maintainer-only tests for core runtime failure handling and goal checks."""
 import os
 import pathlib
 import subprocess
@@ -54,6 +54,44 @@ class LibgccTests(unittest.TestCase):
 
     def test_core_build_failure_does_not_install_partial_archive(self):
         self.check_failure(False)
+
+
+class GoalTests(unittest.TestCase):
+    def check_map(self, bootstrap_archive):
+        with tempfile.TemporaryDirectory() as directory:
+            build = pathlib.Path(directory)
+            (build / "gcc").mkdir()
+            compiler = build / "gcc/xgcc"
+            compiler.write_text(
+                '#!/bin/sh\nset -eu\nmap=\n'
+                'while [ "$#" -gt 0 ]; do\n'
+                '  case "$1" in\n'
+                '    -o) shift; out=$1 ;;\n'
+                '    -Wl,-map,*) map=${1#-Wl,-map,} ;;\n'
+                '  esac\n  shift\ndone\n'
+                'printf "#!/bin/sh\\nexit 7\\n" > "$out"\nchmod +x "$out"\n'
+                'if [ -n "$map" ]; then\n'
+                + ('  printf "%s\\n" "$GCC10_BUILD/gcc/libgcc.a(_divdi3.o)" '
+                   '"$GCC10_BUILD/gcc/libgcc.a(_udivdi3.o)" > "$map"\n'
+                   if bootstrap_archive else '  : > "$map"\n')
+                + 'fi\n'
+            )
+            compiler.chmod(0o755)
+            result = subprocess.run(
+                ["/bin/sh", str(ROOT / "scripts/gcc10-goal-test.sh")],
+                env=dict(os.environ, GCC10_BUILD=str(build)),
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0 if bootstrap_archive else 1, result.stderr)
+            if not bootstrap_archive:
+                self.assertIn("did not load _divdi3.o", result.stderr)
+                self.assertNotIn("GOAL PASS", result.stdout)
+
+    def test_runtime_loaded_from_core_archive(self):
+        self.check_map(True)
+
+    def test_successful_execution_without_core_archive_is_rejected(self):
+        self.check_map(False)
 
 
 if __name__ == "__main__":

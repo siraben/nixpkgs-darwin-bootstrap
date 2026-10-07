@@ -161,8 +161,13 @@ documented boundaries.
 sh scripts/fetch-sources.sh          # fetch pinned tarballs into tarballs/
 sh build.sh                          # full chain into target/
 TARGET=/tmp/verify sh build.sh       # clean from-seed run into a scratch tree
-TARGET=/tmp/verify sh scripts/gcc10-goal-test.sh   # xgcc compiles+runs C → 7
+TARGET=/tmp/verify sh scripts/gcc10-goal-test.sh   # C + core libgcc division → 7
 ```
+
+The goal test checks recursion and signed/unsigned 128-bit division, and
+checks the linker map to ensure the division helpers come from the bootstrap
+`libgcc.a`, not libSystem. The core runtime excludes exception handling;
+EH/unwind and emutls stubs remain the documented boundary.
 
 Resume and range controls: `BOOT_START_FROM=54 sh build.sh` skips ahead
 (and keeps the existing `TARGET`), `BOOT_STOP_AFTER=14 sh build.sh`
