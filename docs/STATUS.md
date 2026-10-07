@@ -30,6 +30,43 @@ hex0 → hex1 → hex2 → catm → M0 → macho-patcher → cc-arch → M2
   (`xgcc hello.c` compiles & runs, returns 7)
 ```
 
+## Shell bootstrap refresh verification (2026-10-05)
+
+A scratch build at `TARGET=/tmp/darwin-refresh-baseline` ran from the seed
+through GCC 4.6, its C++ frontend/libstdc++, and GCC 10 `cc1`/`xgcc`. The
+initial step-55 run stopped at the core-runtime check: `_divdi3` emitted
+malformed exception-table assembly referencing `__gcc_personality_v0`, and
+only 84 archive members had built. The minimum-member check correctly failed.
+
+`scripts/gcc10-build-libgcc.sh` now builds the explicit `libgcc.a` target,
+excluding the unsupported EH sources and disabling exception handling for
+division helpers. Configure/build failures are fatal: it no longer archives
+whatever `.o` files happened to exist after a failed `all-target-libgcc`.
+The underlying exception-table code-generation bug is **not** fixed; this
+runtime intentionally remains core-only, without exception support.
+
+Verification after the fix:
+
+- Kept the from-seed compiler outputs and resumed the failed runtime phase;
+  did not repeat the multi-hour compiler builds.
+- Moved the entire target-libgcc build directory aside, then configured and
+  rebuilt it from scratch with the updated helper: **134 core members**.
+  The archive now contains the declared core prerequisites, not a glob that
+  can accidentally include unrelated objects from a partial build.
+- `scripts/gcc10-goal-test.sh` exited zero: recursive Fibonacci and explicit
+  signed/unsigned 128-bit division each returned **7**. Link-map checks prove
+  `_divdi3.o` and `_udivdi3.o` were loaded from the bootstrap `libgcc.a`.
+- A shadow compiler directory with a symbol-less `libgcc.a` was rejected by
+  the goal test. This matters because libSystem exports division helpers too:
+  a successful compile/link/run alone does not prove the core archive works.
+- All **15** maintainer regression tests passed (metrics, wrapper staging,
+  resume environment, runtime failure handling and link-map enforcement).
+
+The host assembler/linker/archive tools and the `libgcc_eh`/`libgcc_s`/
+`libemutls_w` stubs remain the documented platform boundaries. No core-libgcc
+stub fallback was enabled. This verification covers the shell track, not the
+Nix GCC-latest/Hello gate.
+
 ## ✅✅ FULL FROM-SEED REPRODUCIBILITY VERIFIED (2026-06-03)
 
 `sh bake/build.sh` rebuilds the **entire** chain from the committed 4 KB hex0
