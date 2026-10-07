@@ -42,7 +42,6 @@
 ##           step is dropped (unsigned binaries run here).
 set -eu
 
-mes_source="$TARGET/mes-source"
 out="$TARGET/tcc-darwin-cc-root"
 rm -rf "$out"
 mkdir -p "$out/bin" "$out/include/tcc-darwin-bootstrap" "$out/share"
@@ -101,6 +100,7 @@ sed -i.bak \
     -e "s|@SYNTH_INJECT_BIN@|$TARGET/bin/synth-inject|g" \
     -e '/^source @SIGNING@$/d' \
     -e '/^sign "\$out"$/d' \
+    -e '/^@SIGTOOL@ /d' \
     "$out/bin/tcc-darwin-cc"
 rm -f "$out/bin/tcc-darwin-cc.bak"
 
@@ -114,7 +114,13 @@ cd "$work"
 cat > hello.c <<C
 int main(void) { return 42; }
 C
-"$TARGET/bin/tcc-darwin-cc" hello.c -o hello 2>&1 | tail -5
+## No pipe here: /bin/sh has no pipefail, so `... | tail` would hide a
+## failing wrapper exit status (e.g. an unsubstituted @PLACEHOLDER@ line).
+"$TARGET/bin/tcc-darwin-cc" hello.c -o hello
+if grep -n '@[A-Z0-9_]*@' "$TARGET/bin/tcc-darwin-cc"; then
+    echo "tcc-darwin-cc: unsubstituted placeholder(s) above" >&2
+    exit 1
+fi
 set +e
 ./hello
 status="$?"
