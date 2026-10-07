@@ -46,6 +46,16 @@ TARGET="${TARGET:-$ROOT/target}"
 ## positional arguments.
 export ROOT SEED SOURCES STEPS TARGET
 
+## Ad-hoc signatures are an opt-in execution-metadata boundary, not a change
+## to source translation. Keep the uninstrumented executable bytes available
+## for A/B tests. The fixed 4 KiB seed is deliberately left untouched.
+BOOT_SIGN_EXECUTABLES="${BOOT_SIGN_EXECUTABLES:-0}"
+case "$BOOT_SIGN_EXECUTABLES" in
+  0|1) ;;
+  *) echo "BOOT_SIGN_EXECUTABLES must be 0 or 1" >&2; exit 1 ;;
+esac
+export BOOT_SIGN_EXECUTABLES
+
 ## Reset target on each run for a clean build — UNLESS resuming via
 ## $BOOT_START_FROM (skip the wipe so an existing partial target is reused, e.g.
 ## to re-run a fixed late step without redoing the multi-hour gcc builds).
@@ -124,7 +134,7 @@ for step in "$STEPS"/*.sh; do
   ## fails fast and configure proceeds; no build step needs real stdin.
   if [ "$BOOT_METRICS" = 1 ]; then
     echo "$step_name" > "$METRICS/current"
-    ( cd "$ROOT" && /usr/bin/time -l -o "$METRICS/$step_name.time" /bin/sh "$step" </dev/null )
+    ( cd "$ROOT" && /usr/bin/time -l -o "$METRICS/$step_name.time" /bin/sh "$ROOT/scripts/run-bootstrap-step.sh" "$step" </dev/null )
     ## time -l: "<real> real <user> user <sys> sys", then rusage lines; macOS
     ## reports maximum resident set size in bytes.
     t=$METRICS/$step_name.time
@@ -135,7 +145,7 @@ for step in "$STEPS"/*.sh; do
       "$(( ${rss:-0} / 1024 ))" "$(( ${fp:-0} / 1024 ))" >> "$METRICS/steps.tsv"
     printf '   %ss wall, max rss %s MiB\n' "${1:-?}" "$(( ${rss:-0} / 1048576 ))"
   else
-    ( cd "$ROOT" && /bin/sh "$step" </dev/null )
+    ( cd "$ROOT" && /bin/sh "$ROOT/scripts/run-bootstrap-step.sh" "$step" </dev/null )
   fi
   step_count=$((step_count + 1))
   printf '   ok\n\n'

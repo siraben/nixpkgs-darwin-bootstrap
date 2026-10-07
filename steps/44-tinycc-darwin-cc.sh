@@ -39,7 +39,8 @@
 ##           Apple /usr/bin utilities for orchestration; host awk
 ##           fallbacks are exercised only while steps 44b–44g build
 ##           their chain replacements.  The Nix recipe's codesigning
-##           step is dropped (unsigned binaries run here).
+##           hooks are replaced by optional host ad-hoc signing
+##           (BOOT_SIGN_EXECUTABLES=1).
 set -eu
 
 out="$TARGET/tcc-darwin-cc-root"
@@ -103,6 +104,12 @@ sed -i.bak \
     -e '/^@SIGTOOL@ /d' \
     "$out/bin/tcc-darwin-cc"
 rm -f "$out/bin/tcc-darwin-cc.bak"
+
+## Sign newly linked executables before configure or make executes them.
+## Object-only compiles exit earlier; signing is opt-in and changes metadata
+## only. Keep the same hook in the installed root and the PATH wrapper.
+printf '\n/bin/sh "%s/scripts/sign-bootstrap-tools.sh" "$out"\n' "$ROOT" \
+    >> "$out/bin/tcc-darwin-cc"
 
 ## Install to TARGET/bin so PATH picks it up
 install "$out/bin/tcc-darwin-cc" "$TARGET/bin/tcc-darwin-cc"

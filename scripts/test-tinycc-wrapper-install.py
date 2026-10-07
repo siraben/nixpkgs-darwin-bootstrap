@@ -41,7 +41,7 @@ class WrapperInstallTests(unittest.TestCase):
                 '@SIGTOOL@ --file "$out" inject\n'
                 + extra + f"\nexit {compiler_status}\n"
             )
-            env = dict(os.environ, TARGET=str(target), SOURCES=str(sources),
+            env = dict(os.environ, ROOT=str(ROOT), TARGET=str(target), SOURCES=str(sources),
                        PATH=f"{tools}:/usr/bin:/bin")
             return subprocess.run(
                 ["/bin/sh", str(ROOT / "steps/44-tinycc-darwin-cc.sh")],

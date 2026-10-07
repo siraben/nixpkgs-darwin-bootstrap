@@ -128,6 +128,22 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse((self.root / "target/metrics").exists())
 
+    def test_signing_failure_is_in_the_step_failure_boundary(self):
+        (self.root / "scripts/sign-bootstrap-tools.sh").write_text("exit 19\n")
+        result = self.run_driver(BOOT_SIGN_EXECUTABLES="1", BOOT_STOP_AFTER="01")
+        self.assertEqual(result.returncode, 19, result.stderr)
+        rows = (self.root / "target/metrics/steps.tsv").read_text().splitlines()
+        self.assertEqual(len(rows), 1, "signing failure must not produce a successful step row")
+
+    def test_invalid_signing_setting_fails_before_target_reset(self):
+        target = self.root / "target"
+        target.mkdir()
+        marker = target / "keep"
+        marker.touch()
+        result = self.run_driver(BOOT_SIGN_EXECUTABLES="invalid")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue(marker.exists())
+
     def test_failure_propagates(self):
         for enabled in ["0", "1"]:
             result = self.run_driver(BOOT_METRICS=enabled)

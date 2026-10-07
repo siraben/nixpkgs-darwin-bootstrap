@@ -99,6 +99,11 @@ documented boundaries.
 
 - **Apple-signed `/bin/sh` + `/usr/bin` POSIX utilities** (`cp`, `dd`,
   `cmp`, `tar`, `grep`, ...) orchestrate the steps.
+- **Optional ad-hoc signing** (`BOOT_SIGN_EXECUTABLES=1`) uses host
+  `/usr/bin/codesign` to add execution metadata to chain-built Mach-O tools
+  and TinyCC-linked executables. It does not replace a compiler or change
+  source translation. The 4 KiB seed remains untouched; signatures change
+  downstream binary hashes. Signing and strict verification fail closed.
 - **Host `awk`** performs the M1 code/data splits in the pre-compiler
   steps (21–42).  These splits partition already-translated M1 text;
   the C→M1 translation is chain `mescc` and the M1→Mach-O assembly is
@@ -191,6 +196,13 @@ RSS samples are approximate (one-second intervals, shared pages may be
 counted in multiple processes); short steps may have no sample. The report
 shows RSS in MiB; the TSV files use KiB. Failed steps retain their raw timing
 record but do not append a successful step row.
+
+For signed execution, use `BOOT_SIGN_EXECUTABLES=1 sh build.sh`. The default
+is `0`, preserving unsigned output bytes for comparison. Signing uses a
+replacement inode, leaves scripts/symlinks alone, and includes its overhead
+in the step timings. Build directories should not be shared by simultaneous
+signed and unsigned runs. Signature validation can reduce unsigned-code
+checks, but does not imply a measured end-to-end speedup.
 
 The gcc-10 phase is long: `cc1plus` runs x86-64 under Rosetta 2.  The
 final cc1 link is the single largest operation (a ~335 MB combined M1);
