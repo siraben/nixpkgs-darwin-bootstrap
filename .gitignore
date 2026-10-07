@@ -6,6 +6,9 @@
 /.conversion-info
 .DS_Store
 
+# Maintainer Python test caches
+__pycache__/
+
 # Editor / agent state
 /.claude/
 
