@@ -168,6 +168,25 @@ Resume and range controls: `BOOT_START_FROM=54 sh build.sh` skips ahead
 (and keeps the existing `TARGET`), `BOOT_STOP_AFTER=14 sh build.sh`
 stops after a named step.
 
+The driver records per-step wall/user/system time and maximum process RSS
+with macOS `/usr/bin/time -l`, plus sampled RSS summed over the build process
+tree. These measurement-only tools do not participate in code translation.
+Use `BOOT_METRICS=0` to disable them, or `BOOT_METRICS_DIR=/path/to/metrics`
+to override the default `$TARGET/metrics`. Resumed builds append step rows;
+raw timing records are saved as `<step>.time` (overwritten on a retry).
+The report preserves each attempt's timing row; sampled tree-RSS peaks are
+aggregated by step name across attempts.
+
+```sh
+sh scripts/boot-metrics-report.sh target/metrics
+python3 scripts/test-boot-metrics.py   # maintainer-only measurement tests
+```
+
+RSS samples are approximate (one-second intervals, shared pages may be
+counted in multiple processes); short steps may have no sample. The report
+shows RSS in MiB; the TSV files use KiB. Failed steps retain their raw timing
+record but do not append a successful step row.
+
 The gcc-10 phase is long: `cc1plus` runs x86-64 under Rosetta 2.  The
 final cc1 link is the single largest operation (a ~335 MB combined M1);
 the chain link tools' M2libc heap is sized (4 GB) to hold it.

@@ -66,6 +66,24 @@ export PATH="$TARGET/bin:/usr/bin:/bin"
 ## options.h.  C collation keeps identical names adjacent.
 export LC_ALL=C LANG=C
 
+## Metrics (measurement only; BOOT_METRICS=0 disables).  Per step, the
+## step's wall/user/sys time and the largest single-process max RSS come from
+## /usr/bin/time -l; a background sampler (scripts/boot-rss-sampler.sh)
+## records the summed RSS of the whole build process tree.  Results land in
+## $BOOT_METRICS_DIR (default $TARGET/metrics): steps.tsv, rss-samples.tsv,
+## and a summary via scripts/boot-metrics-report.sh.
+BOOT_METRICS="${BOOT_METRICS:-1}"
+METRICS="${BOOT_METRICS_DIR:-$TARGET/metrics}"
+if [ "$BOOT_METRICS" = 1 ]; then
+  mkdir -p "$METRICS"
+  [ -f "$METRICS/steps.tsv" ] || \
+    printf 'step\twall_s\tuser_s\tsys_s\tmax_rss_kib\tpeak_footprint_kib\n' > "$METRICS/steps.tsv"
+  echo init > "$METRICS/current"
+  /bin/sh "$ROOT/scripts/boot-rss-sampler.sh" $$ "$METRICS" 1 </dev/null >/dev/null 2>&1 &
+  sampler_pid=$!
+  trap 'kill "$sampler_pid" 2>/dev/null || true' EXIT
+fi
+
 printf '== bootstrap driver ==\n'
 printf '   seed: %s\n' "$SEED"
 printf '   target: %s\n' "$TARGET"
@@ -104,7 +122,21 @@ for step in "$STEPS"/*.sh; do
   ## for EOF and wedges the configure (seen at gmp-6.2.1's nested-variables
   ## check in gcc-10's step 55).  /dev/null gives immediate EOF so the probe
   ## fails fast and configure proceeds; no build step needs real stdin.
-  ( cd "$ROOT" && /bin/sh "$step" </dev/null )
+  if [ "$BOOT_METRICS" = 1 ]; then
+    echo "$step_name" > "$METRICS/current"
+    ( cd "$ROOT" && /usr/bin/time -l -o "$METRICS/$step_name.time" /bin/sh "$step" </dev/null )
+    ## time -l: "<real> real <user> user <sys> sys", then rusage lines; macOS
+    ## reports maximum resident set size in bytes.
+    t=$METRICS/$step_name.time
+    set -- $(sed -n 's/^ *\([0-9.]*\) real *\([0-9.]*\) user *\([0-9.]*\) sys.*/\1 \2 \3/p' "$t")
+    rss=$(sed -n 's/^ *\([0-9]*\)  *maximum resident set size.*/\1/p' "$t")
+    fp=$(sed -n 's/^ *\([0-9]*\)  *peak memory footprint.*/\1/p' "$t")
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$step_name" "${1:-}" "${2:-}" "${3:-}" \
+      "$(( ${rss:-0} / 1024 ))" "$(( ${fp:-0} / 1024 ))" >> "$METRICS/steps.tsv"
+    printf '   %ss wall, max rss %s MiB\n' "${1:-?}" "$(( ${rss:-0} / 1048576 ))"
+  else
+    ( cd "$ROOT" && /bin/sh "$step" </dev/null )
+  fi
   step_count=$((step_count + 1))
   printf '   ok\n\n'
   case "${BOOT_STOP_AFTER:-}" in
