@@ -2,7 +2,8 @@
 # SOURCE this (do not execute); it expects ROOT and TARGET in the environment
 # (set by build.sh) and defines the toolchain env + standard path variables.
 # Sourced by steps 54/55 and by scripts/gcc10-build-libgcc.sh,
-# gcc10-link-cc1.sh, gcc10-relink-xgcc.sh.  Env contract: ROOT required
+# gcc10-link-cc1.sh, gcc10-relink-xgcc.sh and gcc10-resume-make.sh.
+# Env contract: ROOT required
 # (aborts if unset); TARGET defaults to $ROOT/target.
 #
 # Everything here is from the from-seed chain — nothing from the host toolchain:
@@ -37,9 +38,13 @@ export CXXCPP="$ROOT/scripts/gxx-cpp"
 export CC_FOR_BUILD="$CC"
 export CXX_FOR_BUILD="$CXX"
 
-# GC tuning + flag rationale: see scripts/gcc10-resume-make.sh and docs/STATUS.md.
-# -O0 keeps cc1plus (running under Rosetta 2) tractable; -fpermissive downgrades
-# gcc-10's C++11 narrowing errors that gcc-4.6 cc1plus treats as hard errors.
+# -O0 without -g keeps cc1plus (running under Rosetta 2) tractable. Generated
+# files such as insn-emit.c have a ~1.2 GB live GGC heap; GCC 4.6's default
+# ~4 MB threshold causes repeated whole-heap collections. Raise the thresholds
+# to avoid GC thrashing (see docs/STATUS.md). Pass these flags on the make
+# command line to override configure-baked flags; existing -g objects are safe
+# to retain when resuming. -fpermissive downgrades GCC 10's C++11 narrowing
+# errors that GCC 4.6 cc1plus treats as hard errors.
 GCC10_GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
 export GCC10_GGC
 export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 -fpermissive $GCC10_GGC"

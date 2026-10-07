@@ -5,65 +5,16 @@
 # Maintainer tool: re-enters the step-55 build after an interruption or a
 # late-step fix without rebuilding from scratch (build.sh's driver path is
 # step 55 itself, which shares this env via scripts/gcc10-env.sh).  Env
-# contract: ROOT optional (self-locates); TARGET is fixed to $ROOT/target
-# here, so this script always operates on the repo's own build tree.
+# contract: ROOT optional (self-locates); TARGET defaults to $ROOT/target.
+# Toolchain settings are shared with steps 54/55 via gcc10-env.sh.
 # Trust: chain make/tcc/g++/boot-ar do all translation; host actions are
 # mtime normalization (touch) and one sed Makefile text edit, both
 # documented at their sites below.
 set -eu
 
 ROOT="${ROOT:-$(cd -- "$(dirname -- "$0")/.." && pwd)}"
-TARGET=$ROOT/target
-B=$TARGET/work/gcc10-all-gcc/build
-SYS=$TARGET/tcc-darwin-cc-root/include/tcc-darwin-bootstrap
-
-export LC_ALL=C
-export MACOSX_DEPLOYMENT_TARGET=10.6
-export CONFIG_SITE=$ROOT/sources/gcc10-darwin/config.site
-export TCC_DARWIN_CACHE_DIR=${TCC_DARWIN_CACHE_DIR:-$TARGET/work/.tcc-darwin-archive-cache}
-
-export CC=$TARGET/bin/tcc-darwin-cc
-export CXX=$TARGET/gcc46-cxx/bin/g++
-export CPP=$ROOT/scripts/tcc-cpp
-export CXXCPP=$ROOT/scripts/gxx-cpp
-export CC_FOR_BUILD=$CC
-export CXX_FOR_BUILD=$CXX
-# Drop -g: our cc1plus runs x86-64 under Rosetta 2 and generating DWARF debug
-# info for the huge generated files (insn-emit.c/insn-recog.c have thousands of
-# gen_* functions) costs HOURS per file (insn-emit.o was 3h48m+ at -O0 with -g,
-# 1.2G RSS).  A working xgcc-10 does not need debug symbols in its own binaries,
-# so compile without -g — this cuts per-file time several-fold and makes the
-# from-seed build practically completable.  Passed on the make command line
-# below so it overrides the configure-baked `CXXFLAGS = -g` in gcc/Makefile;
-# already-built (-g) .o are kept (mixed -g/non-g objects link fine).
-# GC tuning: the huge generated files (insn-emit.c/insn-recog.c, thousands of
-# gen_* functions) build a ~1.2 GB live GGC heap.  gcc-4.6's default
-# ggc-min-heapsize is ~4 MB, so cc1plus mark-sweeps that whole heap after nearly
-# every function -> O(n^2) GC thrash (insn-emit.c was 4h+ at -O0 with a stable
-# 1.2 GB heap stuck in the GGC mark loop; -g made no difference because the heap
-# is function trees, not debug info).  Raise the thresholds so GC almost never
-# runs during these compiles.  The g++ wrapper forwards unknown tokens to cc1plus
-# via its catch-all, so `--param NAME=VAL` reaches cc1plus directly.
-GGC="--param ggc-min-heapsize=1048576 --param ggc-min-expand=400"
-# -fpermissive: gcc-4.6 cc1plus rejects some C++11 brace-init narrowing in
-# gcc-10's source (e.g. opts-common.c:1520, long long -> int) as a hard ERROR;
-# downgrade to a warning so the build proceeds.  (-Wno-narrowing would be dropped
-# by the g++ wrapper, which strips -W*; -fpermissive forwards via the -f* rule.)
-export CXXFLAGS="-O0 -std=gnu++0x -mno-sse3 -fpermissive $GGC"
-export CFLAGS="-O0 $GGC"
-export AR=$ROOT/scripts/boot-ar
-export RANLIB=$ROOT/scripts/boot-ranlib
-# Build-side subdirs (build-x86_64-apple-darwin/libcpp, libiberty) archive
-# their .o with AR_FOR_BUILD/RANLIB_FOR_BUILD, NOT AR/RANLIB. Their Makefiles
-# default these to plain `ar`, which silently makes an empty archive from our
-# ELF members (only __.SYMDEF, zero members) -> "Target label _ZNK... not valid"
-# when genmatch links libcpp.a. Force the boot-ar/boot-ranlib shims here too.
-export AR_FOR_BUILD=$ROOT/scripts/boot-ar
-export RANLIB_FOR_BUILD=$ROOT/scripts/boot-ranlib
-export NM=/usr/bin/nm
-export STRIP=/usr/bin/strip
-export LIPO=/usr/bin/lipo
-export OTOOL=/usr/bin/otool
+. "$ROOT/scripts/gcc10-env.sh"
+B="$GCC10_BUILD"
 
 # NB: we deliberately do NOT delete any sub-configure config.cache/config.status
 # here. The depmode probe is handled for good (config.site pins the host subdirs;
@@ -78,9 +29,8 @@ export OTOOL=/usr/bin/otool
 # (which is not installed) -> "automake-1.17: command not found". Equal mtimes
 # across the tree disable the entire maintainer-mode regen chain (configure:
 # configure.ac, Makefile.in: Makefile.am, aclocal.m4: *.m4 all become "not newer").
-SRC=$TARGET/gcc10-source
-if [ -d "$SRC" ]; then
-  find "$SRC" -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
+if [ -d "$GCC10_SRC" ]; then
+  find "$GCC10_SRC" -print0 | xargs -0 touch -t 202601010000 2>/dev/null || true
 fi
 
 # Force build-side archives to use boot-ar. The build-x86_64-apple-darwin/libcpp
@@ -96,8 +46,8 @@ for mk in "$B"/build-*/libcpp/Makefile; do
 done
 
 cd "$B"
-exec "${MAKE:-$TARGET/bin/make}" all-gcc -j1 MAKEINFO=true \
-  NATIVE_SYSTEM_HEADER_DIR="$SYS" \
+exec "$MAKE" all-gcc -j1 MAKEINFO=true \
+  NATIVE_SYSTEM_HEADER_DIR="$GCC10_SYS" \
   CPP="$CPP" CXXCPP="$CXXCPP" AR="$AR" RANLIB="$RANLIB" NM="$NM" \
   AR_FOR_BUILD="$AR_FOR_BUILD" RANLIB_FOR_BUILD="$RANLIB_FOR_BUILD" \
   CFLAGS="$CFLAGS" CXXFLAGS="$CXXFLAGS"
