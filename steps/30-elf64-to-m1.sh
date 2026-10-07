@@ -45,8 +45,9 @@ hex2 \
   -f elf64-to-m1.hex2 \
   -o elf64-to-m1
 
-## Pad the file to 0x2800000 (40 MiB) — the extent declared by the
-## fixed Mach-O template's load commands.
-dd if=/dev/zero of=elf64-to-m1 bs=1 count=1 seek=41943039 conv=notrunc 2>/dev/null || true
+## Pad to this template's __LINKEDIT file offset (16 MiB), not the
+## lowdata template's 40 MiB extent. Extra unowned padding makes
+## codesign_allocate reject an otherwise valid chain-built executable.
+dd if=/dev/zero of=elf64-to-m1 bs=1 count=1 seek=16777215 conv=notrunc 2>/dev/null
 chmod +x elf64-to-m1
 install elf64-to-m1 "$TARGET/bin/elf64-to-m1"

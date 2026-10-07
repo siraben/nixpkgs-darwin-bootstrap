@@ -35,8 +35,8 @@ catm-darwin combined.M0 \
 M0-darwin combined.M0 combined.hex2
 catm-darwin final.hex2 "$SOURCES/MACHO-amd64.hex2" combined.hex2
 hex2-darwin final.hex2 "$TARGET/bin/macho-patcher"
-## Pad to 0x2800000 bytes like the other chain binaries.  This
-## template's __LINKEDIT sits at file offset 0x1000000, inside the
-## padded extent.
-dd if=/dev/zero of="$TARGET/bin/macho-patcher" bs=1 count=1 seek=41943039 conv=notrunc
+## Pad to this template's declared __LINKEDIT file offset (16 MiB).
+## The lowdata template's 40 MiB boundary leaves an unowned 24 MiB gap
+## here and prevents strict code-signature validation.
+dd if=/dev/zero of="$TARGET/bin/macho-patcher" bs=1 count=1 seek=16777215 conv=notrunc
 chmod +x "$TARGET/bin/macho-patcher"
