@@ -65,9 +65,41 @@ checks compiler/runtime goals, and stops on failure or insufficient disk space.
 Its default single pair is descriptive only, not statistically conclusive.
 
 
-The earlier unsigned from-seed run took about eight hours, including GCC 4.6,
-C++/libstdc++, GCC 10 and the core-runtime retry; see [STATUS.md](STATUS.md).
-It is a historical baseline, not five clean timing samples. A signed run must
-still pass the compiler and core-runtime goal tests before any full-chain
-performance conclusion can be drawn. No large end-to-end speedup is established
-by the component measurements above.
+### Completed clean pair (2026-10-07/08)
+
+Both variants built from seed using the same isolated source revision
+`4cefc2cbb75b5c94cb291f9ce8a7c3557382f252`, with fresh per-variant targets and
+caches. Both include sparse catm padding and the corrected Mach-O extents;
+this pair isolates signed execution, not all optimization changes.
+
+| Variant | Full build wall time | User CPU | System CPU | Goal checks |
+|---|---:|---:|---:|---:|
+| Unsigned | 29,450.30 s (8h10m50s) | 14,035.26 s | 14,952.98 s | 9.97 s, passed |
+| Signed | 29,733.03 s (8h15m33s) | 14,097.47 s | 15,432.32 s | 9.72 s, passed |
+
+Signed execution took **282.73 s longer (+0.96%)** in this pair. There is no
+measured end-to-end speedup here; the small launch-only differences did not
+translate into a faster complete bootstrap. Keep signing opt-in rather than
+promoting it as a speed optimization. This is one descriptive pair: run order,
+host state and ordinary variation prevent a statistically conclusive claim
+about a difference this small.
+
+Both builds produced 134-member core runtime archives, passed recursion and
+signed/unsigned 128-bit division tests with bootstrap-archive link-map checks,
+and left their tracked source tree unchanged. The signed TinyCC, GCC 10 `cc1`
+and `xgcc` also passed strict signature verification after the build.
+
+The initial harness stopped after the successful unsigned build and tests
+because its restricted PATH hid `git-lfs` during the source audit. That audit
+was rerun successfully with the maintainer PATH, and the signed variant was
+started later from the unchanged source revision. The gap between runs is not
+included in the reported build times. Fetching/verifying inputs is also outside
+the timing boundary; signing work is inside it. The harness now preserves the
+maintainer PATH for Git audits without exposing it to bootstrap commands.
+
+Raw per-stage timings, total resource usage, test logs, exit statuses and source
+revision are retained under
+[`benchmarks/2026-10-07/e2e/`](benchmarks/2026-10-07/e2e/). Full build logs and
+both output trees remain at `/tmp/darwin-e2e-pair-2026-10-07/` on the test host.
+The earlier approximately eight-hour run in [STATUS.md](STATUS.md) is historical
+context, not an additional matched timing sample.

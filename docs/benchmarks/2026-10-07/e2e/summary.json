@@ -1,0 +1,38 @@
+{
+  "source_revision": "4cefc2cbb75b5c94cb291f9ce8a7c3557382f252",
+  "pairs": 1,
+  "order": [
+    "unsigned",
+    "signed"
+  ],
+  "runs": {
+    "unsigned": {
+      "build_wall_s": 29450.3,
+      "build_user_s": 14035.26,
+      "build_sys_s": 14952.98,
+      "goal_wall_s": 9.97,
+      "build_exit": 0,
+      "goal_exit": 0,
+      "core_archive_members": 134,
+      "source_diff_empty": true
+    },
+    "signed": {
+      "build_wall_s": 29733.03,
+      "build_user_s": 14097.47,
+      "build_sys_s": 15432.32,
+      "goal_wall_s": 9.72,
+      "build_exit": 0,
+      "goal_exit": 0,
+      "core_archive_members": 134,
+      "source_diff_empty": true
+    }
+  },
+  "signed_minus_unsigned_s": 282.72999999999956,
+  "signed_change_percent": 0.9600241763241786,
+  "caveats": [
+    "One descriptive pair, not a statistically conclusive speed comparison.",
+    "The post-unsigned source audit lost git-lfs from PATH. It was rerun successfully with the maintainer PATH; signed continuation used the same unchanged source revision.",
+    "Build timings exclude input fetch/verification and the separately timed executable goal checks.",
+    "Both builds include sparse catm padding and corrected Mach-O extents; this pair isolates signed execution, not all optimization changes."
+  ]
+}

@@ -1,0 +1,7 @@
+clang: warning: overriding deployment version from '16.0' to '26.0' [-Woverriding-deployment-version]
+-macosx_version_min has been renamed to -macos_version_min
+ld: warning: object file (/private/var/folders/lj/fzbygbp11n3g64qh3ntwqtc80000gn/T/cccaaaaa.o) was built for newer 'macOS' version (26.0) than being linked (16.0)
+clang: warning: overriding deployment version from '16.0' to '26.0' [-Woverriding-deployment-version]
+-macosx_version_min has been renamed to -macos_version_min
+ld: warning: object file (/private/var/folders/lj/fzbygbp11n3g64qh3ntwqtc80000gn/T/cccaaaaa.o) was built for newer 'macOS' version (26.0) than being linked (16.0)
+GOAL PASS: from-seed xgcc-10 compiled & ran C and core libgcc division (both returned 7)
