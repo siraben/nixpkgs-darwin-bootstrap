@@ -15,6 +15,10 @@ case "$samples" in ''|*[!0-9]*) echo "invalid sample count" >&2; exit 1 ;; esac
 git -C "$ROOT" diff --quiet
 git -C "$ROOT" diff --cached --quiet
 revision=$(git -C "$ROOT" rev-parse HEAD)
+# Git's clean filters may need git-lfs from the maintainer environment. Do
+# not run source audits under the deliberately restricted bootstrap PATH.
+maintenance_path=$PATH
+maintenance_git=$(command -v git)
 mkdir -p "$results"
 printf '%s\n' "$revision" > "$results/revision"
 uname -a > "$results/host.txt"
@@ -69,7 +73,7 @@ while [ "$sample" -le "$samples" ]; do
     [ "$build_rc" -eq 0 ] || exit "$build_rc"
     [ "$goal_rc" -eq 0 ] || exit "$goal_rc"
     /bin/sh "$source_root/scripts/boot-metrics-report.sh" "$TARGET/metrics" > "$run/stages.txt"
-    git -C "$source_root" diff --exit-code > "$run/source.diff"
+    PATH="$maintenance_path" "$maintenance_git" -C "$source_root" diff --exit-code > "$run/source.diff"
     printf 'Passed sample %s %s\n' "$sample" "$variant"
   done
   sample=$((sample + 1))
